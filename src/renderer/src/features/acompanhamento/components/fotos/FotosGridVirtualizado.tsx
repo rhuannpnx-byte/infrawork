@@ -51,6 +51,19 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
     return () => { canceled = true }
   }, [rowVirtualizer, fotos, cols])
 
+  const fotoHover = hover ? fotos.find((f) => f.id === hover.fotoId) ?? null : null
+  const urlHover = fotoHover ? urls[fotoHover.id] ?? null : null
+
+  // Garante que a URL da foto em hover está sendo carregada
+  useEffect(() => {
+    if (!fotoHover || urlHover) return
+    let canceled = false
+    void getSignedUrls([fotoHover.id]).then((r) => {
+      if (!canceled) setUrls((cur) => ({ ...cur, ...r }))
+    })
+    return () => { canceled = true }
+  }, [fotoHover, urlHover])
+
   if (loading && fotos.length === 0) {
     return (
       <div className="grid grid-cols-2 gap-1 p-2">
@@ -63,19 +76,6 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
   if (fotos.length === 0) {
     return <div className="p-4 text-text-dim text-2xs font-mono text-center">Sem fotos</div>
   }
-
-  const fotoHover = hover ? fotos.find((f) => f.id === hover.fotoId) : null
-  const urlHover = fotoHover ? urls[fotoHover.id] : null
-
-  // Garante que a URL da foto em hover está sendo carregada
-  useEffect(() => {
-    if (!fotoHover || urlHover) return
-    let canceled = false
-    void getSignedUrls([fotoHover.id]).then((r) => {
-      if (!canceled) setUrls((cur) => ({ ...cur, ...r }))
-    })
-    return () => { canceled = true }
-  }, [fotoHover, urlHover])
 
   return (
     <div ref={containerRef} className="h-full overflow-auto px-1 py-1">
