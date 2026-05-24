@@ -112,7 +112,7 @@ export function LoginPage(): ReactNode {
         </Button>
 
         <div className="mt-4 pt-3 border-t border-border text-2xs font-mono text-text-dim text-center">
-          v0.1.0
+          v{__APP_VERSION__}
         </div>
       </form>
     </div>

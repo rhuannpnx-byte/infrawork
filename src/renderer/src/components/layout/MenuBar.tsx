@@ -38,7 +38,7 @@ export function MenuBar(): ReactNode {
 
       {/* Right: version + user menu */}
       <div className="flex items-center gap-3 text-2xs font-mono text-text-dim">
-        <span>v0.1.0</span>
+        <span title="Versão do app">v{__APP_VERSION__}</span>
         <UserMenu />
       </div>
     </div>

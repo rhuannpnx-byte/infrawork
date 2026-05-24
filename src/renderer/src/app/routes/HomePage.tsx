@@ -183,7 +183,7 @@ export function HomePage(): ReactNode {
         </section>
 
         <footer className="mt-auto pt-2 border-t border-border text-2xs font-mono text-text-dim text-center shrink-0">
-          InfraWork · v0.1.0
+          InfraWork · v{__APP_VERSION__}
         </footer>
       </div>
     </div>

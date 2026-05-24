@@ -99,8 +99,8 @@ export function SettingsDialog(): ReactNode {
           ) : (
             <div className="space-y-1 text-xs text-text-muted">
               <div className="text-sm text-text font-semibold mb-2">InfraWork</div>
-              <div>Versão 0.1.0 (scaffold)</div>
-              <div>Build local · Electron · React 19 · TypeScript</div>
+              <div>Versão {__APP_VERSION__}</div>
+              <div>Electron · React 19 · TypeScript</div>
               <div className="mt-3 text-text-dim font-mono text-2xs">© 2026 TECPAV — todos os direitos reservados.</div>
             </div>
           )}
