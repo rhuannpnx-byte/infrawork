@@ -11,8 +11,6 @@
 1. Acesse a página de releases: <https://github.com/rhuannpnx-byte/infrawork/releases/latest>
 2. Na seção **Assets**, baixe o arquivo **`InfraWork-Setup-X.Y.Z.exe`** (o que termina em `.exe`).
 
-> Se o link der "404 — não autorizado", peça ao administrador para te dar acesso ao repositório (o instalador em si é público, mas o link do release exige conta GitHub logada). Alternativamente, peça o `.exe` por outro canal (Drive, email).
-
 ## Instalar
 
 1. Dê duplo clique no `InfraWork-Setup-X.Y.Z.exe`.

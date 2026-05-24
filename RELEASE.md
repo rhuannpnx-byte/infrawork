@@ -59,7 +59,7 @@ gh release delete v0.1.1-test --yes --cleanup-tag
 
 ## Decisões / observações
 
-- **Repo é privado, mas os assets do Release são públicos** — é o que permite o auto-updater funcionar sem token embutido no app. Não mude isso a menos que esteja preparado para integrar autenticação no updater.
+- **Repo é público** — necessário pra que o `electron-updater` rodando na máquina dos beta-testers consiga baixar `latest.yml` e `.exe` sem token. Segredos sensíveis (service role Supabase, db password) seguem só no `.env` local (gitignored) e nos secrets do GitHub Actions.
 - **`releaseType: draft`** no `electron-builder.yml` garante que toda release sai como rascunho — você sempre tem chance de revisar antes de notificar os usuários.
 - **Sem code signing** — `.exe` não assinado. Usuários novos veem alerta SmartScreen "Editor desconhecido" na 1ª instalação. Resolvível depois com certificado (Sectigo ~$200/ano ou Azure Trusted Signing).
 - **Auto-update verifica a cada 4h** enquanto o app fica aberto, além da checagem inicial no startup. O usuário pode forçar via `window.infrawork.updater.check()` (sem UI ainda).
