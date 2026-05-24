@@ -1,4 +1,5 @@
 import {
+  createHashHistory,
   createRootRoute,
   createRoute,
   createRouter,
@@ -305,9 +306,13 @@ const acompanhamentoTree = acompanhamentoLayout.addChildren([
 
 const routeTree = rootRoute.addChildren([indexRoute, gerencialTree, orcamentoTree, planejamentoTree, acompanhamentoTree])
 
+// HashHistory: necessario em producao (Electron carrega via file://, onde
+// browser history nao consegue resolver `/` — pathname vira o caminho do
+// arquivo no disco e cai sempre em Not Found).
 export const router = createRouter({
   routeTree,
-  defaultPreload: 'intent'
+  defaultPreload: 'intent',
+  history: createHashHistory()
 })
 
 declare module '@tanstack/react-router' {
