@@ -1,10 +1,13 @@
 import { useEffect, type ReactNode } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUpdateNotifier } from '@/hooks/useUpdateNotifier'
 import { LoginPage } from './routes/LoginPage'
 
 export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   const status = useAuthStore((s) => s.status)
   const bootstrap = useAuthStore((s) => s.bootstrap)
+
+  useUpdateNotifier()
 
   useEffect(() => {
     if (status === 'idle') void bootstrap()

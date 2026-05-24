@@ -19,6 +19,20 @@ const infrawork = {
     parseCpuExcel: (params: { path: string }) =>
       ipcRenderer.invoke('orcamento:parse-cpu-excel', params),
     lerArquivoBytes: (path: string) => ipcRenderer.invoke('orcamento:upload-arquivo-bytes', path)
+  },
+  updater: {
+    check: () => ipcRenderer.invoke('update:check'),
+    quitAndInstall: () => ipcRenderer.send('update:quit-and-install'),
+    onAvailable: (cb: (info: { version: string }) => void) => {
+      const listener = (_e: unknown, info: { version: string }): void => cb(info)
+      ipcRenderer.on('update:available', listener)
+      return () => ipcRenderer.removeListener('update:available', listener)
+    },
+    onDownloaded: (cb: (info: { version: string }) => void) => {
+      const listener = (_e: unknown, info: { version: string }): void => cb(info)
+      ipcRenderer.on('update:downloaded', listener)
+      return () => ipcRenderer.removeListener('update:downloaded', listener)
+    }
   }
 }
 

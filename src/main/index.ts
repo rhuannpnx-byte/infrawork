@@ -3,6 +3,7 @@ import { join } from 'path'
 import { readFile, stat } from 'node:fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
+import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { parseExcelFile, type ParseMapping } from './import/parse-excel'
 import { parseCpuExcelFile } from './import/parse-cpu-excel'
@@ -274,6 +275,50 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+
+  // Auto-update via GitHub Releases. Em dev pulamos porque o electron-builder
+  // só injeta `app-update.yml` em builds empacotados.
+  if (!is.dev) {
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+
+    autoUpdater.on('update-available', (info) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('update:available', { version: info.version })
+      }
+    })
+    autoUpdater.on('update-downloaded', (info) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        w.webContents.send('update:downloaded', { version: info.version })
+      }
+    })
+    autoUpdater.on('error', (err) => {
+      console.warn('[updater] erro:', err?.message ?? err)
+    })
+
+    // Check inicial + a cada 4h enquanto o app estiver aberto.
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.warn('[updater] check inicial falhou:', err?.message ?? err)
+    })
+    setInterval(
+      () => {
+        autoUpdater.checkForUpdates().catch(() => {})
+      },
+      4 * 60 * 60 * 1000
+    )
+
+    ipcMain.handle('update:check', async () => {
+      try {
+        const r = await autoUpdater.checkForUpdates()
+        return { ok: true, version: r?.updateInfo?.version ?? null }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    })
+    ipcMain.on('update:quit-and-install', () => {
+      autoUpdater.quitAndInstall()
+    })
+  }
 })
 
 app.on('window-all-closed', () => {

@@ -125,6 +125,12 @@ interface InfraworkAPI {
     }) => Promise<{ ok: true; result: OrcamentoParseCpuResult } | { ok: false; error: string }>
     lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
   }
+  updater: {
+    check: () => Promise<{ ok: true; version: string | null } | { ok: false; error: string }>
+    quitAndInstall: () => void
+    onAvailable: (cb: (info: { version: string }) => void) => () => void
+    onDownloaded: (cb: (info: { version: string }) => void) => () => void
+  }
 }
 
 declare global {

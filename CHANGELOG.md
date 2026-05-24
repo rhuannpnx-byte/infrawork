@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.0] - 2026-05-24
+
+Primeira release beta distribuída. Pipeline de auto-update via GitHub Releases ativo.
+
+### Disponível nesta release
+
+- **Home** — página inicial com seleção de módulos, contexto atual (empresa/obra/papel) e branding InfraWork.
+- **Módulo Gerencial** — CRUD de empresas, usuários, obras e permissões; controle granular por papel (God / Adm / Engenheiro / Apoio).
+- **Módulo Orçamento** — recursos, serviços, CPUs, planilha orçamentária, indireto, lucratividade, revisões versionadas. Importação via Excel.
+- **Módulo Planejamento** — cronograma físico (Gantt), calendários, equipes, dependências, curva-S baseline imutável, comparativo entre revisões.
+- **Módulo Acompanhamento** — vínculo obra↔SIGA com sync horário de produção e fotos georreferenciadas. Dashboard estratégico, previsto×realizado, mapa satélite com clusters de fotos, motor de alertas de desvio com regras configuráveis.
+- **Auto-update** — verifica releases no startup e a cada 4h; baixa em background; toast pra reiniciar quando pronto.
+
+### Infraestrutura
+
+- Build Windows x64 via electron-builder + NSIS, publicado em GitHub Releases por workflow do GitHub Actions ao push de tag `v*.*.*`.
+- Bundle 4.8 MB (renderer) + ícone/wordmark InfraWork integrados ao instalador.
+
 ## Não lançado — Módulo Gerencial (2026-05-22)
 
 Primeiro módulo real ligado às Edge Functions deployadas. Implementa o CRUD básico do RBAC: empresas, usuários, obras e permissões.
