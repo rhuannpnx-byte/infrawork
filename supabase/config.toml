@@ -1,0 +1,88 @@
+# Supabase local CLI config
+# https://supabase.com/docs/guides/cli/config
+
+project_id = "infrawork"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://localhost:5173"
+]
+jwt_expiry = 3600
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = false
+
+[edge_runtime]
+enabled = true
+
+[functions.create-empresa]
+verify_jwt = true
+
+[functions.create-usuario]
+verify_jwt = true
+
+[functions.create-obra]
+verify_jwt = true
+
+[functions.grant-obra-permissao]
+verify_jwt = true
+
+[functions.revoke-obra-permissao]
+verify_jwt = true
+
+[functions.me]
+verify_jwt = true
+
+[functions.recalcular-orcamento]
+verify_jwt = true
+
+[functions.snapshot-cpu-no-item]
+verify_jwt = true
+
+[functions.atualizar-itens-para-cpu-vigente]
+verify_jwt = true
+
+[functions.copiar-bloco-de-obra]
+verify_jwt = true
+
+[functions.criar-revisao-orcamento]
+verify_jwt = true
+
+[functions.transicionar-status-revisao]
+verify_jwt = true
+
+[functions.import-iniciar]
+verify_jwt = true
+
+[functions.import-decidir-match]
+verify_jwt = true
+
+[functions.import-aplicar]
+verify_jwt = true

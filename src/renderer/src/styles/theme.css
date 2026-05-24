@@ -1,0 +1,63 @@
+:root {
+  /* Backgrounds */
+  --bg: #08090b;
+  --bg-tabs: #0a0b0e;
+  --bg-menu: #0c0e12;
+  --bg-rail: #0a0b0e;
+  --bg-panel: #0f1116;
+  --bg-elevated: #14171f;
+  --bg-hover: #1a1e28;
+  --bg-active: #1f242f;
+
+  /* Borders */
+  --border: #1b1e26;
+  --border-strong: #262a35;
+  --border-accent: #2d3340;
+
+  /* Text */
+  --text: #e8ebef;
+  --text-muted: #8b909a;
+  --text-dim: #5b6068;
+  --text-faint: #3d4148;
+
+  /* Accent */
+  --accent: #4d8eff;
+  --accent-hover: #66a0ff;
+  --accent-glow: rgba(77, 142, 255, 0.12);
+  --accent-glow-strong: rgba(77, 142, 255, 0.2);
+  --accent-line: rgba(77, 142, 255, 0.4);
+
+  /* Status */
+  --success: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+
+  /* Module colors */
+  --module-orcamento: var(--accent);
+  --module-planejamento: #67e8f9;
+  --module-acompanhamento: #4ade80;
+  --module-medicoes: #fbbf24;
+  --module-suprimentos: #a78bfa;
+  --module-equipe: #f472b6;
+  --module-documentos: #94a3b8;
+
+  /* shadcn tokens mapped to our palette */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-panel);
+  --card-foreground: var(--text);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: #0a0b0e;
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --accent-bg: var(--bg-hover);
+  --destructive: var(--danger);
+  --destructive-foreground: #0a0b0e;
+  --input: var(--bg-elevated);
+  --ring: var(--accent);
+  --radius: 4px;
+}

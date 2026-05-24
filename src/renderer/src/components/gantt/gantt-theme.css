@@ -1,0 +1,134 @@
+/* Frappe Gantt — dark theme overrides */
+
+.gantt-target {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--bg-panel);
+}
+
+.gantt-target .gantt {
+  background: var(--bg-panel);
+}
+
+.gantt-target .grid-background {
+  fill: var(--bg-panel);
+}
+
+.gantt-target .grid-header {
+  fill: var(--bg-elevated);
+  stroke: var(--border);
+}
+
+.gantt-target .grid-row {
+  fill: var(--bg-panel);
+}
+
+.gantt-target .grid-row:nth-child(even) {
+  fill: var(--bg);
+}
+
+.gantt-target .row-line {
+  stroke: var(--border);
+}
+
+.gantt-target .tick {
+  stroke: var(--border);
+  shape-rendering: crispEdges;
+}
+
+.gantt-target .tick.thick {
+  stroke: var(--border-strong);
+}
+
+.gantt-target .today-highlight {
+  fill: var(--accent-glow-strong);
+  opacity: 0.45;
+}
+
+.gantt-target .upper-text,
+.gantt-target .lower-text {
+  fill: var(--text-muted);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gantt-target .bar-wrapper .bar {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.gantt-target .bar-wrapper .bar-progress {
+  fill: var(--accent-hover);
+}
+
+.gantt-target .bar-wrapper:hover .bar {
+  fill: var(--accent-hover);
+}
+
+.gantt-target .bar-wrapper.critical .bar {
+  fill: var(--danger);
+  stroke: var(--danger);
+}
+.gantt-target .bar-wrapper.critical .bar-progress {
+  fill: rgba(248, 113, 113, 0.7);
+}
+
+.gantt-target .bar-wrapper.milestone .bar {
+  fill: var(--warn);
+  stroke: var(--warn);
+}
+
+.gantt-target .bar-label {
+  fill: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.gantt-target .bar-label.big {
+  fill: var(--text);
+}
+
+.gantt-target .arrow {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 1.2;
+}
+
+.gantt-target .handle {
+  fill: var(--text-muted);
+  cursor: ew-resize;
+  opacity: 0;
+}
+
+.gantt-target .bar-wrapper:hover .handle {
+  opacity: 1;
+}
+
+.gantt-target .popup-wrapper {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  padding: 8px 10px;
+}
+
+.gantt-target .popup-wrapper .title {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.gantt-target .popup-wrapper .subtitle {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.gantt-target .popup-wrapper .pointer {
+  fill: var(--bg-elevated);
+  stroke: var(--border-strong);
+}
