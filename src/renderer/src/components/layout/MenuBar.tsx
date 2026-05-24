@@ -3,6 +3,7 @@ import { Check, Star, ChevronDown, LogOut, User, Building2, Folder } from 'lucid
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useEmpresas } from '@/features/gerencial/hooks'
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '@/components/ui/dropdown'
 import { cn } from '@/lib/utils'
 
@@ -49,13 +50,12 @@ function ScopePill(): ReactNode {
   const openModal = useUIStore((s) => s.openModal)
   const empresa = useAuthStore((s) => s.empresa) // empresa do profile (Adm/Eng/Apoio)
   const scope = useCurrentScope()
+  // God não tem `empresa` no profile — busca pelo id no catálogo
+  const { data: empresasList = [] } = useEmpresas()
+  const empresaSelecionada = empresa
+    ?? (scope.empresaId ? empresasList.find((e) => e.id === scope.empresaId) ?? null : null)
 
-  // Texto que aparece na pill
-  const empresaLabel = empresa
-    ? empresa.nome
-    : scope.empresaId
-      ? scope.empresaId.slice(0, 8) + '…'
-      : null
+  const empresaLabel = empresaSelecionada?.nome ?? null
 
   const obraLabel = scope.obra ? `${scope.obra.codigo}` : null
   const obraNome = scope.obra?.nome
