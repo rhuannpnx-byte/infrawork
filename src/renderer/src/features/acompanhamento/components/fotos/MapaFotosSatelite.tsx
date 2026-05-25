@@ -1,6 +1,7 @@
-import { type ReactNode, useEffect, useMemo, useRef } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import Supercluster from 'supercluster'
 import type { FotoEnriquecida } from '@/types/acompanhamento'
+import { FotoMapHoverCard, type PinFoto } from './FotoMapHoverCard'
 
 interface Props {
   fotos: FotoEnriquecida[]
@@ -8,6 +9,8 @@ interface Props {
   /** Quando muda, força invalidateSize do mapa (útil quando container resize). */
   layoutKey?: string
 }
+
+interface HoverState { pos: { x: number; y: number }; fotos: PinFoto[] }
 
 let LeafletModule: typeof import('leaflet') | null = null
 async function loadLeaflet(): Promise<typeof import('leaflet')> {
@@ -32,6 +35,20 @@ export function MapaFotosSatelite({ fotos, onPickFoto, layoutKey }: Props): Reac
   const supRef = useRef<Supercluster<ClusterPointProps> | null>(null)
   const onPickRef = useRef(onPickFoto)
   onPickRef.current = onPickFoto
+  const [hover, setHover] = useState<HoverState | null>(null)
+
+  // Mapa por idx para resolver hover (single pin)
+  const fotosByIdx = useMemo(() => {
+    const m = new Map<number, FotoEnriquecida>()
+    for (let i = 0; i < fotos.length; i++) m.set(i, fotos[i])
+    return m
+  }, [fotos])
+  const toPinFoto = (f: FotoEnriquecida): PinFoto => ({
+    id: f.id,
+    captured_at: f.captured_at,
+    servico_display_nome: f.servico_display_nome,
+    siga_servico_nome: f.siga_servico_nome
+  })
 
   type Valida = Omit<FotoEnriquecida, 'lat' | 'lng'> & { lat: number; lng: number; _idx: number }
   const validas = useMemo<Valida[]>(
@@ -104,8 +121,29 @@ export function MapaFotosSatelite({ fotos, onPickFoto, layoutKey }: Props): Reac
               iconAnchor: [tam / 2, tam / 2]
             })
             const m = L.marker([lat, lng], { icon })
+            const clusterId = c.id as number
+            m.on('mouseover', (ev) => {
+              const me = ev as unknown as { originalEvent: MouseEvent }
+              // Pega ate 30 leaves do cluster (offset 0)
+              const leaves = sup.getLeaves(clusterId, 30, 0)
+              const fotosCluster: PinFoto[] = leaves.flatMap((l) => {
+                const idx = (l.properties as ClusterPointProps).fotoIdx
+                if (idx == null) return []
+                const f = fotosByIdx.get(idx)
+                return f ? [toPinFoto(f)] : []
+              })
+              if (fotosCluster.length > 0) {
+                setHover({ pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 }, fotos: fotosCluster })
+              }
+            })
+            m.on('mousemove', (ev) => {
+              const me = ev as unknown as { originalEvent: MouseEvent }
+              setHover((prev) => prev ? { ...prev, pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 } } : prev)
+            })
+            m.on('mouseout', () => setHover(null))
             m.on('click', () => {
-              const expansionZoom = Math.min(sup.getClusterExpansionZoom(c.id as number), 18)
+              setHover(null)
+              const expansionZoom = Math.min(sup.getClusterExpansionZoom(clusterId), 18)
               map.setView([lat, lng], expansionZoom, { animate: true })
             })
             m.addTo(lay)
@@ -118,8 +156,22 @@ export function MapaFotosSatelite({ fotos, onPickFoto, layoutKey }: Props): Reac
               iconAnchor: [7, 7]
             })
             const m = L.marker([lat, lng], { icon })
+            const idxFoto = c.properties.fotoIdx
+            m.on('mouseover', (ev) => {
+              const me = ev as unknown as { originalEvent: MouseEvent }
+              if (idxFoto == null) return
+              const f = fotosByIdx.get(idxFoto)
+              if (!f) return
+              setHover({ pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 }, fotos: [toPinFoto(f)] })
+            })
+            m.on('mousemove', (ev) => {
+              const me = ev as unknown as { originalEvent: MouseEvent }
+              setHover((prev) => prev ? { ...prev, pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 } } : prev)
+            })
+            m.on('mouseout', () => setHover(null))
             m.on('click', () => {
-              if (c.properties.fotoIdx != null) onPickRef.current(c.properties.fotoIdx)
+              setHover(null)
+              if (idxFoto != null) onPickRef.current(idxFoto)
             })
             m.addTo(lay)
           }
@@ -195,6 +247,9 @@ export function MapaFotosSatelite({ fotos, onPickFoto, layoutKey }: Props): Reac
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-text-dim text-xs font-mono">
           Nenhuma foto com GPS no filtro atual
         </div>
+      )}
+      {hover && hover.fotos.length > 0 && (
+        <FotoMapHoverCard fotos={hover.fotos} position={hover.pos} />
       )}
     </div>
   )

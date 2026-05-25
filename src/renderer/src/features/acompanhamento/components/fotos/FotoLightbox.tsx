@@ -3,7 +3,10 @@ import Lightbox from 'yet-another-react-lightbox'
 import Captions from 'yet-another-react-lightbox/plugins/captions'
 import 'yet-another-react-lightbox/styles.css'
 import 'yet-another-react-lightbox/plugins/captions.css'
-import { getSignedUrls } from '@/features/acompanhamento/hooks/fotos'
+import { Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { getSignedUrls, useDeleteFotos } from '@/features/acompanhamento/hooks/fotos'
+import { useAuthStore } from '@/stores/auth-store'
 import type { FotoEnriquecida } from '@/types/acompanhamento'
 
 interface Props {
@@ -15,6 +18,9 @@ interface Props {
 
 export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): ReactNode {
   const [urls, setUrls] = useState<Record<string, string>>({})
+  const role = useAuthStore((s) => s.profile?.role ?? null)
+  const podeDeletar = role === 'god' || role === 'adm'
+  const deleteMut = useDeleteFotos()
 
   // Pré-carrega URLs assinadas das fotos visíveis (atual + vizinhas)
   useEffect(() => {
@@ -48,6 +54,24 @@ export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): R
   )
 
   if (index == null) return null
+  const idx = index
+  const fotoAtual = fotos[idx]
+
+  async function handleDelete(): Promise<void> {
+    if (!fotoAtual) return
+    const ok = window.confirm(
+      `Excluir esta foto definitivamente?\n\n${fotoAtual.servico_display_nome ?? fotoAtual.siga_servico_nome ?? 'Foto'}\n${fotoAtual.captured_at ? new Date(fotoAtual.captured_at).toLocaleString('pt-BR') : ''}\n\nA acao remove o arquivo do bucket. Nao da pra desfazer.`
+    )
+    if (!ok) return
+    try {
+      const r = await deleteMut.mutateAsync({ fotoIds: [fotoAtual.id] })
+      toast.success(`Foto excluida (${r.removidas} removida${r.removidas !== 1 ? 's' : ''})`)
+      if (fotos.length <= 1) onClose()
+      else onIndexChange?.(Math.min(idx, fotos.length - 2))
+    } catch (e) {
+      toast.error(`Falha ao excluir: ${(e as Error).message}`)
+    }
+  }
 
   return (
     <Lightbox
@@ -57,6 +81,26 @@ export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): R
       slides={slides}
       plugins={[Captions]}
       on={{ view: ({ index: i }) => onIndexChange?.(i) }}
+      toolbar={{
+        buttons: [
+          ...(podeDeletar
+            ? [
+                <button
+                  key="delete-foto"
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleteMut.isPending}
+                  className="yarl__button"
+                  title="Excluir foto (god/adm)"
+                  style={{ color: '#f87171' }}
+                >
+                  <Trash2 size={20} />
+                </button>
+              ]
+            : []),
+          'close'
+        ]
+      }}
     />
   )
 }

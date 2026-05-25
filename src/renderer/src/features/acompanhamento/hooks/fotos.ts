@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { adminApi } from '@/lib/supabase/functions'
 import type {
@@ -122,6 +122,29 @@ export async function getSignedUrls(ids: string[]): Promise<Record<string, strin
     if (c) out[id] = c.url
   }
   return out
+}
+
+/** Mutation: marca fotos como excluidas (god/adm) + remove do bucket. */
+export function useDeleteFotos(): ReturnType<typeof useMutation<
+  { ok: boolean; removidas: number; ja_excluidas: number; warnings?: string[] },
+  Error,
+  { fotoIds: string[] }
+>> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ fotoIds }) => {
+      return await adminApi.acompanhamentoFotoDelete({ foto_ids: fotoIds })
+    },
+    onSuccess: (_data, { fotoIds }) => {
+      // Limpa URLs assinadas em cache pra essas fotos
+      for (const id of fotoIds) urlCache.delete(id)
+      // Invalida queries de listagem e geo
+      void qc.invalidateQueries({ queryKey: ['acompanhamento', 'fotos'] })
+      void qc.invalidateQueries({ queryKey: ['acompanhamento', 'fotos-geo'] })
+      void qc.invalidateQueries({ queryKey: ['acompanhamento', 'signed-urls'] })
+      void qc.invalidateQueries({ queryKey: ['acompanhamento', 'dashboard-resumo'] })
+    }
+  })
 }
 
 export function useSignedUrls(ids: string[]): {

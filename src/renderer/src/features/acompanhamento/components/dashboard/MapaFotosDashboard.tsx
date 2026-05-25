@@ -1,11 +1,10 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import Supercluster from 'supercluster'
-import { MapPin, ArrowUpRight, Image as ImageIcon } from 'lucide-react'
+import { MapPin, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
-import { getSignedUrls } from '@/features/acompanhamento/hooks/fotos'
+import { FotoMapHoverCard, type PinFoto as HoverPinFoto } from '../fotos/FotoMapHoverCard'
 
-interface PinFoto {
+interface PinFotoFull {
   id: string
   lat: number | null
   lng: number | null
@@ -18,7 +17,7 @@ interface PinFoto {
 }
 
 interface Props {
-  fotos: PinFoto[]
+  fotos: PinFotoFull[]
   altura?: number
 }
 
@@ -38,7 +37,7 @@ interface ClusterPointProps {
   cor?: string
 }
 
-interface HoverState { id: string; x: number; y: number }
+interface HoverState { pos: { x: number; y: number }; fotos: HoverPinFoto[] }
 
 export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
   const ref = useRef<HTMLDivElement | null>(null)
@@ -47,9 +46,8 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
   const supRef = useRef<Supercluster<ClusterPointProps> | null>(null)
   const navigate = useNavigate()
   const [hover, setHover] = useState<HoverState | null>(null)
-  const [hoverUrl, setHoverUrl] = useState<string | null>(null)
 
-  type FotoValida = Omit<PinFoto, 'lat' | 'lng'> & { lat: number; lng: number }
+  type FotoValida = Omit<PinFotoFull, 'lat' | 'lng'> & { lat: number; lng: number }
   const validas = useMemo<FotoValida[]>(
     () => fotos.flatMap((f) => (f.lat != null && f.lng != null ? [{ ...f, lat: f.lat, lng: f.lng }] : [])),
     [fotos]
@@ -57,18 +55,16 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
 
   // Mapa por ID para resolver hover
   const fotoById = useMemo(() => {
-    const m = new Map<string, PinFoto>()
+    const m = new Map<string, PinFotoFull>()
     for (const f of fotos) m.set(f.id, f)
     return m
   }, [fotos])
-
-  // Pré-carrega URL ao detectar hover (debounce implícito do supercluster)
-  useEffect(() => {
-    if (!hover) { setHoverUrl(null); return }
-    let canceled = false
-    void getSignedUrls([hover.id]).then((u) => { if (!canceled) setHoverUrl(u[hover.id] ?? null) })
-    return () => { canceled = true }
-  }, [hover])
+  const toPinFoto = (f: PinFotoFull): HoverPinFoto => ({
+    id: f.id,
+    captured_at: f.captured_at,
+    servico_display_nome: f.servico_display_nome,
+    siga_servico_nome: f.siga_servico_nome
+  })
 
   useEffect(() => {
     let canceled = false
@@ -120,8 +116,28 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
               iconAnchor: [tam / 2, tam / 2]
             })
             const m = L.marker([lat, lng], { icon })
+            const clusterId = c.id as number
+            m.on('mouseover', (ev) => {
+              const me = ev as unknown as { originalEvent: MouseEvent }
+              const leaves = sup.getLeaves(clusterId, 30, 0)
+              const fotosCluster: HoverPinFoto[] = leaves.flatMap((l) => {
+                const fid = (l.properties as ClusterPointProps).fotoId
+                if (!fid) return []
+                const f = fotoById.get(fid)
+                return f ? [toPinFoto(f)] : []
+              })
+              if (fotosCluster.length > 0) {
+                setHover({ pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 }, fotos: fotosCluster })
+              }
+            })
+            m.on('mousemove', (ev) => {
+              const me = ev as unknown as { originalEvent: MouseEvent }
+              setHover((prev) => prev ? { ...prev, pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 } } : prev)
+            })
+            m.on('mouseout', () => setHover(null))
             m.on('click', () => {
-              const z = Math.min(sup.getClusterExpansionZoom(c.id as number), 18)
+              setHover(null)
+              const z = Math.min(sup.getClusterExpansionZoom(clusterId), 18)
               map.setView([lat, lng], z, { animate: true })
             })
             m.addTo(lay)
@@ -138,14 +154,17 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
             if (fid) {
               m.on('mouseover', (ev) => {
                 const me = ev as unknown as { originalEvent: MouseEvent }
-                setHover({ id: fid, x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 })
+                const f = fotoById.get(fid)
+                if (!f) return
+                setHover({ pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 }, fotos: [toPinFoto(f)] })
               })
               m.on('mousemove', (ev) => {
                 const me = ev as unknown as { originalEvent: MouseEvent }
-                setHover({ id: fid, x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 })
+                setHover((prev) => prev ? { ...prev, pos: { x: me.originalEvent.clientX + 12, y: me.originalEvent.clientY + 12 } } : prev)
               })
               m.on('mouseout', () => setHover(null))
               m.on('click', () => {
+                setHover(null)
                 navigate({ to: '/acompanhamento/fotos' })
               })
             }
@@ -197,8 +216,6 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
     return () => { ro.disconnect(); window.removeEventListener('resize', fire); clearTimeout(t) }
   }, [])
 
-  const fotoHover = hover ? fotoById.get(hover.id) ?? null : null
-
   return (
     <div className="rounded border border-border bg-bg-panel overflow-hidden flex flex-col" style={{ height: altura }}>
       <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
@@ -224,32 +241,8 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
         </div>
       </div>
 
-      {hover && fotoHover && createPortal(
-        <div
-          className="fixed z-[200] pointer-events-none rounded border border-border-strong shadow-2xl bg-bg-elevated overflow-hidden animate-fade-in"
-          style={{
-            left: Math.min(hover.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 280),
-            top: Math.min(hover.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 240),
-            width: 260
-          }}
-        >
-          {hoverUrl ? (
-            <img src={hoverUrl} alt="" className="w-full block" style={{ maxHeight: 180, objectFit: 'cover' }} />
-          ) : (
-            <div className="w-full h-[150px] flex items-center justify-center text-text-dim">
-              <ImageIcon size={24} />
-            </div>
-          )}
-          <div className="p-2 space-y-0.5">
-            <div className="text-2xs font-mono text-text truncate" title={fotoHover.servico_display_nome ?? ''}>
-              {fotoHover.servico_display_nome ?? fotoHover.siga_servico_nome ?? '—'}
-            </div>
-            <div className="text-2xs font-mono text-text-dim">
-              {fotoHover.captured_at ? new Date(fotoHover.captured_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-            </div>
-          </div>
-        </div>,
-        document.body
+      {hover && hover.fotos.length > 0 && (
+        <FotoMapHoverCard fotos={hover.fotos} position={hover.pos} />
       )}
     </div>
   )

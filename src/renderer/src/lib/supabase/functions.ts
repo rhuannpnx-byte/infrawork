@@ -335,6 +335,14 @@ export const adminApi = {
       ttl_seconds: number
     }>('acompanhamento-foto-signed-urls-batch', { method: 'POST', body }),
 
+  acompanhamentoFotoDelete: (body: { foto_ids: string[] }) =>
+    call<{
+      ok: boolean
+      removidas: number
+      ja_excluidas: number
+      warnings?: string[]
+    }>('acompanhamento-foto-delete', { method: 'POST', body }),
+
   acompanhamentoDashboardResumo: (body: { obra_id: string; periodo_dias?: number }) =>
     call<import('@renderer/types/acompanhamento').DashboardResumoResposta>(
       'acompanhamento-dashboard-resumo',
