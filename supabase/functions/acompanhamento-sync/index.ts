@@ -23,6 +23,7 @@ interface VinculoRow {
   obra_id: string
   siga_projeto_id: number
   ultimo_sync_em: string | null
+  sincronizar_fotos: boolean
 }
 
 interface SyncStats {
@@ -225,7 +226,9 @@ async function syncOneVinculo(
   }
 
   // ─── FOTOS ─────────────────────────────────────────────────────────────
-  try {
+  if (vinculo.sincronizar_fotos === false) {
+    warnings.push('Fotos: sync desabilitado para esta obra (sincronizar_fotos=false)')
+  } else try {
     const fCols = await loadCols('pnj_foto')
     if (fCols.size === 0) throw new Error('Tabela pnj_foto não encontrada')
 
@@ -375,7 +378,7 @@ Deno.serve(async (req) => {
 
   let q = admin
     .from('obra_acompanhamento_link')
-    .select('id, obra_id, siga_projeto_id, ultimo_sync_em')
+    .select('id, obra_id, siga_projeto_id, ultimo_sync_em, sincronizar_fotos')
     .eq('ativo', true)
   if (body.obra_id) q = q.eq('obra_id', body.obra_id)
   const { data: vinculos, error: vErr } = await q

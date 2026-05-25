@@ -15,8 +15,6 @@ files:
   - '!supabase/**'
   - '!Formulario_Planejamento_*.xlsm'
   - '!notasdev.md'
-  - '!icon-source.png'
-  - '!logo-wordmark-glow.png'
 asarUnpack:
   - resources/**
 win:
