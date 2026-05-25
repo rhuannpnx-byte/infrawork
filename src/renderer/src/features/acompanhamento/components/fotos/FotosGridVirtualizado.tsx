@@ -45,24 +45,25 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
     const ids = fotos.slice(startIdx, endIdx).map((f) => f.id)
     if (ids.length === 0) return
     let canceled = false
-    void getSignedUrls(ids).then((r) => {
+    void getSignedUrls(ids, 'thumb').then((r) => {
       if (!canceled) setUrls((cur) => ({ ...cur, ...r }))
     })
     return () => { canceled = true }
   }, [rowVirtualizer, fotos, cols])
 
   const fotoHover = hover ? fotos.find((f) => f.id === hover.fotoId) ?? null : null
-  const urlHover = fotoHover ? urls[fotoHover.id] ?? null : null
+  // Hover usa preview (480px) — qualidade melhor que o thumb usado no grid
+  const [urlsHover, setUrlsHover] = useState<Record<string, string>>({})
+  const urlHover = fotoHover ? urlsHover[fotoHover.id] ?? urls[fotoHover.id] ?? null : null
 
-  // Garante que a URL da foto em hover está sendo carregada
   useEffect(() => {
-    if (!fotoHover || urlHover) return
+    if (!fotoHover || urlsHover[fotoHover.id]) return
     let canceled = false
-    void getSignedUrls([fotoHover.id]).then((r) => {
-      if (!canceled) setUrls((cur) => ({ ...cur, ...r }))
+    void getSignedUrls([fotoHover.id], 'preview').then((r) => {
+      if (!canceled) setUrlsHover((cur) => ({ ...cur, ...r }))
     })
     return () => { canceled = true }
-  }, [fotoHover, urlHover])
+  }, [fotoHover, urlsHover])
 
   if (loading && fotos.length === 0) {
     return (
@@ -126,6 +127,7 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
                         src={url}
                         alt=""
                         loading="lazy"
+                        decoding="async"
                         className="object-cover w-full h-full"
                       />
                     ) : (

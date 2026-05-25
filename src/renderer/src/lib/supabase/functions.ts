@@ -322,13 +322,17 @@ export const adminApi = {
     page?: number
     page_size?: number
     with_urls?: boolean
+    url_transform?: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' }
   }) =>
     call<import('@renderer/types/acompanhamento').FotosListarResposta>(
       'acompanhamento-fotos-listar',
       { method: 'POST', body }
     ),
 
-  acompanhamentoFotoSignedUrlsBatch: (body: { foto_ids: string[] }) =>
+  acompanhamentoFotoSignedUrlsBatch: (body: {
+    foto_ids: string[]
+    transform?: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' }
+  }) =>
     call<{
       ok: boolean
       urls: import('@renderer/types/acompanhamento').FotoSignedUrl[]

@@ -9,6 +9,17 @@ import type {
 
 const PAGE = 50
 
+/** Variants de tamanho usadas pela UI. */
+export type FotoVariant = 'thumb' | 'preview' | 'full'
+const VARIANT_TRANSFORM: Record<FotoVariant, { width: number; quality?: number; resize?: 'cover' | 'contain' }> = {
+  // Grid virtualizado (96px alto). 240 dá margem pra retina/zoom sem inchar.
+  thumb: { width: 240, quality: 70, resize: 'cover' },
+  // Hover preview (~280px largura) + thumbs do cluster.
+  preview: { width: 480, quality: 75, resize: 'cover' },
+  // Lightbox fullscreen — usa contain pra preservar aspect ratio.
+  full: { width: 1600, quality: 85, resize: 'contain' }
+}
+
 export function useFotosInfinite(
   obraId: string | null | undefined,
   filtros: FotosListarFiltros = {}
@@ -19,12 +30,15 @@ export function useFotosInfinite(
     initialPageParam: 0,
     staleTime: 30 * 1000,
     queryFn: async ({ pageParam }) => {
+      // URLs in-place pedidas como thumb (grid usa 96px). Lightbox/hover refazem
+      // o pedido sob demanda via getSignedUrls(ids, 'full' | 'preview').
       return await adminApi.acompanhamentoFotosListar({
         obra_id: obraId!,
         filtros,
         page: pageParam as number,
         page_size: PAGE,
-        with_urls: true
+        with_urls: true,
+        url_transform: VARIANT_TRANSFORM.thumb
       })
     },
     getNextPageParam: (last: FotosListarResposta, all) => {
@@ -60,65 +74,70 @@ export function useFotosGeo(
  * Cache em memória de signed URLs com TTL ~50min. Hook resolve uma lista de
  * foto_ids — usa o que já tem em cache, busca em batch o restante. Debounce
  * 100ms para coalescer requests vindos do virtualizador.
+ *
+ * Variants sao cacheadas separadamente — thumb (240px) nao colide com full (1600px).
  */
 interface SignedEntry { url: string; expires: number }
-const urlCache = new Map<string, SignedEntry>()
-let pending: Set<string> = new Set()
-let pendingResolvers: Array<() => void> = []
-let pendingTimer: ReturnType<typeof setTimeout> | null = null
+const urlCache = new Map<string, SignedEntry>() // key = `${variant}:${id}`
+type PendingMap = Map<FotoVariant, { ids: Set<string>; resolvers: Array<() => void>; timer: ReturnType<typeof setTimeout> | null }>
+const pendingByVariant: PendingMap = new Map()
 
-async function flushPending(): Promise<void> {
-  const ids = Array.from(pending)
-  pending = new Set()
-  const resolvers = pendingResolvers
-  pendingResolvers = []
-  pendingTimer = null
-  // Chunks de 100 (limite da EF)
+function cacheKey(variant: FotoVariant, id: string): string { return `${variant}:${id}` }
+
+async function flushPendingFor(variant: FotoVariant): Promise<void> {
+  const entry = pendingByVariant.get(variant)
+  if (!entry) return
+  const ids = Array.from(entry.ids)
+  const resolvers = entry.resolvers
+  pendingByVariant.delete(variant)
+  const transform = VARIANT_TRANSFORM[variant]
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100)
     try {
-      const r = await adminApi.acompanhamentoFotoSignedUrlsBatch({ foto_ids: slice })
+      const r = await adminApi.acompanhamentoFotoSignedUrlsBatch({ foto_ids: slice, transform })
       const now = Date.now()
-      for (const u of r.urls) {
-        if (u.url && u.expires_at) {
-          urlCache.set(u.foto_id, {
-            url: u.url,
-            expires: new Date(u.expires_at).getTime() - 60_000 // refresh 60s antes
-          })
-        }
-      }
       const ttlMs = (r.ttl_seconds ?? 900) * 1000
-      // proteção contra urls sem expires_at: marca expirar em ttl_seconds
       for (const u of r.urls) {
-        if (u.url && !u.expires_at) urlCache.set(u.foto_id, { url: u.url, expires: now + ttlMs - 60_000 })
+        if (!u.url) continue
+        const expires = u.expires_at ? new Date(u.expires_at).getTime() - 60_000 : now + ttlMs - 60_000
+        urlCache.set(cacheKey(variant, u.foto_id), { url: u.url, expires })
       }
     } catch { /* swallow */ }
   }
   for (const r of resolvers) r()
 }
 
-function scheduleFlush(): void {
-  if (pendingTimer) return
-  pendingTimer = setTimeout(() => { void flushPending() }, 100)
+function scheduleFlush(variant: FotoVariant): void {
+  const entry = pendingByVariant.get(variant)
+  if (!entry || entry.timer) return
+  entry.timer = setTimeout(() => { void flushPendingFor(variant) }, 100)
 }
 
-export async function getSignedUrls(ids: string[]): Promise<Record<string, string>> {
+export async function getSignedUrls(
+  ids: string[],
+  variant: FotoVariant = 'thumb'
+): Promise<Record<string, string>> {
   const out: Record<string, string> = {}
   const missing: string[] = []
   const now = Date.now()
   for (const id of ids) {
-    const c = urlCache.get(id)
+    const c = urlCache.get(cacheKey(variant, id))
     if (c && c.expires > now) out[id] = c.url
     else missing.push(id)
   }
   if (missing.length === 0) return out
   await new Promise<void>((resolve) => {
-    for (const id of missing) pending.add(id)
-    pendingResolvers.push(resolve)
-    scheduleFlush()
+    let entry = pendingByVariant.get(variant)
+    if (!entry) {
+      entry = { ids: new Set(), resolvers: [], timer: null }
+      pendingByVariant.set(variant, entry)
+    }
+    for (const id of missing) entry.ids.add(id)
+    entry.resolvers.push(resolve)
+    scheduleFlush(variant)
   })
   for (const id of missing) {
-    const c = urlCache.get(id)
+    const c = urlCache.get(cacheKey(variant, id))
     if (c) out[id] = c.url
   }
   return out
@@ -136,9 +155,11 @@ export function useDeleteFotos(): ReturnType<typeof useMutation<
       return await adminApi.acompanhamentoFotoDelete({ foto_ids: fotoIds })
     },
     onSuccess: (_data, { fotoIds }) => {
-      // Limpa URLs assinadas em cache pra essas fotos
-      for (const id of fotoIds) urlCache.delete(id)
-      // Invalida queries de listagem e geo
+      // Limpa URLs assinadas em cache pra essas fotos (todas as variants)
+      const variants: FotoVariant[] = ['thumb', 'preview', 'full']
+      for (const id of fotoIds) {
+        for (const v of variants) urlCache.delete(cacheKey(v, id))
+      }
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'fotos'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'fotos-geo'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'signed-urls'] })

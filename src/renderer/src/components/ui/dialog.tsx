@@ -13,6 +13,11 @@ interface DialogProps {
    * pra não perder o form preenchido por engano.
    */
   disableDismiss?: boolean
+  /**
+   * Quando true, renderiza acima de qualquer overlay externo (lightbox,
+   * leaflet popup, etc). Use no ConfirmDialog global.
+   */
+  topmost?: boolean
 }
 
 const SIZES = {
@@ -28,7 +33,8 @@ export function Dialog({
   children,
   className,
   size = 'md',
-  disableDismiss = false
+  disableDismiss = false,
+  topmost = false
 }: DialogProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -43,11 +49,16 @@ export function Dialog({
 
   if (!open) return null
 
+  // yet-another-react-lightbox usa z-index 9999. topmost=10010 garante
+  // o ConfirmDialog acima de qualquer overlay externo.
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className={cn(
+        'fixed inset-0 flex items-center justify-center',
+        topmost ? 'z-[10010]' : 'z-50'
+      )}
       onClick={(e) => {
         if (disableDismiss) return
         if (e.target === e.currentTarget) onOpenChange(false)

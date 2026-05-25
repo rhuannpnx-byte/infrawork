@@ -30,7 +30,7 @@ export function FotoMapHoverCard({ fotos, position }: Props): ReactNode {
   useEffect(() => {
     if (ids.length === 0) return
     let cancel = false
-    void getSignedUrls(ids).then((u) => { if (!cancel) setUrls(u) })
+    void getSignedUrls(ids, 'preview').then((u) => { if (!cancel) setUrls(u) })
     return () => { cancel = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey])

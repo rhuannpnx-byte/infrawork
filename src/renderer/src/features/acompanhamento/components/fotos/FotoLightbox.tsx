@@ -32,7 +32,7 @@ export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): R
     const ids = fotos.slice(start, end).map((f) => f.id)
     if (ids.length === 0) return
     let canceled = false
-    void getSignedUrls(ids).then((r) => { if (!canceled) setUrls((cur) => ({ ...cur, ...r })) })
+    void getSignedUrls(ids, 'full').then((r) => { if (!canceled) setUrls((cur) => ({ ...cur, ...r })) })
     return () => { canceled = true }
   }, [index, fotos])
 

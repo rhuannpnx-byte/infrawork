@@ -42,6 +42,13 @@ interface Body {
   page?: number
   page_size?: number
   with_urls?: boolean
+  /** Transform aplicada nas URLs assinadas — pra reduzir banda em thumbnails. */
+  url_transform?: {
+    width?: number
+    height?: number
+    quality?: number
+    resize?: 'cover' | 'contain' | 'fill'
+  }
 }
 
 Deno.serve(async (req) => {
@@ -93,6 +100,17 @@ Deno.serve(async (req) => {
   const { data: rows, error, count } = await q
   if (error) return json({ error: error.message }, 500)
 
+  // Sanitiza transform (limita pra evitar abuso/custo)
+  const tRaw = body.url_transform ?? {}
+  const tW = typeof tRaw.width === 'number' && tRaw.width > 0 ? Math.min(2400, Math.round(tRaw.width)) : undefined
+  const tH = typeof tRaw.height === 'number' && tRaw.height > 0 ? Math.min(2400, Math.round(tRaw.height)) : undefined
+  const tQ = typeof tRaw.quality === 'number' && tRaw.quality >= 20 && tRaw.quality <= 100 ? Math.round(tRaw.quality) : undefined
+  const tResize = tRaw.resize === 'cover' || tRaw.resize === 'contain' || tRaw.resize === 'fill' ? tRaw.resize : undefined
+  const transformOpts =
+    tW || tH
+      ? { transform: { ...(tW ? { width: tW } : {}), ...(tH ? { height: tH } : {}), ...(tQ ? { quality: tQ } : {}), ...(tResize ? { resize: tResize } : {}) } }
+      : undefined
+
   let urls: Array<{ foto_id: string; url: string; expires_at: string }> = []
   if (withUrls && rows && rows.length > 0) {
     const expiresIso = new Date(Date.now() + TTL * 1000).toISOString()
@@ -103,7 +121,9 @@ Deno.serve(async (req) => {
         slice.map(async (r) => {
           if (!r.storage_key) return null
           const bucket = (r.storage_bucket as string) || DEFAULT_BUCKET
-          const { data: signed } = await admin.storage.from(bucket).createSignedUrl(r.storage_key as string, TTL)
+          const { data: signed } = await admin.storage
+            .from(bucket)
+            .createSignedUrl(r.storage_key as string, TTL, transformOpts)
           if (!signed) return null
           return { foto_id: r.id as string, url: signed.signedUrl, expires_at: expiresIso }
         })

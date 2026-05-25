@@ -78,7 +78,7 @@ export function ConfirmDialog(): ReactNode {
   const confirmVariant = variant === 'danger' ? 'danger' : 'default'
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && answer(false)} size="sm">
+    <Dialog open={open} onOpenChange={(o) => !o && answer(false)} size="sm" topmost>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Icon size={14} className={iconColor} />

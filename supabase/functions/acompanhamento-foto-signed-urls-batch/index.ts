@@ -1,10 +1,14 @@
 // POST /functions/v1/acompanhamento-foto-signed-urls-batch
-// Body: { foto_ids: string[] }   (até 100 IDs por chamada)
+// Body: { foto_ids: string[], transform?: { width, height?, quality?, resize? } }
 // Permissão: god / adm / engenheiro / apoio com acesso à obra.
 //
 // Versão batch da signed-url singular — usada pelo grid de fotos virtualizado
 // e pelo mapa com marcadores. Valida acesso para TODAS as obras envolvidas
 // antes de assinar.
+//
+// Quando `transform.width` (ou height) é informado, Supabase Storage gera uma
+// variante redimensionada server-side e cacheada na CDN — fundamental pra UI
+// não baixar a foto FULL (centenas de KB) só pra renderizar thumb 96px.
 
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
@@ -14,8 +18,16 @@ const TTL = Number(Deno.env.get('SUPABASE_PRESIGN_TTL_SECONDS') ?? '900')
 const DEFAULT_BUCKET = Deno.env.get('SUPABASE_BUCKET_FOTOS') ?? 'monito-fotos'
 const MAX_IDS = 100
 
+interface TransformOpts {
+  width?: number
+  height?: number
+  quality?: number
+  resize?: 'cover' | 'contain' | 'fill'
+}
+
 interface Body {
   foto_ids?: string[]
+  transform?: TransformOpts
 }
 
 Deno.serve(async (req) => {
@@ -38,6 +50,18 @@ Deno.serve(async (req) => {
   const ids = (body.foto_ids ?? []).filter((s): s is string => typeof s === 'string' && s.length > 0)
   if (ids.length === 0) return json({ error: 'foto_ids vazio' }, 400)
   if (ids.length > MAX_IDS) return json({ error: `máximo ${MAX_IDS} ids por chamada` }, 400)
+
+  // Sanitiza transform — limita pra evitar abuso (CDN cobra por tamanho)
+  const tRaw = body.transform ?? {}
+  const tW = typeof tRaw.width === 'number' && tRaw.width > 0 ? Math.min(2400, Math.round(tRaw.width)) : undefined
+  const tH = typeof tRaw.height === 'number' && tRaw.height > 0 ? Math.min(2400, Math.round(tRaw.height)) : undefined
+  const tQ = typeof tRaw.quality === 'number' && tRaw.quality >= 20 && tRaw.quality <= 100 ? Math.round(tRaw.quality) : undefined
+  const tResize: TransformOpts['resize'] | undefined =
+    tRaw.resize === 'cover' || tRaw.resize === 'contain' || tRaw.resize === 'fill' ? tRaw.resize : undefined
+  const transformOpts =
+    tW || tH
+      ? { transform: { ...(tW ? { width: tW } : {}), ...(tH ? { height: tH } : {}), ...(tQ ? { quality: tQ } : {}), ...(tResize ? { resize: tResize } : {}) } }
+      : undefined
 
   const { data: fotos, error: fErr } = await admin
     .from('acompanhamento_foto')
@@ -65,7 +89,7 @@ Deno.serve(async (req) => {
         const bucket = f.storage_bucket || DEFAULT_BUCKET
         const { data: signed, error } = await admin.storage
           .from(bucket)
-          .createSignedUrl(f.storage_key, TTL)
+          .createSignedUrl(f.storage_key, TTL, transformOpts)
         if (error || !signed) return { foto_id: f.id as string, error: error?.message ?? 'falha sign' }
         return { foto_id: f.id as string, url: signed.signedUrl, expires_at: expiresIso }
       })
