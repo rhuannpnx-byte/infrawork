@@ -306,7 +306,7 @@ function DashboardAcompanhamento(): ReactNode {
                   label={`Produção ${periodo === 'custom' ? 'período' : periodo}`}
                   value={(resumo?.curva_s ?? [])
                     .filter((p) => !servicoItemId || p.item_orcamentario_id === servicoItemId)
-                    .reduce((s, p) => s + Number(p.realizado_acumulado ?? 0), 0)
+                    .reduce((s, p) => s + Number(p.realizado_dia ?? 0), 0)
                     .toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
                   hint={`${r?.dias_com_apontamento ?? 0} dias com apontamento`}
                 />
@@ -316,7 +316,7 @@ function DashboardAcompanhamento(): ReactNode {
                   value={(() => {
                     const total = (resumo?.curva_s ?? [])
                       .filter((p) => !servicoItemId || p.item_orcamentario_id === servicoItemId)
-                      .reduce((s, p) => s + Number(p.realizado_acumulado ?? 0), 0)
+                      .reduce((s, p) => s + Number(p.realizado_dia ?? 0), 0)
                     return (total / Math.max(1, janela.dias)).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
                   })()}
                   unit="/dia"

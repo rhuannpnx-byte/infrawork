@@ -420,6 +420,8 @@ export interface CurvaSPonto {
   data: string
   planejado_acumulado: number
   realizado_acumulado: number
+  planejado_dia?: number
+  realizado_dia?: number
   servico_grupo_codigo: string | null
   item_orcamentario_id: string | null
 }

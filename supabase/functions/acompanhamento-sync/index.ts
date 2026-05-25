@@ -29,8 +29,10 @@ interface VinculoRow {
 interface SyncStats {
   producao_inseridas: number
   producao_atualizadas: number
+  producao_removidas: number
   fotos_inseridas: number
   fotos_atualizadas: number
+  fotos_removidas: number
 }
 
 async function loadCols(table: string): Promise<Set<string>> {
@@ -70,8 +72,10 @@ async function syncOneVinculo(
   const stats: SyncStats = {
     producao_inseridas: 0,
     producao_atualizadas: 0,
+    producao_removidas: 0,
     fotos_inseridas: 0,
-    fotos_atualizadas: 0
+    fotos_atualizadas: 0,
+    fotos_removidas: 0
   }
 
   // ─── PRODUÇÃO ──────────────────────────────────────────────────────────
@@ -221,6 +225,40 @@ async function syncOneVinculo(
         stats.producao_atualizadas += count ?? slice.length
       }
     }
+
+    // Cleanup: remove do cache producoes que estao deletadas/inativas no SIGA.
+    // Sem isso, registros soft-deleted continuam aparecendo no dashboard.
+    if (cDeletado || cInativo) {
+      const delConds: string[] = []
+      if (cDeletado) delConds.push(`p.${cDeletado} = 'S'`)
+      if (cInativo) delConds.push(`p.${cInativo} = 'S'`)
+      try {
+        const deletedRows = await sigaQuery<{ id: number }>(
+          `SELECT p.${cIdProd} AS id FROM pnj_controle_producao p
+           WHERE p.${cProjeto} = ? AND (${delConds.join(' OR ')})`,
+          [vinculo.siga_projeto_id]
+        )
+        const deletedIds = deletedRows.map((r) => Number(r.id)).filter((n) => Number.isFinite(n))
+        if (deletedIds.length > 0) {
+          const CHUNK = 200
+          for (let j = 0; j < deletedIds.length; j += CHUNK) {
+            const chunk = deletedIds.slice(j, j + CHUNK)
+            const { error: delErr, count: delCnt } = await admin
+              .from('acompanhamento_producao')
+              .delete({ count: 'exact' })
+              .eq('obra_id', vinculo.obra_id)
+              .in('siga_producao_id', chunk)
+            if (delErr) {
+              warnings.push(`DELETE producao soft-deleted lote ${j}: ${delErr.message}`)
+            } else if (delCnt) {
+              stats.producao_removidas += delCnt
+            }
+          }
+        }
+      } catch (e) {
+        warnings.push(`Cleanup soft-delete produção: ${(e as Error).message}`)
+      }
+    }
   } catch (e) {
     warnings.push(`Produção: ${(e as Error).message}`)
   }
@@ -311,6 +349,57 @@ async function syncOneVinculo(
         warnings.push(`UPSERT foto lote ${i}: ${error.message}`)
       } else {
         stats.fotos_atualizadas += count ?? slice.length
+      }
+    }
+
+    // Cleanup: remove fotos soft-deletadas no SIGA do cache + do bucket.
+    if (fcDel || fcInativo) {
+      const fDelConds: string[] = []
+      if (fcDel) fDelConds.push(`f.${fcDel} = 'S'`)
+      if (fcInativo) fDelConds.push(`f.${fcInativo} = 'S'`)
+      try {
+        const fDeletedRows = await sigaQuery<{ id: number }>(
+          `SELECT f.${fcId} AS id FROM pnj_foto f
+           WHERE f.${fcProj} = ? AND (${fDelConds.join(' OR ')})`,
+          [vinculo.siga_projeto_id]
+        )
+        const fDeletedIds = fDeletedRows.map((r) => Number(r.id)).filter((n) => Number.isFinite(n))
+        if (fDeletedIds.length > 0) {
+          const CHUNK = 200
+          for (let j = 0; j < fDeletedIds.length; j += CHUNK) {
+            const chunk = fDeletedIds.slice(j, j + CHUNK)
+            // Antes de DELETE, pega o storage_key pra remover do bucket
+            const { data: toRemove } = await admin
+              .from('acompanhamento_foto')
+              .select('storage_bucket, storage_key')
+              .eq('obra_id', vinculo.obra_id)
+              .in('siga_foto_id', chunk)
+            const { error: delErr, count: delCnt } = await admin
+              .from('acompanhamento_foto')
+              .delete({ count: 'exact' })
+              .eq('obra_id', vinculo.obra_id)
+              .in('siga_foto_id', chunk)
+            if (delErr) {
+              warnings.push(`DELETE foto soft-deleted lote ${j}: ${delErr.message}`)
+            } else if (delCnt) {
+              stats.fotos_removidas += delCnt
+            }
+            // Remove arquivos do bucket (best-effort, agrupado por bucket)
+            const byBucket = new Map<string, string[]>()
+            for (const f of toRemove ?? []) {
+              if (!f.storage_bucket || !f.storage_key) continue
+              const arr = byBucket.get(f.storage_bucket as string) ?? []
+              arr.push(f.storage_key as string)
+              byBucket.set(f.storage_bucket as string, arr)
+            }
+            for (const [bucket, keys] of byBucket.entries()) {
+              const { error: bErr } = await admin.storage.from(bucket).remove(keys)
+              if (bErr) warnings.push(`Storage remove (${bucket}): ${bErr.message}`)
+            }
+          }
+        }
+      } catch (e) {
+        warnings.push(`Cleanup soft-delete fotos: ${(e as Error).message}`)
       }
     }
   } catch (e) {

@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     admin.from('vw_acompanhamento_obra_resumo').select('*').eq('obra_id', body.obra_id).maybeSingle(),
     admin
       .from('vw_acompanhamento_curva_s')
-      .select('data, planejado_acumulado, realizado_acumulado, servico_grupo_codigo, item_orcamentario_id')
+      .select('data, planejado_acumulado, realizado_acumulado, planejado_dia, realizado_dia, servico_grupo_codigo, item_orcamentario_id')
       .eq('obra_id', body.obra_id)
       .gte('data', dataDeIso)
       .order('data', { ascending: true })

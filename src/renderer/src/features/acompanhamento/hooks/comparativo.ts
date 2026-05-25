@@ -38,7 +38,7 @@ export function useCurvaS(
       limite.setDate(limite.getDate() - diasAtras)
       const { data, error } = await supabase
         .from('vw_acompanhamento_curva_s')
-        .select('data, planejado_acumulado, realizado_acumulado, servico_grupo_codigo, item_orcamentario_id')
+        .select('data, planejado_acumulado, realizado_acumulado, planejado_dia, realizado_dia, servico_grupo_codigo, item_orcamentario_id')
         .eq('obra_id', obraId!)
         .gte('data', limite.toISOString().slice(0, 10))
         .order('data')
