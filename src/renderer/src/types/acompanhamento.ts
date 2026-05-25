@@ -265,6 +265,9 @@ export interface ProducaoEnriquecida {
   siga_equipe_id: number | null
   siga_equipe_nome: string | null
   qtd: number | null
+  qtd_convertida: number | null
+  fator_conversao: number | null
+  siga_unidade_nome: string | null
   trecho: string | null
   estaca_inicial: string | null
   estaca_final: string | null
@@ -288,6 +291,7 @@ export interface ProducaoEnriquecida {
   servico_codigo: string | null
   servico_display_nome: string | null
   servico_unidade: string | null
+  unidade_plano: string | null
   servico_grupo_codigo: string | null
   servico_grupo_descricao: string | null
   tarefa_baseline_id: string | null

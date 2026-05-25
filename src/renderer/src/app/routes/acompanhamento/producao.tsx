@@ -85,14 +85,32 @@ function ProducaoInner(): ReactNode {
     },
     {
       header: 'Qtd',
-      accessorKey: 'qtd',
-      cell: ({ row }) => (
-        <span className="font-mono tabular-nums text-xs">
-          {Number(row.original.qtd ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
-          {row.original.servico_unidade ? <span className="text-text-dim ml-1">{row.original.servico_unidade}</span> : null}
-        </span>
-      ),
-      sortingFn: (a, b) => Number(a.original.qtd ?? 0) - Number(b.original.qtd ?? 0)
+      accessorKey: 'qtd_convertida',
+      cell: ({ row }) => {
+        const r = row.original
+        // Se existe match (e portanto fator), mostra qtd convertida na unidade do plano.
+        // Senao mostra qtd raw na unidade do SIGA.
+        const converteu = r.servico_match_id && Number(r.fator_conversao ?? 1) !== 1
+        const valor = converteu ? Number(r.qtd_convertida ?? 0) : Number(r.qtd ?? 0)
+        const unidade = converteu ? r.unidade_plano : (r.siga_unidade_nome ?? r.unidade_plano)
+        return (
+          <span className="font-mono tabular-nums text-xs">
+            {valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+            {unidade ? <span className="text-text-dim ml-1">{unidade}</span> : null}
+            {converteu ? (
+              <span
+                className="text-2xs text-text-dim ml-1 font-mono"
+                title={`Raw: ${Number(r.qtd ?? 0).toLocaleString('pt-BR')} ${r.siga_unidade_nome ?? ''} × ${r.fator_conversao}`}
+              >
+                ×{r.fator_conversao}
+              </span>
+            ) : null}
+          </span>
+        )
+      },
+      sortingFn: (a, b) =>
+        Number(a.original.qtd_convertida ?? a.original.qtd ?? 0) -
+        Number(b.original.qtd_convertida ?? b.original.qtd ?? 0)
     },
     {
       header: 'Frente',

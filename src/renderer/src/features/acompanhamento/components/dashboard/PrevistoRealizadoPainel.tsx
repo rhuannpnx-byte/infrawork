@@ -27,49 +27,52 @@ interface Resumo {
 
 function calcular(
   curvaS: CurvaSPonto[],
+  prevReal: PrevistoRealizadoItem[],
   filtroItemId: string | null | undefined,
   janelaIni: Date,
   janelaFim: Date
 ): Resumo {
-  // Para "acumulado até hoje" precisamos do último valor por (item, dia ≤ hoje)
-  // Para "do período" precisamos da diferença entre acumulado_fim_periodo e acumulado_inicio_periodo
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+  // "Acumulado ate hoje": vem de vw_acompanhamento_previsto_x_realizado.
+  //   Esta view soma toda producao sem janela de tarefa, batendo com a subpage
+  //   "Previsto x Realizado". Antes usavamos curva_s para esse calculo, mas a
+  //   curva_s gera dias apenas dentro de [data_inicio, max(data_fim,hoje)] —
+  //   producao SIGA apontada antes de data_inicio caia fora do LEFT JOIN.
+  //
+  // "No periodo": vem de curva_s (acumulado_fim - acumulado_ini-1). Mesmo
+  //   limite — se a janela inclui dias anteriores a data_inicio da tarefa,
+  //   esses dias contam 0. Ok para janelas dentro da execucao planejada.
+  const prevFiltered = filtroItemId
+    ? prevReal.filter((p) => p.item_orcamentario_id === filtroItemId)
+    : prevReal
 
-  const filtered = filtroItemId
+  let planAcumHoje = 0
+  let realAcumHoje = 0
+  for (const p of prevFiltered) {
+    planAcumHoje += Number(p.qtd_plan ?? 0)
+    realAcumHoje += Number(p.qtd_real ?? 0)
+  }
+
+  // No periodo via curva_s (acumulado_fim - acumulado_ini-1)
+  const curvaFiltered = filtroItemId
     ? curvaS.filter((c) => c.item_orcamentario_id === filtroItemId)
     : curvaS
-
-  // Agrupa por item: pega o último ponto com data ≤ hoje, e o último com data ≤ janelaIni-1
   const byItem = new Map<string, CurvaSPonto[]>()
-  for (const p of filtered) {
+  for (const p of curvaFiltered) {
     const k = p.item_orcamentario_id ?? '_'
     const arr = byItem.get(k) ?? []
     arr.push(p)
     byItem.set(k, arr)
   }
-
-  let planAcumHoje = 0
-  let realAcumHoje = 0
   let planAcumIni = 0
   let realAcumIni = 0
   let planAcumFim = 0
   let realAcumFim = 0
-
   for (const arr of byItem.values()) {
     arr.sort((a, b) => a.data.localeCompare(b.data))
-    const hojeIso = hoje.toISOString().slice(0, 10)
     const iniIso = janelaIni.toISOString().slice(0, 10)
     const fimIso = janelaFim.toISOString().slice(0, 10)
-
-    // ponto mais recente com data <= X (acumulado fica não-decrescente, então é só o último)
-    const atHoje = lastLE(arr, hojeIso)
     const atFim = lastLE(arr, fimIso)
     const beforeIni = lastLT(arr, iniIso)
-
-    if (atHoje) {
-      planAcumHoje += Number(atHoje.planejado_acumulado ?? 0)
-      realAcumHoje += Number(atHoje.realizado_acumulado ?? 0)
-    }
     if (atFim) {
       planAcumFim += Number(atFim.planejado_acumulado ?? 0)
       realAcumFim += Number(atFim.realizado_acumulado ?? 0)
@@ -130,8 +133,8 @@ export function PrevistoRealizadoPainel({
   }, [dataDeCustom, dataAteCustom, periodoDias])
 
   const r = useMemo(
-    () => calcular(curvaS, filtroItemId ?? null, janela.ini, janela.fim),
-    [curvaS, filtroItemId, janela]
+    () => calcular(curvaS, prevReal, filtroItemId ?? null, janela.ini, janela.fim),
+    [curvaS, prevReal, filtroItemId, janela]
   )
 
   const labelFiltro = filtroItemId

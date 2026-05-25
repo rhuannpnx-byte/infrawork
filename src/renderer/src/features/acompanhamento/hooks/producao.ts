@@ -17,11 +17,12 @@ export interface ProducaoFiltros {
 const PROD_COLS =
   'id, obra_id, siga_producao_id, data, siga_servico_id, siga_servico_nome, ' +
   'siga_encarregado_id, siga_encarregado_nome, siga_equipe_id, siga_equipe_nome, ' +
-  'qtd, trecho, estaca_inicial, estaca_final, obs, frente, ' +
+  'qtd, qtd_convertida, fator_conversao, siga_unidade_nome, ' +
+  'trecho, estaca_inicial, estaca_final, obs, frente, ' +
   'siga_created_at, siga_updated_at, sincronizado_em, ' +
   'equipe_match_id, equipe_planejamento_id, equipe_display_nome, equipe_display_cor, equipe_match_origem, equipe_tipo, ' +
   'encarregado_match_id, encarregado_display_nome, encarregado_match_origem, ' +
-  'servico_match_id, servico_planejamento_id, item_orcamentario_id, servico_codigo, servico_display_nome, servico_unidade, ' +
+  'servico_match_id, servico_planejamento_id, item_orcamentario_id, servico_codigo, servico_display_nome, servico_unidade, unidade_plano, ' +
   'servico_grupo_codigo, servico_grupo_descricao, ' +
   'tarefa_baseline_id, tarefa_data_inicio, tarefa_data_fim, fotos_count'
 
@@ -79,7 +80,8 @@ export function useProducaoPorTarefa(
 export function exportarProducaoCsv(rows: ProducaoEnriquecida[]): void {
   const headers = [
     'Data', 'Serviço', 'Equipe SIGA', 'Equipe vinculada', 'Encarregado',
-    'Qtd', 'Unidade', 'Frente', 'Trecho', 'Estaca', 'Observação',
+    'Qtd SIGA', 'Unid. SIGA', 'Fator', 'Qtd convertida', 'Unid. plano',
+    'Frente', 'Trecho', 'Estaca', 'Observação',
     'Tarefa baseline', 'Fotos'
   ]
   const lines = rows.map((r) => [
@@ -89,7 +91,10 @@ export function exportarProducaoCsv(rows: ProducaoEnriquecida[]): void {
     r.equipe_planejamento_id ? (r.equipe_display_nome ?? '') : '',
     r.siga_encarregado_nome ?? '',
     r.qtd ?? '',
-    r.servico_unidade ?? '',
+    r.siga_unidade_nome ?? '',
+    r.fator_conversao ?? 1,
+    r.qtd_convertida ?? r.qtd ?? '',
+    r.unidade_plano ?? r.servico_unidade ?? '',
     r.frente ?? '',
     r.trecho ?? '',
     r.estaca_inicial ?? '',

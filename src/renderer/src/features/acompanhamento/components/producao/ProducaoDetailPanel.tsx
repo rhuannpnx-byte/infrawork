@@ -23,8 +23,18 @@ export function ProducaoDetailPanel({ producao, open, onOpenChange }: Props): Re
           {p.servico_display_nome ?? p.siga_servico_nome ?? 'Apontamento'}
         </SheetTitle>
         <p className="text-2xs font-mono text-text-dim mt-0.5">
-          {formatDate(p.data)} · qtd {Number(p.qtd ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
-          {p.servico_unidade ? ` ${p.servico_unidade}` : ''}
+          {(() => {
+            const converteu = p.servico_match_id && Number(p.fator_conversao ?? 1) !== 1
+            const valor = converteu ? Number(p.qtd_convertida ?? 0) : Number(p.qtd ?? 0)
+            const unidade = converteu ? p.unidade_plano : (p.siga_unidade_nome ?? p.unidade_plano)
+            return (
+              <>
+                {formatDate(p.data)} · qtd {valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                {unidade ? ` ${unidade}` : ''}
+                {converteu ? ` (raw ${Number(p.qtd ?? 0).toLocaleString('pt-BR')} ${p.siga_unidade_nome ?? ''} × ${p.fator_conversao})` : ''}
+              </>
+            )
+          })()}
         </p>
       </SheetHeader>
       <div className="border-b border-border px-4 flex items-center gap-3">
