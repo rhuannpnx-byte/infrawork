@@ -51,6 +51,8 @@ export function Dialog({
 
   // yet-another-react-lightbox usa z-index 9999. topmost=10010 garante
   // o ConfirmDialog acima de qualquer overlay externo.
+  // Click-outside: usa ref do box ao inves de e.target===e.currentTarget,
+  // porque o overlay (filho do wrapper) sempre invalidaria a igualdade.
   return (
     <div
       role="dialog"
@@ -59,12 +61,12 @@ export function Dialog({
         'fixed inset-0 flex items-center justify-center',
         topmost ? 'z-[10010]' : 'z-50'
       )}
-      onClick={(e) => {
+      onMouseDown={(e) => {
         if (disableDismiss) return
-        if (e.target === e.currentTarget) onOpenChange(false)
+        if (ref.current && !ref.current.contains(e.target as Node)) onOpenChange(false)
       }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in pointer-events-none" />
       <div
         ref={ref}
         className={cn(
