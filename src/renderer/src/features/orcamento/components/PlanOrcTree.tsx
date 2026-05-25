@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { useDeleteItem, useReorderItem, useUpsertItem } from '../hooks/plan-orc'
 import { PlanOrcInlineCell } from './PlanOrcInlineCell'
 import type { ItemTreeNode } from '@/types/orcamento'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 interface Props {
   obraId: string
@@ -185,6 +186,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
   const upsert = useUpsertItem()
   const del = useDeleteItem()
   const reorder = useReorderItem()
+  const confirm = useConfirm()
   const isEtapa = node.tipo === 'etapa'
   const isServicoGrupo = node.tipo === 'servico_grupo'
   const isReceita = node.tipo === 'receita'
@@ -406,10 +408,14 @@ const PlanOrcRow = memo(function PlanOrcRow({
                 <Move size={11} /> Mover para…
               </DropdownItem>
               <DropdownItem
-                onClick={() => {
-                  if (confirm(`Excluir "${node.codigo} ${node.descricao}" e tudo abaixo?`)) {
-                    del.mutate({ id: node.id, obra_id: obraId })
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Excluir "${node.codigo} ${node.descricao}"?`,
+                    description: 'Todos os itens abaixo (filhos) também serão excluídos.',
+                    confirmLabel: 'Excluir',
+                    variant: 'danger'
+                  })
+                  if (ok) del.mutate({ id: node.id, obra_id: obraId })
                 }}
               >
                 <Trash2 size={11} /> Excluir

@@ -9,6 +9,7 @@ import { RequireObra } from '@/components/layout/RequireObra'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useDeleteRevisao, useRevisao } from '@/features/orcamento/hooks/revisoes'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { RevisaoStatusBadge } from '@/features/orcamento/components/RevisaoStatusBadge'
 import { AnexosList } from '@/features/orcamento/components/AnexosList'
 import { TransicionarStatusDialog } from '@/features/orcamento/modals/TransicionarStatusDialog'
@@ -65,6 +66,7 @@ function RevisaoDetail(): ReactNode {
 
   const { data: revisao, isLoading, error } = useRevisao(id)
   const del = useDeleteRevisao()
+  const confirm = useConfirm()
   const [transOpen, setTransOpen] = useState(false)
 
   if (isLoading) {
@@ -135,8 +137,13 @@ function RevisaoDetail(): ReactNode {
                 variant="ghost"
                 size="sm"
                 onClick={async () => {
-                  if (!confirm(`Excluir revisão v${revisao.versao}? Esta ação é definitiva.`))
-                    return
+                  const ok = await confirm({
+                    title: `Excluir revisão v${revisao.versao}?`,
+                    description: 'Esta ação é definitiva. A revisão e seus snapshots serão removidos.',
+                    confirmLabel: 'Excluir',
+                    variant: 'danger'
+                  })
+                  if (!ok) return
                   try {
                     await del.mutateAsync({ id: revisao.id, obra_id: revisao.obra_id })
                     toast.success('Revisão excluída.')

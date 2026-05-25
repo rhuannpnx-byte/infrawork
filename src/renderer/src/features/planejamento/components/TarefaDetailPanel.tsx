@@ -27,6 +27,7 @@ import {
 } from '../hooks'
 import { EquipeChip } from './EquipeChip'
 import { useProducaoPorTarefa } from '@/features/acompanhamento/hooks/producao'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 type Tab = 'datas' | 'equipes' | 'deps' | 'cpu' | 'notas' | 'realizado'
 
@@ -59,6 +60,7 @@ export function TarefaDetailPanel({
   const desalocar = useDesalocarEquipe()
   const delDep = useDeleteDependencia()
   const delTarefa = useDeleteTarefa()
+  const confirm = useConfirm()
 
   if (!tarefa) return null
 
@@ -377,7 +379,13 @@ export function TarefaDetailPanel({
             variant="ghost"
             size="sm"
             onClick={async () => {
-              if (!confirm('Remover esta tarefa do planejamento?')) return
+              const ok = await confirm({
+                title: 'Remover esta tarefa?',
+                description: 'A tarefa será removida do planejamento.',
+                confirmLabel: 'Remover',
+                variant: 'danger'
+              })
+              if (!ok) return
               await delTarefa.mutateAsync({
                 id: tarefa.id,
                 planejamento_id: tarefa.planejamento_id

@@ -10,6 +10,7 @@ import {
 } from '../hooks/comentarios'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 interface Props {
   itemId: string
@@ -21,6 +22,7 @@ export function CommentsPanel({ itemId }: Props): ReactNode {
   const add = useAddComentario()
   const resolver = useResolverComentario()
   const remove = useDeleteComentario()
+  const confirm = useConfirm()
   const [texto, setTexto] = useState('')
 
   const onSubmit = async (e: FormEvent): Promise<void> => {
@@ -71,10 +73,13 @@ export function CommentsPanel({ itemId }: Props): ReactNode {
                   {c.autor_id === callerId ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        if (confirm('Excluir comentário?')) {
-                          remove.mutate({ id: c.id, item_id: itemId })
-                        }
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Excluir comentário?',
+                          confirmLabel: 'Excluir',
+                          variant: 'danger'
+                        })
+                        if (ok) remove.mutate({ id: c.id, item_id: itemId })
                       }}
                       className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
                       title="Excluir"

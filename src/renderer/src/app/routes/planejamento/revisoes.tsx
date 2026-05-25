@@ -18,6 +18,7 @@ import { NewPlanejamentoDialog } from '@/features/planejamento/modals/NewPlaneja
 import { PromoverBaselineDialog } from '@/features/planejamento/modals/PromoverBaselineDialog'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import { STATUS_LABEL, type Planejamento } from '@/types/planejamento'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 export function PlanejamentoRevisoesPage(): ReactNode {
   return (
@@ -38,6 +39,7 @@ function RevisoesInner(): ReactNode {
   const del = useDeletePlanejamento()
   const upd = useUpdatePlanejamento()
   const copiar = useCopiarPlanejamento()
+  const confirm = useConfirm()
 
   const [novoOpen, setNovoOpen] = useState(false)
   const [promoverPlan, setPromoverPlan] = useState<Planejamento | null>(null)
@@ -196,7 +198,13 @@ function RevisoesInner(): ReactNode {
                               <button
                                 type="button"
                                 onClick={async () => {
-                                  if (!confirm(`Excluir "${p.nome}"? Sem volta.`)) return
+                                  const ok = await confirm({
+                                    title: `Excluir "${p.nome}"?`,
+                                    description: 'Sem volta. As tarefas e dependências da revisão são removidas.',
+                                    confirmLabel: 'Excluir',
+                                    variant: 'danger'
+                                  })
+                                  if (!ok) return
                                   try {
                                     await del.mutateAsync({ id: p.id, obra_id: obraId })
                                     toast.success('Excluída.')

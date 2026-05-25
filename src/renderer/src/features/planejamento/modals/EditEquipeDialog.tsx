@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { EQUIPE_TIPOS, EQUIPE_CORES_PADRAO, type Equipe } from '@/types/planejamento'
 import { useUpdateEquipe, useDeleteEquipe } from '../hooks/equipes'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 interface Props {
   open: boolean
@@ -23,6 +24,7 @@ interface Props {
 export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNode {
   const update = useUpdateEquipe()
   const del = useDeleteEquipe()
+  const confirm = useConfirm()
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [tipoCustom, setTipoCustom] = useState('')
@@ -66,7 +68,13 @@ export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNo
   }
 
   const onDelete = async (): Promise<void> => {
-    if (!confirm('Excluir esta equipe? Não há volta. Alocações ficam órfãs.')) return
+    const ok = await confirm({
+      title: 'Excluir esta equipe?',
+      description: 'Não há volta. Alocações existentes ficam órfãs.',
+      confirmLabel: 'Excluir',
+      variant: 'danger'
+    })
+    if (!ok) return
     try {
       await del.mutateAsync({ id: equipe.id, obra_id: equipe.obra_id })
       toast.success('Equipe excluída.')

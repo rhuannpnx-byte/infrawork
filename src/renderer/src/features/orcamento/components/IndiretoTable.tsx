@@ -5,6 +5,7 @@ import { DataTable } from '@/components/data-table/DataTable'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
 import { INDIRETO_TIPO_LABEL, type Indireto, type IndiretoTipo } from '@/types/orcamento'
 import { useDeleteIndireto } from '../hooks/indireto'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 interface Props {
   obraId: string
@@ -15,6 +16,7 @@ interface Props {
 
 export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): ReactNode {
   const del = useDeleteIndireto()
+  const confirm = useConfirm()
 
   const columns = useMemo<ColumnDef<Indireto, unknown>[]>(
     () => [
@@ -88,10 +90,13 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm(`Excluir "${row.original.descricao}"?`)) {
-                        del.mutate({ id: row.original.id, obra_id: obraId })
-                      }
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Excluir "${row.original.descricao}"?`,
+                        confirmLabel: 'Excluir',
+                        variant: 'danger'
+                      })
+                      if (ok) del.mutate({ id: row.original.id, obra_id: obraId })
                     }}
                     className="w-6 h-6 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
                   >

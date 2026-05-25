@@ -7,6 +7,7 @@ import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getSignedUrls, useDeleteFotos } from '@/features/acompanhamento/hooks/fotos'
 import { useAuthStore } from '@/stores/auth-store'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import type { FotoEnriquecida } from '@/types/acompanhamento'
 
 interface Props {
@@ -21,6 +22,7 @@ export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): R
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const podeDeletar = role === 'god' || role === 'adm'
   const deleteMut = useDeleteFotos()
+  const confirm = useConfirm()
 
   // Pré-carrega URLs assinadas das fotos visíveis (atual + vizinhas)
   useEffect(() => {
@@ -59,9 +61,14 @@ export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): R
 
   async function handleDelete(): Promise<void> {
     if (!fotoAtual) return
-    const ok = window.confirm(
-      `Excluir esta foto definitivamente?\n\n${fotoAtual.servico_display_nome ?? fotoAtual.siga_servico_nome ?? 'Foto'}\n${fotoAtual.captured_at ? new Date(fotoAtual.captured_at).toLocaleString('pt-BR') : ''}\n\nA acao remove o arquivo do bucket. Nao da pra desfazer.`
-    )
+    const nome = fotoAtual.servico_display_nome ?? fotoAtual.siga_servico_nome ?? 'Foto'
+    const quando = fotoAtual.captured_at ? new Date(fotoAtual.captured_at).toLocaleString('pt-BR') : ''
+    const ok = await confirm({
+      title: 'Excluir esta foto definitivamente?',
+      description: `${nome}${quando ? ` · ${quando}` : ''}\n\nA ação remove o arquivo do bucket. Não dá pra desfazer.`,
+      confirmLabel: 'Excluir',
+      variant: 'danger'
+    })
     if (!ok) return
     try {
       const r = await deleteMut.mutateAsync({ fotoIds: [fotoAtual.id] })

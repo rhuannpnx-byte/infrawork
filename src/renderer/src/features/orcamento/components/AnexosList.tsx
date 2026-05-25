@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { getAnexoSignedUrl, useAnexos, useDeleteAnexo, useUploadAnexo } from '../hooks/anexos'
 import { formatDate } from '@/lib/format'
 import type { AnexoEscopo } from '@/types/orcamento'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 interface Props {
   obraId: string
@@ -25,6 +26,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
   const { data: anexos = [], isLoading } = useAnexos(escopo, escopoId)
   const upload = useUploadAnexo()
   const remove = useDeleteAnexo()
+  const confirm = useConfirm()
 
   const onPick = (): void => fileInputRef.current?.click()
 
@@ -109,8 +111,14 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
                 {podeEditar ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm(`Excluir "${a.nome}"?`)) {
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Excluir "${a.nome}"?`,
+                        description: 'O arquivo será removido do bucket.',
+                        confirmLabel: 'Excluir',
+                        variant: 'danger'
+                      })
+                      if (ok) {
                         remove.mutate({
                           id: a.id,
                           escopo,

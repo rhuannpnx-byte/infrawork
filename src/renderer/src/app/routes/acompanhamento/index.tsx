@@ -35,6 +35,7 @@ import { PrevistoRealizadoPainel } from '@/features/acompanhamento/components/da
 import { AderenciaServicos } from '@/features/acompanhamento/components/dashboard/AderenciaServicos'
 import { PorEncarregado } from '@/features/acompanhamento/components/dashboard/PorEncarregado'
 import { SYNC_STATUS_LABEL } from '@/types/acompanhamento'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 export function AcompanhamentoIndex(): ReactNode {
   return (
@@ -89,6 +90,7 @@ function DashboardAcompanhamento(): ReactNode {
   const sync = useSyncManual()
   const desvincular = useDesvincular()
   const reativar = useReativarVinculo()
+  const confirm = useConfirm()
 
   const servicoSelecionado = servicoItemId
     ? (resumo?.previsto_realizado ?? []).find((p) => p.item_orcamentario_id === servicoItemId)
@@ -192,7 +194,13 @@ function DashboardAcompanhamento(): ReactNode {
                 size="sm"
                 variant="ghost"
                 onClick={async () => {
-                  if (!confirm('Desvincular obra do SIGA? Histórico será mantido.')) return
+                  const ok = await confirm({
+                    title: 'Desvincular obra do SIGA?',
+                    description: 'O histórico de produção e fotos será mantido. Você pode reativar depois sem perder dados.',
+                    confirmLabel: 'Desvincular',
+                    variant: 'warn'
+                  })
+                  if (!ok) return
                   await desvincular.mutateAsync({ id: link.id, obra_id: obraId })
                   toast.success('Vínculo desativado.')
                 }}

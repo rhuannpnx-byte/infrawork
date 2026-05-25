@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { CommandPalette } from './CommandPalette'
 import { ProjectSwitcher } from './ProjectSwitcher'
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog'
+import { ConfirmDialog } from './ConfirmDialog'
 import { ExportDialog } from './ExportDialog'
 import { ShareDialog } from './ShareDialog'
 import { SettingsDialog } from './SettingsDialog'
@@ -26,6 +27,7 @@ export function Modals(): ReactNode {
       <NewOrderDialog />
       <NewEmployeeDialog />
       <ConfirmDeleteDialog />
+      <ConfirmDialog />
       <ExportDialog />
       <ShareDialog />
       <SettingsDialog />
