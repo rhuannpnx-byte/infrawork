@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode, type HTMLAttributes } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -49,11 +50,13 @@ export function Dialog({
 
   if (!open) return null
 
+  // Renderiza via portal direto em document.body — escapa stacking contexts
+  // de pais e fica AO LADO de outros portais (lightbox, leaflet popup).
   // yet-another-react-lightbox usa z-index 9999. topmost=10010 garante
   // o ConfirmDialog acima de qualquer overlay externo.
   // Click-outside: usa ref do box ao inves de e.target===e.currentTarget,
   // porque o overlay (filho do wrapper) sempre invalidaria a igualdade.
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -69,6 +72,8 @@ export function Dialog({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in pointer-events-none" />
       <div
         ref={ref}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         className={cn(
           'relative w-full mx-4 rounded-md border border-border-strong bg-bg-panel shadow-2xl animate-slide-up',
           SIZES[size],
@@ -87,7 +92,8 @@ export function Dialog({
         ) : null}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -106,12 +106,14 @@ Deno.serve(async (req) => {
 
   if (resumoResp.error) return json({ error: `resumo: ${resumoResp.error.message}` }, 500)
 
-  // Cobertura fotográfica (heatmap mês corrente) — dia x conta de fotos
+  // Cobertura fotográfica (heatmap mês corrente) — dia x conta de fotos.
+  // Filtra excluida_em IS NULL pra nao contar fotos deletadas pelo god/adm.
   const mesIni = new Date(); mesIni.setDate(1); mesIni.setHours(0, 0, 0, 0)
   const { data: coberturaRaw } = await admin
     .from('acompanhamento_foto')
     .select('captured_at')
     .eq('obra_id', body.obra_id)
+    .is('excluida_em', null)
     .gte('captured_at', mesIni.toISOString())
     .limit(5000)
   const coberturaMap = new Map<string, number>()
