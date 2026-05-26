@@ -477,6 +477,11 @@ export interface DashboardResumoResposta {
     id: string
     data: string | null
     qtd: number | null
+    qtd_convertida: number | null
+    fator_conversao: number | null
+    siga_unidade_nome: string | null
+    unidade_plano: string | null
+    servico_match_id: string | null
     siga_servico_nome: string | null
     servico_display_nome: string | null
     equipe_display_nome: string | null

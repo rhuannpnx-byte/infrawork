@@ -89,7 +89,11 @@ Deno.serve(async (req) => {
       .limit(10),
     admin
       .from('vw_acompanhamento_producao_enriquecida')
-      .select('id, data, qtd, siga_servico_nome, servico_display_nome, equipe_display_nome, equipe_display_cor, frente')
+      .select(
+        'id, data, qtd, qtd_convertida, fator_conversao, siga_unidade_nome, unidade_plano, ' +
+        'servico_match_id, siga_servico_nome, servico_display_nome, ' +
+        'equipe_display_nome, equipe_display_cor, frente'
+      )
       .eq('obra_id', body.obra_id)
       .order('data', { ascending: false })
       .order('sincronizado_em', { ascending: false })
