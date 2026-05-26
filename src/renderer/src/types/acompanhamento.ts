@@ -400,6 +400,7 @@ export interface ProdutividadeEquipeItem {
   siga_servico_id: number | null
   servico_planejamento_id: string | null
   item_orcamentario_id: string | null
+  unidade: string | null
   registros: number
   dias_trabalhados: number
   qtd_total: number
