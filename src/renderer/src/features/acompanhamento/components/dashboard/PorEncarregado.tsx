@@ -2,6 +2,7 @@ import { type ReactNode, useMemo } from 'react'
 import { UserCircle2 } from 'lucide-react'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
 
 interface Props {
   producoes: ProducaoEnriquecida[]
@@ -81,7 +82,7 @@ export function PorEncarregado({ producoes, filtroItemId, altura = 200 }: Props)
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-text truncate" title={l.nome}>{l.nome}</span>
               <span className="text-text-dim tabular-nums shrink-0 ml-2">
-                {l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                {formatNumber(l.qtd, 0)}
               </span>
             </div>
             <div className="h-1 rounded bg-bg overflow-hidden">

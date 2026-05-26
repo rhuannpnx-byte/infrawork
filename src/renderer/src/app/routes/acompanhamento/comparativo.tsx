@@ -11,6 +11,7 @@ import { ProgressBarPrevReal } from '@/features/acompanhamento/components/compar
 import { StatusComparativoChip } from '@/features/acompanhamento/components/comparativo/StatusComparativoChip'
 import type { PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
 
 export function AcompanhamentoComparativoPage(): ReactNode {
   return (
@@ -62,7 +63,7 @@ function Inner(): ReactNode {
       cell: ({ row }) => (
         <span className="font-mono tabular-nums text-xs">
           {row.original.qtd_plan != null
-            ? Number(row.original.qtd_plan).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+            ? formatNumber(Number(row.original.qtd_plan), 1)
             : '—'}
           {row.original.unidade ? <span className="text-text-dim ml-1">{row.original.unidade}</span> : null}
         </span>
@@ -73,7 +74,7 @@ function Inner(): ReactNode {
       accessorKey: 'qtd_real',
       cell: ({ row }) => (
         <span className="font-mono tabular-nums text-xs">
-          {Number(row.original.qtd_real ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
+          {formatNumber(Number(row.original.qtd_real ?? 0), 1)}
         </span>
       )
     },

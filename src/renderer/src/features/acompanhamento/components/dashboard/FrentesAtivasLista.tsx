@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { MapPin } from 'lucide-react'
 import type { FrenteAtiva } from '@/types/acompanhamento'
+import { formatNumber } from '@/lib/format'
 
 interface Props { frentes: FrenteAtiva[]; altura?: number }
 
@@ -36,7 +37,7 @@ export function FrentesAtivasLista({ frentes, altura = 200 }: Props): ReactNode 
               </div>
               <div className="flex items-center justify-between text-2xs font-mono text-text-dim">
                 <span className="truncate" title={(f.equipes ?? []).join(', ')}>{(f.equipes ?? []).join(', ')}</span>
-                <span className="tabular-nums shrink-0 ml-2">{Number(f.qtd_total ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                <span className="tabular-nums shrink-0 ml-2">{formatNumber(Number(f.qtd_total ?? 0), 0)}</span>
               </div>
             </div>
           )

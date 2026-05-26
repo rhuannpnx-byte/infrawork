@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { Activity } from 'lucide-react'
 import type { DashboardResumoResposta } from '@/types/acompanhamento'
+import { formatNumber } from '@/lib/format'
 
 interface Props {
   itens: DashboardResumoResposta['ultimos_apontamentos']
@@ -39,7 +40,7 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
                     {i.servico_display_nome ?? i.siga_servico_nome ?? '—'}
                   </div>
                   <div className="text-2xs font-mono text-text-dim shrink-0 tabular-nums">
-                    {valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                    {formatNumber(valor, 2)}
                     {unidade ? <span className="ml-1">{unidade}</span> : null}
                   </div>
                 </div>

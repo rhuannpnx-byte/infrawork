@@ -6,6 +6,7 @@ import {
 import { CHART_THEME, axisStyle } from '@/components/charts/theme'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
+import { formatNumber } from '@/lib/format'
 
 interface Props {
   pontos: CurvaSPonto[]
@@ -38,7 +39,7 @@ function CustomTooltip(props: { active?: boolean; payload?: TooltipPayloadItem[]
             <span className="size-2 rounded-sm" style={{ background: p.color }} />
             <span className="text-text-dim">{p.name}</span>
             <span className="text-text tabular-nums ml-auto">
-              {Number(p.value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+              {formatNumber(Number(p.value), 0)}
             </span>
           </div>
         )
@@ -48,7 +49,7 @@ function CustomTooltip(props: { active?: boolean; payload?: TooltipPayloadItem[]
 }
 
 function fmtNum(n: number): string {
-  return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  return formatNumber(Number(n), 0)
 }
 
 interface ProjecaoStats {
@@ -300,7 +301,7 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
               tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
               minTickGap={32}
             />
-            <YAxis tick={axisStyle} stroke={CHART_THEME.axisStroke} tickFormatter={(v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} />
+            <YAxis tick={axisStyle} stroke={CHART_THEME.axisStroke} tickFormatter={(v: number) => formatNumber(v, 0)} />
             <Tooltip content={<CustomTooltip />} />
             <Legend
               verticalAlign="top"

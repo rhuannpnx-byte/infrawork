@@ -3,6 +3,7 @@ import { Target } from 'lucide-react'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { STATUS_COMP_COR } from '@/types/acompanhamento'
 import { corAderenciaSobreAcumulado } from '@/lib/colors/aderencia'
+import { formatNumber } from '@/lib/format'
 
 interface Props {
   itens: PrevistoRealizadoItem[]
@@ -115,5 +116,5 @@ export function AderenciaServicos({ itens, curvaS, dataAte, selectedId, onPick, 
 }
 
 function fmt(v: number): string {
-  return v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  return formatNumber(v, 0)
 }

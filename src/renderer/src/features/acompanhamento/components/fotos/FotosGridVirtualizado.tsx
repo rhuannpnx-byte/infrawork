@@ -29,6 +29,13 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
     return out
   }, [fotos, cols])
 
+  // Map id -> foto para lookup O(1) em hover (evita Array.find a cada render).
+  const fotosById = useMemo(() => {
+    const m = new Map<string, FotoEnriquecida>()
+    for (const f of fotos) m.set(f.id, f)
+    return m
+  }, [fotos])
+
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
@@ -51,7 +58,10 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
     return () => { canceled = true }
   }, [rowVirtualizer, fotos, cols])
 
-  const fotoHover = hover ? fotos.find((f) => f.id === hover.fotoId) ?? null : null
+  const fotoHover = useMemo(
+    () => (hover ? fotosById.get(hover.fotoId) ?? null : null),
+    [hover, fotosById]
+  )
   // Hover usa preview (480px) — qualidade melhor que o thumb usado no grid
   const [urlsHover, setUrlsHover] = useState<Record<string, string>>({})
   const urlHover = fotoHover ? urlsHover[fotoHover.id] ?? urls[fotoHover.id] ?? null : null

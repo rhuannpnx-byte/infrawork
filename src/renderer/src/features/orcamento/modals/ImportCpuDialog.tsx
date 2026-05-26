@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { adminApi } from '@/lib/supabase/functions'
+import { formatNumber } from '@/lib/format'
 
 type CpuItemGrupo = 'EQUIPAMENTO' | 'COMBUSTIVEL' | 'MO' | 'MATERIAL'
 
@@ -270,7 +271,7 @@ export function ImportCpuDialog({ open, onOpenChange, obraId }: Props): ReactNod
                         </td>
                         <td className="px-2 py-1 text-right text-text-muted tabular-nums">
                           {c.producao_diaria_qtde > 0
-                            ? c.producao_diaria_qtde.toLocaleString('pt-BR')
+                            ? formatNumber(c.producao_diaria_qtde)
                             : '—'}
                         </td>
                         <td className="px-2 py-1 text-right text-text-muted tabular-nums">{eq}</td>

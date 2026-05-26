@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
+import { TabPill } from '@/components/ui/TabPill'
 import { fmtBRL, fmtQtd } from '@/lib/money'
+import { formatNumber } from '@/lib/format'
 import type {
   PlanejamentoTarefaCompleta,
   Equipe
@@ -65,12 +67,9 @@ export function TarefaDetailPanel({
 
   if (!tarefa) return null
 
-  const tabClass = (t: Tab): string =>
-    `flex-1 text-xs font-mono uppercase tracking-wider py-2 ${
-      tab === t ? 'border-b-2 border-accent text-accent' : 'text-text-dim hover:text-text'
-    }`
-
   const tarefasPorId = new Map(tarefas.map((t) => [t.id, t]))
+
+  const TAB_CLASS = 'flex-1 uppercase tracking-wider'
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} className="w-[480px]">
@@ -81,32 +80,32 @@ export function TarefaDetailPanel({
         <SheetTitle>{tarefa.servico_grupo_descricao}</SheetTitle>
       </SheetHeader>
 
-      <div className="flex border-b border-border">
-        <button type="button" className={tabClass('datas')} onClick={() => setTab('datas')}>
+      <div className="flex border-b border-border" role="tablist">
+        <TabPill active={tab === 'datas'} onClick={() => setTab('datas')} className={TAB_CLASS}>
           Datas
-        </button>
-        <button type="button" className={tabClass('equipes')} onClick={() => setTab('equipes')}>
+        </TabPill>
+        <TabPill active={tab === 'equipes'} onClick={() => setTab('equipes')} className={TAB_CLASS}>
           Equipes
-        </button>
-        <button type="button" className={tabClass('deps')} onClick={() => setTab('deps')}>
+        </TabPill>
+        <TabPill active={tab === 'deps'} onClick={() => setTab('deps')} className={TAB_CLASS}>
           Deps
-        </button>
-        <button type="button" className={tabClass('cpu')} onClick={() => setTab('cpu')}>
+        </TabPill>
+        <TabPill active={tab === 'cpu'} onClick={() => setTab('cpu')} className={TAB_CLASS}>
           CPU
-        </button>
-        <button
-          type="button"
-          className={tabClass('notas')}
+        </TabPill>
+        <TabPill
+          active={tab === 'notas'}
           onClick={() => {
             setNotasDraft(tarefa.notas ?? '')
             setTab('notas')
           }}
+          className={TAB_CLASS}
         >
           Notas
-        </button>
-        <button type="button" className={tabClass('realizado')} onClick={() => setTab('realizado')}>
+        </TabPill>
+        <TabPill active={tab === 'realizado'} onClick={() => setTab('realizado')} className={TAB_CLASS}>
           Realizado
-        </button>
+        </TabPill>
       </div>
 
       <SheetBody className="space-y-3 text-xs">
@@ -443,7 +442,7 @@ function RealizadoTab({ tarefaId }: { tarefaId: string }): ReactNode {
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded border border-border bg-bg p-2">
           <div className="text-2xs uppercase text-text-dim">Realizado</div>
-          <div className="text-text font-mono tabular-nums">{total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+          <div className="text-text font-mono tabular-nums">{formatNumber(total, 0)}</div>
         </div>
         <div className="rounded border border-border bg-bg p-2">
           <div className="text-2xs uppercase text-text-dim">Registros</div>
@@ -463,7 +462,7 @@ function RealizadoTab({ tarefaId }: { tarefaId: string }): ReactNode {
               <span className="font-mono text-2xs text-text-dim shrink-0 w-[72px]">{p.data ?? '—'}</span>
               <span className="truncate flex-1">{p.equipe_display_nome ?? p.siga_equipe_nome ?? '—'}</span>
               <span className="font-mono tabular-nums shrink-0">
-                {Number(p.qtd ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
+                {formatNumber(Number(p.qtd ?? 0), 1)}
               </span>
             </div>
           ))}

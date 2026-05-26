@@ -6,6 +6,7 @@ import {
 import { CHART_THEME, axisStyle } from '@/components/charts/theme'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import type { CurvaSPonto } from '@/types/acompanhamento'
+import { formatNumber } from '@/lib/format'
 
 interface TooltipItem { value?: number | string | null; dataKey?: string | number; name?: string; color?: string }
 function CustomTooltip(props: { active?: boolean; payload?: TooltipItem[]; label?: string | number }): ReactNode {
@@ -23,7 +24,7 @@ function CustomTooltip(props: { active?: boolean; payload?: TooltipItem[]; label
             <span className="size-2 rounded-sm" style={{ background: p.color }} />
             <span className="text-text-dim">{p.name}</span>
             <span className="text-text tabular-nums ml-auto">
-              {Number(p.value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+              {formatNumber(Number(p.value), 0)}
             </span>
           </div>
         )
@@ -91,7 +92,7 @@ export function CurvaSAcompanhamento({ pontos, altura = 280 }: Props): ReactNode
           <YAxis
             tick={axisStyle}
             stroke={CHART_THEME.axisStroke}
-            tickFormatter={(v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+            tickFormatter={(v: number) => formatNumber(v, 0)}
           />
           <Tooltip
             content={<CustomTooltip />}

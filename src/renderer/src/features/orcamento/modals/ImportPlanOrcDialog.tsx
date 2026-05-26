@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { adminApi } from '@/lib/supabase/functions'
+import { formatNumber } from '@/lib/format'
 import { fmtBRL } from '@/lib/money'
 
 interface OrcamentoImportItem {
@@ -212,7 +213,7 @@ export function ImportPlanOrcDialog({ open, onOpenChange, obraId }: Props): Reac
                         </td>
                         <td className="px-2 py-1 text-right text-text-muted tabular-nums">
                           {it.quantidade !== null
-                            ? it.quantidade.toLocaleString('pt-BR')
+                            ? formatNumber(it.quantidade)
                             : '—'}
                         </td>
                         <td className="px-2 py-1 text-right text-text-muted tabular-nums">

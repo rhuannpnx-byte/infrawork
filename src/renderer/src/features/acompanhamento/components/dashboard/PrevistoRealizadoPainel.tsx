@@ -2,6 +2,7 @@ import { type ReactNode, useMemo } from 'react'
 import { Scale } from 'lucide-react'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
 
 interface Props {
   curvaS: CurvaSPonto[]
@@ -111,7 +112,7 @@ function fmtPct(v: number | null): string {
   return `${Math.round(v * 100)}%`
 }
 function fmtNum(v: number): string {
-  return Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  return formatNumber(Number(v), 1)
 }
 
 export function PrevistoRealizadoPainel({

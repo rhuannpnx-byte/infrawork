@@ -1,7 +1,9 @@
 import { type ReactNode, useState } from 'react'
 import { Sheet, SheetHeader, SheetTitle, SheetBody } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import { TabPill } from '@/components/ui/TabPill'
 import { cn } from '@/lib/utils'
+import { formatNumber, formatDateTimeShort } from '@/lib/format'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 
 interface Props {
@@ -29,26 +31,19 @@ export function ProducaoDetailPanel({ producao, open, onOpenChange }: Props): Re
             const unidade = converteu ? p.unidade_plano : (p.siga_unidade_nome ?? p.unidade_plano)
             return (
               <>
-                {formatDate(p.data)} · qtd {valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                {formatDate(p.data)} · qtd {formatNumber(valor, 2)}
                 {unidade ? ` ${unidade}` : ''}
-                {converteu ? ` (raw ${Number(p.qtd ?? 0).toLocaleString('pt-BR')} ${p.siga_unidade_nome ?? ''} × ${p.fator_conversao})` : ''}
+                {converteu ? ` (raw ${formatNumber(Number(p.qtd ?? 0))} ${p.siga_unidade_nome ?? ''} × ${p.fator_conversao})` : ''}
               </>
             )
           })()}
         </p>
       </SheetHeader>
-      <div className="border-b border-border px-4 flex items-center gap-3">
+      <div className="border-b border-border px-4 flex items-center gap-3" role="tablist">
         {(['detalhes', 'tarefa', 'fotos'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              'py-2 text-xs font-mono border-b-2 transition-colors',
-              tab === t ? 'border-accent text-text' : 'border-transparent text-text-dim hover:text-text'
-            )}
-          >
+          <TabPill key={t} active={tab === t} onClick={() => setTab(t)}>
             {t === 'detalhes' ? 'Detalhes' : t === 'tarefa' ? 'Tarefa baseline' : `Fotos (${p.fotos_count ?? 0})`}
-          </button>
+          </TabPill>
         ))}
       </div>
       <SheetBody>
@@ -131,6 +126,5 @@ function formatDate(s: string | null | undefined): string {
   return new Date(s + (s.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('pt-BR')
 }
 function formatDateTime(s: string | null | undefined): string {
-  if (!s) return '—'
-  return new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatDateTimeShort(s)
 }

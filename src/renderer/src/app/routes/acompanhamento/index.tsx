@@ -13,6 +13,7 @@ import { KPICard } from '@/components/charts/KPICard'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { formatNumber, formatDateTimeShort } from '@/lib/format'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import {
@@ -46,8 +47,7 @@ export function AcompanhamentoIndex(): ReactNode {
 }
 
 function fmtDataHora(s: string | null): string {
-  if (!s) return '—'
-  return new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatDateTimeShort(s)
 }
 
 function DashboardAcompanhamento(): ReactNode {
@@ -332,13 +332,13 @@ function DashboardAcompanhamento(): ReactNode {
                       <KPICard
                         icon={<Activity size={11} />}
                         label={`Produção ${periodo === 'custom' ? 'período' : periodo}`}
-                        value={totalProd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                        value={formatNumber(totalProd, 0)}
                         hint={`${diasTrabalhados} ${diasTrabalhados === 1 ? 'dia trabalhado' : 'dias trabalhados'}`}
                       />
                       <KPICard
                         icon={<TrendingUp size={11} />}
                         label="Velocidade"
-                        value={velocidade.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                        value={formatNumber(velocidade, 0)}
                         unit="/dia trab."
                         hint={diasTrabalhados > 0 ? 'média por dia trabalhado' : 'sem produção no período'}
                       />

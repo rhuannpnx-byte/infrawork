@@ -12,6 +12,7 @@ import {
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { MatchStatusBadge } from '@/features/acompanhamento/components/equipes/MatchStatusBadge'
 import { unidadesEquivalentes, exibirUnidade } from '@/features/acompanhamento/lib/unidades'
+import { TabPill } from '@/components/ui/TabPill'
 import { cn } from '@/lib/utils'
 
 type Tab = 'equipes' | 'encarregados' | 'servicos'
@@ -57,21 +58,14 @@ function Inner(): ReactNode {
         </div>
       )}
 
-      <div className="border-b border-border px-5 flex items-center gap-4 bg-bg-panel">
+      <div className="border-b border-border px-5 flex items-center gap-4 bg-bg-panel" role="tablist">
         {(['equipes', 'encarregados', 'servicos'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              'py-2 text-xs font-mono border-b-2 transition-colors',
-              tab === t ? 'border-accent text-text' : 'border-transparent text-text-dim hover:text-text'
-            )}
-          >
+          <TabPill key={t} active={tab === t} onClick={() => setTab(t)}>
             {t === 'equipes' ? 'Equipes' : t === 'encarregados' ? 'Encarregados' : 'Serviços'}
             <span className="text-text-dim ml-2">
               ({tab === t ? (sugestoes?.[t]?.length ?? 0) : ''})
             </span>
-          </button>
+          </TabPill>
         ))}
       </div>
 

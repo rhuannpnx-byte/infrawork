@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Image as ImageIcon, Layers } from 'lucide-react'
 import { getSignedUrls } from '../../hooks/fotos'
+import { formatDateTimeShort } from '@/lib/format'
 
 export interface PinFoto {
   id: string
@@ -121,6 +122,5 @@ function ClusterContent({
 }
 
 function fmtDate(s: string | null): string {
-  if (!s) return '—'
-  return new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  return formatDateTimeShort(s)
 }

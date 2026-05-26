@@ -13,6 +13,7 @@ import { useAcompanhamentoLink } from '@/features/acompanhamento/hooks/link'
 import { ProducaoDetailPanel } from '@/features/acompanhamento/components/producao/ProducaoDetailPanel'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
 
 export function AcompanhamentoProducaoPage(): ReactNode {
   return (
@@ -95,12 +96,12 @@ function ProducaoInner(): ReactNode {
         const unidade = converteu ? r.unidade_plano : (r.siga_unidade_nome ?? r.unidade_plano)
         return (
           <span className="font-mono tabular-nums text-xs">
-            {valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+            {formatNumber(valor, 2)}
             {unidade ? <span className="text-text-dim ml-1">{unidade}</span> : null}
             {converteu ? (
               <span
                 className="text-2xs text-text-dim ml-1 font-mono"
-                title={`Raw: ${Number(r.qtd ?? 0).toLocaleString('pt-BR')} ${r.siga_unidade_nome ?? ''} × ${r.fator_conversao}`}
+                title={`Raw: ${formatNumber(Number(r.qtd ?? 0))} ${r.siga_unidade_nome ?? ''} × ${r.fator_conversao}`}
               >
                 ×{r.fator_conversao}
               </span>

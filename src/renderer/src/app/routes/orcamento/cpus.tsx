@@ -13,6 +13,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCpus } from '@/features/orcamento/hooks/cpus'
 import { useServicos } from '@/features/orcamento/hooks/servicos'
+import { formatNumber } from '@/lib/format'
 import { NewCpuVersionDialog } from '@/features/orcamento/modals/NewCpuVersionDialog'
 import { ImportCpuDialog } from '@/features/orcamento/modals/ImportCpuDialog'
 import { fmtBRL4 } from '@/lib/money'
@@ -94,7 +95,7 @@ function CpusInner(): ReactNode {
         header: 'Produção/dia',
         cell: (info) => (
           <span className="font-mono text-text-muted text-right tabular-nums">
-            {Number(info.getValue() ?? 0).toLocaleString('pt-BR')}
+            {formatNumber(Number(info.getValue() ?? 0))}
           </span>
         ),
         meta: { label: 'Produção/dia' },

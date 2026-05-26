@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import { fmtBRL } from '@/lib/money'
+import { formatNumber } from '@/lib/format'
 import type { PlanejamentoTarefaCompleta } from '@/types/planejamento'
 import {
   addDays,
@@ -191,7 +192,7 @@ export function GanttChart({
                   <div className="flex items-center gap-2 text-2xs font-mono text-text-dim">
                     {t.producao_diaria_qtde ? (
                       <span>
-                        {t.producao_diaria_qtde.toLocaleString('pt-BR')} /
+                        {formatNumber(t.producao_diaria_qtde)} /
                         {t.producao_diaria_unidade ?? 'dia'}
                       </span>
                     ) : (
@@ -199,7 +200,7 @@ export function GanttChart({
                     )}
                     {t.quantidade_referencia ? (
                       <span>
-                        · qtd {t.quantidade_referencia.toLocaleString('pt-BR')}{' '}
+                        · qtd {formatNumber(t.quantidade_referencia)}{' '}
                         {t.unidade_servico ?? ''}
                       </span>
                     ) : null}
