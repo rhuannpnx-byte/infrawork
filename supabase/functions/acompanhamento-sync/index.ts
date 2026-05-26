@@ -312,6 +312,27 @@ async function syncOneVinculo(
       params
     )
 
+    // IDs de fotos que o god/adm ja deletou localmente (excluida_em IS NOT NULL).
+    // Vamos pular essas no upsert pra: (1) nao reverter a soft-delete e (2)
+    // nao inflar o count do toast com fotos invisiveis ao usuario.
+    const sigaIdsBatch = fotoRows
+      .map((r) => Number(r[fcId]))
+      .filter((n) => Number.isFinite(n))
+    const excluidasSet = new Set<number>()
+    if (sigaIdsBatch.length > 0) {
+      const CHUNK_LOOK = 500
+      for (let j = 0; j < sigaIdsBatch.length; j += CHUNK_LOOK) {
+        const chunk = sigaIdsBatch.slice(j, j + CHUNK_LOOK)
+        const { data: exRows } = await admin
+          .from('acompanhamento_foto')
+          .select('siga_foto_id')
+          .eq('obra_id', vinculo.obra_id)
+          .not('excluida_em', 'is', null)
+          .in('siga_foto_id', chunk)
+        for (const r of exRows ?? []) excluidasSet.add(Number(r.siga_foto_id))
+      }
+    }
+
     const toIsoF = (v: unknown): string | null => {
       if (v == null) return null
       if (v instanceof Date) return v.toISOString()
@@ -320,7 +341,8 @@ async function syncOneVinculo(
     }
     const BATCH = 200
     for (let i = 0; i < fotoRows.length; i += BATCH) {
-      const slice = fotoRows.slice(i, i + BATCH)
+      const slice = fotoRows.slice(i, i + BATCH).filter((r) => !excluidasSet.has(Number(r[fcId])))
+      if (slice.length === 0) continue
       const payload = slice.map((r) => ({
         obra_id: vinculo.obra_id,
         siga_foto_id: Number(r[fcId]),
