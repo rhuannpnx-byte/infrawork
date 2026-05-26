@@ -309,27 +309,42 @@ function DashboardAcompanhamento(): ReactNode {
                   value={r?.avanco_pct != null ? `${(Number(r.avanco_pct) * 100).toFixed(1)}%` : '—'}
                   hint={r?.avanco_pct == null ? 'sem baseline ativo' : 'ponderado por custo'}
                 />
-                <KPICard
-                  icon={<Activity size={11} />}
-                  label={`Produção ${periodo === 'custom' ? 'período' : periodo}`}
-                  value={(resumo?.curva_s ?? [])
-                    .filter((p) => !servicoItemId || p.item_orcamentario_id === servicoItemId)
-                    .reduce((s, p) => s + Number(p.realizado_dia ?? 0), 0)
-                    .toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-                  hint={`${r?.dias_com_apontamento ?? 0} dias com apontamento`}
-                />
-                <KPICard
-                  icon={<TrendingUp size={11} />}
-                  label="Velocidade"
-                  value={(() => {
-                    const total = (resumo?.curva_s ?? [])
-                      .filter((p) => !servicoItemId || p.item_orcamentario_id === servicoItemId)
-                      .reduce((s, p) => s + Number(p.realizado_dia ?? 0), 0)
-                    return (total / Math.max(1, janela.dias)).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
-                  })()}
-                  unit="/dia"
-                  hint="média móvel do período"
-                />
+                {(() => {
+                  // Compute total + dias_trabalhados respeitando o filtro de servico.
+                  // Velocidade = total / dias com producao > 0 dentro da janela
+                  // (dias TRABALHADOS, nao dias do calendario).
+                  const pontos = (resumo?.curva_s ?? []).filter(
+                    (p) => !servicoItemId || p.item_orcamentario_id === servicoItemId
+                  )
+                  let totalProd = 0
+                  const diasComProd = new Set<string>()
+                  for (const p of pontos) {
+                    const real = Number(p.realizado_dia ?? 0)
+                    if (real > 0) {
+                      totalProd += real
+                      diasComProd.add(p.data)
+                    }
+                  }
+                  const diasTrabalhados = diasComProd.size
+                  const velocidade = diasTrabalhados > 0 ? totalProd / diasTrabalhados : 0
+                  return (
+                    <>
+                      <KPICard
+                        icon={<Activity size={11} />}
+                        label={`Produção ${periodo === 'custom' ? 'período' : periodo}`}
+                        value={totalProd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                        hint={`${diasTrabalhados} ${diasTrabalhados === 1 ? 'dia trabalhado' : 'dias trabalhados'}`}
+                      />
+                      <KPICard
+                        icon={<TrendingUp size={11} />}
+                        label="Velocidade"
+                        value={velocidade.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                        unit="/dia trab."
+                        hint={diasTrabalhados > 0 ? 'média por dia trabalhado' : 'sem produção no período'}
+                      />
+                    </>
+                  )
+                })()}
                 <KPICard
                   icon={<Users size={11} />}
                   label="Equipes hoje"
