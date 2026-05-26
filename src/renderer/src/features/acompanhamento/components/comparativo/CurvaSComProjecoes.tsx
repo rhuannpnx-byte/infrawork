@@ -4,6 +4,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine, Legend
 } from 'recharts'
 import { CHART_THEME, axisStyle } from '@/components/charts/theme'
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 
 interface Props {
@@ -256,9 +257,10 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
 
   if (data.length === 0) {
     return (
-      <div className="rounded border border-border bg-bg-panel flex items-center justify-center text-text-dim text-2xs font-mono p-4 text-center" style={{ height: altura }}>
-        Sem dados de curva-S — selecione um serviço com plano e produção
-      </div>
+      <ChartEmptyState
+        height={altura}
+        message="Sem dados de curva-S, selecione um serviço com plano e produção"
+      />
     )
   }
 
@@ -306,12 +308,12 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
               iconSize={8}
               wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }}
             />
-            <ReferenceLine x={hojeIso} stroke="#fbbf24" strokeDasharray="3 3" label={{ value: 'Hoje', fontSize: 9, fill: '#fbbf24' }} />
+            <ReferenceLine x={hojeIso} stroke="oklch(82% 0.16 80)" strokeDasharray="3 3" label={{ value: 'Hoje', fontSize: 9, fill: 'oklch(82% 0.16 80)' }} />
             {projStats.fim_planejado && (
-              <ReferenceLine x={projStats.fim_planejado} stroke="#4d8eff" strokeDasharray="2 4" label={{ value: 'Fim plan.', fontSize: 9, fill: '#4d8eff' }} />
+              <ReferenceLine x={projStats.fim_planejado} stroke="oklch(67% 0.18 255)" strokeDasharray="2 4" label={{ value: 'Fim plan.', fontSize: 9, fill: 'oklch(67% 0.18 255)' }} />
             )}
             {projStats.fim_atual && (
-              <ReferenceLine x={projStats.fim_atual} stroke="#fb923c" strokeDasharray="2 4" label={{ value: 'Proj. atual', fontSize: 9, fill: '#fb923c' }} />
+              <ReferenceLine x={projStats.fim_atual} stroke="oklch(74% 0.16 50)" strokeDasharray="2 4" label={{ value: 'Proj. atual', fontSize: 9, fill: 'oklch(74% 0.16 50)' }} />
             )}
             <defs>
               <linearGradient id="g_plan" x1="0" y1="0" x2="0" y2="1">
@@ -325,8 +327,8 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
             </defs>
             <Area name="Planejado acumulado" type="monotone" dataKey="planejado" stroke={CHART_THEME.series[0]} strokeWidth={1.4} fill="url(#g_plan)" isAnimationActive={false} />
             <Area name="Realizado acumulado" type="monotone" dataKey="realizado" stroke={CHART_THEME.series[2]} strokeWidth={1.8} fill="url(#g_real)" connectNulls isAnimationActive={false} />
-            <Line name="Projeção (média atual)" type="monotone" dataKey="proj_atual" stroke="#fb923c" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
-            <Line name="Projeção (média necessária)" type="monotone" dataKey="proj_necessaria" stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+            <Line name="Projeção (média atual)" type="monotone" dataKey="proj_atual" stroke="oklch(74% 0.16 50)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+            <Line name="Projeção (média necessária)" type="monotone" dataKey="proj_necessaria" stroke="oklch(74% 0.14 295)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

@@ -37,7 +37,7 @@ function Lucratividade(): ReactNode {
             <div className="rounded border border-border bg-bg-panel">
               <div className="px-4 py-2 border-b border-border bg-bg-elevated">
                 <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">
-                  Planilha Orçamentária — agrupado por raiz
+                  Planilha Orçamentária · agrupado por raiz
                 </h3>
               </div>
               <table className="w-full text-xs font-mono">

@@ -96,7 +96,7 @@ export function HomePage(): ReactNode {
             {primeiroNome ? `, ${primeiroNome}` : ''}.
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-text-muted leading-snug">
-            Plataforma integrada de gestão de obras de infraestrutura — do custo planejado ao
+            Plataforma integrada de gestão de obras de infraestrutura, do custo planejado ao
             realizado em campo.
           </p>
 

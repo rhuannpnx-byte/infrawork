@@ -123,7 +123,7 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Previsto × Realizado"
-        subtitle={`${scope.obra?.nome ?? ''} — ${itens.length} servico_grupos no baseline${selectedId ? ' · filtrando 1 serviço' : ''}`}
+        subtitle={`${scope.obra?.nome ?? ''} · ${itens.length} servico_grupos no baseline${selectedId ? ' · filtrando 1 serviço' : ''}`}
         actions={
           selectedId && (
             <button

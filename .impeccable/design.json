@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-26T00:00:00Z",
+  "title": "Design System: InfraWork",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Console Blue",
+        "canonical": "oklch(67% 0.16 255)",
+        "tonalRamp": ["#0a1530", "#152656", "#1e3884", "#2a52b8", "#3a72dd", "#4d8eff", "#73a8ff", "#a7c6ff"]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Aderencia OK",
+        "canonical": "oklch(78% 0.18 145)",
+        "tonalRamp": ["#0a2616", "#0f3a22", "#176030", "#22884a", "#33b568", "#4ade80", "#7df0a3", "#b5f8cc"]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Aderencia Atencao",
+        "canonical": "oklch(82% 0.16 80)",
+        "tonalRamp": ["#2b1d04", "#43320b", "#664c14", "#8a6817", "#b58a1d", "#fbbf24", "#fcd166", "#fde6a8"]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Aderencia Critica",
+        "canonical": "oklch(70% 0.18 25)",
+        "tonalRamp": ["#2e0e0e", "#481414", "#6b1d1d", "#8e2828", "#c14545", "#f87171", "#fb9b9b", "#fdc6c6"]
+      },
+      "module-planejamento": {
+        "role": "tertiary",
+        "displayName": "Planejamento Ciano",
+        "canonical": "oklch(85% 0.12 215)",
+        "tonalRamp": ["#072024", "#0b333a", "#114e58", "#176e7d", "#2196a9", "#67e8f9", "#a7f0fa", "#d4f8fc"]
+      },
+      "module-suprimentos": {
+        "role": "tertiary",
+        "displayName": "Suprimentos Lavanda",
+        "canonical": "oklch(74% 0.14 295)",
+        "tonalRamp": ["#1e0d33", "#2d144d", "#43227a", "#5c33a8", "#7b4dd1", "#a78bfa", "#c7b3fc", "#e2d6fd"]
+      },
+      "module-equipe": {
+        "role": "tertiary",
+        "displayName": "Equipe Magenta",
+        "canonical": "oklch(73% 0.16 350)",
+        "tonalRamp": ["#2b0a1a", "#421027", "#65193c", "#8a2552", "#b53b75", "#f472b6", "#f8a3ce", "#fcd0e3"]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Console Base",
+        "canonical": "oklch(15% 0.005 250)",
+        "tonalRamp": ["#08090b", "#0a0b0e", "#0c0e12", "#0f1116", "#14171f", "#1a1e28", "#1f242f", "#262a35"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Texto Console",
+        "canonical": "oklch(92% 0.005 250)",
+        "tonalRamp": ["#3d4148", "#5b6068", "#8b909a", "#a8acb3", "#c7cad0", "#e8ebef", "#f2f4f6", "#fafbfc"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Titulo de pagina; uma vez por tela." },
+      "headline": { "displayName": "Headline", "purpose": "Titulo de secao dentro de pagina." },
+      "title": { "displayName": "Title", "purpose": "Titulo de card ou header de modal." },
+      "body": { "displayName": "Body", "purpose": "Tamanho base do app (12px). Tabela, descricao, label." },
+      "body-sm": { "displayName": "Body SM", "purpose": "Linha secundaria em tabela densa, tooltip." },
+      "label": { "displayName": "Label Mono", "purpose": "Badge, header de coluna, breadcrumb. Uppercase, mono." },
+      "numeric": { "displayName": "Numeric Mono", "purpose": "Qualquer numero comparavel. tabular-nums obrigatorio." }
+    },
+    "shadows": [
+      { "name": "popover", "value": "0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -4px rgba(0,0,0,0.3)", "purpose": "Tooltip, popover, dropdown. Sinaliza elemento acima do fluxo." },
+      { "name": "modal", "value": "0 25px 50px -12px rgba(0,0,0,0.7)", "purpose": "Dialog. Junto com bg-black/60 escurece o fundo." },
+      { "name": "accent-ring", "value": "0 0 0 1px rgba(77,142,255,0.4)", "purpose": "Borda fantasma decorativa atras de button-primary." }
+    ],
+    "motion": [
+      { "name": "fade-in", "value": "120ms ease-out", "purpose": "Tooltip, overlay backdrop." },
+      { "name": "slide-up", "value": "160ms ease-out", "purpose": "Popover, dialog box, dropdown." },
+      { "name": "accordion", "value": "200ms ease-out", "purpose": "Secao expansivel." }
+    ],
+    "breakpoints": [
+      { "name": "notebook-14", "value": "1366px" },
+      { "name": "monitor-27", "value": "2560px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acao primaria. Uma por dialog. Accent blue solido com borda fantasma decorativa.",
+      "html": "<button class=\"ds-btn-primary\">Salvar</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; background: #4d8eff; color: #0a0b0e; border: none; border-radius: 4px; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 11.5px; font-weight: 500; line-height: 1; box-shadow: 0 0 0 1px rgba(77,142,255,0.4); cursor: pointer; transition: background 120ms ease-out; } .ds-btn-primary:hover { background: #66a0ff; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 1px #4d8eff, 0 0 0 3px rgba(77,142,255,0.4); } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acao alternativa. Fundo elevated, borda strong, texto neutro.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; background: #14171f; color: #e8ebef; border: 1px solid #262a35; border-radius: 4px; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 11.5px; font-weight: 500; cursor: pointer; transition: background 120ms ease-out, border-color 120ms ease-out; } .ds-btn-secondary:hover { background: #1a1e28; border-color: #2d3340; } .ds-btn-secondary:focus-visible { outline: none; border-color: #4d8eff; box-shadow: 0 0 0 1px #4d8eff; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Acao terciaria em toolbar densa. Sem fundo em repouso.",
+      "html": "<button class=\"ds-btn-ghost\">Filtrar</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; background: transparent; color: #8b909a; border: none; border-radius: 4px; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 11.5px; font-weight: 500; cursor: pointer; transition: background 120ms ease-out, color 120ms ease-out; } .ds-btn-ghost:hover { background: #1a1e28; color: #e8ebef; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Campo de texto padrao. Altura 28px, fonte 12px, foco accent.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Buscar obra...\" />",
+      "css": ".ds-input { display: block; width: 100%; height: 28px; padding: 0 8px; background: #14171f; color: #e8ebef; border: 1px solid #262a35; border-radius: 4px; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; line-height: 1.45; } .ds-input::placeholder { color: #5b6068; } .ds-input:focus-visible { outline: none; border-color: #4d8eff; box-shadow: 0 0 0 1px #4d8eff; }"
+    },
+    {
+      "name": "Badge Success",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Status semantico OK. Sempre acompanha texto (cor nao e unico indicador).",
+      "html": "<span class=\"ds-badge ds-badge-success\">OK 97%</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 3px; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; font-weight: 500; line-height: 1.2; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid; } .ds-badge-success { background: rgba(74,222,128,0.15); color: #4ade80; border-color: rgba(74,222,128,0.30); }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Container principal de conteudo. Flat, borda 1px, sem sombra em repouso.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-header\"><h3 class=\"ds-panel-title\">Curva-S</h3></header><div class=\"ds-panel-body\">Conteudo do painel aqui.</div></section>",
+      "css": ".ds-panel { background: #0f1116; border: 1px solid #1b1e26; border-radius: 4px; overflow: hidden; } .ds-panel-header { padding: 8px 12px; border-bottom: 1px solid #1b1e26; } .ds-panel-title { margin: 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; font-weight: 600; color: #e8ebef; } .ds-panel-body { padding: 12px; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; color: #e8ebef; line-height: 1.45; }"
+    },
+    {
+      "name": "KPI Tile",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Bloco de metrica do dashboard. Label mono uppercase + numero grande tabular.",
+      "html": "<div class=\"ds-kpi\"><div class=\"ds-kpi-label\">Producao Diaria</div><div class=\"ds-kpi-value\">1.247 <span class=\"ds-kpi-unit\">m&sup2;</span></div><div class=\"ds-kpi-delta\">+8,2% vs media 7d</div></div>",
+      "css": ".ds-kpi { background: #0f1116; border: 1px solid #1b1e26; border-radius: 4px; padding: 12px; min-width: 160px; } .ds-kpi-label { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; font-weight: 500; line-height: 1.2; letter-spacing: 0.04em; text-transform: uppercase; color: #8b909a; margin-bottom: 6px; } .ds-kpi-value { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 20px; font-weight: 600; color: #e8ebef; font-variant-numeric: tabular-nums; line-height: 1.2; } .ds-kpi-unit { font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight: 400; color: #8b909a; margin-left: 4px; } .ds-kpi-delta { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; color: #4ade80; margin-top: 4px; }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Item da navegacao lateral. Cor de modulo na barra vertical 2px do estado ativo.",
+      "html": "<a class=\"ds-nav-item ds-nav-active\" href=\"#\"><span class=\"ds-nav-bar\"></span><svg class=\"ds-nav-icon\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z\"/></svg><span>Acompanhamento</span></a>",
+      "css": ".ds-nav-item { position: relative; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px 0 14px; color: #8b909a; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-decoration: none; border-radius: 4px; transition: background 120ms ease-out, color 120ms ease-out; } .ds-nav-item:hover { background: #1a1e28; color: #e8ebef; } .ds-nav-active { background: #1f242f; color: #e8ebef; } .ds-nav-bar { position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: #4ade80; border-radius: 0 2px 2px 0; } .ds-nav-icon { color: #4ade80; flex-shrink: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Console de Canteiro",
+    "overview": "InfraWork e o painel que substitui Excel + WhatsApp + tres sistemas legados pelo unico fluxo coerente do engenheiro de obra. O sistema visual emula um console tecnico: tela escura saturada de informacao, numeros monoespacados alinhados a direita, badges semanticos curtos, zero decoracao. O engenheiro abre o app cedo, navega Dashboard -> identifica desvio -> vai pra modulo -> fecha. Cada pixel da viewport precisa ganhar seu lugar nesse fluxo. O sistema rejeita explicitamente o visual de ERP tradicional, o cinza institucional de PowerBI, a planilha-com-cabecalho-ZA-ZZ do Excel, e qualquer onboarding warmth de app consumer. Nao e dark mode porque dev gosta: o engenheiro alterna escritorio (monitor 27, luz forte) e canteiro (notebook 14, sol direto), e o fundo escuro com texto claro mantem legibilidade nos dois cenarios sem reduzir densidade.",
+    "keyCharacteristics": [
+      "Densidade alta intencional: linha de tabela 24px, controle 28px, fonte base 12px.",
+      "Mesmo layout em monitor 27 e notebook 14; sem fluid typography, sem breakpoint mobile.",
+      "Mono (IBM Plex Mono) carrega todo dado numerico; sans (IBM Plex Sans) carrega rotulo e prosa.",
+      "Cor e semantica, nunca decorativa. Accent azul ocupa <10% da tela.",
+      "Cada modulo principal tem uma cor de identidade usada apenas em sidebar/tabs."
+    ],
+    "rules": [
+      { "name": "A Regra do Unico Accent", "section": "colors", "body": "O Console Blue ocupa no maximo 10% de qualquer tela. Botao primario, foco corrente, link, indicador de tab ativa. Nao e cor de fundo de painel, nao e cor de grafico decorativo, nao e gradiente." },
+      { "name": "A Regra do Verde/Amarelo/Vermelho Semantico", "section": "colors", "body": "success, warn, danger so aparecem quando representam estado de aderencia, sync ou perigo. Verde e OK; amarelo e atencao; vermelho e critico. Nao ha outro significado disponivel." },
+      { "name": "A Regra da Cor Nao-Solo", "section": "colors", "body": "Aderencia colorida precisa acompanhar texto numerico ou icone. Daltonico tem que conseguir ler o estado sem ver a cor." },
+      { "name": "A Regra do Mono pra Numero", "section": "typography", "body": "Qualquer numero comparavel visualmente usa IBM Plex Mono com tabular-nums. Alinhamento de digito e decisao de canteiro: engenheiro escaneia coluna de 50 linhas, digito desalinhado e erro de leitura." },
+      { "name": "A Regra da Unidade Visivel", "section": "typography", "body": "Toda metrica numerica carrega unidade adjacente (m2, m3, t, m, %, R$). Unidade em text-muted, numero em text. Nunca esconder unidade porque o contexto explica." },
+      { "name": "A Regra de Nao-Traduzir", "section": "typography", "body": "O engenheiro conhece BDI, CPU, fator de conversao, snapshot, baseline. Nao simplificar pra leigo. Tooltip explica conceito derivado, nao basico." },
+      { "name": "A Regra do Flat-by-Default", "section": "elevation", "body": "Painel, card, tabela, input: nenhum tem sombra em repouso. Profundidade vem de hierarquia de fundo + borda 1px. Sombra e resposta a estado." },
+      { "name": "A Regra do Backdrop Sutil", "section": "elevation", "body": "Modal usa bg-black/60 + backdrop-blur-sm. Nao e glassmorphism: o blur so desfoca o conteudo de tras durante decisao." }
+    ],
+    "dos": [
+      "Usar <Button> para qualquer acao clicavel.",
+      "Colocar unidade ao lado de todo numero (1.247 m2, 97%, R$ 3.400,00).",
+      "Usar tabular-nums em qualquer coluna numerica.",
+      "Mostrar fator de conversao explicitamente quando aplicado.",
+      "Preservar terminologia tecnica: CBUQ, BDI, fator.",
+      "Usar useConfirm() em vez de window.confirm().",
+      "Usar createPortal para qualquer overlay.",
+      "Dar foco visivel em tudo que recebe teclado.",
+      "Dimensionar alvos de toque para no minimo 24x24px.",
+      "Acompanhar cor de estado com texto ou icone.",
+      "Respeitar prefers-reduced-motion."
+    ],
+    "donts": [
+      "Usar #000 ou #fff puros.",
+      "Manter text-dim no valor atual sem aumentar contraste (~3,16:1 falha WCAG AA).",
+      "Usar gradiente em texto (background-clip: text + gradient).",
+      "Usar border-left/right maior que 1px como faixa colorida.",
+      "Usar glassmorphism como tema visual.",
+      "Ter hero metric template (numero gigante decorativo + gradiente).",
+      "Repetir cards identicos em grid.",
+      "Usar modal como primeira ideia.",
+      "Usar emoji decorativo, mascote, confete, animacao de celebracao.",
+      "Copiar visual de ERP tradicional (SAP/TOTVS/Sienge).",
+      "Copiar visual de PowerBI/AdminLTE/CoreUI.",
+      "Copiar visual de Excel/planilha.",
+      "Usar travessao (em dash) na copy do produto.",
+      "Mostrar mensagem generica simpatica (Oops, algo deu errado).",
+      "Colorir fundo de linha inteira de tabela como unico indicador.",
+      "Animar propriedade de layout (height, width, top)."
+    ]
+  }
+}

@@ -66,7 +66,7 @@ function CurvaSInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Curva-S"
-        subtitle={`${scope.obra?.nome ?? ''} — avanço físico acumulado planejado${baseline ? ' vs baseline' : ''}.`}
+        subtitle={`${scope.obra?.nome ?? ''}: avanço físico acumulado planejado${baseline ? ' vs baseline' : ''}.`}
         actions={
           <select
             value={planSel?.id ?? ''}

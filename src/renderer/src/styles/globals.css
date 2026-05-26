@@ -46,6 +46,29 @@
     background: var(--text-faint);
   }
 
+  /* Baseline a11y focus pra qualquer button ou link que nao tenha estilo proprio.
+   * O componente <Button> usa outline-none + focus-visible:ring custom; esta regra
+   * cobre todos os custom buttons espalhados pelo codebase. */
+  button:focus-visible,
+  [role='button']:focus-visible,
+  a:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
+
+  /* Respeito a prefers-reduced-motion: cortar animacoes do app */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   .font-mono,
   .tabular {
     font-variant-numeric: tabular-nums;

@@ -76,7 +76,7 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Fotos & Mapa"
-        subtitle={`${scope.obra?.nome ?? ''} — ${fotos.length}${total > fotos.length ? ` de ${total}` : ''} fotos`}
+        subtitle={`${scope.obra?.nome ?? ''} · ${fotos.length}${total > fotos.length ? ` de ${total}` : ''} fotos`}
         actions={
           <div className="inline-flex border border-border rounded overflow-hidden">
             <ViewBtn cur={filtros.view_mode} mode="split" onClick={setViewMode}><Columns size={11} /></ViewBtn>

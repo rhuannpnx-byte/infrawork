@@ -152,7 +152,7 @@ export function TransicionarStatusDialog({ open, onOpenChange, revisao }: Props)
     >
       <form onSubmit={onSubmit}>
         <DialogHeader>
-          <DialogTitle>Transição de status — Revisão v{revisao.versao}</DialogTitle>
+          <DialogTitle>Transição de status · Revisão v{revisao.versao}</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />

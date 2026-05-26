@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode, type HTMLAttributes } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { IconButton } from './IconButton'
 
 interface SheetProps {
   open: boolean
@@ -39,14 +40,14 @@ export function Sheet({ open, onOpenChange, children, side = 'right', className 
           className
         )}
       >
-        <button
-          type="button"
+        <IconButton
+          size="sm"
           aria-label="Fechar"
           onClick={() => onOpenChange(false)}
-          className="absolute top-3 right-3 text-text-dim hover:text-text z-10"
+          className="absolute top-2 right-2 z-10"
         >
           <X size={14} />
-        </button>
+        </IconButton>
         {children}
       </div>
     </div>

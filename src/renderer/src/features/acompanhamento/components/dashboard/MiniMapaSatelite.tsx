@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef } from 'react'
 import { MapPin, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 
 interface PinFoto {
   id: string
@@ -112,11 +113,9 @@ export function MiniMapaSatelite({ fotos, altura = 200 }: Props): ReactNode {
       <div className="relative flex-1">
         <div ref={ref} className="absolute inset-0" />
         {validos.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-text-dim text-2xs font-mono">
-            Sem fotos com GPS
-          </div>
+          <ChartEmptyState overlay message="Sem fotos com GPS" />
         )}
-        <div className="absolute bottom-1 right-2 text-[9px] text-white/60 font-mono pointer-events-none">
+        <div className="absolute bottom-1 right-2 text-[9px] text-text/60 font-mono pointer-events-none">
           Esri Satélite
         </div>
       </div>

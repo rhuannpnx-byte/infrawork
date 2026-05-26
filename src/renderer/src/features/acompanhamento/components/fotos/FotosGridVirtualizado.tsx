@@ -136,17 +136,17 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
                       </div>
                     )}
                     {f.lat != null && f.lng != null && (
-                      <span className="absolute top-1 left-1 text-white drop-shadow bg-black/50 rounded p-0.5">
+                      <span className="absolute top-1 left-1 text-text drop-shadow bg-black/50 rounded p-0.5">
                         <MapPin size={9} />
                       </span>
                     )}
                     {f.equipe_display_cor && (
                       <span
-                        className="absolute bottom-1 left-1 size-2 rounded-sm border border-white/40"
+                        className="absolute bottom-1 left-1 size-2 rounded-sm border border-text/40"
                         style={{ background: f.equipe_display_cor }}
                       />
                     )}
-                    <div className="absolute bottom-0 left-0 right-0 text-[9px] font-mono text-white bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity truncate">
+                    <div className="absolute bottom-0 left-0 right-0 text-[9px] font-mono text-text bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity truncate">
                       {f.captured_date ?? ''}
                     </div>
                   </button>

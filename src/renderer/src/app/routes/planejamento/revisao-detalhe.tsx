@@ -49,7 +49,7 @@ function RevisaoInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title={plan.nome}
-        subtitle={`${scope.obra?.nome ?? ''} — ${STATUS_LABEL[plan.status]}${plan.is_baseline ? ' · ★ Linha de Base' : ''} · Início ${fmtDataBR(plan.data_referencia_inicio)} (somente leitura)`}
+        subtitle={`${scope.obra?.nome ?? ''} · ${STATUS_LABEL[plan.status]}${plan.is_baseline ? ' · ★ Linha de Base' : ''} · Início ${fmtDataBR(plan.data_referencia_inicio)} (somente leitura)`}
       />
       <div className="flex-1 overflow-hidden">
         <GanttChart

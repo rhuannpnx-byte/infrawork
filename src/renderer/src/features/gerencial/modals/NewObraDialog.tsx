@@ -143,7 +143,7 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
               onChange={(e) => setNome(e.target.value)}
               required
               minLength={3}
-              placeholder="Ex.: Duplicação BR-153 — Lote 2"
+              placeholder="Ex.: Duplicação BR-153, Lote 2"
             />
           </div>
         </DialogBody>

@@ -55,7 +55,7 @@ export function RequireObra({
           <EmptyState
             icon="folder-open"
             title="Selecione uma obra para continuar"
-            description="Este módulo opera dentro do escopo de uma obra — todos os dados aqui são herméticos por obra. Escolha uma para liberar a tela."
+            description="Este módulo opera dentro do escopo de uma obra: todos os dados aqui são herméticos por obra. Escolha uma para liberar a tela."
             action={
               <Button variant="default" size="sm" onClick={() => openModal('projectSwitcher')}>
                 <FolderOpen size={11} /> Selecionar obra

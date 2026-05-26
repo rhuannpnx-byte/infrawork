@@ -135,7 +135,7 @@ export function ImportIndiretoDialog({ open, onOpenChange, obraId }: Props): Rea
               Selecione o arquivo <span className="text-text">.xlsm</span> da planilha de
               planejamento TecPav. O sistema lê o <strong>total mensal</strong> da aba{' '}
               <code>INDIRETO</code> e cria <strong>um único item</strong> de custo indireto na
-              obra — você define no próximo passo a quantos meses esse valor equivale.
+              obra. Você define no próximo passo a quantos meses esse valor equivale.
             </div>
             <Button variant="default" onClick={escolherArquivo}>
               <FileUp size={11} /> Selecionar arquivo

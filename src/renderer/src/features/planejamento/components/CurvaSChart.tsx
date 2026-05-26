@@ -13,6 +13,7 @@ import {
 import type { CurvaSBucket } from '../hooks/cronograma'
 import { fmtBRL } from '@/lib/money'
 import { fmtDataMonoBR } from '../lib/dates'
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 
 interface Props {
   planejada: CurvaSBucket[]
@@ -52,12 +53,10 @@ export function CurvaSChart({ planejada, baseline, height = 320 }: Props): React
 
   if (rows.length === 0) {
     return (
-      <div
-        className="flex items-center justify-center text-text-dim font-mono text-xs border border-border rounded bg-bg-panel"
-        style={{ height }}
-      >
-        Sem dados para a curva-S — alocar equipes e calcular cronograma primeiro.
-      </div>
+      <ChartEmptyState
+        height={height}
+        message="Sem dados para a curva-S, alocar equipes e calcular cronograma primeiro."
+      />
     )
   }
 

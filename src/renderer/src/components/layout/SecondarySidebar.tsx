@@ -4,6 +4,7 @@ import { X, Info, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
 import { Icon } from './IconRenderer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getModuleByRoute } from '@/config/modules'
 import { useUIStore } from '@/stores/ui-store'
@@ -42,14 +43,13 @@ export function SecondarySidebar(): ReactNode {
           <Icon name={mod.icon} size={14} className="text-accent" strokeWidth={1.8} />
           <h2 className="text-sm font-semibold text-text">{mod.title}</h2>
         </div>
-        <button
-          type="button"
+        <IconButton
+          size="sm"
           aria-label="Fechar painel"
           onClick={() => setSidebarOpen(false)}
-          className="w-5 h-5 rounded flex items-center justify-center text-text-dim hover:text-text hover:bg-bg-hover"
         >
           <X size={12} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Pills */}

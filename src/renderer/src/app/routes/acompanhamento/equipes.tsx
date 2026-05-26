@@ -52,7 +52,7 @@ function Inner(): ReactNode {
       {equipesNaoVinc.length > 0 && (
         <div className="px-5 pt-3">
           <div className="rounded border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs font-mono text-amber-300">
-            {equipesNaoVinc.length} equipe(s) sem vínculo — vincule para aproveitar comparações previsto×realizado.
+            {equipesNaoVinc.length} equipe(s) sem vínculo. Vincule para aproveitar comparações previsto×realizado.
           </div>
         </div>
       )}
@@ -420,7 +420,7 @@ function ServicoLinha({
             </button>
           )}
           {unidadeDifere && !fatorDiff && fatorAtual === 1 && (
-            <span className="text-2xs font-mono text-amber-300" title="Unidades divergentes — ajuste o fator">
+            <span className="text-2xs font-mono text-amber-300" title="Unidades divergentes: ajuste o fator">
               ⚠
             </span>
           )}

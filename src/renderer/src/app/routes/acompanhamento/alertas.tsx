@@ -41,7 +41,7 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Alertas"
-        subtitle={`${scope.obra?.nome ?? ''} — ${alertas.length} alertas (${statusFiltro.join(', ')})`}
+        subtitle={`${scope.obra?.nome ?? ''} · ${alertas.length} alertas (${statusFiltro.join(', ')})`}
         actions={
           <Button
             size="sm"
@@ -51,7 +51,7 @@ function Inner(): ReactNode {
               try {
                 const r = await recalc.mutateAsync({ obra_id: obraId })
                 const item = r.resultados[0]
-                if (item) toast.success(`Recalc OK — ${item.inseridos} novos, ${item.resolvidos} auto-resolvidos`)
+                if (item) toast.success(`Recalc OK: ${item.inseridos} novos, ${item.resolvidos} auto-resolvidos`)
               } catch (e) { toast.error(e instanceof Error ? e.message : 'Erro') }
             }}
           >

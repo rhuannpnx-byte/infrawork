@@ -310,7 +310,7 @@ export function ImportCpuDialog({ open, onOpenChange, obraId }: Props): ReactNod
               <AlertTriangle size={11} className="inline mr-1 text-warn" />
               {recursosCatalogo.length > 0
                 ? 'Preços virão do Cadastro_Recursos da planilha. Recursos não encontrados no cadastro nascem sem preço.'
-                : 'Aba Cadastro_Recursos não encontrada — recursos novos nascem sem preço.'}
+                : 'Aba Cadastro_Recursos não encontrada. Recursos novos nascem sem preço.'}
             </div>
           </div>
         ) : null}

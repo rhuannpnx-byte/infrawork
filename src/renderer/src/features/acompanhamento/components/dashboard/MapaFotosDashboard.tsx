@@ -3,6 +3,7 @@ import Supercluster from 'supercluster'
 import { MapPin, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { FotoMapHoverCard, type PinFoto as HoverPinFoto } from '../fotos/FotoMapHoverCard'
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 
 interface PinFotoFull {
   id: string
@@ -232,11 +233,9 @@ export function MapaFotosDashboard({ fotos, altura = 300 }: Props): ReactNode {
       <div className="relative flex-1">
         <div ref={ref} className="absolute inset-0" />
         {validas.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-text-dim text-2xs font-mono pointer-events-none">
-            Nenhuma foto com GPS
-          </div>
+          <ChartEmptyState overlay message="Nenhuma foto com GPS" />
         )}
-        <div className="absolute bottom-1 right-2 text-[9px] text-white/70 font-mono pointer-events-none">
+        <div className="absolute bottom-1 right-2 text-[9px] text-text/70 font-mono pointer-events-none">
           Esri Satélite
         </div>
       </div>

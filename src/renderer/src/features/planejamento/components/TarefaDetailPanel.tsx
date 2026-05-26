@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { fmtBRL, fmtQtd } from '@/lib/money'
 import type {
   PlanejamentoTarefaCompleta,
@@ -146,7 +147,7 @@ export function TarefaDetailPanel({
                       planejamento_id: tarefa.planejamento_id,
                       data_inicio_manual: false
                     })
-                    toast.success('Data desafixada — será recalculada.')
+                    toast.success('Data desafixada. Será recalculada.')
                   }}
                 >
                   <PinOff size={11} /> Desafixar data de início
@@ -165,16 +166,17 @@ export function TarefaDetailPanel({
             <div>
               <div className="text-2xs font-mono text-text-dim uppercase mb-1">Alocadas</div>
               {tarefa.equipes.length === 0 ? (
-                <div className="text-text-dim italic">Sem equipe alocada — duração será 0.</div>
+                <div className="text-text-dim italic">Sem equipe alocada. Duração será 0.</div>
               ) : (
                 <div className="space-y-1.5">
                   {tarefa.equipes.map((e) => (
                     <div key={e.id} className="flex items-center gap-2">
                       <EquipeChip nome={e.nome} cor={e.cor} qtd={e.qtd_equipes} />
                       {!readOnly ? (
-                        <button
-                          type="button"
-                          className="text-text-dim hover:text-red-400"
+                        <IconButton
+                          size="sm"
+                          variant="danger"
+                          aria-label={`Remover equipe ${e.nome}`}
                           onClick={() =>
                             desalocar.mutate({
                               tarefa_id: tarefa.id,
@@ -184,7 +186,7 @@ export function TarefaDetailPanel({
                           }
                         >
                           <Trash2 size={11} />
-                        </button>
+                        </IconButton>
                       ) : null}
                     </div>
                   ))}
@@ -267,9 +269,10 @@ export function TarefaDetailPanel({
                         </span>
                         <span className="text-text-dim">lag {p.lag_dias}d</span>
                         {!readOnly ? (
-                          <button
-                            type="button"
-                            className="text-text-dim hover:text-red-400"
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            aria-label="Remover dependência"
                             onClick={() =>
                               delDep.mutate({
                                 id: p.id,
@@ -278,7 +281,7 @@ export function TarefaDetailPanel({
                             }
                           >
                             <Trash2 size={10} />
-                          </button>
+                          </IconButton>
                         ) : null}
                       </div>
                     )

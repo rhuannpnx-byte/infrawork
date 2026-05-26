@@ -317,8 +317,8 @@ export function AgruparComoServicoDialog({
               <div className="rounded border border-border bg-bg-elevated">
                 <div className="px-3 py-1.5 text-2xs font-mono text-text-dim border-b border-border">
                   {modo === 'heranca'
-                    ? 'Marque UMA receita — sua quantidade vai virar a qtd. de referência.'
-                    : 'Marque as receitas — suas quantidades serão somadas.'}
+                    ? 'Marque UMA receita: sua quantidade vai virar a qtd. de referência.'
+                    : 'Marque as receitas: suas quantidades serão somadas.'}
                 </div>
                 <div className="max-h-48 overflow-auto">
                   {receitas.map((r) => (

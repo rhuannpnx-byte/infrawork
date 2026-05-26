@@ -284,7 +284,7 @@ export function GanttChart({
                     className="absolute inset-x-0 border-b border-border/30 flex items-center text-2xs font-mono text-text-dim px-3"
                     style={{ top: vi.start, height: vi.size }}
                   >
-                    sem datas — atribua equipe + recalcule
+                    sem datas: atribua equipe + recalcule
                   </div>
                 )
               }
@@ -322,7 +322,7 @@ export function GanttChart({
                       left: offset,
                       width: largura,
                       background: corBarra,
-                      color: '#fff'
+                      color: 'var(--text)'
                     }}
                   >
                     <span className="truncate">

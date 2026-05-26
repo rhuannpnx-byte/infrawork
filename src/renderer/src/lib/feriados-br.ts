@@ -47,7 +47,7 @@ export function feriadosNacionaisBR(ano: number): Feriado[] {
 
   return [
     { data: `${ano}-01-01`, motivo: 'Confraternização Universal' },
-    { data: isoDate(cinzas), motivo: 'Carnaval (Quarta de Cinzas — meio expediente)' },
+    { data: isoDate(cinzas), motivo: 'Carnaval (Quarta de Cinzas, meio expediente)' },
     { data: isoDate(addDays(cinzas, -1)), motivo: 'Carnaval (Terça)' },
     { data: isoDate(addDays(cinzas, -2)), motivo: 'Carnaval (Segunda)' },
     { data: isoDate(sextaSanta), motivo: 'Sexta-feira Santa' },

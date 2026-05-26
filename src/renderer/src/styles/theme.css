@@ -1,47 +1,53 @@
 :root {
-  /* Backgrounds */
-  --bg: #08090b;
-  --bg-tabs: #0a0b0e;
-  --bg-menu: #0c0e12;
-  --bg-rail: #0a0b0e;
-  --bg-panel: #0f1116;
-  --bg-elevated: #14171f;
-  --bg-hover: #1a1e28;
-  --bg-active: #1f242f;
+  /* ============================================================
+   * InfraWork tokens — OKLCH canônico.
+   * Hue 255 (azul accent) tinta levemente toda neutra (chroma 0.005-0.013).
+   * text-dim subiu de L 43% -> 58% para atingir contraste >=4.5:1 (WCAG AA).
+   * ============================================================ */
+
+  /* Backgrounds — 8 camadas de luminosidade tintadas */
+  --bg: oklch(11% 0.005 255);
+  --bg-tabs: oklch(12% 0.006 255);
+  --bg-menu: oklch(13% 0.007 255);
+  --bg-rail: oklch(12% 0.006 255);
+  --bg-panel: oklch(15% 0.008 255);
+  --bg-elevated: oklch(18% 0.010 255);
+  --bg-hover: oklch(22% 0.012 255);
+  --bg-active: oklch(26% 0.013 255);
 
   /* Borders */
-  --border: #1b1e26;
-  --border-strong: #262a35;
-  --border-accent: #2d3340;
+  --border: oklch(22% 0.011 255);
+  --border-strong: oklch(28% 0.013 255);
+  --border-accent: oklch(32% 0.015 255);
 
-  /* Text */
-  --text: #e8ebef;
-  --text-muted: #8b909a;
-  --text-dim: #5b6068;
-  --text-faint: #3d4148;
+  /* Text — 4 níveis, contraste validado contra bg-panel */
+  --text: oklch(92% 0.006 255);          /* ~14:1 */
+  --text-muted: oklch(72% 0.010 255);    /* ~7:1   */
+  --text-dim: oklch(58% 0.010 255);      /* ~4.7:1 — limite WCAG AA */
+  --text-faint: oklch(38% 0.006 255);    /* ~2:1 — decoração-only, nunca informação essencial */
 
-  /* Accent */
-  --accent: #4d8eff;
-  --accent-hover: #66a0ff;
-  --accent-glow: rgba(77, 142, 255, 0.12);
-  --accent-glow-strong: rgba(77, 142, 255, 0.2);
-  --accent-line: rgba(77, 142, 255, 0.4);
+  /* Accent — Console Blue */
+  --accent: oklch(67% 0.18 255);
+  --accent-hover: oklch(72% 0.16 255);
+  --accent-glow: oklch(67% 0.18 255 / 0.12);
+  --accent-glow-strong: oklch(67% 0.18 255 / 0.2);
+  --accent-line: oklch(67% 0.18 255 / 0.4);
 
-  /* Status */
-  --success: #4ade80;
-  --warn: #fbbf24;
-  --danger: #f87171;
+  /* Status semantic */
+  --success: oklch(78% 0.18 145);
+  --warn: oklch(82% 0.16 80);
+  --danger: oklch(70% 0.18 25);
 
-  /* Module colors */
+  /* Identidade de módulo */
   --module-orcamento: var(--accent);
-  --module-planejamento: #67e8f9;
-  --module-acompanhamento: #4ade80;
-  --module-medicoes: #fbbf24;
-  --module-suprimentos: #a78bfa;
-  --module-equipe: #f472b6;
-  --module-documentos: #94a3b8;
+  --module-planejamento: oklch(85% 0.12 215);
+  --module-acompanhamento: var(--success);
+  --module-medicoes: var(--warn);
+  --module-suprimentos: oklch(74% 0.14 295);
+  --module-equipe: oklch(73% 0.16 350);
+  --module-documentos: oklch(70% 0.020 250);
 
-  /* shadcn tokens mapped to our palette */
+  /* shadcn tokens mapeados pra paleta */
   --background: var(--bg);
   --foreground: var(--text);
   --card: var(--bg-panel);
@@ -49,14 +55,14 @@
   --popover: var(--bg-elevated);
   --popover-foreground: var(--text);
   --primary: var(--accent);
-  --primary-foreground: #0a0b0e;
+  --primary-foreground: oklch(12% 0.006 255);
   --secondary: var(--bg-elevated);
   --secondary-foreground: var(--text);
   --muted: var(--bg-elevated);
   --muted-foreground: var(--text-muted);
   --accent-bg: var(--bg-hover);
   --destructive: var(--danger);
-  --destructive-foreground: #0a0b0e;
+  --destructive-foreground: oklch(12% 0.006 255);
   --input: var(--bg-elevated);
   --ring: var(--accent);
   --radius: 4px;

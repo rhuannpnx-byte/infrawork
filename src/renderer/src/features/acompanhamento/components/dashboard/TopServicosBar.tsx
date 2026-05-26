@@ -99,7 +99,7 @@ export function TopServicosBar({ itens, limit = 5, altura = 200, onPick, selecte
                   key={d.label}
                   fill={d.cor}
                   fillOpacity={selectedId == null || selectedId === d.id ? 1 : 0.35}
-                  stroke={selectedId === d.id ? '#fff' : undefined}
+                  stroke={selectedId === d.id ? 'oklch(92% 0.006 255)' : undefined}
                   strokeWidth={selectedId === d.id ? 1 : 0}
                 />
               ))}

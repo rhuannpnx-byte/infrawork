@@ -85,7 +85,7 @@ export function Dialog({
             type="button"
             aria-label="Fechar"
             onClick={() => onOpenChange(false)}
-            className="absolute top-2.5 right-2.5 text-text-dim hover:text-text transition-colors"
+            className="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-6 h-6 rounded text-text-dim hover:text-text hover:bg-bg-hover transition-colors"
           >
             <X size={14} />
           </button>

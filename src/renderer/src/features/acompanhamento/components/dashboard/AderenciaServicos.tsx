@@ -2,6 +2,7 @@ import { type ReactNode, useMemo } from 'react'
 import { Target } from 'lucide-react'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { STATUS_COMP_COR } from '@/types/acompanhamento'
+import { corAderenciaSobreAcumulado } from '@/lib/colors/aderencia'
 
 interface Props {
   itens: PrevistoRealizadoItem[]
@@ -45,10 +46,7 @@ export function AderenciaServicos({ itens, curvaS, dataAte, selectedId, onPick, 
         const planAcumAte = ate ? ate.plan : 0
         const realAcumAte = ate ? ate.real : Number(i.qtd_real ?? 0)
         const pctSobreAcum = planAcumAte > 0 ? realAcumAte / planAcumAte : null
-        const corPct = pctSobreAcum == null ? '#64748b'
-          : pctSobreAcum >= 0.95 ? '#10b981'
-          : pctSobreAcum >= 0.7 ? '#f59e0b'
-          : '#ef4444'
+        const corPct = corAderenciaSobreAcumulado(pctSobreAcum)
         // Mantém status (concluido/atrasado/em_risco) baseado no contexto geral, mas a cor da barra usa o pct sobre acumulado
         return {
           id: i.item_orcamentario_id,

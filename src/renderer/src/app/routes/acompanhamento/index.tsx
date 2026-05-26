@@ -152,7 +152,7 @@ function DashboardAcompanhamento(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Dashboard"
-        subtitle={`${scope.obra?.nome ?? ''} — SIGA ${link.siga_projeto_codigo}${link.siga_projeto_nome ? ' (' + link.siga_projeto_nome + ')' : ''}`}
+        subtitle={`${scope.obra?.nome ?? ''} · SIGA ${link.siga_projeto_codigo}${link.siga_projeto_nome ? ' (' + link.siga_projeto_nome + ')' : ''}`}
         actions={
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 text-2xs font-mono text-text-dim mr-2">
@@ -177,7 +177,7 @@ function DashboardAcompanhamento(): ReactNode {
                     if (item?.erro) toast.error(`Sync com erro: ${item.erro}`)
                     else {
                       const s = item?.stats ?? {}
-                      toast.success(`Sync OK em ${r2.duracao_ms}ms — ${s.producao_atualizadas ?? 0} prod, ${s.fotos_atualizadas ?? 0} fotos`)
+                      toast.success(`Sync OK em ${r2.duracao_ms}ms: ${s.producao_atualizadas ?? 0} prod, ${s.fotos_atualizadas ?? 0} fotos`)
                     }
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : 'Falha ao sincronizar')
@@ -374,10 +374,10 @@ function DashboardAcompanhamento(): ReactNode {
             <div className="rounded border border-border bg-bg-panel p-3">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-semibold text-text flex items-center gap-1.5">
-                  <BarChart3 size={11} /> Curva-S — Realizado × Previsto
+                  <BarChart3 size={11} /> Curva-S · Realizado × Previsto
                   {servicoSelecionado && (
                     <span className="text-2xs font-mono text-accent ml-1">
-                      · {servicoSelecionado.codigo} — {servicoSelecionado.descricao}
+                      · {servicoSelecionado.codigo} {servicoSelecionado.descricao}
                     </span>
                   )}
                 </h3>
@@ -484,7 +484,7 @@ function ServicoSelect({
         )}
       >
         <span className="flex-1 text-left truncate">
-          {selecionado ? selecionado.label : '— Todos os serviços —'}
+          {selecionado ? selecionado.label : 'Todos os serviços'}
         </span>
         <ChevronDown size={11} className="shrink-0 text-text-dim" />
       </button>

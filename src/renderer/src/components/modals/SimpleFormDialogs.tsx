@@ -90,8 +90,8 @@ export function NewBMDialog(): ReactNode {
       modalKey="newBM"
       title="Novo boletim de medição"
       fields={[
-        { id: 'periodoInicio', label: 'Período — início', type: 'date' },
-        { id: 'periodoFim', label: 'Período — fim', type: 'date' },
+        { id: 'periodoInicio', label: 'Período: início', type: 'date' },
+        { id: 'periodoFim', label: 'Período: fim', type: 'date' },
         { id: 'observacoes', label: 'Observações' }
       ]}
       successMessage="Boletim de medição criado em rascunho."

@@ -199,7 +199,7 @@ function TaxasInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Taxas"
-        subtitle="Impostos sobre receita (ISS, PIS, COFINS, CSLL, IRPJ, CPRB e outros) — aplicados como deflator no cálculo de lucro."
+        subtitle="Impostos sobre receita (ISS, PIS, COFINS, CSLL, IRPJ, CPRB e outros) aplicados como deflator no cálculo de lucro."
         actions={
           podeEditar ? (
             <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>

@@ -377,14 +377,14 @@ export const STATUS_COMP_LABEL: Record<StatusComparativo, string> = {
 }
 
 export const STATUS_COMP_COR: Record<StatusComparativo, string> = {
-  sem_plano: '#64748b',
-  nao_iniciado: '#94a3b8',
-  em_andamento: '#22d3ee',
-  no_prazo: '#10b981',
-  em_risco: '#f59e0b',
-  atrasado: '#ef4444',
-  adiantado: '#8b5cf6',
-  concluido: '#0d9488'
+  sem_plano: 'oklch(58% 0.010 255)',
+  nao_iniciado: 'oklch(72% 0.010 255)',
+  em_andamento: 'oklch(85% 0.12 215)',
+  no_prazo: 'oklch(78% 0.18 145)',
+  em_risco: 'oklch(82% 0.16 80)',
+  atrasado: 'oklch(70% 0.18 25)',
+  adiantado: 'oklch(74% 0.14 295)',
+  concluido: 'oklch(72% 0.10 195)'
 }
 
 // ─── Produtividade equipe ────────────────────────────────────────────────

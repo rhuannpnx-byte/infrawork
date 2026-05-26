@@ -62,7 +62,7 @@ export function NewServicoDialog({
         referencia_externa: referencia.trim() || undefined,
         descricao: descricao.trim() || undefined
       })
-      toast.success(`Serviço "${codigo} — ${nome}" criado.`)
+      toast.success(`Serviço "${codigo}: ${nome}" criado.`)
       reset()
       onOpenChange(false)
     } catch (err) {

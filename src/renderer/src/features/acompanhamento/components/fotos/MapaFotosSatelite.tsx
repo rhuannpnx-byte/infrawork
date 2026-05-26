@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import Supercluster from 'supercluster'
 import type { FotoEnriquecida } from '@/types/acompanhamento'
 import { FotoMapHoverCard, type PinFoto } from './FotoMapHoverCard'
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 
 interface Props {
   fotos: FotoEnriquecida[]
@@ -244,9 +245,7 @@ export function MapaFotosSatelite({ fotos, onPickFoto, layoutKey }: Props): Reac
     <div className="relative h-full w-full">
       <div ref={ref} className="absolute inset-0" />
       {validas.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-text-dim text-xs font-mono">
-          Nenhuma foto com GPS no filtro atual
-        </div>
+        <ChartEmptyState overlay message="Nenhuma foto com GPS no filtro atual" />
       )}
       {hover && hover.fotos.length > 0 && (
         <FotoMapHoverCard fotos={hover.fotos} position={hover.pos} />

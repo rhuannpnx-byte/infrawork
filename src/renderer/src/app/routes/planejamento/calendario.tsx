@@ -4,6 +4,7 @@ import { Calendar, Plus, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/input'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
@@ -166,15 +167,16 @@ function CalendarioInner(): ReactNode {
                       <td className="px-3 py-1.5 text-text-muted">{f.motivo ?? '—'}</td>
                       <td className="px-3 py-1.5 text-right">
                         {!readOnly ? (
-                          <button
-                            type="button"
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            aria-label="Remover fator de produtividade"
                             onClick={() =>
                               delFator.mutate({ obra_id: obraId, ano_mes: f.ano_mes })
                             }
-                            className="text-text-dim hover:text-red-400"
                           >
                             <Trash2 size={11} />
-                          </button>
+                          </IconButton>
                         ) : null}
                       </td>
                     </tr>

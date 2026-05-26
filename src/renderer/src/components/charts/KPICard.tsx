@@ -46,7 +46,7 @@ export function KPICard({ label, value, delta, unit, spark, hint, icon }: KPICar
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={sparkData}>
               <YAxis domain={['dataMin', 'dataMax']} hide />
-              <Line dataKey="v" stroke={positive ? '#4ade80' : '#f87171'} strokeWidth={1.4} dot={false} type="monotone" />
+              <Line dataKey="v" stroke={positive ? 'oklch(78% 0.18 145)' : 'oklch(70% 0.18 25)'} strokeWidth={1.4} dot={false} type="monotone" />
             </LineChart>
           </ResponsiveContainer>
         </div>

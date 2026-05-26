@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -152,18 +153,21 @@ function RevisoesInner(): ReactNode {
                               <Copy size={11} />
                             </button>
                             {!p.is_baseline ? (
-                              <button
-                                type="button"
-                                onClick={() => setPromoverPlan(p)}
+                              <IconButton
+                                size="sm"
+                                aria-label="Promover a baseline"
                                 title="Promover a baseline"
-                                className="text-text-dim hover:text-amber-400"
+                                onClick={() => setPromoverPlan(p)}
+                                className="hover:text-warn"
                               >
                                 <Star size={11} />
-                              </button>
+                              </IconButton>
                             ) : null}
                             {p.status !== 'arquivado' ? (
-                              <button
-                                type="button"
+                              <IconButton
+                                size="sm"
+                                aria-label="Arquivar revisão"
+                                title="Arquivar"
                                 onClick={async () => {
                                   await upd.mutateAsync({
                                     id: p.id,
@@ -172,14 +176,15 @@ function RevisoesInner(): ReactNode {
                                   })
                                   toast.success('Arquivada.')
                                 }}
-                                title="Arquivar"
-                                className="text-text-dim hover:text-text"
                               >
                                 <Archive size={11} />
-                              </button>
+                              </IconButton>
                             ) : (
-                              <button
-                                type="button"
+                              <IconButton
+                                size="sm"
+                                variant="accent"
+                                aria-label="Reativar revisão"
+                                title="Reativar"
                                 onClick={async () => {
                                   await upd.mutateAsync({
                                     id: p.id,
@@ -188,15 +193,16 @@ function RevisoesInner(): ReactNode {
                                   })
                                   toast.success('Reativada.')
                                 }}
-                                title="Reativar"
-                                className="text-text-dim hover:text-accent"
                               >
                                 <Archive size={11} />
-                              </button>
+                              </IconButton>
                             )}
                             {!p.is_baseline ? (
-                              <button
-                                type="button"
+                              <IconButton
+                                size="sm"
+                                variant="danger"
+                                aria-label="Excluir revisão"
+                                title="Excluir"
                                 onClick={async () => {
                                   const ok = await confirm({
                                     title: `Excluir "${p.nome}"?`,
@@ -214,11 +220,9 @@ function RevisoesInner(): ReactNode {
                                     )
                                   }
                                 }}
-                                title="Excluir"
-                                className="text-text-dim hover:text-red-400"
                               >
                                 <Trash2 size={11} />
-                              </button>
+                              </IconButton>
                             ) : null}
                           </>
                         ) : null}

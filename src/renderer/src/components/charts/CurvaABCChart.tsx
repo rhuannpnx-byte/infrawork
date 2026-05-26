@@ -21,9 +21,9 @@ export interface CurvaABCItem {
 }
 
 const COLOR_BY_CLASSE: Record<CurvaABCItem['classe'], string> = {
-  A: '#f87171',
-  B: '#fbbf24',
-  C: '#4d8eff'
+  A: 'oklch(70% 0.18 25)',
+  B: 'oklch(82% 0.16 80)',
+  C: 'oklch(67% 0.18 255)'
 }
 
 export function CurvaABCChart({ data }: { data: CurvaABCItem[] }): ReactNode {
@@ -75,9 +75,9 @@ export function CurvaABCChart({ data }: { data: CurvaABCItem[] }): ReactNode {
         <Line
           yAxisId="right"
           dataKey="acumulado"
-          stroke="#67e8f9"
+          stroke="oklch(85% 0.12 215)"
           strokeWidth={1.6}
-          dot={{ fill: '#67e8f9', r: 2 }}
+          dot={{ fill: 'oklch(85% 0.12 215)', r: 2 }}
           type="monotone"
         />
       </ComposedChart>

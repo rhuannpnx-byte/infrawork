@@ -4,6 +4,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine, Legend
 } from 'recharts'
 import { CHART_THEME, axisStyle } from '@/components/charts/theme'
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import type { CurvaSPonto } from '@/types/acompanhamento'
 
 interface TooltipItem { value?: number | string | null; dataKey?: string | number; name?: string; color?: string }
@@ -60,15 +61,15 @@ export function CurvaSAcompanhamento({ pontos, altura = 280 }: Props): ReactNode
 
   if (data.length === 0) {
     return (
-      <div
-        className="rounded border border-border bg-bg-panel flex flex-col items-center justify-center gap-1 text-text-dim text-2xs font-mono p-4 text-center"
-        style={{ height: altura }}
-      >
-        <div>Sem dados de curva-S no período</div>
-        <div className="text-text-faint">
-          Verifique: 1) baseline ativo no Planejamento · 2) tarefas com data início/fim · 3) item_orcamentário com quantidade de referência · 4) serviços SIGA vinculados em <span className="text-accent">Equipes</span>
-        </div>
-      </div>
+      <ChartEmptyState
+        height={altura}
+        message="Sem dados de curva-S no período"
+        hint={
+          <>
+            Verifique: 1) baseline ativo no Planejamento · 2) tarefas com data início/fim · 3) item_orcamentário com quantidade de referência · 4) serviços SIGA vinculados em <span className="text-accent">Equipes</span>
+          </>
+        }
+      />
     )
   }
 
@@ -94,7 +95,7 @@ export function CurvaSAcompanhamento({ pontos, altura = 280 }: Props): ReactNode
           />
           <Tooltip
             content={<CustomTooltip />}
-            cursor={{ stroke: '#fbbf24', strokeWidth: 1, strokeDasharray: '3 3', fillOpacity: 0 }}
+            cursor={{ stroke: 'oklch(82% 0.16 80)', strokeWidth: 1, strokeDasharray: '3 3', fillOpacity: 0 }}
           />
           <Legend
             verticalAlign="top"
@@ -102,7 +103,7 @@ export function CurvaSAcompanhamento({ pontos, altura = 280 }: Props): ReactNode
             iconSize={8}
             wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }}
           />
-          <ReferenceLine x={hojeIso} stroke="#fbbf24" strokeDasharray="3 3" label={{ value: 'Hoje', fontSize: 9, fill: '#fbbf24' }} />
+          <ReferenceLine x={hojeIso} stroke="oklch(82% 0.16 80)" strokeDasharray="3 3" label={{ value: 'Hoje', fontSize: 9, fill: 'oklch(82% 0.16 80)' }} />
           <defs>
             <linearGradient id="plan" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={CHART_THEME.series[0]} stopOpacity={0.25} />

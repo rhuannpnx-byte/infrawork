@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -108,15 +109,15 @@ export function CalendarioMensalView({
     <div className="grid grid-cols-3 gap-4 p-4">
       <div className="col-span-2 rounded border border-border bg-bg-panel">
         <div className="flex items-center justify-between p-3 border-b border-border">
-          <button type="button" onClick={goPrev} className="text-text-dim hover:text-text">
+          <IconButton size="sm" aria-label="Mês anterior" onClick={goPrev}>
             <ChevronLeft size={14} />
-          </button>
+          </IconButton>
           <div className="text-sm font-semibold text-text font-mono">
             {NOMES_MES[mes]} {ano}
           </div>
-          <button type="button" onClick={goNext} className="text-text-dim hover:text-text">
+          <IconButton size="sm" aria-label="Próximo mês" onClick={goNext}>
             <ChevronRight size={14} />
-          </button>
+          </IconButton>
         </div>
 
         <div className="grid grid-cols-7 gap-px bg-border">
@@ -263,13 +264,14 @@ export function CalendarioMensalView({
                 <span className="text-text-dim">{fmtDataBR(e.data)}</span>
                 <span className="flex-1 truncate">{e.motivo}</span>
                 {!readOnly ? (
-                  <button
-                    type="button"
-                    className="text-text-dim hover:text-red-400"
+                  <IconButton
+                    size="sm"
+                    variant="danger"
+                    aria-label="Remover exceção"
                     onClick={() => onRemoveExcecao(e.id)}
                   >
                     <X size={10} />
-                  </button>
+                  </IconButton>
                 ) : null}
               </div>
             ))}

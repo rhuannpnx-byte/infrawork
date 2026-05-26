@@ -105,7 +105,7 @@ export function GanttView({
               ${new Date(t.inicio).toLocaleDateString('pt-BR')} → ${new Date(t.fim).toLocaleDateString('pt-BR')}<br/>
               ${t.duracaoDias} dias · ${t.progresso}% concluído
               ${t.responsavel ? `<br/>Resp.: ${t.responsavel}` : ''}
-              ${t.emCaminhoCritico ? '<br/><span style="color:#f87171">⚠ caminho crítico</span>' : ''}
+              ${t.emCaminhoCritico ? '<br/><span style="color:oklch(70% 0.18 25)">⚠ caminho crítico</span>' : ''}
             </div>
           </div>
         `

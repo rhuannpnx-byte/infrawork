@@ -96,7 +96,7 @@ function CronogramaInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Cronograma"
-        subtitle={`${scope.obra?.nome ?? ''} — ${planSelecionado?.nome ?? planAtivo.nome}${readOnly && planSelecionado?.is_baseline ? ' (baseline imutável)' : ''}`}
+        subtitle={`${scope.obra?.nome ?? ''} · ${planSelecionado?.nome ?? planAtivo.nome}${readOnly && planSelecionado?.is_baseline ? ' (baseline imutável)' : ''}`}
         actions={
           <div className="flex items-center gap-2">
             <select

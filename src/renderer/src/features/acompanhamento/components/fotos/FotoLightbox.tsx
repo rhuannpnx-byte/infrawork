@@ -99,7 +99,7 @@ export function FotoLightbox({ fotos, index, onClose, onIndexChange }: Props): R
                   disabled={deleteMut.isPending}
                   className="yarl__button"
                   title="Excluir foto (god/adm)"
-                  style={{ color: '#f87171' }}
+                  style={{ color: 'oklch(70% 0.18 25)' }}
                 >
                   <Trash2 size={20} />
                 </button>

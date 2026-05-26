@@ -21,7 +21,7 @@ export function ProgressBarPrevReal({ pct, esperado, status }: Props): ReactNode
         />
         {exp != null && (
           <div
-            className="absolute inset-y-0 w-px bg-white/60"
+            className="absolute inset-y-0 w-px bg-text/60"
             style={{ left: `${exp * 100}%` }}
             title={`Esperado hoje: ${(exp * 100).toFixed(0)}%`}
           />
