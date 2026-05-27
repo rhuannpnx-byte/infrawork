@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query'
 import { adminApi } from '@/lib/supabase/functions'
+import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import type { SemanaPerfil } from '@/types/planejamento'
 
 export interface SalvarPerfilCustomizadoInput {
@@ -38,6 +39,47 @@ export function useSalvarPerfilCustomizado(): UseMutationResult<
         }))
       })
       return r
+    },
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({
+        queryKey: ['planejamento', 'tarefas', vars.planejamento_id]
+      })
+    }
+  })
+}
+
+export interface ReverterPerfilInput {
+  tarefa_id: string
+  planejamento_id: string
+}
+
+/**
+ * Reverte perfil customizado pra "default":
+ *   - DELETE rows de planejamento_tarefa_perfil_semana da tarefa.
+ *   - UPDATE planejamento_tarefa SET usa_perfil_customizado = false.
+ *
+ * Próximo `calcular-cronograma` regenera com `perfil_default`. RLS
+ * controla acesso (engenheiro+ na obra).
+ */
+export function useReverterParaPerfilDefault(): UseMutationResult<
+  void,
+  Error,
+  ReverterPerfilInput
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input) => {
+      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
+      const { error: delErr } = await supabase
+        .from('planejamento_tarefa_perfil_semana')
+        .delete()
+        .eq('tarefa_id', input.tarefa_id)
+      if (delErr) throw delErr
+      const { error: updErr } = await supabase
+        .from('planejamento_tarefa')
+        .update({ usa_perfil_customizado: false })
+        .eq('id', input.tarefa_id)
+      if (updErr) throw updErr
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({

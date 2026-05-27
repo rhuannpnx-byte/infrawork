@@ -297,6 +297,16 @@ export function GanttChart({
               const ehCritica = criticoSet.has(t.id)
               const ativo = selectedId === t.id
 
+              // Sparkline: mostra perfil_semanas como mini histograma vertical
+              // embaixo da barra. Regras (do plano):
+              //   - skip se largura < 40px (visualmente irrelevante)
+              //   - skip se perfil_default = uniforme && !usa_perfil_customizado
+              //     (barra cheia já transmite "uniforme")
+              const mostrarSparkline =
+                largura >= 40 &&
+                (t.usa_perfil_customizado || t.perfil_default !== 'uniforme') &&
+                (t.perfil_semanas?.length ?? 0) > 0
+
               return (
                 <div
                   key={t.id}
@@ -329,8 +339,17 @@ export function GanttChart({
                     <span className="truncate">
                       {t.servico_grupo_codigo}
                       {t.data_inicio_manual ? ' 📌' : ''}
+                      {t.usa_perfil_customizado ? ' ✎' : ''}
                     </span>
                   </button>
+                  {mostrarSparkline ? (
+                    <PerfilSparkline
+                      semanas={t.perfil_semanas}
+                      width={largura}
+                      offsetLeft={offset}
+                      cor={corBarra}
+                    />
+                  ) : null}
                 </div>
               )
             })}
@@ -338,5 +357,57 @@ export function GanttChart({
         </div>
       </div>
     </div>
+  )
+}
+
+// ─── Sparkline do perfil semanal ───────────────────────────────────────────
+// SVG inline de 8px embaixo da barra. Renderiza rects verticais com altura
+// proporcional à qtd_planejada de cada semana / qtd_max_da_tarefa. Cor é
+// a mesma da barra com opacidade reduzida.
+function PerfilSparkline({
+  semanas,
+  width,
+  offsetLeft,
+  cor
+}: {
+  semanas: Array<{ semana_segunda: string; quantidade_planejada: number }>
+  width: number
+  offsetLeft: number
+  cor: string
+}): ReactNode {
+  const H = 8
+  const qtdMax = semanas.reduce((m, s) => Math.max(m, s.quantidade_planejada), 0)
+  if (qtdMax <= 0) return null
+
+  const colW = width / semanas.length
+
+  return (
+    <svg
+      width={width}
+      height={H}
+      className="absolute pointer-events-none"
+      style={{
+        left: offsetLeft,
+        // Posiciona logo abaixo da barra (que está em top:50% h:20).
+        // top do sparkline = metade da row + 12 (metade da barra) + 1.
+        top: 'calc(50% + 12px)'
+      }}
+      aria-hidden
+    >
+      {semanas.map((s, i) => {
+        const h = Math.max(1, (s.quantidade_planejada / qtdMax) * H)
+        return (
+          <rect
+            key={s.semana_segunda}
+            x={i * colW + 0.5}
+            y={H - h}
+            width={Math.max(1, colW - 1)}
+            height={h}
+            fill={cor}
+            opacity={0.4}
+          />
+        )
+      })}
+    </svg>
   )
 }

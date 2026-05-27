@@ -70,6 +70,14 @@ export interface UpdateTarefaInput {
   posicao_inicio_m?: number | null
   posicao_fim_m?: number | null
   unidade_espaco_display?: 'km' | 'm' | 'estaca' | null
+  /** Shape default. Mudar não regenera perfil automaticamente — user roda Recalcular. */
+  perfil_default?:
+    | 'uniforme'
+    | 'rampa-subida'
+    | 'rampa-descida'
+    | 'sino'
+    | 'front-loaded'
+    | 'back-loaded'
 }
 
 export function useUpdateTarefa(): ReturnType<typeof useMutation<void, Error, UpdateTarefaInput>> {

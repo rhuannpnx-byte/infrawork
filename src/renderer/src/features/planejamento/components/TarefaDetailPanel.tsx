@@ -17,22 +17,34 @@ import { fmtBRL, fmtQtd } from '@/lib/money'
 import { formatNumber, formatPosicao, parsePosicao } from '@/lib/format'
 import type {
   PlanejamentoTarefaCompleta,
-  Equipe
+  Equipe,
+  PerfilNome,
+  SemanaPerfil
 } from '@/types/planejamento'
-import { DEPENDENCIA_LABEL } from '@/types/planejamento'
+import { DEPENDENCIA_LABEL, PERFIL_LABEL, PERFIL_NOMES } from '@/types/planejamento'
 import { fmtDataBR } from '../lib/dates'
 import {
   useUpdateTarefa,
   useAlocarEquipe,
   useDesalocarEquipe,
   useDeleteDependencia,
-  useDeleteTarefa
+  useDeleteTarefa,
+  useSalvarPerfilCustomizado,
+  useReverterParaPerfilDefault
 } from '../hooks'
 import { EquipeChip } from './EquipeChip'
 import { useProducaoPorTarefa } from '@/features/acompanhamento/hooks/producao'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 
-type Tab = 'datas' | 'equipes' | 'deps' | 'cpu' | 'notas' | 'realizado' | 'localizacao'
+type Tab =
+  | 'datas'
+  | 'equipes'
+  | 'deps'
+  | 'cpu'
+  | 'notas'
+  | 'realizado'
+  | 'localizacao'
+  | 'perfil'
 
 interface Props {
   open: boolean
@@ -105,6 +117,9 @@ export function TarefaDetailPanel({
         </TabPill>
         <TabPill active={tab === 'localizacao'} onClick={() => setTab('localizacao')} className={TAB_CLASS}>
           Local
+        </TabPill>
+        <TabPill active={tab === 'perfil'} onClick={() => setTab('perfil')} className={TAB_CLASS}>
+          Perfil
         </TabPill>
         <TabPill active={tab === 'realizado'} onClick={() => setTab('realizado')} className={TAB_CLASS}>
           Realizado
@@ -390,6 +405,10 @@ export function TarefaDetailPanel({
           />
         ) : null}
 
+        {tab === 'perfil' ? (
+          <PerfilTab tarefa={tarefa} readOnly={readOnly} confirm={confirm} />
+        ) : null}
+
         {tab === 'realizado' ? <RealizadoTab tarefaId={tarefa.id} /> : null}
       </SheetBody>
       <SheetFooter>
@@ -540,6 +559,270 @@ function LocalizacaoTab({
         Os dois campos: ambos null (tarefa puramente temporal, ex: mobilização) ou
         ambos preenchidos. O banco rejeita um sem o outro.
       </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PerfilTab — edição modo planilha do perfil semanal de uma tarefa.
+//
+// UX:
+//   * Dropdown "Shape default" + botão "Aplicar shape" (atualiza perfil_default
+//     no DB; user deve clicar Recalcular cronograma manualmente pra regerar).
+//   * Tabela editável célula a célula. Edição NUNCA toca outras células
+//     automaticamente. Footer mostra soma vs referência em tempo real.
+//   * Botão "Salvar" disabled se soma fora da tolerância 0.1%.
+//   * Botão "Redistribuir saldo" recalcula uniforme nas semanas restantes.
+//   * Botão "Reverter pra default" deleta perfil + flag = false (confirmação).
+// ─────────────────────────────────────────────────────────────────────────
+type ConfirmFn = ReturnType<typeof useConfirm>
+
+function PerfilTab({
+  tarefa,
+  readOnly,
+  confirm
+}: {
+  tarefa: PlanejamentoTarefaCompleta
+  readOnly: boolean
+  confirm: ConfirmFn
+}): ReactNode {
+  const updateTarefa = useUpdateTarefa()
+  const salvarCustom = useSalvarPerfilCustomizado()
+  const reverter = useReverterParaPerfilDefault()
+
+  const ref = Number(tarefa.quantidade_referencia ?? 0)
+  const tolerancia = Math.max(Math.abs(ref) * 0.001, 0.0001)
+
+  // Estado local: shape selecionada + cópia editável das semanas.
+  const [shapeSel, setShapeSel] = useState<PerfilNome>(tarefa.perfil_default)
+  const [drafts, setDrafts] = useState<SemanaPerfil[]>(tarefa.perfil_semanas ?? [])
+
+  // Sincroniza ao trocar de tarefa
+  useEffect(() => {
+    setShapeSel(tarefa.perfil_default)
+    setDrafts(tarefa.perfil_semanas ?? [])
+  }, [tarefa.id, tarefa.perfil_default, tarefa.perfil_semanas])
+
+  const soma = drafts.reduce((acc, s) => acc + s.quantidade_planejada, 0)
+  const delta = soma - ref
+  const dentroTolerancia = Math.abs(delta) <= tolerancia
+  const somaCor = soma === 0 ? 'text-text-dim' : dentroTolerancia ? 'text-success' : 'text-danger'
+
+  function editCelula(idx: number, valor: number): void {
+    setDrafts((cur) =>
+      cur.map((s, i) =>
+        i === idx ? { ...s, quantidade_planejada: Math.max(0, valor) } : s
+      )
+    )
+  }
+
+  function redistribuirSaldo(): void {
+    // Distribui uniforme o delta entre as semanas com qty > 0 (ou todas se nenhuma).
+    const semanasComProd = drafts.filter((s) => s.quantidade_planejada > 0)
+    const alvo = semanasComProd.length > 0 ? semanasComProd : drafts
+    if (alvo.length === 0) return
+    const ajustePorSemana = -delta / alvo.length
+    setDrafts((cur) =>
+      cur.map((s) => {
+        const aplica = alvo.includes(s)
+        if (!aplica) return s
+        return {
+          ...s,
+          quantidade_planejada: Math.max(0, s.quantidade_planejada + ajustePorSemana)
+        }
+      })
+    )
+  }
+
+  async function aplicarShape(): Promise<void> {
+    await updateTarefa.mutateAsync({
+      id: tarefa.id,
+      planejamento_id: tarefa.planejamento_id,
+      perfil_default: shapeSel
+    })
+    toast.success('Shape default atualizada. Clique em "Recalcular cronograma" pra aplicar.')
+  }
+
+  async function salvar(): Promise<void> {
+    try {
+      await salvarCustom.mutateAsync({
+        tarefa_id: tarefa.id,
+        planejamento_id: tarefa.planejamento_id,
+        semanas: drafts
+      })
+      toast.success('Perfil customizado salvo.')
+    } catch (e) {
+      toast.error('Falha ao salvar: ' + (e as Error).message)
+    }
+  }
+
+  async function reverterDefault(): Promise<void> {
+    const ok = await confirm({
+      title: 'Reverter pra perfil default?',
+      description:
+        'O perfil customizado atual será descartado. Próximo recálculo gera ' +
+        'novo perfil com base na shape default.',
+      confirmLabel: 'Reverter',
+      variant: 'danger'
+    })
+    if (!ok) return
+    try {
+      await reverter.mutateAsync({
+        tarefa_id: tarefa.id,
+        planejamento_id: tarefa.planejamento_id
+      })
+      toast.success('Perfil revertido. Clique em "Recalcular cronograma".')
+    } catch (e) {
+      toast.error('Falha ao reverter: ' + (e as Error).message)
+    }
+  }
+
+  if (drafts.length === 0) {
+    return (
+      <div className="space-y-3 text-xs">
+        <div className="text-text-dim font-mono">
+          Esta tarefa ainda não tem perfil semanal calculado. Clique em "Recalcular
+          cronograma" no Gantt pra gerar com a shape default.
+        </div>
+        {!readOnly ? (
+          <div className="pt-2 border-t border-border space-y-2">
+            <Label htmlFor="shape-sel">Shape default</Label>
+            <select
+              id="shape-sel"
+              value={shapeSel}
+              onChange={(e) => setShapeSel(e.target.value as PerfilNome)}
+              className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
+            >
+              {PERFIL_NOMES.map((p) => (
+                <option key={p} value={p}>
+                  {PERFIL_LABEL[p]}
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={aplicarShape}
+              disabled={shapeSel === tarefa.perfil_default}
+            >
+              Aplicar shape
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3 text-xs">
+      {/* Shape default */}
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <Label htmlFor="shape-sel">Shape default</Label>
+          <select
+            id="shape-sel"
+            value={shapeSel}
+            disabled={readOnly}
+            onChange={(e) => setShapeSel(e.target.value as PerfilNome)}
+            className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
+          >
+            {PERFIL_NOMES.map((p) => (
+              <option key={p} value={p}>
+                {PERFIL_LABEL[p]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={aplicarShape}
+          disabled={readOnly || shapeSel === tarefa.perfil_default}
+        >
+          Aplicar shape
+        </Button>
+      </div>
+
+      {/* Tabela editável */}
+      <div className="border border-border rounded overflow-hidden">
+        <div className="grid grid-cols-[1fr_120px_60px] gap-0 bg-bg-panel border-b border-border text-2xs font-mono uppercase text-text-dim">
+          <div className="px-2 py-1">Semana</div>
+          <div className="px-2 py-1 text-right">Quantidade</div>
+          <div className="px-2 py-1 text-right">%</div>
+        </div>
+        <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
+          {drafts.map((s, idx) => {
+            const pct = ref > 0 ? (s.quantidade_planejada / ref) * 100 : 0
+            return (
+              <div
+                key={s.semana_segunda}
+                className="grid grid-cols-[1fr_120px_60px] items-center text-2xs font-mono"
+              >
+                <div className="px-2 py-1 text-text">{s.semana_segunda}</div>
+                <div className="px-2 py-0.5">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={s.quantidade_planejada}
+                    disabled={readOnly}
+                    onChange={(e) => editCelula(idx, Number(e.target.value))}
+                    className="text-right tabular"
+                  />
+                </div>
+                <div className="px-2 py-1 text-right text-text-dim tabular">
+                  {pct.toFixed(1)}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Footer: soma vs referência */}
+      <div className={'font-mono text-2xs ' + somaCor}>
+        Soma: {soma.toFixed(2)} / referência: {ref.toFixed(2)} (Δ: {delta.toFixed(2)},
+        tolerância {tolerancia.toFixed(2)})
+      </div>
+
+      {/* Ações */}
+      {!readOnly ? (
+        <div className="pt-2 border-t border-border flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={redistribuirSaldo}
+            disabled={dentroTolerancia}
+            title="Distribui o delta entre as semanas com qty > 0"
+          >
+            Redistribuir saldo
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={salvar}
+            disabled={!dentroTolerancia || salvarCustom.isPending}
+            title={
+              dentroTolerancia
+                ? 'Salvar como perfil customizado'
+                : 'Soma fora da tolerância 0.1%'
+            }
+          >
+            Salvar customizado
+          </Button>
+          {tarefa.usa_perfil_customizado ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={reverterDefault}
+              disabled={reverter.isPending}
+              title="Descarta customização; próximo recálculo regenera com shape default"
+            >
+              Reverter pra default
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }
