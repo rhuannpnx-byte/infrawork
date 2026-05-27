@@ -5,6 +5,7 @@
     "std/": "https://deno.land/std@0.224.0/"
   },
   "tasks": {
-    "test": "deno test --allow-env --allow-net ../tests/"
+    "test": "deno test --allow-env --allow-net ../tests/",
+    "test:pure": "deno test --allow-env --allow-net ../tests/cronograma-pure.test.ts ../tests/posicao.test.ts"
   }
 }
