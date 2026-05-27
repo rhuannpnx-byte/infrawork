@@ -395,11 +395,14 @@ export function TarefaDetailPanel({
           <LocalizacaoTab
             tarefa={tarefa}
             readOnly={readOnly}
-            onSave={async (campo, metros) => {
+            onSave={async ({ inicio, fim }) => {
+              // Sempre envia OS DOIS campos atomicamente — o constraint
+              // chk_plan_tar_pos_par exige (inicio IS NULL) = (fim IS NULL).
               await updateTarefa.mutateAsync({
                 id: tarefa.id,
                 planejamento_id: tarefa.planejamento_id,
-                [campo]: metros
+                posicao_inicio_m: inicio,
+                posicao_fim_m: fim
               })
             }}
           />
@@ -469,59 +472,109 @@ function LocalizacaoTab({
 }: {
   tarefa: PlanejamentoTarefaCompleta
   readOnly: boolean
-  onSave: (
-    campo: 'posicao_inicio_m' | 'posicao_fim_m',
-    metros: number | null
-  ) => Promise<void>
+  onSave: (input: { inicio: number | null; fim: number | null }) => Promise<void>
 }): ReactNode {
   const unidade = tarefa.unidade_espaco_efetiva
-  const initIni = formatPosicao(tarefa.posicao_inicio_m, unidade)
-  const initFim = formatPosicao(tarefa.posicao_fim_m, unidade)
-  const [iniDraft, setIniDraft] = useState(initIni)
-  const [fimDraft, setFimDraft] = useState(initFim)
-  const [iniErr, setIniErr] = useState<string | null>(null)
-  const [fimErr, setFimErr] = useState<string | null>(null)
+  const [iniDraft, setIniDraft] = useState(formatPosicao(tarefa.posicao_inicio_m, unidade))
+  const [fimDraft, setFimDraft] = useState(formatPosicao(tarefa.posicao_fim_m, unidade))
+  const [erro, setErro] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  // Re-sincroniza drafts quando trocar de tarefa selecionada no painel.
-  // Key é tarefa.id + unidade pra capturar swap de tarefa e mudança de
-  // unidade (display sobrescrita).
+  // Re-sync quando troca tarefa ou unidade efetiva
   useEffect(() => {
     setIniDraft(formatPosicao(tarefa.posicao_inicio_m, unidade))
     setFimDraft(formatPosicao(tarefa.posicao_fim_m, unidade))
-    setIniErr(null)
-    setFimErr(null)
+    setErro(null)
   }, [tarefa.id, tarefa.posicao_inicio_m, tarefa.posicao_fim_m, unidade])
 
-  const placeholder =
-    unidade === 'km' ? 'ex: 2+508,50' : unidade === 'estaca' ? 'ex: EST 125+8,50' : 'ex: 2508,50'
+  // Live previews: mostra abaixo de cada input o valor parseado em formato
+  // canônico. Ajuda o user a entender o que vai salvar enquanto digita.
+  const iniTrim = iniDraft.trim()
+  const fimTrim = fimDraft.trim()
+  const iniParsed = iniTrim === '' ? null : parsePosicao(iniTrim, unidade)
+  const fimParsed = fimTrim === '' ? null : parsePosicao(fimTrim, unidade)
+  const iniPreview = iniParsed !== null ? formatPosicao(iniParsed, unidade) : null
+  const fimPreview = fimParsed !== null ? formatPosicao(fimParsed, unidade) : null
 
-  async function commitCampo(
-    campo: 'posicao_inicio_m' | 'posicao_fim_m',
-    draft: string,
-    setErr: (s: string | null) => void
-  ): Promise<void> {
-    const trimmed = draft.trim()
-    if (trimmed.length === 0) {
-      setErr(null)
-      await onSave(campo, null)
+  const placeholder =
+    unidade === 'km' ? '2+508,50' : unidade === 'estaca' ? 'EST 125+8,50' : '2508,50'
+  const helperFormato =
+    unidade === 'km'
+      ? 'Formato km: KM+M,CC  (ex: 2+508,50 = 2,5 km).  M entre 0 e 999.'
+      : unidade === 'estaca'
+        ? 'Formato estaca: [EST] N+M,CC  (ex: EST 125+8,50).  Cada estaca = 20 m. Offset entre 0 e 19,99.'
+        : 'Formato m: número com vírgula ou ponto decimal (ex: 2508,50).'
+
+  const iniInvalido = iniTrim !== '' && iniParsed === null
+  const fimInvalido = fimTrim !== '' && fimParsed === null
+  const mismatch = iniTrim === '' ? fimTrim !== '' : fimTrim === ''
+  const ordemInvertida =
+    iniParsed !== null && fimParsed !== null && fimParsed < iniParsed
+  const podeSalvar =
+    !readOnly && !saving && !iniInvalido && !fimInvalido && !mismatch && !ordemInvertida
+
+  async function salvar(): Promise<void> {
+    setErro(null)
+    // Caso 1: ambos vazios → limpa as duas posições.
+    if (iniTrim === '' && fimTrim === '') {
+      setSaving(true)
+      try {
+        await onSave({ inicio: null, fim: null })
+      } catch (e) {
+        setErro('Falha ao salvar: ' + (e as Error).message)
+      } finally {
+        setSaving(false)
+      }
       return
     }
-    const m = parsePosicao(trimmed, unidade)
-    if (m === null) {
-      setErr(`Formato inválido para ${unidade}.`)
+    // Caso 2: validações
+    if (iniInvalido) {
+      setErro('Início: formato inválido pra unidade ' + unidade + '.')
       return
     }
-    setErr(null)
-    await onSave(campo, m)
+    if (fimInvalido) {
+      setErro('Fim: formato inválido pra unidade ' + unidade + '.')
+      return
+    }
+    if (mismatch) {
+      setErro('Preencha os DOIS campos (ou apague os dois). Tarefa puramente temporal = ambos vazios.')
+      return
+    }
+    if (ordemInvertida) {
+      setErro('Fim não pode ser antes de Início.')
+      return
+    }
+    // Caso 3: ambos válidos → salva
+    setSaving(true)
+    try {
+      await onSave({ inicio: iniParsed, fim: fimParsed })
+    } catch (e) {
+      setErro('Falha ao salvar: ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
+
+  function limpar(): void {
+    setIniDraft('')
+    setFimDraft('')
+    setErro(null)
+  }
+
+  const sujo =
+    iniDraft !== formatPosicao(tarefa.posicao_inicio_m, unidade) ||
+    fimDraft !== formatPosicao(tarefa.posicao_fim_m, unidade)
 
   return (
     <div className="space-y-3 font-mono text-xs">
       <div className="text-2xs text-text-dim leading-relaxed">
-        Unidade desta tarefa: <span className="text-text">{unidade}</span>.
+        Unidade desta tarefa: <span className="text-text">{unidade}</span>
         {tarefa.unidade_espaco_display
-          ? ' (sobrescrita da unidade da obra)'
+          ? ' (sobrescrita da obra)'
           : ' (padrão da obra)'}
+        .
+        <br />
+        {helperFormato}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -533,11 +586,16 @@ function LocalizacaoTab({
             placeholder={placeholder}
             disabled={readOnly}
             onChange={(e) => setIniDraft(e.target.value)}
-            onBlur={() => commitCampo('posicao_inicio_m', iniDraft, setIniErr)}
-            aria-invalid={iniErr !== null}
-            className={iniErr ? 'border-danger' : ''}
+            aria-invalid={iniInvalido}
+            className={iniInvalido ? 'border-danger' : ''}
           />
-          {iniErr ? <div className="text-danger text-2xs mt-1">{iniErr}</div> : null}
+          <div className="text-2xs mt-1 h-3">
+            {iniInvalido ? (
+              <span className="text-danger">formato inválido</span>
+            ) : iniPreview ? (
+              <span className="text-text-dim">= {iniPreview}</span>
+            ) : null}
+          </div>
         </div>
         <div>
           <Label htmlFor="pos-fim">Fim</Label>
@@ -547,17 +605,56 @@ function LocalizacaoTab({
             placeholder={placeholder}
             disabled={readOnly}
             onChange={(e) => setFimDraft(e.target.value)}
-            onBlur={() => commitCampo('posicao_fim_m', fimDraft, setFimErr)}
-            aria-invalid={fimErr !== null}
-            className={fimErr ? 'border-danger' : ''}
+            aria-invalid={fimInvalido}
+            className={fimInvalido ? 'border-danger' : ''}
           />
-          {fimErr ? <div className="text-danger text-2xs mt-1">{fimErr}</div> : null}
+          <div className="text-2xs mt-1 h-3">
+            {fimInvalido ? (
+              <span className="text-danger">formato inválido</span>
+            ) : fimPreview ? (
+              <span className="text-text-dim">= {fimPreview}</span>
+            ) : null}
+          </div>
         </div>
       </div>
 
+      {erro ? (
+        <div className="text-danger text-2xs font-mono leading-relaxed">{erro}</div>
+      ) : null}
+
+      {!readOnly ? (
+        <div className="pt-2 border-t border-border flex gap-2">
+          <Button
+            size="sm"
+            variant="default"
+            onClick={salvar}
+            disabled={!podeSalvar || !sujo}
+            title={
+              !sujo
+                ? 'Nenhuma mudança pra salvar'
+                : !podeSalvar
+                  ? 'Corrija os campos antes de salvar'
+                  : 'Salvar Início e Fim (atomicamente)'
+            }
+          >
+            {saving ? 'Salvando…' : 'Salvar'}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={limpar}
+            disabled={!sujo && iniTrim === '' && fimTrim === ''}
+            title="Apaga os dois campos (clique Salvar pra confirmar)"
+          >
+            Limpar
+          </Button>
+        </div>
+      ) : null}
+
       <div className="pt-2 border-t border-border text-2xs text-text-dim leading-relaxed">
-        Os dois campos: ambos null (tarefa puramente temporal, ex: mobilização) ou
-        ambos preenchidos. O banco rejeita um sem o outro.
+        Os dois campos vão juntos: ambos vazios (tarefa puramente temporal, ex:
+        mobilização) ou ambos preenchidos. O banco rejeita salvar só um. Por isso o
+        botão Salvar manda os dois de uma vez.
       </div>
     </div>
   )
