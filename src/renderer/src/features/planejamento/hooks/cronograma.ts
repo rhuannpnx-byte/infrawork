@@ -28,8 +28,11 @@ export function useCalcularCronograma(): ReturnType<
 }
 
 // ─── Curva-S planejada ──────────────────────────────────────────────────
-// Agrega custo total das tarefas por bucket semanal (segunda-feira da semana).
-// Curva acumulada normalizada (0..1) para sobrepor com baseline.
+// Agora puxa direto de perfil_semanas (jsonb_agg da view v2). Multiplica
+// quantidade_planejada × custo_unit_snapshot por semana, agrega por
+// semana_segunda, acumula e normaliza. Mais simples e mais correto que
+// a distribuição linear anterior — reflete o perfil real (uniforme/
+// sino/rampa/etc) e respeita paralisações.
 
 export interface CurvaSBucket {
   periodo: string // 'YYYY-MM-DD' (segunda da semana)
@@ -38,36 +41,20 @@ export interface CurvaSBucket {
   perc_acumulado: number
 }
 
-function startOfWeekMonday(d: Date): Date {
-  const r = new Date(d)
-  const dow = r.getUTCDay() // 0=dom
-  const diff = dow === 0 ? -6 : 1 - dow
-  r.setUTCDate(r.getUTCDate() + diff)
-  return r
-}
-
-function isoWeek(d: Date): string {
-  return startOfWeekMonday(d).toISOString().slice(0, 10)
-}
-
 export function calcularCurvaSemanal(
   tarefas: PlanejamentoTarefaCompleta[]
 ): CurvaSBucket[] {
   if (!tarefas?.length) return []
 
-  // Distribui custo linearmente sobre os dias da tarefa.
   const buckets = new Map<string, number>()
   for (const t of tarefas) {
-    if (!t.data_inicio || !t.data_fim || !t.custo_total_tarefa) continue
-    const ini = new Date(t.data_inicio + 'T00:00:00Z')
-    const fim = new Date(t.data_fim + 'T00:00:00Z')
-    const diasMs = Math.max(1, (fim.getTime() - ini.getTime()) / (1000 * 60 * 60 * 24) + 1)
-    const custoPorDia = t.custo_total_tarefa / diasMs
-    const cur = new Date(ini)
-    while (cur <= fim) {
-      const wk = isoWeek(cur)
-      buckets.set(wk, (buckets.get(wk) ?? 0) + custoPorDia)
-      cur.setUTCDate(cur.getUTCDate() + 1)
+    const custoUnit = Number(t.custo_unit_snapshot ?? 0)
+    if (custoUnit <= 0) continue
+    const semanas = t.perfil_semanas ?? []
+    for (const s of semanas) {
+      if (s.quantidade_planejada <= 0) continue
+      const custoSemana = s.quantidade_planejada * custoUnit
+      buckets.set(s.semana_segunda, (buckets.get(s.semana_segunda) ?? 0) + custoSemana)
     }
   }
 
