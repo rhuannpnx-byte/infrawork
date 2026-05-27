@@ -28,7 +28,9 @@ export const TabPill = forwardRef<HTMLButtonElement, TabPillProps>(
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </button>
   )
 )
 TabPill.displayName = 'TabPill'
