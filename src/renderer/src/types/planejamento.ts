@@ -11,6 +11,39 @@ export type PlanejamentoStatus = 'rascunho' | 'ativo' | 'arquivado'
 export type DependenciaTipo = 'FS' | 'SS' | 'FF'
 /** Unidade de display pra posição espacial — alinhada com Obra. */
 export type UnidadeEspacoDisplay = 'km' | 'm' | 'estaca'
+/** Shapes de distribuição semanal de quantidade ao longo de uma tarefa. */
+export type PerfilNome =
+  | 'uniforme'
+  | 'rampa-subida'
+  | 'rampa-descida'
+  | 'sino'
+  | 'front-loaded'
+  | 'back-loaded'
+
+export const PERFIL_LABEL: Record<PerfilNome, string> = {
+  uniforme: 'Uniforme',
+  'rampa-subida': 'Rampa de subida',
+  'rampa-descida': 'Rampa de descida',
+  sino: 'Sino',
+  'front-loaded': 'Front-loaded',
+  'back-loaded': 'Back-loaded'
+}
+
+export const PERFIL_NOMES: PerfilNome[] = [
+  'uniforme',
+  'rampa-subida',
+  'rampa-descida',
+  'sino',
+  'front-loaded',
+  'back-loaded'
+]
+
+/** Uma semana do perfil semanal de uma tarefa (vindo da view v2). */
+export interface SemanaPerfil {
+  /** Segunda-feira ISO da semana, 'YYYY-MM-DD'. */
+  semana_segunda: string
+  quantidade_planejada: number
+}
 
 export const EQUIPE_TIPOS = [
   'Pavimentação',
@@ -96,6 +129,13 @@ export interface PlanejamentoTarefa {
   posicao_fim_m: number | null
   /** Override de unidade para display desta tarefa; null = usa Obra.unidade_espaco_padrao. */
   unidade_espaco_display: UnidadeEspacoDisplay | null
+  /** Shape de perfil escolhida ao criar/editar a tarefa. Default 'uniforme'. */
+  perfil_default: PerfilNome
+  /**
+   * True se o perfil foi editado manualmente via RPC. Edge function preserva
+   * perfis customizados durante recálculo (apenas shift se predecessor mudar).
+   */
+  usa_perfil_customizado: boolean
   created_at: string
   updated_at: string
 }
@@ -149,6 +189,8 @@ export interface PlanejamentoTarefaCompleta extends PlanejamentoTarefa {
   equipes: EquipeAlocada[]
   predecessoras: PredecessoraRef[]
   sucessoras: SucessoraRef[]
+  /** Perfil semanal agregado da view v2 (ordenado por semana_segunda asc). */
+  perfil_semanas: SemanaPerfil[]
 }
 
 export interface PlanejamentoDependencia {
