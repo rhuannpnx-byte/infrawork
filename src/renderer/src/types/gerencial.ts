@@ -24,12 +24,16 @@ export interface UsuarioComEmpresa extends UsuarioRow {
   engenheiro?: { id: string; nome: string } | null
 }
 
+export type UnidadeEspacoPadrao = 'km' | 'm' | 'estaca'
+
 export interface Obra {
   id: string
   empresa_id: string
   nome: string
   codigo: string
   status: string
+  /** Unidade de display padrão pra posições espaciais (km|m|estaca). Default 'km'. */
+  unidade_espaco_padrao: UnidadeEspacoPadrao
   created_at: string
 }
 

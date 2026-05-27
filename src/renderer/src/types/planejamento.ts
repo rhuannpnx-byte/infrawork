@@ -9,6 +9,8 @@
 
 export type PlanejamentoStatus = 'rascunho' | 'ativo' | 'arquivado'
 export type DependenciaTipo = 'FS' | 'SS' | 'FF'
+/** Unidade de display pra posição espacial — alinhada com Obra. */
+export type UnidadeEspacoDisplay = 'km' | 'm' | 'estaca'
 
 export const EQUIPE_TIPOS = [
   'Pavimentação',
@@ -89,6 +91,11 @@ export interface PlanejamentoTarefa {
   data_inicio_manual: boolean
   notas: string | null
   ordem: number
+  /** Posição espacial em METROS. Ambas null ou ambas preenchidas. */
+  posicao_inicio_m: number | null
+  posicao_fim_m: number | null
+  /** Override de unidade para display desta tarefa; null = usa Obra.unidade_espaco_padrao. */
+  unidade_espaco_display: UnidadeEspacoDisplay | null
   created_at: string
   updated_at: string
 }
@@ -133,6 +140,12 @@ export interface PlanejamentoTarefaCompleta extends PlanejamentoTarefa {
   producao_diaria_unidade: string | null
   custo_unit_snapshot: number | null
   custo_total_tarefa: number
+  /**
+   * Unidade efetiva resolvida na view via
+   * COALESCE(tarefa.unidade_espaco_display, obra.unidade_espaco_padrao).
+   * Cliente NÃO precisa fazer esse fallback.
+   */
+  unidade_espaco_efetiva: UnidadeEspacoDisplay
   equipes: EquipeAlocada[]
   predecessoras: PredecessoraRef[]
   sucessoras: SucessoraRef[]

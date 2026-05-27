@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { PinOff, Trash2, Plus } from 'lucide-react'
 import {
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { TabPill } from '@/components/ui/TabPill'
 import { fmtBRL, fmtQtd } from '@/lib/money'
-import { formatNumber } from '@/lib/format'
+import { formatNumber, formatPosicao, parsePosicao } from '@/lib/format'
 import type {
   PlanejamentoTarefaCompleta,
   Equipe
@@ -32,7 +32,7 @@ import { EquipeChip } from './EquipeChip'
 import { useProducaoPorTarefa } from '@/features/acompanhamento/hooks/producao'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 
-type Tab = 'datas' | 'equipes' | 'deps' | 'cpu' | 'notas' | 'realizado'
+type Tab = 'datas' | 'equipes' | 'deps' | 'cpu' | 'notas' | 'realizado' | 'localizacao'
 
 interface Props {
   open: boolean
@@ -102,6 +102,9 @@ export function TarefaDetailPanel({
           className={TAB_CLASS}
         >
           Notas
+        </TabPill>
+        <TabPill active={tab === 'localizacao'} onClick={() => setTab('localizacao')} className={TAB_CLASS}>
+          Local
         </TabPill>
         <TabPill active={tab === 'realizado'} onClick={() => setTab('realizado')} className={TAB_CLASS}>
           Realizado
@@ -373,6 +376,20 @@ export function TarefaDetailPanel({
           </div>
         ) : null}
 
+        {tab === 'localizacao' ? (
+          <LocalizacaoTab
+            tarefa={tarefa}
+            readOnly={readOnly}
+            onSave={async (campo, metros) => {
+              await updateTarefa.mutateAsync({
+                id: tarefa.id,
+                planejamento_id: tarefa.planejamento_id,
+                [campo]: metros
+              })
+            }}
+          />
+        ) : null}
+
         {tab === 'realizado' ? <RealizadoTab tarefaId={tarefa.id} /> : null}
       </SheetBody>
       <SheetFooter>
@@ -414,6 +431,115 @@ function Field({ label, children }: { label: string; children: ReactNode }): Rea
     <div>
       <div className="text-2xs uppercase text-text-dim font-mono mb-0.5">{label}</div>
       <div>{children}</div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// LocalizacaoTab: eixo espacial (posição em km/m/estaca conforme unidade
+// efetiva da tarefa). Armazenamento sempre em METROS; conversão visual
+// via formatPosicao/parsePosicao. Inputs validados onBlur — input vazio
+// limpa o valor (null). Os dois campos seguem a regra "ambos null ou
+// ambos preenchidos" do banco; UI espelha isso permitindo null em ambos
+// individualmente, e o save no DB falha se quebrar a CHECK constraint.
+// ─────────────────────────────────────────────────────────────────────────
+function LocalizacaoTab({
+  tarefa,
+  readOnly,
+  onSave
+}: {
+  tarefa: PlanejamentoTarefaCompleta
+  readOnly: boolean
+  onSave: (
+    campo: 'posicao_inicio_m' | 'posicao_fim_m',
+    metros: number | null
+  ) => Promise<void>
+}): ReactNode {
+  const unidade = tarefa.unidade_espaco_efetiva
+  const initIni = formatPosicao(tarefa.posicao_inicio_m, unidade)
+  const initFim = formatPosicao(tarefa.posicao_fim_m, unidade)
+  const [iniDraft, setIniDraft] = useState(initIni)
+  const [fimDraft, setFimDraft] = useState(initFim)
+  const [iniErr, setIniErr] = useState<string | null>(null)
+  const [fimErr, setFimErr] = useState<string | null>(null)
+
+  // Re-sincroniza drafts quando trocar de tarefa selecionada no painel.
+  // Key é tarefa.id + unidade pra capturar swap de tarefa e mudança de
+  // unidade (display sobrescrita).
+  useEffect(() => {
+    setIniDraft(formatPosicao(tarefa.posicao_inicio_m, unidade))
+    setFimDraft(formatPosicao(tarefa.posicao_fim_m, unidade))
+    setIniErr(null)
+    setFimErr(null)
+  }, [tarefa.id, tarefa.posicao_inicio_m, tarefa.posicao_fim_m, unidade])
+
+  const placeholder =
+    unidade === 'km' ? 'ex: 2+508,50' : unidade === 'estaca' ? 'ex: EST 125+8,50' : 'ex: 2508,50'
+
+  async function commitCampo(
+    campo: 'posicao_inicio_m' | 'posicao_fim_m',
+    draft: string,
+    setErr: (s: string | null) => void
+  ): Promise<void> {
+    const trimmed = draft.trim()
+    if (trimmed.length === 0) {
+      setErr(null)
+      await onSave(campo, null)
+      return
+    }
+    const m = parsePosicao(trimmed, unidade)
+    if (m === null) {
+      setErr(`Formato inválido para ${unidade}.`)
+      return
+    }
+    setErr(null)
+    await onSave(campo, m)
+  }
+
+  return (
+    <div className="space-y-3 font-mono text-xs">
+      <div className="text-2xs text-text-dim leading-relaxed">
+        Unidade desta tarefa: <span className="text-text">{unidade}</span>.
+        {tarefa.unidade_espaco_display
+          ? ' (sobrescrita da unidade da obra)'
+          : ' (padrão da obra)'}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="pos-ini">Início</Label>
+          <Input
+            id="pos-ini"
+            value={iniDraft}
+            placeholder={placeholder}
+            disabled={readOnly}
+            onChange={(e) => setIniDraft(e.target.value)}
+            onBlur={() => commitCampo('posicao_inicio_m', iniDraft, setIniErr)}
+            aria-invalid={iniErr !== null}
+            className={iniErr ? 'border-danger' : ''}
+          />
+          {iniErr ? <div className="text-danger text-2xs mt-1">{iniErr}</div> : null}
+        </div>
+        <div>
+          <Label htmlFor="pos-fim">Fim</Label>
+          <Input
+            id="pos-fim"
+            value={fimDraft}
+            placeholder={placeholder}
+            disabled={readOnly}
+            onChange={(e) => setFimDraft(e.target.value)}
+            onBlur={() => commitCampo('posicao_fim_m', fimDraft, setFimErr)}
+            aria-invalid={fimErr !== null}
+            className={fimErr ? 'border-danger' : ''}
+          />
+          {fimErr ? <div className="text-danger text-2xs mt-1">{fimErr}</div> : null}
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-border text-2xs text-text-dim leading-relaxed">
+        Os dois campos: ambos null (tarefa puramente temporal, ex: mobilização) ou
+        ambos preenchidos. O banco rejeita um sem o outro.
+      </div>
     </div>
   )
 }

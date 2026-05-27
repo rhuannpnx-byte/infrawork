@@ -66,6 +66,10 @@ export interface UpdateTarefaInput {
   data_inicio_manual?: boolean
   notas?: string | null
   ordem?: number
+  /** Posição espacial em METROS (sempre — UI converte de unidade display antes do mutate). */
+  posicao_inicio_m?: number | null
+  posicao_fim_m?: number | null
+  unidade_espaco_display?: 'km' | 'm' | 'estaca' | null
 }
 
 export function useUpdateTarefa(): ReturnType<typeof useMutation<void, Error, UpdateTarefaInput>> {
