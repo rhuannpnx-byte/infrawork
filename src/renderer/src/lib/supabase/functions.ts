@@ -242,6 +242,22 @@ export const adminApi = {
       { method: 'POST', body }
     ),
 
+  /** One-shot manual: backfill perfis pra tarefas existentes. God only. */
+  migrarPerfisTarefasExistentes: (body: {
+    obra_id?: string
+    batch_size?: number
+    dry_run?: boolean
+  }) =>
+    call<{
+      ok: boolean
+      total_examinadas: number
+      migradas: Array<{ tarefa_id: string; semanas_geradas: number }>
+      skipped: Array<{ tarefa_id: string; motivo: string }>
+      errors: Array<{ tarefa_id: string; erro: string }>
+      dry_run: boolean
+      duracao_ms: number
+    }>('migrar-perfis-tarefas-existentes', { method: 'POST', body }),
+
   // ─── Acompanhamento (Fase A) ──────────────────────────────────────────
   acompanhamentoListarProjetosSiga: () =>
     call<{
