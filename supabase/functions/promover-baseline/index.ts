@@ -55,7 +55,13 @@ Deno.serve(async (req) => {
 
   // 1) Coletar tudo para o snapshot ANTES de marcar baseline (evita
   //    trigger imutabilidade bloquear edição posterior se algo falhar).
-  const [tarRes, depRes, eqRes, calRes, excRes, fatRes] = await Promise.all([
+  const { data: tarefasOrigem } = await admin
+    .from('planejamento_tarefa')
+    .select('id')
+    .eq('planejamento_id', planejamento_id)
+  const tarefaIds = (tarefasOrigem ?? []).map((t) => t.id as string)
+
+  const [tarRes, depRes, eqRes, perfilRes, calRes, excRes, fatRes] = await Promise.all([
     admin
       .from('planejamento_tarefa')
       .select('*')
@@ -67,13 +73,11 @@ Deno.serve(async (req) => {
     admin
       .from('planejamento_tarefa_equipe')
       .select('*, equipe:equipe_id (id, nome, cor, tipo)')
-      .in(
-        'tarefa_id',
-        ((await admin
-          .from('planejamento_tarefa')
-          .select('id')
-          .eq('planejamento_id', planejamento_id)).data ?? []).map((t) => t.id)
-      ),
+      .in('tarefa_id', tarefaIds.length > 0 ? tarefaIds : ['00000000-0000-0000-0000-000000000000']),
+    admin
+      .from('planejamento_tarefa_perfil_semana')
+      .select('*')
+      .in('tarefa_id', tarefaIds.length > 0 ? tarefaIds : ['00000000-0000-0000-0000-000000000000']),
     admin.from('obra_calendario').select('*').eq('obra_id', plan.obra_id).maybeSingle(),
     admin.from('obra_calendario_excecao').select('*').eq('obra_id', plan.obra_id),
     admin.from('obra_produtividade_mes').select('*').eq('obra_id', plan.obra_id)
@@ -83,6 +87,7 @@ Deno.serve(async (req) => {
     tarefas: tarRes.data ?? [],
     dependencias: depRes.data ?? [],
     equipes_aloc: eqRes.data ?? [],
+    perfis_semana: perfilRes.data ?? [],
     calendario: {
       base: calRes.data ?? null,
       excecoes: excRes.data ?? [],

@@ -26,13 +26,19 @@ import { assertObraAccess } from '../_shared/orc.ts'
 import {
   addDays,
   addWorkDays,
-  calcularDuracaoDiaria,
   type CalendarioCtx,
+  gerarPerfilSemanal,
   isoDate,
   isWorkDay,
+  makeCapacidadePorSemana,
   nextWorkDay,
   parseISO,
-  shiftWorkDays
+  type PerfilNome,
+  type SemanaPerfil,
+  shiftPerfilSemanas,
+  shiftWorkDays,
+  startOfWeekMondayUTC,
+  ultimoDiaUtilDaSemana
 } from '../_shared/cronograma-pure.ts'
 
 interface Body {
@@ -49,12 +55,26 @@ interface TarefaRow {
   quantidade_referencia: number | null
   producao_diaria_qtde: number | null
   cpu_snapshot_id: string | null
+  perfil_default: PerfilNome
+  usa_perfil_customizado: boolean
   equipes: Array<{ id: string; qtd_equipes: number }>
   predecessoras: Array<{
     predecessora_id: string
     tipo: 'FS' | 'SS' | 'FF'
     lag_dias: number
   }>
+}
+
+interface WarningRecalc {
+  tarefa_id: string
+  tipo:
+    | 'safety_perfil'
+    | 'customizado_sem_perfil'
+    | 'customizado_qty_divergente'
+    | 'customizado_shift_truncado'
+    | 'safety_duracao'
+    | 'drift_anterior_ancora'
+  detalhe?: string
 }
 
 // Alias local pra manter os call-sites preexistentes funcionando sem
@@ -148,7 +168,8 @@ Deno.serve(async (req) => {
     .from('vw_planejamento_tarefa_completa')
     .select(
       'id, item_orcamentario_id, data_inicio, data_fim, data_inicio_manual, ' +
-        'quantidade_referencia, producao_diaria_qtde, cpu_snapshot_id, equipes, predecessoras'
+        'quantidade_referencia, producao_diaria_qtde, cpu_snapshot_id, ' +
+        'perfil_default, usa_perfil_customizado, equipes, predecessoras'
     )
     .eq('planejamento_id', planejamento_id)
   if (tarErr) return json({ error: tarErr.message }, 400)
@@ -186,8 +207,13 @@ Deno.serve(async (req) => {
     else tarefasInvalidas.push(t)
   }
 
-  // Zerar datas das inválidas
+  // Zerar datas + apagar perfil das inválidas (sem CPU, prod=0, etc.)
   if (tarefasInvalidas.length > 0) {
+    const invalidasIds = tarefasInvalidas.map((t) => t.id)
+    await admin
+      .from('planejamento_tarefa_perfil_semana')
+      .delete()
+      .in('tarefa_id', invalidasIds)
     await Promise.all(
       tarefasInvalidas.map((t) =>
         admin
@@ -196,6 +222,28 @@ Deno.serve(async (req) => {
           .eq('id', t.id)
       )
     )
+  }
+
+  // 5.5) Carregar perfis existentes em batch (só das tarefas válidas).
+  //      Customizadas: preservar/shiftar. Não-customizadas: regenerar.
+  const validasIds = tarefasValidas.map((t) => t.id)
+  const perfilPorTarefa = new Map<string, SemanaPerfil[]>()
+  if (validasIds.length > 0) {
+    const { data: perfis } = await admin
+      .from('planejamento_tarefa_perfil_semana')
+      .select('tarefa_id, semana_segunda, quantidade_planejada')
+      .in('tarefa_id', validasIds)
+    for (const p of perfis ?? []) {
+      const arr = perfilPorTarefa.get(p.tarefa_id as string) ?? []
+      arr.push({
+        semanaSegunda: p.semana_segunda as string,
+        quantidadePlanejada: Number(p.quantidade_planejada)
+      })
+      perfilPorTarefa.set(p.tarefa_id as string, arr)
+    }
+    for (const arr of perfilPorTarefa.values()) {
+      arr.sort((a, b) => a.semanaSegunda.localeCompare(b.semanaSegunda))
+    }
   }
 
   // 6) Topological sort (Kahn) — apenas sobre tarefas válidas
@@ -230,12 +278,24 @@ Deno.serve(async (req) => {
     return json({ error: 'Grafo inconsistente — ciclo escapou da validação' }, 500)
   }
 
-  // 7) Forward pass — calcula data_inicio, duracao, data_fim
+  // 7) Forward pass — perfil-aware.
+  //    Pra cada tarefa em ordem topológica:
+  //      - Compute dataInicioCalc a partir de predecessoras / data_inicio_manual / âncora.
+  //      - Se usa_perfil_customizado + perfil existe: preserva ou shifta perfil.
+  //      - Senão: gera perfil via gerarPerfilSemanal.
+  //      - Deriva data_inicio (primeiro dia útil) e data_fim (último dia útil da última
+  //        semana com qty > 0) a partir do perfil.
+  //      - FF backward adjustment shifta o perfil pra frente se necessário.
   const dataAncora = parseISO(plan.data_referencia_inicio)
   const datasInicio = new Map<string, Date>()
   const datasFim = new Map<string, Date>()
   const duracoes = new Map<string, number>()
-  let warningDrift = false
+  const perfisRegenerados = new Map<string, SemanaPerfil[]>() // não-customizadas: DELETE + INSERT
+  const perfisShifted = new Map<string, SemanaPerfil[]>() // customizadas com shift: DELETE + INSERT
+  const warnings: WarningRecalc[] = []
+
+  // Safety horizonte pra shift de customizado: âncora + SAFETY_MAX_SEMANAS semanas.
+  const SAFETY_HORIZONTE_DIAS = 260 * 7
 
   for (const id of ordem) {
     const t = tarefaById.get(id)!
@@ -246,11 +306,11 @@ Deno.serve(async (req) => {
       0
     )
 
-    let dataInicio: Date
+    // (a) Determinar dataInicioCalc a partir de predecessoras / manual / âncora.
+    let dataInicioCalc: Date
     if (t.data_inicio_manual && t.data_inicio) {
-      dataInicio = parseISO(t.data_inicio)
+      dataInicioCalc = parseISO(t.data_inicio)
     } else {
-      // Sem predecessoras → usa âncora
       let candidato: Date | null = null
       for (const p of t.predecessoras ?? []) {
         const predIni = datasInicio.get(p.predecessora_id)
@@ -259,51 +319,142 @@ Deno.serve(async (req) => {
         let cand: Date
         if (p.tipo === 'FS') {
           cand = shiftWorkDays(predFim, p.lag_dias + 1, calcCtx)
-          // +1 porque FS = inicia no próximo dia útil após fim
         } else if (p.tipo === 'SS') {
           cand = shiftWorkDays(predIni, p.lag_dias, calcCtx)
         } else {
-          // FF — calculado depois quando soubermos duração
           cand = shiftWorkDays(predFim, p.lag_dias, calcCtx)
         }
         if (!candidato || cand > candidato) candidato = cand
       }
-      dataInicio = candidato ?? new Date(dataAncora)
-      if (dataInicio < dataAncora) {
-        dataInicio = new Date(dataAncora)
-        warningDrift = true
+      dataInicioCalc = candidato ?? new Date(dataAncora)
+      if (dataInicioCalc < dataAncora) {
+        dataInicioCalc = new Date(dataAncora)
+        warnings.push({ tarefa_id: t.id, tipo: 'drift_anterior_ancora' })
       }
-      dataInicio = nextWorkDay(dataInicio, calcCtx)
+      dataInicioCalc = nextWorkDay(dataInicioCalc, calcCtx)
     }
 
-    // calcularDuracaoDiaria integra o fator mensal POR DIA ÚTIL. Tarefas que
-    // cruzam virada de mês com fatores diferentes agora ficam corretas (antes
-    // só era aplicado o fator do mês de data_inicio).
-    const durResult = calcularDuracaoDiaria(qtd, prod, eqsTotal, dataInicio, calcCtx)
-    if (durResult.atingiuLimite) {
-      warningDrift = true
+    // (b) Decidir perfil: preservar/shiftar customizado OU gerar novo.
+    let perfilFinal: SemanaPerfil[] = []
+    const existingPerfil = perfilPorTarefa.get(t.id) ?? []
+
+    if (t.usa_perfil_customizado && existingPerfil.length > 0) {
+      // Customizado existente: validar soma + shift se necessário.
+      const somaPerfil = existingPerfil.reduce((acc, s) => acc + s.quantidadePlanejada, 0)
+      const tolerancia = Math.max(Math.abs(qtd) * 0.001, 0.0001)
+      if (Math.abs(somaPerfil - qtd) > tolerancia) {
+        warnings.push({
+          tarefa_id: t.id,
+          tipo: 'customizado_qty_divergente',
+          detalhe: `soma=${somaPerfil.toFixed(2)} ref=${qtd.toFixed(2)}`
+        })
+      }
+
+      const primeiraSegOrig = parseISO(existingPerfil[0].semanaSegunda)
+      const targetSeg = startOfWeekMondayUTC(dataInicioCalc)
+      const deltaSemanas = Math.round(
+        (targetSeg.getTime() - primeiraSegOrig.getTime()) / (7 * 86400000)
+      )
+
+      if (deltaSemanas === 0) {
+        perfilFinal = existingPerfil
+      } else {
+        // Safety: shift que estoura horizonte é truncado.
+        const ultimaSegOrig = parseISO(
+          existingPerfil[existingPerfil.length - 1].semanaSegunda
+        )
+        const ultimaSegShifted = addDays(ultimaSegOrig, deltaSemanas * 7)
+        const safetyHorizonte = addDays(dataAncora, SAFETY_HORIZONTE_DIAS)
+        if (ultimaSegShifted > safetyHorizonte) {
+          const deltaTruncado = Math.floor(
+            (safetyHorizonte.getTime() - ultimaSegOrig.getTime()) / (7 * 86400000)
+          )
+          perfilFinal = shiftPerfilSemanas(existingPerfil, deltaTruncado)
+          warnings.push({
+            tarefa_id: t.id,
+            tipo: 'customizado_shift_truncado',
+            detalhe: `delta_req=${deltaSemanas} delta_aplic=${deltaTruncado}`
+          })
+        } else {
+          perfilFinal = shiftPerfilSemanas(existingPerfil, deltaSemanas)
+        }
+        perfisShifted.set(t.id, perfilFinal)
+      }
+    } else {
+      if (t.usa_perfil_customizado) {
+        // Flag true mas sem perfil — estado inconsistente (não deveria acontecer
+        // com a RPC atomic). Fallback: gera uniforme + warning.
+        warnings.push({ tarefa_id: t.id, tipo: 'customizado_sem_perfil' })
+      }
+      const capPorSemana = makeCapacidadePorSemana(prod, eqsTotal, calcCtx)
+      const gerar = gerarPerfilSemanal({
+        quantidadeTotal: qtd,
+        dataInicio: dataInicioCalc,
+        capacidadePorSemana: capPorSemana,
+        perfil: t.perfil_default,
+        politicaCap: 'rigido'
+      })
+      if (gerar.atingiuSafety) {
+        warnings.push({ tarefa_id: t.id, tipo: 'safety_perfil' })
+      }
+      perfilFinal = gerar.semanas
+      perfisRegenerados.set(t.id, perfilFinal)
     }
-    const duracao = durResult.duracaoDiasUteis
+
+    // (c) Derivar data_inicio + data_fim a partir do perfil.
+    let dataInicio: Date
     let dataFim: Date
-    if (duracao <= 0) {
+    if (perfilFinal.length === 0) {
+      dataInicio = nextWorkDay(dataInicioCalc, calcCtx)
       dataFim = dataInicio
     } else {
-      dataFim = parseISO(durResult.dataFim)
+      const primeiraSeg = parseISO(perfilFinal[0].semanaSegunda)
+      dataInicio = nextWorkDay(
+        primeiraSeg > dataInicioCalc ? primeiraSeg : dataInicioCalc,
+        calcCtx
+      )
+      const ultSemanaProd = [...perfilFinal]
+        .reverse()
+        .find((s) => s.quantidadePlanejada > 0)
+      dataFim = ultSemanaProd
+        ? ultimoDiaUtilDaSemana(parseISO(ultSemanaProd.semanaSegunda), calcCtx)
+        : dataInicio
     }
 
-    // Reajuste para FF: se predecessora exige predFim+lag, força data_fim e recalcula data_inicio
+    // (d) FF backward adjustment: empurra dataFim adiante via shift do perfil.
     for (const p of t.predecessoras ?? []) {
       if (p.tipo !== 'FF') continue
       const predFim = datasFim.get(p.predecessora_id)
       if (!predFim) continue
       const fimAlvo = shiftWorkDays(predFim, p.lag_dias, calcCtx)
       if (fimAlvo > dataFim) {
-        dataFim = fimAlvo
-        dataInicio = shiftWorkDays(dataFim, -Math.max(1, Math.ceil(duracao) - 1), calcCtx)
-        if (dataInicio < dataAncora) {
-          dataInicio = new Date(dataAncora)
-          warningDrift = true
+        const deltaDias = Math.round((fimAlvo.getTime() - dataFim.getTime()) / 86400000)
+        const deltaSemanas = Math.ceil(deltaDias / 7)
+        if (perfilFinal.length > 0 && deltaSemanas > 0) {
+          perfilFinal = shiftPerfilSemanas(perfilFinal, deltaSemanas)
+          if (t.usa_perfil_customizado) {
+            perfisShifted.set(t.id, perfilFinal)
+          } else {
+            perfisRegenerados.set(t.id, perfilFinal)
+          }
+          const primeiraSegNova = parseISO(perfilFinal[0].semanaSegunda)
+          dataInicio = nextWorkDay(primeiraSegNova, calcCtx)
+          if (dataInicio < dataAncora) {
+            dataInicio = new Date(dataAncora)
+            warnings.push({ tarefa_id: t.id, tipo: 'drift_anterior_ancora' })
+          }
         }
+        dataFim = fimAlvo
+      }
+    }
+
+    // (e) Duração final = contagem de dias úteis entre dataInicio e dataFim.
+    let duracao = 0
+    if (perfilFinal.length > 0) {
+      let cur = new Date(dataInicio)
+      while (cur <= dataFim) {
+        if (isWorkDay(cur, calcCtx)) duracao++
+        cur = addDays(cur, 1)
       }
     }
 
@@ -311,6 +462,10 @@ Deno.serve(async (req) => {
     datasFim.set(id, dataFim)
     duracoes.set(id, duracao)
   }
+  // Compat com response antigo: warning_drift true se qualquer warning de drift.
+  const warningDrift = warnings.some(
+    (w) => w.tipo === 'drift_anterior_ancora' || w.tipo === 'safety_perfil'
+  )
 
   // 8) Backward pass — calcula slack para identificar caminho crítico
   const dataFimProjeto = Array.from(datasFim.values()).reduce(
@@ -362,26 +517,85 @@ Deno.serve(async (req) => {
     if (slack <= 0) caminhoCritico.push(id)
   }
 
-  // 9) UPDATE batch
+  // 9a) Persist perfis: DELETE + INSERT chunked. Idempotente — re-run seguro.
+  //     Tarefas regeneradas (perfisRegenerados) + customizadas que sofreram shift
+  //     (perfisShifted). Tarefas customizadas SEM shift mantém o perfil intacto
+  //     no DB (não passam por DELETE).
+  const tarefasComPerfilParaPersistir = new Set<string>([
+    ...perfisRegenerados.keys(),
+    ...perfisShifted.keys()
+  ])
+  if (tarefasComPerfilParaPersistir.size > 0) {
+    const ids = Array.from(tarefasComPerfilParaPersistir)
+    const { error: delErr } = await admin
+      .from('planejamento_tarefa_perfil_semana')
+      .delete()
+      .in('tarefa_id', ids)
+    if (delErr) {
+      return json({ error: 'Falha em DELETE perfis', detalhe: delErr.message }, 500)
+    }
+
+    const rows: Array<{
+      tarefa_id: string
+      semana_segunda: string
+      quantidade_planejada: number
+    }> = []
+    for (const tid of ids) {
+      const semanas = perfisRegenerados.get(tid) ?? perfisShifted.get(tid) ?? []
+      for (const s of semanas) {
+        if (s.quantidadePlanejada < 0) continue
+        rows.push({
+          tarefa_id: tid,
+          semana_segunda: s.semanaSegunda,
+          quantidade_planejada: s.quantidadePlanejada
+        })
+      }
+    }
+    // INSERT em chunks de 1000 (limite seguro do PostgREST).
+    // Constraint trigger DEFERRED valida soma no commit de cada chunk.
+    for (let i = 0; i < rows.length; i += 1000) {
+      const chunk = rows.slice(i, i + 1000)
+      const { error: insErr } = await admin
+        .from('planejamento_tarefa_perfil_semana')
+        .insert(chunk)
+      if (insErr) {
+        return json(
+          {
+            error: 'Falha em INSERT perfis (transação parcial — rerun do recálculo é seguro)',
+            detalhe: insErr.message,
+            chunk_inicial: i,
+            partial: true
+          },
+          500
+        )
+      }
+    }
+  }
+
+  // 9b) UPDATE batch das tarefas válidas: datas + duração + flag.
+  //     Regeneradas: usa_perfil_customizado = false (forca shape default).
+  //     Shifted ou intactas: mantém usa_perfil_customizado = true (do DB).
   const updates = ordem.map((id) => ({
     id,
     data_inicio: isoDate(datasInicio.get(id)!),
     data_fim: isoDate(datasFim.get(id)!),
-    duracao_dias_uteis_calc: duracoes.get(id) ?? 0
+    duracao_dias_uteis_calc: duracoes.get(id) ?? 0,
+    foi_regenerada: perfisRegenerados.has(id)
   }))
 
   // Supabase não tem batch update nativo — atualizar em paralelo
   const updResults = await Promise.all(
-    updates.map((u) =>
-      admin
-        .from('planejamento_tarefa')
-        .update({
-          data_inicio: u.data_inicio,
-          data_fim: u.data_fim,
-          duracao_dias_uteis_calc: u.duracao_dias_uteis_calc
-        })
-        .eq('id', u.id)
-    )
+    updates.map((u) => {
+      const payload: Record<string, unknown> = {
+        data_inicio: u.data_inicio,
+        data_fim: u.data_fim,
+        duracao_dias_uteis_calc: u.duracao_dias_uteis_calc
+      }
+      if (u.foi_regenerada) {
+        payload.usa_perfil_customizado = false
+      }
+      return admin.from('planejamento_tarefa').update(payload).eq('id', u.id)
+    })
   )
   const errs = updResults.filter((r) => r.error).map((r) => r.error!.message)
   if (errs.length > 0) {
@@ -421,12 +635,15 @@ Deno.serve(async (req) => {
   return json({
     ok: true,
     tarefas_recalculadas: updates.length,
+    perfis_regenerados: perfisRegenerados.size,
+    perfis_shifted: perfisShifted.size,
     data_inicio: isoDate(dataInicioProjeto),
     data_fim: isoDate(dataFimProjeto),
     duracao_total_dias_uteis: diasUteisTotal,
     duracao_total_dias_corridos: diasCorridos,
     caminho_critico_ids: caminhoCritico,
     warning_drift: warningDrift,
+    warnings,
     duracao_ms: Date.now() - t0
   })
 })

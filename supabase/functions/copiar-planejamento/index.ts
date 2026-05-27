@@ -89,7 +89,13 @@ Deno.serve(async (req) => {
       duracao_dias_uteis_calc: t.duracao_dias_uteis_calc,
       data_inicio_manual: t.data_inicio_manual,
       notas: t.notas,
-      ordem: t.ordem
+      ordem: t.ordem,
+      // Eixo espacial + perfil — copiados pra preservar configuração da revisão.
+      posicao_inicio_m: t.posicao_inicio_m,
+      posicao_fim_m: t.posicao_fim_m,
+      unidade_espaco_display: t.unidade_espaco_display,
+      perfil_default: t.perfil_default,
+      usa_perfil_customizado: t.usa_perfil_customizado
     }))
     const { data: novasTarefas, error: insErr } = await admin
       .from('planejamento_tarefa')
@@ -165,6 +171,45 @@ Deno.serve(async (req) => {
 
     if (alocsNovas.length > 0) {
       await admin.from('planejamento_tarefa_equipe').insert(alocsNovas)
+    }
+
+    // 6) Copia perfis semanais (preservando shape e quantidades). Le da LIVE
+    //    revisão origem (planejamento_tarefa_perfil_semana), NUNCA do
+    //    planejamento_baseline_snapshot.payload — snapshot é historico imutável,
+    //    cópia rotineira partir dele criaria divergência sutil entre
+    //    revisão ativa e snapshot.
+    const tarefaIdsOrigem = Array.from(mapaTarefas.keys())
+    const { data: perfisOrigem } = await admin
+      .from('planejamento_tarefa_perfil_semana')
+      .select('tarefa_id, semana_segunda, quantidade_planejada')
+      .in('tarefa_id', tarefaIdsOrigem)
+
+    const perfisNovos = (perfisOrigem ?? [])
+      .map((p) => {
+        const novaTarefa = mapaTarefas.get(p.tarefa_id as string)
+        if (!novaTarefa) return null
+        return {
+          tarefa_id: novaTarefa,
+          semana_segunda: p.semana_segunda as string,
+          quantidade_planejada: Number(p.quantidade_planejada)
+        }
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+
+    if (perfisNovos.length > 0) {
+      // INSERT em chunks (constraint trigger valida soma no commit).
+      for (let i = 0; i < perfisNovos.length; i += 1000) {
+        const chunk = perfisNovos.slice(i, i + 1000)
+        const { error: perfErr } = await admin
+          .from('planejamento_tarefa_perfil_semana')
+          .insert(chunk)
+        if (perfErr) {
+          // rollback: deletar o planejamento_id novo (cascades pra tarefa,
+          // deps, alocs, perfis já inseridos).
+          await admin.from('planejamento').delete().eq('id', novo.id)
+          return json({ error: 'Falha em copiar perfis: ' + perfErr.message }, 500)
+        }
+      }
     }
   }
 
