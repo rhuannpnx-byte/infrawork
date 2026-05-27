@@ -48,21 +48,28 @@ export function formatPosicao(
 /**
  * Parsea string de input pra metros. Vírgula ou ponto como separador decimal.
  *
- * Aceita formatos por unidade:
- *   'km':     'KM+M' ou 'KM+M,CC' ou 'KM+M.CC'.       Ex: '2+508,50' → 2508.50
- *   'm':      'M' ou 'M,CC' ou 'M.CC'.                Ex: '2508,50'  → 2508.50
- *   'estaca': 'EST N+M[,CC]' ou 'N+M[,CC]' (prefixo opcional, case insensitive).
- *                                                     Ex: 'EST 125+8,50' → 2508.50
+ * Tolerante por unidade — aceita formato canônico OU "só metros":
+ *   'km':     'KM+M[,CC]'  (ex: '2+508,50' → 2508.50)        — canônico
+ *             OU 'N[,CC]'   (ex: '2508,50'  → 2508.50)        — só metros
+ *   'm':      'N[,CC]'      (ex: '2508,50'  → 2508.50)
+ *   'estaca': '[EST] N+M[,CC]' (ex: 'EST 125+8,50' → 2508.50) — canônico
+ *             OU 'N[,CC]'   (ex: '2508,50'  → 2508.50)        — só metros
+ *
+ * "Só metros" sempre interpreta como metros diretos. UI mostra a forma
+ * canônica via formatPosicao no preview.
  *
  * Rejeita (retorna null): vazio, só espaços, negativo (sinal explícito), NaN,
- *   formato incompatível com unidade, metros >= 1000 em modo km, offset >=
- *   METROS_POR_ESTACA em modo estaca.
+ *   metros >= 1000 no SEGMENTO M do formato canônico de km, offset >=
+ *   METROS_POR_ESTACA no formato canônico de estaca.
  */
 export function parsePosicao(input: string, unidade: UnidadeEspaco): number | null {
   if (typeof input !== 'string') return null
   const raw = input.trim()
   if (raw.length === 0) return null
   if (raw.startsWith('-')) return null
+
+  // Detecta canônico (com "+" e/ou prefixo EST) vs "só metros".
+  const temPlus = raw.includes('+')
 
   switch (unidade) {
     case 'm': {
@@ -71,25 +78,37 @@ export function parsePosicao(input: string, unidade: UnidadeEspaco): number | nu
       return n
     }
     case 'km': {
-      // Formato KM+M[,CC]. KM e M são int de 0+; CC opcional.
-      const m = raw.match(/^(\d+)\+(\d+(?:[,.]\d+)?)$/)
-      if (!m) return null
-      const km = parseInt(m[1], 10)
-      const metros = parseNumeroPtBR(m[2])
-      if (metros === null || km < 0 || metros < 0 || metros >= 1000) return null
-      return km * 1000 + metros
+      if (temPlus) {
+        // Canônico: KM+M[,CC]
+        const m = raw.match(/^(\d+)\+(\d+(?:[,.]\d+)?)$/)
+        if (!m) return null
+        const km = parseInt(m[1], 10)
+        const metros = parseNumeroPtBR(m[2])
+        if (metros === null || km < 0 || metros < 0 || metros >= 1000) return null
+        return km * 1000 + metros
+      }
+      // "Só metros" — interpreta como metros diretos.
+      const n = parseNumeroPtBR(raw)
+      if (n === null || n < 0) return null
+      return n
     }
     case 'estaca': {
-      // 'EST N+M[,CC]' ou 'N+M[,CC]'. Prefixo 'EST' opcional, case insensitive,
-      // com 0+ espaços antes do N.
-      const m = raw.match(/^(?:EST\s*)?(\d+)\+(\d+(?:[,.]\d+)?)$/i)
-      if (!m) return null
-      const est = parseInt(m[1], 10)
-      const offset = parseNumeroPtBR(m[2])
-      if (offset === null || est < 0 || offset < 0 || offset >= METROS_POR_ESTACA) {
-        return null
+      const temEstPrefix = /^EST\b/i.test(raw)
+      if (temPlus || temEstPrefix) {
+        // Canônico: '[EST] N+M[,CC]'. Prefixo EST opcional.
+        const m = raw.match(/^(?:EST\s*)?(\d+)\+(\d+(?:[,.]\d+)?)$/i)
+        if (!m) return null
+        const est = parseInt(m[1], 10)
+        const offset = parseNumeroPtBR(m[2])
+        if (offset === null || est < 0 || offset < 0 || offset >= METROS_POR_ESTACA) {
+          return null
+        }
+        return est * METROS_POR_ESTACA + offset
       }
-      return est * METROS_POR_ESTACA + offset
+      // "Só metros" — interpreta como metros diretos.
+      const n = parseNumeroPtBR(raw)
+      if (n === null || n < 0) return null
+      return n
     }
   }
 }

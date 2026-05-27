@@ -172,13 +172,24 @@ Deno.test('parsePosicao estaca: offset >= 20 → null (overflow)', () => {
   assertEquals(parsePosicao('EST 125+25,50', 'estaca'), null)
 })
 
-Deno.test('parsePosicao km: formato incompatível "2508" → null', () => {
-  // 'km' precisa de '+', senão é ambíguo
-  assertEquals(parsePosicao('2508', 'km'), null)
+// Modo "só metros" — input sem "+" interpreta como metros diretos em qualquer unidade.
+// Justificativa UX: usuário pode preferir digitar "2508,50" sem precisar lembrar
+// do formato canônico. Preview na UI mostra a forma canônica.
+Deno.test('parsePosicao km: "2508" sem "+" → 2508 m (modo tolerante)', () => {
+  assertAlmostEquals(parsePosicao('2508', 'km')!, 2508, 0.001)
 })
 
-Deno.test('parsePosicao km: separador errado "2,508" → null', () => {
-  assertEquals(parsePosicao('2,508', 'km'), null)
+Deno.test('parsePosicao km: "2500,50" sem "+" → 2500.50 m (modo tolerante)', () => {
+  assertAlmostEquals(parsePosicao('2500,50', 'km')!, 2500.5, 0.001)
+})
+
+Deno.test('parsePosicao km: "2,508" → 2.508 m (parsed como decimal, NÃO como milhar)', () => {
+  // Vírgula é o decimal separator PT-BR. "2,508" = 2.508.
+  assertAlmostEquals(parsePosicao('2,508', 'km')!, 2.508, 0.001)
+})
+
+Deno.test('parsePosicao estaca: "2508" sem "+" → 2508 m (modo tolerante)', () => {
+  assertAlmostEquals(parsePosicao('2508', 'estaca')!, 2508, 0.001)
 })
 
 Deno.test('parsePosicao m: contém letras → null', () => {

@@ -497,13 +497,13 @@ function LocalizacaoTab({
   const fimPreview = fimParsed !== null ? formatPosicao(fimParsed, unidade) : null
 
   const placeholder =
-    unidade === 'km' ? '2+508,50' : unidade === 'estaca' ? 'EST 125+8,50' : '2508,50'
+    unidade === 'km' ? '2+508,50  ou  2508,50' : unidade === 'estaca' ? 'EST 125+8,50  ou  2508,50' : '2508,50'
   const helperFormato =
     unidade === 'km'
-      ? 'Formato km: KM+M,CC  (ex: 2+508,50 = 2,5 km).  M entre 0 e 999.'
+      ? 'Aceita "2+508,50" (canônico) OU "2508,50" (metros diretos). 2,5 km = 2500 m. Vê abaixo o que vai salvar.'
       : unidade === 'estaca'
-        ? 'Formato estaca: [EST] N+M,CC  (ex: EST 125+8,50).  Cada estaca = 20 m. Offset entre 0 e 19,99.'
-        : 'Formato m: número com vírgula ou ponto decimal (ex: 2508,50).'
+        ? 'Aceita "EST 125+8,50" (canônico) OU "2508,50" (metros diretos). Cada estaca = 20 m. Vê abaixo o que vai salvar.'
+        : 'Vírgula ou ponto como separador decimal (ex: 2508,50).'
 
   const iniInvalido = iniTrim !== '' && iniParsed === null
   const fimInvalido = fimTrim !== '' && fimParsed === null
