@@ -233,6 +233,15 @@ export const adminApi = {
       dependencias_copiadas: number
     }>('copiar-planejamento', { method: 'POST', body }),
 
+  salvarPerfilSemanaCustomizado: (body: {
+    tarefa_id: string
+    semanas: Array<{ semana_segunda: string; quantidade_planejada: number }>
+  }) =>
+    call<{ ok: boolean; tarefa_id: string; semanas_salvas: number }>(
+      'salvar-perfil-semana-customizado',
+      { method: 'POST', body }
+    ),
+
   // ─── Acompanhamento (Fase A) ──────────────────────────────────────────
   acompanhamentoListarProjetosSiga: () =>
     call<{
