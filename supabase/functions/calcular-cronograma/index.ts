@@ -5,15 +5,35 @@
 // Calcula datas de todas as tarefas de um planejamento:
 //   1) Lock advisory.
 //   2) Valida grafo de dependências (sem ciclos).
-//   3) Calcula duração de cada tarefa: qtde / (prod_diaria × qtd_equipes), corrigido por fator do mês.
+//   3) Calcula duração de cada tarefa via calcularDuracaoDiaria (de _shared/cronograma-pure.ts):
+//      integra dia-a-dia, aplicando fator do mês DE CADA dia útil (não só do mês de início).
 //   4) Topological sort (Kahn).
 //   5) Forward pass respeitando dependências (FS/SS/FF + lag) e calendário (skip dias não úteis).
 //   6) Backward pass → caminho crítico (slack = 0).
 //   7) UPDATE batch + touch obras.data_fim_planejada.
+//
+// REGRA DO FATOR DE PRODUTIVIDADE MENSAL (obra_produtividade_mes):
+//   * Aplicado POR DIA ÚTIL.
+//   * Lookup exato por mês (chave 'YYYY-MM').
+//   * Ausência de registro = fator 1.0 (sem multiplicação).
+//   * Tarefa que atravessa virada de mês usa fator de cada dia, não o do início.
+//   * (Antes deste commit, a fórmula linear `qtd / (prod × eq × fator_mes_inicio)`
+//     ignorava esse fato — bug corrigido em commit 1 da entrega Perfil Semanal.)
 
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import { assertObraAccess } from '../_shared/orc.ts'
+import {
+  addDays,
+  addWorkDays,
+  calcularDuracaoDiaria,
+  type CalendarioCtx,
+  isoDate,
+  isWorkDay,
+  nextWorkDay,
+  parseISO,
+  shiftWorkDays
+} from '../_shared/cronograma-pure.ts'
 
 interface Body {
   planejamento_id?: string
@@ -37,98 +57,9 @@ interface TarefaRow {
   }>
 }
 
-interface CalcContext {
-  bitmask: number
-  excecoes: Map<string, boolean> // data ISO → eh_util
-  fatorMes: Map<string, number> // 'YYYY-MM' → fator (default 1.0)
-}
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
-function parseISO(s: string): Date {
-  return new Date(s + 'T00:00:00Z')
-}
-
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d)
-  r.setUTCDate(r.getUTCDate() + n)
-  return r
-}
-
-function isWorkDay(d: Date, ctx: CalcContext): boolean {
-  const key = isoDate(d)
-  const exc = ctx.excecoes.get(key)
-  if (exc !== undefined) return exc
-  // 0=dom, 1=seg, ..., 6=sab → mapeia para bit 0=seg ... bit 6=dom
-  const dow = d.getUTCDay()
-  const bit = dow === 0 ? 6 : dow - 1
-  return ((ctx.bitmask >> bit) & 1) === 1
-}
-
-/** Avança n dias úteis a partir de `start` (inclusive de start se útil); retorna data útil. */
-function nextWorkDay(start: Date, ctx: CalcContext): Date {
-  let cur = new Date(start)
-  let safety = 0
-  while (!isWorkDay(cur, ctx)) {
-    cur = addDays(cur, 1)
-    safety++
-    if (safety > 366) break
-  }
-  return cur
-}
-
-/** Avança N dias úteis CONTANDO A PARTIR de start como dia 1 (se útil). */
-function addWorkDays(start: Date, nWork: number, ctx: CalcContext): Date {
-  if (nWork <= 0) return nextWorkDay(start, ctx)
-  let cur = nextWorkDay(start, ctx)
-  let remaining = nWork - 1
-  while (remaining > 0) {
-    cur = addDays(cur, 1)
-    if (isWorkDay(cur, ctx)) remaining--
-  }
-  return cur
-}
-
-/** Avança N dias úteis em qualquer direção (negativo retrocede). */
-function shiftWorkDays(start: Date, nWork: number, ctx: CalcContext): Date {
-  if (nWork === 0) return new Date(start)
-  const dir = nWork > 0 ? 1 : -1
-  let cur = new Date(start)
-  let remaining = Math.abs(nWork)
-  while (remaining > 0) {
-    cur = addDays(cur, dir)
-    if (isWorkDay(cur, ctx)) remaining--
-  }
-  return cur
-}
-
-/** Fator de produtividade para o mês de `d` (default 1.0). */
-function fatorParaData(d: Date, ctx: CalcContext): number {
-  const key = isoDate(d).slice(0, 7) // YYYY-MM
-  return ctx.fatorMes.get(key) ?? 1.0
-}
-
-/**
- * Calcula duração em dias úteis a partir da quantidade total e produção
- * diária efetiva (já incluindo nº equipes). Aplica fator de produtividade
- * pelo mês de início (aproximação — não interpola atravessando meses).
- */
-function calcularDuracao(
-  quantidade: number,
-  prodDiaria: number,
-  qtdEquipes: number,
-  dataInicio: Date,
-  ctx: CalcContext
-): number {
-  if (prodDiaria <= 0 || quantidade <= 0) return 0
-  const eqs = Math.max(1, qtdEquipes)
-  const fator = fatorParaData(dataInicio, ctx)
-  const prodEfetiva = prodDiaria * eqs * fator
-  const dias = quantidade / prodEfetiva
-  return Math.max(1, Math.ceil(dias * 100) / 100)
-}
+// Alias local pra manter os call-sites preexistentes funcionando sem
+// renomear `calcCtx`. CalendarioCtx é a fonte canônica em _shared/.
+type CalcContext = CalendarioCtx
 
 Deno.serve(async (req) => {
   const pre = handlePreflight(req)
@@ -345,12 +276,19 @@ Deno.serve(async (req) => {
       dataInicio = nextWorkDay(dataInicio, calcCtx)
     }
 
-    const duracao = calcularDuracao(qtd, prod, eqsTotal, dataInicio, calcCtx)
+    // calcularDuracaoDiaria integra o fator mensal POR DIA ÚTIL. Tarefas que
+    // cruzam virada de mês com fatores diferentes agora ficam corretas (antes
+    // só era aplicado o fator do mês de data_inicio).
+    const durResult = calcularDuracaoDiaria(qtd, prod, eqsTotal, dataInicio, calcCtx)
+    if (durResult.atingiuLimite) {
+      warningDrift = true
+    }
+    const duracao = durResult.duracaoDiasUteis
     let dataFim: Date
     if (duracao <= 0) {
       dataFim = dataInicio
     } else {
-      dataFim = addWorkDays(dataInicio, Math.ceil(duracao), calcCtx)
+      dataFim = parseISO(durResult.dataFim)
     }
 
     // Reajuste para FF: se predecessora exige predFim+lag, força data_fim e recalcula data_inicio
