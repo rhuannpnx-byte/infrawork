@@ -112,24 +112,24 @@ export function TaskBar({
       ? texturaPorCodigo(node.codigo_eap ?? node.servico_grupo_codigo)
       : null
 
+  // Cor de fundo SEMPRE presente — gradient e textured ficavam invisíveis
+  // quando baseColor era CSS var oklch() (concatenar "cc" hex em var() não
+  // funciona). Solução: bg sólida embaixo, gradient/textura por cima.
+  const bgFill = isIndireto ? 'rgba(100, 116, 139, 0.35)' : baseColor
   const style: CSSProperties = {
     left: x,
     top,
     width: w,
     height,
-    backgroundColor: isIndireto
-      ? 'rgba(100, 116, 139, 0.35)'
-      : barStyle === 'solid'
-        ? baseColor
+    backgroundColor: bgFill,
+    backgroundImage: isIndireto
+      ? 'repeating-linear-gradient(45deg, transparent 0 6px, rgba(148, 163, 184, 0.45) 6px 10px)'
+      : barStyle === 'gradient'
+        ? 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.18))'
         : undefined,
-    backgroundImage:
-      isIndireto
-        ? 'repeating-linear-gradient(45deg, transparent 0 6px, rgba(148, 163, 184, 0.45) 6px 10px)'
-        : barStyle === 'gradient'
-          ? `linear-gradient(180deg, ${baseColor}cc, ${baseColor})`
-          : undefined,
     border: isIndireto ? '1.5px solid var(--text-dim)' : undefined,
-    boxShadow: hover || selected ? `0 0 0 1px ${baseColor}, 0 1px 4px ${baseColor}44` : undefined
+    boxShadow:
+      hover || selected ? `0 0 0 1px ${baseColor}, 0 1px 4px rgba(0,0,0,0.35)` : undefined
   }
 
   const labelOutside = w < 60
