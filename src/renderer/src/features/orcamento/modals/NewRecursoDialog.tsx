@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { parseBR } from '@/lib/money'
 import { useCreateRecurso } from '../hooks/recursos'
 import { RECURSO_GRUPO_LABEL, type RecursoGrupo } from '@/types/orcamento'
 
@@ -47,7 +48,7 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
     e.preventDefault()
     setError(null)
     try {
-      const preco = precoInicial.trim() ? Number(precoInicial.replace(',', '.')) : undefined
+      const preco = precoInicial.trim() ? parseBR(precoInicial).toNumber() : undefined
       if (preco !== undefined && (isNaN(preco) || preco < 0)) {
         setError('Preço inicial inválido.')
         return

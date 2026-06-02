@@ -24,6 +24,11 @@ interface Props {
   planejamentoId: string
   sucessora: PlanejamentoTarefaCompleta | null
   tarefas: PlanejamentoTarefaCompleta[]
+  /** Mapa id → número da linha (estilo MS Project). Usado pra exibir options
+   *  como "#N — Nome" ao invés do código EAP, que pode estar vazio em marcos. */
+  numeroById?: Map<string, number>
+  /** Callback após adicionar com sucesso — usado pra disparar recálculo. */
+  onAdded?: () => void
 }
 
 export function AddDependenciaDialog({
@@ -31,7 +36,9 @@ export function AddDependenciaDialog({
   onOpenChange,
   planejamentoId,
   sucessora,
-  tarefas
+  tarefas,
+  numeroById,
+  onAdded
 }: Props): ReactNode {
   const add = useAddDependencia()
   const [predecessoraId, setPredecessoraId] = useState('')
@@ -41,11 +48,37 @@ export function AddDependenciaDialog({
 
   if (!sucessora) return null
 
-  const candidatas = tarefas.filter(
-    (t) =>
-      t.id !== sucessora.id &&
-      !sucessora.predecessoras.some((p) => p.predecessora_id === t.id)
-  )
+  // Grupos são nós organizacionais e não entram no CPM (a edge function pula
+  // `tipo_no='grupo'`), então não podem ser predecessores. Marcos e tarefas
+  // sim. Tambem exclui a própria sucessora e tarefas já vinculadas.
+  const candidatas = tarefas
+    .filter(
+      (t) =>
+        t.tipo_no !== 'grupo' &&
+        t.id !== sucessora.id &&
+        !sucessora.predecessoras.some((p) => p.predecessora_id === t.id)
+    )
+    .sort((a, b) => {
+      // Se temos número (ordem visual MS Project), ordena por ele. Senão cai
+      // pra código EAP.
+      const na = numeroById?.get(a.id) ?? Number.POSITIVE_INFINITY
+      const nb = numeroById?.get(b.id) ?? Number.POSITIVE_INFINITY
+      if (na !== nb) return na - nb
+      const ca = a.codigo_eap ?? a.servico_grupo_codigo ?? ''
+      const cb = b.codigo_eap ?? b.servico_grupo_codigo ?? ''
+      return ca.localeCompare(cb, 'pt-BR', { numeric: true })
+    })
+
+  const marcosCandidatos = candidatas.filter((t) => t.tipo_no === 'marco')
+  const tarefasCandidatas = candidatas.filter((t) => t.tipo_no === 'tarefa')
+
+  const labelTarefa = (t: PlanejamentoTarefaCompleta): string => {
+    const num = numeroById?.get(t.id)
+    const descricao = t.nome_custom ?? t.servico_grupo_descricao ?? '(sem descrição)'
+    const prefixo = t.tipo_no === 'marco' ? '[Marco] ' : ''
+    const numStr = num != null ? `#${num} — ` : ''
+    return `${numStr}${prefixo}${descricao}`
+  }
 
   const reset = (): void => {
     setPredecessoraId('')
@@ -69,9 +102,10 @@ export function AddDependenciaDialog({
         tipo,
         lag_dias: lag
       })
-      toast.success('Dependência adicionada.')
+      toast.success('Dependência adicionada. Recalculando cronograma…')
       reset()
       onOpenChange(false)
+      onAdded?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao adicionar dependência')
     }
@@ -96,9 +130,7 @@ export function AddDependenciaDialog({
 
           <div className="text-xs font-mono p-2 bg-bg rounded border border-border">
             <span className="text-text-dim">Sucessora:</span>{' '}
-            <span className="text-text">
-              {sucessora.servico_grupo_codigo} {sucessora.servico_grupo_descricao}
-            </span>
+            <span className="text-text">{labelTarefa(sucessora)}</span>
           </div>
 
           <div>
@@ -110,13 +142,41 @@ export function AddDependenciaDialog({
               required
               className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
             >
-              <option value="">Selecione…</option>
-              {candidatas.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.servico_grupo_codigo} — {t.servico_grupo_descricao}
-                </option>
-              ))}
+              <option value="">
+                {candidatas.length === 0
+                  ? 'Nenhuma tarefa/marco disponível como predecessora'
+                  : 'Selecione…'}
+              </option>
+              {marcosCandidatos.length > 0 ? (
+                <optgroup label={`Marcos (${marcosCandidatos.length})`}>
+                  {marcosCandidatos.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {labelTarefa(t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {tarefasCandidatas.length > 0 ? (
+                <optgroup label={`Tarefas (${tarefasCandidatas.length})`}>
+                  {tarefasCandidatas.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {labelTarefa(t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
+            {candidatas.length === 0 ? (
+              <p className="text-2xs text-text-dim font-mono mt-1">
+                Todas as outras tarefas/marcos desta revisão já estão vinculadas como
+                predecessoras (ou só existem grupos, que não entram no CPM).
+              </p>
+            ) : (
+              <p className="text-2xs text-text-dim font-mono mt-1">
+                {marcosCandidatos.length} marco(s) · {tarefasCandidatas.length} tarefa(s)
+                disponível(is).
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -128,7 +188,7 @@ export function AddDependenciaDialog({
                 onChange={(e) => setTipo(e.target.value as DependenciaTipo)}
                 className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
               >
-                {(['FS', 'SS', 'FF'] as DependenciaTipo[]).map((t) => (
+                {(['FS', 'SS', 'FF', 'SF'] as DependenciaTipo[]).map((t) => (
                   <option key={t} value={t}>
                     {t} — {DEPENDENCIA_LABEL[t]}
                   </option>
@@ -147,7 +207,8 @@ export function AddDependenciaDialog({
           </div>
           <div className="text-2xs text-text-dim font-mono">
             FS = predecessora termina antes da sucessora começar. SS = ambas começam juntas. FF =
-            ambas terminam juntas. Lag negativo = lead (sobreposição).
+            ambas terminam juntas. SF = predecessora começa antes da sucessora terminar (raro —
+            janelas just-in-time). Lag negativo = lead (sobreposição).
           </div>
         </DialogBody>
         <DialogFooter>

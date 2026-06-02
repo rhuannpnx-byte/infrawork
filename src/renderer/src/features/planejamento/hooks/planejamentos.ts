@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { adminApi } from '@/lib/supabase/functions'
 import type { Planejamento, PlanejamentoStatus } from '@/types/planejamento'
+import { recalcBus } from '../lib/recalc-bus'
 
 function notReady(): never {
   throw new Error('Supabase não configurado.')
@@ -19,19 +20,30 @@ export function usePlanejamentos(
     enabled: !!obraId,
     queryFn: async (): Promise<Planejamento[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
+      // Ordem do dropdown: baseline (★) primeiro, depois mais recente criada
+      // primeiro. Alinha visualmente com o default selecionado em
+      // usePlanejamentoAtivo (que retorna a ultima criada).
       const { data, error } = await supabase
         .from('planejamento')
         .select(COLUNAS)
         .eq('obra_id', obraId!)
         .order('is_baseline', { ascending: false })
-        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as unknown as Planejamento[]
     }
   })
 }
 
-/** Último planejamento não-arquivado (mais recente). */
+/**
+ * Última revisão de planejamento NÃO arquivada por data de criação desc.
+ * Critério: created_at — não updated_at, porque o usuário pensa em "última
+ * versão criada" (revisão mais nova) e não em "última editada". Toggle de
+ * baseline conta como update, e isso surpreenderia se mudasse o default.
+ *
+ * Todos os selectors de planejamento (cronograma, curva-s, comparar etc.)
+ * caem aqui como fallback quando nada é selecionado explicitamente.
+ */
 export function usePlanejamentoAtivo(
   obraId: string | null | undefined
 ): ReturnType<typeof useQuery<Planejamento | null>> {
@@ -45,7 +57,7 @@ export function usePlanejamentoAtivo(
         .select(COLUNAS)
         .eq('obra_id', obraId!)
         .neq('status', 'arquivado')
-        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1)
       if (error) throw error
       return ((data ?? [])[0] ?? null) as unknown as Planejamento | null
@@ -115,6 +127,8 @@ export interface UpdatePlanejamentoInput {
   descricao?: string | null
   status?: PlanejamentoStatus
   data_referencia_inicio?: string
+  /** Data Date (status date). NULL ou string vazia limpa. */
+  data_date?: string | null
 }
 
 export function useUpdatePlanejamento(): ReturnType<
@@ -131,6 +145,14 @@ export function useUpdatePlanejamento(): ReturnType<
       void qc.invalidateQueries({ queryKey: ['planejamento', 'lista', vars.obra_id] })
       void qc.invalidateQueries({ queryKey: ['planejamento', 'ativo', vars.obra_id] })
       void qc.invalidateQueries({ queryKey: ['planejamento', 'baseline', vars.obra_id] })
+      // Notifica motor CPM: data_referencia_inicio / data_date mudaram → recalc.
+      if ('data_referencia_inicio' in vars || 'data_date' in vars) {
+        recalcBus.emit('mutationDone', {
+          planejamentoId: vars.id,
+          source: 'useUpdatePlanejamento',
+          fields: Object.keys(vars).filter((k) => k !== 'id' && k !== 'obra_id')
+        })
+      }
     }
   })
 }

@@ -102,29 +102,14 @@ Deno.serve(async (req) => {
 
   const t0 = Date.now()
 
-  // ── Pré-carrega catálogos existentes da obra ──────────────────────────
-  const { data: servicosExistentes } = await admin
-    .from('servico')
-    .select('id, codigo, nome, referencia_externa')
-    .eq('obra_id', obra_id)
-
+  // ── Pré-carrega recursos da obra (dedup por grupo+nome) ──────────────
+  // CPUs importadas agora entram SEM servico-dono — o usuário promove para
+  // servicos via UI quando desejar. Por isso não precisamos mais carregar
+  // servicosExistentes aqui.
   const { data: recursosExistentes } = await admin
     .from('recurso')
     .select('id, grupo, nome, unidade')
     .eq('obra_id', obra_id)
-
-  // Dedup primário: pelo aba_nome (referencia_externa). Permite reimportar
-  // mesmo arquivo gerando versões N+1 das CPUs sem duplicar serviços.
-  const servicoPorAba = new Map<string, { id: string; codigo: string }>()
-  // Dedup secundário: pelo nome normalizado. Usado para detectar colisão
-  // (mesma B3 em abas diferentes — ex.: CPU_Conserva / CPU_ConservaMec /
-  // CPU_ConservaMan na planilha TecPav, todas com B3="Conserva").
-  const servicoPorNome = new Map<string, { id: string; codigo: string }>()
-  for (const s of servicosExistentes ?? []) {
-    const item = { id: s.id as string, codigo: s.codigo as string }
-    if (s.referencia_externa) servicoPorAba.set(s.referencia_externa as string, item)
-    servicoPorNome.set(normalize(s.nome as string), item)
-  }
 
   const recursoPorChave = new Map<string, string>()
   for (const r of recursosExistentes ?? []) {
@@ -152,13 +137,6 @@ Deno.serve(async (req) => {
 
   const hoje = new Date().toISOString().slice(0, 10)
 
-  // Próximo código IMP-NNN para serviços novos
-  const codigosImp = (servicosExistentes ?? [])
-    .map((s) => String(s.codigo))
-    .filter((c) => /^IMP-\d+$/.test(c))
-    .map((c) => parseInt(c.replace('IMP-', ''), 10))
-  let nextImp = codigosImp.length > 0 ? Math.max(...codigosImp) + 1 : 1
-
   const stats = {
     cpus_criadas: 0,
     cpus_puladas: 0,
@@ -174,68 +152,20 @@ Deno.serve(async (req) => {
 
   for (const cpu of cpusInput) {
     try {
-      // 1. Resolve serviço (dedup por aba_nome primário; disambigua nome em colisão)
-      let servico = servicoPorAba.get(cpu.aba_nome)
-      if (!servico) {
-        const servKey = normalize(cpu.servico_nome)
-        const colideNome = servicoPorNome.has(servKey)
-        const nomeFinal = colideNome
-          ? `${cpu.servico_nome} (${cpu.aba_nome})`
-          : cpu.servico_nome
-        const codigo = `IMP-${String(nextImp++).padStart(3, '0')}`
-        const { data: novoServ, error: servErr } = await admin
-          .from('servico')
-          .insert({
-            obra_id,
-            codigo,
-            nome: nomeFinal,
-            unidade: cpu.servico_unidade ?? null,
-            descricao: `Importado da planilha (aba ${cpu.aba_nome}).`,
-            referencia_externa: cpu.aba_nome
-          })
-          .select('id, codigo')
-          .single()
-        if (servErr || !novoServ) {
-          erros.push(`Serviço "${cpu.servico_nome}": ${servErr?.message ?? 'falha'}`)
-          stats.cpus_puladas++
-          continue
-        }
-        servico = { id: novoServ.id as string, codigo: novoServ.codigo as string }
-        servicoPorAba.set(cpu.aba_nome, servico)
-        servicoPorNome.set(normalize(nomeFinal), servico)
-        stats.servicos_criados++
-        if (colideNome) {
-          warnings.push(
-            `Serviço "${cpu.servico_nome}" já existia — criado como "${nomeFinal}" pra evitar conflito.`
-          )
-        }
-      } else {
-        stats.servicos_reutilizados++
-      }
+      // CPUs importadas entram SEM servico-dono — entidade técnica autônoma.
+      // O nome vem direto na coluna `cpu.nome`. O usuário pode promover a CPU
+      // em servico depois pela UI.
 
-      // 2. Cria CPU (versão = max + 1 do serviço, marcada vigente)
-      const { data: cpusDoServ } = await admin
-        .from('cpu')
-        .select('versao')
-        .eq('servico_id', servico.id)
-        .order('versao', { ascending: false })
-        .limit(1)
-      const proximaVersao = cpusDoServ && cpusDoServ.length > 0 ? cpusDoServ[0].versao + 1 : 1
-
-      // Desmarca outras vigentes (trigger fn_cpu_demarcar_outras faria, mas
-      // garantimos aqui pra ser explícito).
-      await admin
-        .from('cpu')
-        .update({ is_vigente: false })
-        .eq('servico_id', servico.id)
-        .eq('is_vigente', true)
+      const nomeCpu = cpu.servico_nome
+      const proximaVersao = 1
 
       const { data: novaCpu, error: cpuErr } = await admin
         .from('cpu')
         .insert({
           obra_id,
-          servico_id: servico.id,
+          servico_id: null,
           versao: proximaVersao,
+          nome: nomeCpu,
           producao_diaria_qtde: cpu.producao_diaria_qtde || 0,
           producao_diaria_unidade: cpu.producao_diaria_unidade ?? 'DIA',
           notas: `Importada de ${cpu.aba_nome}${

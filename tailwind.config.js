@@ -34,6 +34,7 @@ module.exports = {
         success: 'var(--success)',
         warn: 'var(--warn)',
         danger: 'var(--danger)',
+        milestone: 'var(--milestone)',
         'module-orcamento': 'var(--module-orcamento)',
         'module-planejamento': 'var(--module-planejamento)',
         'module-acompanhamento': 'var(--module-acompanhamento)',

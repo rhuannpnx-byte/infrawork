@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { fmtBRL, fmtBRL4, fmtPct2, fmtQtd } from '@/lib/money'
+import { fmtBRL, fmtBRL4, fmtPct2, fmtQtd, parseBR } from '@/lib/money'
 import { formatDate } from '@/lib/format'
 import { useItemDetalhe, useSnapshotCpuNoItem, useUpsertItem } from '../hooks/plan-orc'
 import { CPU_ITEM_GRUPO_LABEL } from '@/types/orcamento'
@@ -130,6 +130,8 @@ function GeralTab({
   const [qtdRef, setQtdRef] = useState(
     item.quantidade_referencia !== null ? String(item.quantidade_referencia) : ''
   )
+  const [qtdRefModo, setQtdRefModo] = useState<string>(item.qtd_ref_modo ?? 'manual')
+  const [unidadeRef, setUnidadeRef] = useState<string>(item.unidade_referencia ?? '')
   const [dirty, setDirty] = useState(false)
   const isReceita = item.tipo === 'receita'
   const isServicoGrupo = item.tipo === 'servico_grupo'
@@ -138,10 +140,16 @@ function GeralTab({
     const patch: Record<string, unknown> = { descricao: descricao.trim() }
     if (isReceita) {
       patch.unidade = unidade.trim() === '' ? null : unidade.trim()
-      patch.quantidade = quantidade.trim() === '' ? null : Number(quantidade.replace(',', '.'))
-      patch.venda_unitaria = vendaUnit.trim() === '' ? null : Number(vendaUnit.replace(',', '.'))
+      patch.quantidade = quantidade.trim() === '' ? null : parseBR(quantidade).toNumber()
+      patch.venda_unitaria = vendaUnit.trim() === '' ? null : parseBR(vendaUnit).toNumber()
     } else if (isServicoGrupo) {
-      patch.quantidade_referencia = qtdRef.trim() === '' ? null : Number(qtdRef.replace(',', '.'))
+      patch.qtd_ref_modo = qtdRefModo
+      patch.unidade_referencia = unidadeRef.trim() === '' ? null : unidadeRef.trim()
+      // Só envia quantidade_referencia quando o modo é manual — nos demais o
+      // backend recalcula a partir dos filhos.
+      if (qtdRefModo === 'manual') {
+        patch.quantidade_referencia = qtdRef.trim() === '' ? null : parseBR(qtdRef).toNumber()
+      }
     }
     try {
       await onSave(patch)
@@ -240,6 +248,36 @@ function GeralTab({
       ) : isServicoGrupo ? (
         <div className="grid grid-cols-2 gap-3">
           <div>
+            <Label htmlFor="g-qtdrefmodo">Modo de quantidade de referência</Label>
+            <select
+              id="g-qtdrefmodo"
+              value={qtdRefModo}
+              onChange={(e) => {
+                setQtdRefModo(e.target.value)
+                setDirty(true)
+              }}
+              disabled={!podeEditar}
+              className="w-full h-8 px-2 bg-bg border border-border rounded text-xs text-text font-mono focus:outline-none focus:border-accent disabled:opacity-50"
+            >
+              <option value="manual">manual — digito o número</option>
+              <option value="heranca">herança — pega da 1ª receita filha</option>
+              <option value="soma_filhos">soma_filhos — soma das receitas filhas</option>
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="g-unref">Unidade de referência</Label>
+            <Input
+              id="g-unref"
+              value={unidadeRef}
+              onChange={(e) => {
+                setUnidadeRef(e.target.value)
+                setDirty(true)
+              }}
+              disabled={!podeEditar}
+              placeholder="m, m², m³, t…"
+            />
+          </div>
+          <div className="col-span-2">
             <Label htmlFor="g-qtdref">Quantidade de referência</Label>
             <Input
               id="g-qtdref"
@@ -249,18 +287,15 @@ function GeralTab({
                 setQtdRef(e.target.value)
                 setDirty(true)
               }}
-              disabled={!podeEditar || item.qtd_ref_modo !== 'manual'}
+              disabled={!podeEditar || qtdRefModo !== 'manual'}
               placeholder={
-                item.qtd_ref_modo === 'heranca'
+                qtdRefModo === 'heranca'
                   ? 'auto: herdada de filho'
-                  : item.qtd_ref_modo === 'soma_filhos'
+                  : qtdRefModo === 'soma_filhos'
                     ? 'auto: soma de filhos'
                     : ''
               }
             />
-            <div className="text-2xs text-text-dim font-mono mt-1">
-              Modo: {item.qtd_ref_modo ?? '—'}
-            </div>
           </div>
         </div>
       ) : null}

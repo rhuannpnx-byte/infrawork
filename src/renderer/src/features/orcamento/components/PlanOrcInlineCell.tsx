@@ -107,9 +107,13 @@ export function PlanOrcInlineCell({
   }
 
   // Display formatado quando desfocado; raw quando focado (facilita edição).
+  // Usa normalizeNumericInput para aceitar tanto "1725622.35" (DB raw) quanto
+  // "1.725.622,35" (BR) — parseBR puro tratava todos os pontos como milhar e
+  // inflava o valor por 100/1000 quando vinha do banco.
   let display = local
   if (!focused && local.trim() !== '') {
-    const n = parseBR(local).toNumber()
+    const normalized = isNum ? normalizeNumericInput(local) : local
+    const n = Number(normalized)
     if (!isNaN(n)) {
       if (money) display = fmtBRL(n)
       else if (qtd) display = fmtQtd(n)

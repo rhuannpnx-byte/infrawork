@@ -13,15 +13,19 @@ export function ProgressBarPrevReal({ pct, esperado, status }: Props): ReactNode
   const cor = STATUS_COMP_COR[status]
 
   return (
-    <div className="flex items-center gap-2 min-w-[120px]">
-      <div className="flex-1 relative h-2 rounded bg-bg overflow-hidden">
-        <div
-          className="absolute inset-y-0 left-0 transition-all"
-          style={{ width: `${real * 100}%`, background: cor }}
-        />
+    <div className="flex items-center gap-2 min-w-[140px]">
+      <div className="flex-1 relative h-2">
+        {/* trilho + carga (clipado pras bordas arredondadas) */}
+        <div className="absolute inset-0 rounded bg-bg overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 transition-all"
+            style={{ width: `${real * 100}%`, background: cor }}
+          />
+        </div>
+        {/* marcador "esperado hoje" — onde a barra DEVERIA estar */}
         {exp != null && (
           <div
-            className="absolute inset-y-0 w-px bg-text/60"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-[3px] rounded-full bg-amber-300 ring-1 ring-bg shadow-sm"
             style={{ left: `${exp * 100}%` }}
             title={`Esperado hoje: ${(exp * 100).toFixed(0)}%`}
           />

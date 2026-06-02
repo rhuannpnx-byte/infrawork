@@ -31,8 +31,12 @@ async function call<T>(path: string, init: CallInit = {}): Promise<T> {
   const text = await r.text()
   const parsed = text ? JSON.parse(text) : null
   if (!r.ok) {
-    const msg = (parsed as { error?: string } | null)?.error ?? r.statusText
-    throw new Error(`${path}: ${msg}`)
+    const body = parsed as { error?: string; detalhe?: string } | null
+    const msg = body?.error ?? r.statusText
+    // Inclui `detalhe` (mensagem original do banco / fonte da falha) quando
+    // disponível — sem isso o usuário vê só o wrapper genérico.
+    const det = body?.detalhe && body.detalhe !== msg ? ` (${body.detalhe})` : ''
+    throw new Error(`${path}: ${msg}${det}`)
   }
   return parsed as T
 }
@@ -56,7 +60,14 @@ export const adminApi = {
   }) =>
     call<{ id: string; email: string; role: string }>('create-usuario', { method: 'POST', body }),
 
-  createObra: (body: { nome: string; codigo: string; status?: string; empresa_id?: string }) =>
+  createObra: (body: {
+    nome: string
+    codigo: string
+    status?: string
+    empresa_id?: string
+    /** Unidade do primeiro trecho 'Principal' criado junto com a obra. Default 'km'. */
+    unidade_espaco_padrao?: 'km' | 'm' | 'estaca'
+  }) =>
     call<{ id: string; nome: string; codigo: string }>('create-obra', { method: 'POST', body }),
 
   grantObraPermissao: (body: { obra_id: string; user_id: string }) =>
@@ -107,6 +118,29 @@ export const adminApi = {
       lucratividade_perc: number | null
       criada_em: string
     }>('criar-revisao-orcamento', { method: 'POST', body }),
+
+  copiarRevisaoOrcamento: (body: {
+    obra_id: string
+    origem_revisao_id: string | null
+    rotulo?: string
+    observacao?: string
+    copiar?: {
+      planilha?: 'tudo' | string[] | null
+      indireto?: 'tudo' | string[] | null
+      recursos?: 'tudo' | string[] | null
+      cpus?: 'tudo' | string[] | null
+    }
+  }) =>
+    call<{
+      ok: boolean
+      obra_id: string
+      snapshot_preservacao_id: string | null
+      itens_copiados: number
+      indiretos_copiados: number
+      cpus_preservadas: boolean
+      recursos_preservados: boolean
+      rotulo: string | null
+    }>('copiar-revisao-orcamento', { method: 'POST', body }),
 
   transicionarStatusRevisao: (body: {
     revisao_id: string
@@ -232,31 +266,6 @@ export const adminApi = {
       tarefas_copiadas: number
       dependencias_copiadas: number
     }>('copiar-planejamento', { method: 'POST', body }),
-
-  salvarPerfilSemanaCustomizado: (body: {
-    tarefa_id: string
-    semanas: Array<{ semana_segunda: string; quantidade_planejada: number }>
-  }) =>
-    call<{ ok: boolean; tarefa_id: string; semanas_salvas: number }>(
-      'salvar-perfil-semana-customizado',
-      { method: 'POST', body }
-    ),
-
-  /** One-shot manual: backfill perfis pra tarefas existentes. God only. */
-  migrarPerfisTarefasExistentes: (body: {
-    obra_id?: string
-    batch_size?: number
-    dry_run?: boolean
-  }) =>
-    call<{
-      ok: boolean
-      total_examinadas: number
-      migradas: Array<{ tarefa_id: string; semanas_geradas: number }>
-      skipped: Array<{ tarefa_id: string; motivo: string }>
-      errors: Array<{ tarefa_id: string; erro: string }>
-      dry_run: boolean
-      duracao_ms: number
-    }>('migrar-perfis-tarefas-existentes', { method: 'POST', body }),
 
   // ─── Acompanhamento (Fase A) ──────────────────────────────────────────
   acompanhamentoListarProjetosSiga: () =>

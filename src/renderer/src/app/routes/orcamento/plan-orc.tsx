@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Plus, RefreshCw, Package, RefreshCcw, FileUp } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Plus, RefreshCw, Package, RefreshCcw, FileUp, Trash2, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import {
@@ -12,6 +14,8 @@ import {
   usePlanOrc,
   useRecalcularOrcamento
 } from '@/features/orcamento/hooks/plan-orc'
+import { previewCascadeItensOrcamentarios } from '@/features/orcamento/hooks/cascade'
+import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { useTaxaVigente } from '@/features/orcamento/hooks/taxas'
 import { PlanOrcTree } from '@/features/orcamento/components/PlanOrcTree'
 import { ItemDetailPanel } from '@/features/orcamento/components/ItemDetailPanel'
@@ -38,6 +42,9 @@ function PlanilhaOrcamentaria(): ReactNode {
   const { data: plan, isLoading, error } = usePlanOrc(obraId)
   const recalc = useRecalcularOrcamento()
   const atualizar = useAtualizarItensParaCpuVigente()
+  const confirm = useConfirm()
+  const qc = useQueryClient()
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -114,10 +121,114 @@ function PlanilhaOrcamentaria(): ReactNode {
     }
   }
 
-  // Receitas selecionadas (para o modal de agrupar)
+  // Receitas selecionadas (para o modal de agrupar — só receitas podem agrupar)
   const receitasSelecionadas = useMemo(() => {
     return (plan?.flat ?? []).filter((n) => n.tipo === 'receita' && selectedIds.has(n.id))
   }, [plan, selectedIds])
+  // Todas as selecionadas (qualquer tipo) — pra exclusão em lote
+  const itensSelecionados = useMemo(() => {
+    return (plan?.flat ?? []).filter((n) => selectedIds.has(n.id))
+  }, [plan, selectedIds])
+  const todasSelecionadasSaoReceitas =
+    itensSelecionados.length > 0 && itensSelecionados.every((n) => n.tipo === 'receita')
+
+  const handleBulkDelete = async (): Promise<void> => {
+    if (itensSelecionados.length === 0) return
+    const tiposCount = itensSelecionados.reduce<Record<string, number>>((acc, n) => {
+      acc[n.tipo] = (acc[n.tipo] ?? 0) + 1
+      return acc
+    }, {})
+    const breakdown = Object.entries(tiposCount)
+      .map(([t, n]) => `${n} ${t}${n > 1 ? 's' : ''}`)
+      .join(', ')
+
+    let preview
+    try {
+      preview = await previewCascadeItensOrcamentarios(
+        itensSelecionados.map((n) => n.id),
+        plan?.flat ?? []
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao avaliar dependências')
+      return
+    }
+
+    const ok = await confirm({
+      title: `Excluir ${itensSelecionados.length} item(ns)?`,
+      description: (
+        <div className="space-y-2">
+          <p>
+            Seleção: <span className="text-text">{breakdown}</span>.
+          </p>
+          {preview.descendentesEmCascata > 0 ? (
+            <p>
+              <span className="text-warn">{preview.descendentesEmCascata} descendente(s)</span>{' '}
+              serão apagados em cascata (índices/grupos com filhos arrastam tudo).
+            </p>
+          ) : null}
+          {preview.tarefasQueFicarOrfas > 0 ? (
+            <p>
+              <span className="text-warn">
+                {preview.tarefasQueFicarOrfas} tarefa(s) de planejamento
+              </span>{' '}
+              ficarão órfãs (perdem o vínculo com o item, inclusive em linha de base). As tarefas{' '}
+              <strong>não</strong> serão apagadas — só desvinculadas. Você pode re-vinculá-las ou
+              apagá-las depois pelo módulo de Planejamento.
+            </p>
+          ) : null}
+          <p className="text-text-dim">
+            Total a apagar: <strong>{preview.totalParaApagar}</strong> item(ns).
+          </p>
+        </div>
+      ),
+      confirmLabel: 'Excluir',
+      variant: 'danger'
+    })
+    if (!ok) return
+    if (!SUPABASE_ENABLED || !supabase) {
+      toast.error('Supabase não configurado.')
+      return
+    }
+
+    // Limpa seleção imediatamente — UX responsiva.
+    setSelectedIds(new Set())
+    setBulkDeleting(true)
+    const t0 = performance.now()
+
+    try {
+      // Agrupa por nível pra apagar folhas-primeiro (FK parent_id é RESTRICT).
+      // 1 query por nível em vez de N queries por item.
+      const nivelById = new Map<string, number>()
+      for (const n of plan?.flat ?? []) nivelById.set(n.id, n.nivel ?? 0)
+      const porNivel = new Map<number, string[]>()
+      for (const id of preview.idsOrdenadosParaDelete) {
+        const nv = nivelById.get(id) ?? 0
+        const arr = porNivel.get(nv) ?? []
+        arr.push(id)
+        porNivel.set(nv, arr)
+      }
+      const niveisDesc = [...porNivel.keys()].sort((a, b) => b - a)
+      let total = 0
+      for (const nv of niveisDesc) {
+        const ids = porNivel.get(nv)!
+        const { error: err } = await supabase.from('item_orcamentario').delete().in('id', ids)
+        if (err) {
+          console.error('[plan-orc bulk delete] nivel', nv, err)
+          toast.error(
+            `Falha no nível ${nv}: ${err.message}. Apagados antes: ${total}/${preview.idsOrdenadosParaDelete.length}.`
+          )
+          return
+        }
+        total += ids.length
+      }
+      const ms = Math.round(performance.now() - t0)
+      toast.success(`${total} item(ns) excluído(s) em ${ms}ms.`)
+    } finally {
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'plan-orc', obraId] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'lucratividade', obraId] })
+      setBulkDeleting(false)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -127,7 +238,28 @@ function PlanilhaOrcamentaria(): ReactNode {
         actions={
           podeEditar ? (
             <div className="flex items-center gap-2">
-              {receitasSelecionadas.length > 0 ? (
+              {itensSelecionados.length > 0 ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedIds(new Set())}
+                    title="Limpar seleção"
+                  >
+                    <X size={11} /> {itensSelecionados.length} selecionado(s)
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-danger hover:bg-danger/10"
+                    onClick={() => void handleBulkDelete()}
+                    disabled={bulkDeleting}
+                  >
+                    <Trash2 size={11} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
+                  </Button>
+                </>
+              ) : null}
+              {todasSelecionadasSaoReceitas && receitasSelecionadas.length > 0 ? (
                 <Button variant="default" size="sm" onClick={() => setAgruparOpen(true)}>
                   <Package size={11} /> Agrupar {receitasSelecionadas.length} como serviço
                 </Button>
@@ -170,6 +302,7 @@ function PlanilhaOrcamentaria(): ReactNode {
           flat={plan?.flat ?? []}
           podeEditar={podeEditar}
           selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
           onToggleSelect={handleToggleSelect}
           onSelect={handleAbrirItem}
           onNewChild={handleNewChild}

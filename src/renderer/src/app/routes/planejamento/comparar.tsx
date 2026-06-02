@@ -44,36 +44,47 @@ function CompararInner(): ReactNode {
   const { data: tarefasEsq = [] } = useTarefas(esquerda?.id)
   const { data: tarefasDir = [] } = useTarefas(direita?.id)
 
+  // Chave de pareamento: prefere `item_orcamentario_id` (modelo agregador novo),
+  // cai pra `codigo_eap` (modelo legado), e finalmente pro próprio id (sem par).
+  // Modelos diferentes não cruzam — cada lado vira linha solta.
+  type Row = {
+    key: string
+    codigo: string
+    descricao: string
+    esq?: (typeof tarefasEsq)[number]
+    dir?: (typeof tarefasDir)[number]
+  }
   const diffs = useMemo(() => {
-    const porItem = new Map(
-      tarefasEsq.map((t) => [
-        t.item_orcamentario_id,
-        { codigo: t.servico_grupo_codigo, descricao: t.servico_grupo_descricao, esq: t }
-      ])
-    )
+    const codigoDe = (t: (typeof tarefasEsq)[number]): string =>
+      t.codigo_eap ?? t.servico_grupo_codigo ?? ''
+    const descricaoDe = (t: (typeof tarefasEsq)[number]): string =>
+      t.nome_custom ?? t.servico_grupo_descricao ?? '(sem nome)'
+    const keyDe = (t: (typeof tarefasEsq)[number]): string =>
+      t.item_orcamentario_id ?? (t.codigo_eap ? `eap:${t.codigo_eap}` : `id:${t.id}`)
+    const porChave = new Map<string, Row>()
+    for (const t of tarefasEsq) {
+      const k = keyDe(t)
+      porChave.set(k, { key: k, codigo: codigoDe(t), descricao: descricaoDe(t), esq: t })
+    }
     for (const t of tarefasDir) {
-      const cur = porItem.get(t.item_orcamentario_id)
+      const k = keyDe(t)
+      const cur = porChave.get(k)
       if (cur) {
-        ;(cur as { dir?: typeof t }).dir = t
+        cur.dir = t
       } else {
-        porItem.set(t.item_orcamentario_id, {
-          codigo: t.servico_grupo_codigo,
-          descricao: t.servico_grupo_descricao,
-          esq: undefined as never,
-          dir: t
-        } as never)
+        porChave.set(k, { key: k, codigo: codigoDe(t), descricao: descricaoDe(t), dir: t })
       }
     }
-    type Row = {
-      codigo: string
-      descricao: string
-      esq?: (typeof tarefasEsq)[number]
-      dir?: (typeof tarefasDir)[number]
-    }
-    return Array.from(porItem.values()).sort((a, b) =>
-      (a as Row).codigo.localeCompare((b as Row).codigo)
-    ) as Row[]
+    return Array.from(porChave.values()).sort((a, b) => a.codigo.localeCompare(b.codigo))
   }, [tarefasEsq, tarefasDir])
+
+  // Heurística: se nenhuma linha tem AMBOS lados, os modelos são incompatíveis
+  // (uma revisão usa item_orcamentario_id, a outra usa codigo_eap legado).
+  const modelosDivergem = useMemo(() => {
+    if (tarefasEsq.length === 0 || tarefasDir.length === 0) return false
+    const pareadas = diffs.filter((r) => r.esq && r.dir).length
+    return pareadas === 0 && diffs.length > 0
+  }, [diffs, tarefasEsq.length, tarefasDir.length])
 
   const curvaEsq = useMemo(() => calcularCurvaSemanal(tarefasEsq), [tarefasEsq])
   const curvaDir = useMemo(() => calcularCurvaSemanal(tarefasDir), [tarefasDir])
@@ -132,6 +143,15 @@ function CompararInner(): ReactNode {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {esquerda && direita ? (
           <>
+            {modelosDivergem ? (
+              <div className="rounded border border-amber-700/60 bg-amber-950/30 text-amber-200 px-3 py-2 text-xs font-mono">
+                <strong>Modelos de tarefa incompatíveis.</strong> Nenhuma tarefa pareou entre as
+                duas revisões — uma usa <code>item_orcamentario_id</code> (modelo atual), a outra
+                usa <code>codigo_eap</code> (modelo legado). Cada tarefa aparece em um lado só.
+                Comparação de cronograma só faz sentido entre revisões do mesmo modelo.
+              </div>
+            ) : null}
+
             <CurvaSChart planejada={curvaDir} baseline={curvaEsq} height={300} />
 
             <div className="rounded border border-border bg-bg-panel overflow-hidden">
@@ -177,7 +197,7 @@ function CompararInner(): ReactNode {
                             )
                           : null
                       return (
-                        <tr key={r.codigo} className="border-b border-border/40">
+                        <tr key={r.key} className="border-b border-border/40">
                           <td className="px-3 py-1.5">
                             <span className="text-text-dim mr-1">{r.codigo}</span>
                             {r.descricao}

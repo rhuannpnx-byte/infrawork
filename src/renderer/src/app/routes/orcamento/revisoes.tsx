@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Plus, ArrowRight } from 'lucide-react'
+import { Plus, ArrowRight, GitBranch, GitCompare } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -10,8 +10,10 @@ import { DataTable } from '@/components/data-table/DataTable'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useRevisoes } from '@/features/orcamento/hooks/revisoes'
+import { useLucratividade } from '@/features/orcamento/hooks/lucratividade'
 import { RevisaoStatusBadge } from '@/features/orcamento/components/RevisaoStatusBadge'
 import { CriarRevisaoDialog } from '@/features/orcamento/modals/CriarRevisaoDialog'
+import { NovaVersaoDialog } from '@/features/orcamento/modals/NovaVersaoDialog'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
 import { formatDate } from '@/lib/format'
 import type { Revisao } from '@/types/orcamento'
@@ -30,7 +32,10 @@ function Revisoes(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
   const obraId = scope.obraId!
   const { data: revisoes = [], isLoading, error } = useRevisoes(obraId)
+  const { data: lucr } = useLucratividade(obraId)
+  const aliquota = lucr?.aliquota_total_perc ?? 0
   const [openNew, setOpenNew] = useState(false)
+  const [openNovaVersao, setOpenNovaVersao] = useState(false)
 
   const podeEditar = role === 'god' || role === 'adm' || role === 'engenheiro'
 
@@ -83,17 +88,58 @@ function Revisoes(): ReactNode {
         size: 130
       },
       {
-        accessorKey: 'lucratividade_perc',
+        id: 'taxas',
+        header: `Taxas (${fmtPct2(aliquota)})`,
+        accessorFn: (row) => Number(row.venda_total ?? 0) * aliquota,
+        cell: (info) => (
+          <span className="font-mono text-warn tabular-nums">
+            {fmtBRL(info.getValue() as number)}
+          </span>
+        ),
+        meta: { label: 'Taxas' },
+        size: 130
+      },
+      {
+        id: 'lucro_rs',
+        header: 'Lucro R$',
+        accessorFn: (row) => {
+          const v = Number(row.venda_total ?? 0)
+          const c = Number(row.custo_total ?? 0)
+          return v - c - v * aliquota
+        },
+        cell: (info) => {
+          const v = info.getValue() as number
+          return (
+            <span className={`font-mono tabular-nums ${v < 0 ? 'text-danger' : 'text-success'}`}>
+              {fmtBRL(v)}
+            </span>
+          )
+        },
+        meta: { label: 'Lucro R$' },
+        size: 130
+      },
+      {
+        id: 'lucratividade_perc_liq',
         header: 'Lucr.%',
+        accessorFn: (row) => {
+          const v = Number(row.venda_total ?? 0)
+          const c = Number(row.custo_total ?? 0)
+          if (v <= 0) return null
+          return (v - c - v * aliquota) / v
+        },
         cell: (info) => {
           const v = info.getValue() as number | null
           return (
-            <span className="font-mono tabular-nums text-text-muted">
+            <span
+              className={`font-mono tabular-nums ${
+                v !== null && v < 0 ? 'text-danger' : 'text-text-muted'
+              }`}
+            >
               {v !== null ? fmtPct2(v) : '—'}
             </span>
           )
         },
-        meta: { label: 'Lucratividade' },
+        meta: { label: 'Lucratividade líquida' },
         size: 90
       },
       {
@@ -128,7 +174,7 @@ function Revisoes(): ReactNode {
         meta: { label: '' }
       }
     ],
-    [navigate]
+    [navigate, aliquota]
   )
 
   return (
@@ -137,11 +183,27 @@ function Revisoes(): ReactNode {
         title="Revisões"
         subtitle={`${scope.obra?.nome ?? ''} — histórico de versões do orçamento`}
         actions={
-          podeEditar ? (
-            <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-              <Plus size={11} /> Nova revisão
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            {revisoes.length >= 2 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate({ to: '/orcamento/obra/revisoes/comparar' })}
+              >
+                <GitCompare size={11} /> Comparar
+              </Button>
+            ) : null}
+            {podeEditar ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setOpenNovaVersao(true)}>
+                  <GitBranch size={11} /> Nova versão
+                </Button>
+                <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
+                  <Plus size={11} /> Salvar revisão
+                </Button>
+              </>
+            ) : null}
+          </div>
         }
       />
       {error ? (
@@ -178,6 +240,7 @@ function Revisoes(): ReactNode {
       )}
 
       <CriarRevisaoDialog open={openNew} onOpenChange={setOpenNew} obraId={obraId} />
+      <NovaVersaoDialog open={openNovaVersao} onOpenChange={setOpenNovaVersao} obraId={obraId} />
     </div>
   )
 }

@@ -387,6 +387,47 @@ export const STATUS_COMP_COR: Record<StatusComparativo, string> = {
   concluido: 'oklch(72% 0.10 195)'
 }
 
+// ─── Mapa: cor por serviço + Sequência de Ataque ─────────────────────────
+
+/** Paleta estável pra colorir marcadores/setas por serviço no mapa. */
+export const SERVICO_CORES_PADRAO = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+  '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
+  '#06b6d4', '#84cc16', '#a855f7', '#e11d48'
+]
+
+/** Cor estável derivada de uma chave (id ou nome do serviço). Hash → paleta. */
+export function corDeServico(chave: string | number | null | undefined): string {
+  if (chave == null) return '#67e8f9'
+  const s = String(chave)
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  const idx = Math.abs(h) % SERVICO_CORES_PADRAO.length
+  return SERVICO_CORES_PADRAO[idx]
+}
+
+/** Uma seta da Sequência de Ataque: 1ª → última foto do dia de uma frente. */
+export interface SequenciaAtaque {
+  key: string
+  dia: string
+  frente: string | null
+  encarregado: string | null
+  servico: string | null
+  trechoNome: string | null
+  /** Rótulo curto da unidade adotada no trecho ('km' | 'est' | 'm' | custom). */
+  unidadeLabel: string
+  ini: { lat: number; lng: number; marcador: string | null }
+  fim: { lat: number; lng: number; marcador: string | null }
+  /** Sentido do ataque ao longo do eixo (marcador crescente ou decrescente). */
+  sentido: 'crescente' | 'decrescente' | null
+  /** Distância entre início e fim, formatada na unidade adotada. */
+  distanciaFmt: string | null
+  /** Soma de qtd lançada no dia para a (frente × encarregado × serviço). */
+  qtdTotal: number
+  /** Cor da seta (por serviço). */
+  cor: string
+}
+
 // ─── Produtividade equipe ────────────────────────────────────────────────
 
 export interface ProdutividadeEquipeItem {

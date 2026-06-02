@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { parseBR } from '@/lib/money'
 import { useAddRecursoPreco } from '../hooks/recursos'
 
 interface Props {
@@ -45,7 +46,8 @@ export function NewRecursoPrecoDialog({
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError(null)
-    const valor = Number(custo.replace(',', '.'))
+    // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
+    const valor = parseBR(custo).toNumber()
     if (isNaN(valor) || valor < 0) {
       setError('Custo inválido.')
       return

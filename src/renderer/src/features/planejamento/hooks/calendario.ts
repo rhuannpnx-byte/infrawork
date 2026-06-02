@@ -5,9 +5,14 @@ import type {
   ObraCalendarioExcecao,
   ObraProdutividadeMes
 } from '@/types/planejamento'
+import { recalcBus } from '../lib/recalc-bus'
 
 function notReady(): never {
   throw new Error('Supabase não configurado.')
+}
+
+function emitObra(obra_id: string, source: string): void {
+  recalcBus.emit('obraChanged', { obraId: obra_id, source })
 }
 
 // ─── obra_calendario ────────────────────────────────────────────────────
@@ -44,6 +49,7 @@ export function useUpdateCalendarioBitmask(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['planejamento', 'calendario', vars.obra_id] })
+      emitObra(vars.obra_id, 'useUpdateCalendarioBitmask')
     }
   })
 }
@@ -89,6 +95,7 @@ export function useUpsertExcecao(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['planejamento', 'excecoes', vars.obra_id] })
+      emitObra(vars.obra_id, 'useExcecao')
     }
   })
 }
@@ -105,6 +112,7 @@ export function useDeleteExcecao(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['planejamento', 'excecoes', vars.obra_id] })
+      emitObra(vars.obra_id, 'useExcecao')
     }
   })
 }
@@ -158,6 +166,7 @@ export function useUpsertFatorMes(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['planejamento', 'fatores-mes', vars.obra_id] })
+      emitObra(vars.obra_id, 'useFatorMes')
     }
   })
 }
@@ -178,6 +187,7 @@ export function useDeleteFatorMes(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['planejamento', 'fatores-mes', vars.obra_id] })
+      emitObra(vars.obra_id, 'useFatorMes')
     }
   })
 }

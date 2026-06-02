@@ -27,6 +27,12 @@ const STATUS_OPTS: Array<{ value: string; label: string }> = [
   { value: 'concluido', label: 'Concluída' }
 ]
 
+const UNIDADE_OPTS: Array<{ value: 'km' | 'm' | 'estaca'; label: string }> = [
+  { value: 'km', label: 'km (2+508,50)' },
+  { value: 'm', label: 'm (2508,50)' },
+  { value: 'estaca', label: 'estaca (EST 125+8,50)' }
+]
+
 export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
   const create = useCreateObra()
   const role = useAuthStore((s) => s.profile?.role)
@@ -37,6 +43,7 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
   const [codigo, setCodigo] = useState('')
   const [empresaId, setEmpresaId] = useState<string>('')
   const [status, setStatus] = useState('em_andamento')
+  const [unidade, setUnidade] = useState<'km' | 'm' | 'estaca'>('km')
   const [error, setError] = useState<string | null>(null)
 
   // Adm/Eng não escolhem empresa — usa a do caller
@@ -48,6 +55,7 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
     setNome('')
     setCodigo('')
     setStatus('em_andamento')
+    setUnidade('km')
     setError(null)
     if (role !== 'god') setEmpresaId(callerEmpresaId ?? '')
     else setEmpresaId('')
@@ -60,7 +68,8 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
       const body: Parameters<typeof create.mutateAsync>[0] = {
         nome: nome.trim(),
         codigo: codigo.trim(),
-        status
+        status,
+        unidade_espaco_padrao: unidade
       }
       if (role === 'god') {
         if (!empresaId) {
@@ -145,6 +154,23 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
               minLength={3}
               placeholder="Ex.: Duplicação BR-153, Lote 2"
             />
+          </div>
+          <div>
+            <Label htmlFor="obra-unidade">Unidade do 1º trecho</Label>
+            <Select
+              id="obra-unidade"
+              value={unidade}
+              onChange={(e) => setUnidade(e.target.value as 'km' | 'm' | 'estaca')}
+            >
+              {UNIDADE_OPTS.map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </Select>
+            <div className="text-2xs text-text-dim mt-1 font-mono">
+              Obra inicia com 1 trecho &ldquo;Principal&rdquo;. Adicione outros depois em Planejamento → Trechos.
+            </div>
           </div>
         </DialogBody>
         <DialogFooter>

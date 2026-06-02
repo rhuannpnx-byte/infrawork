@@ -21,3 +21,17 @@ supabase/.branches/
 !.vscode/extensions.json
 !.vscode/settings.json
 Thumbs.db
+
+# Claude/agent metadata
+.agents/
+.claude/
+skills-lock.json
+
+# Build/scratch artefacts
+tsconfig.web.tsbuildinfo
+tsconfig.node.tsbuildinfo
+deno.lock
+tmp-*.json
+tmp-*.mjs
+tmp-*.ts
+/Grafico de gantt interativo_ profissional/

@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { parseBR } from '@/lib/money'
 import { useUpsertItem } from '../hooks/plan-orc'
 
 interface Props {
@@ -52,8 +53,10 @@ export function NewItemOrcamentarioDialog({
     setError(null)
     try {
       if (tipo === 'receita') {
-        const qtd = Number(quantidade.replace(',', '.'))
-        const venda = Number(vendaUnit.replace(',', '.'))
+        // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
+        // O .replace(',', '.') ingênuo deixava "1.234,56" virar "1.234.56" → NaN/1.
+        const qtd = parseBR(quantidade).toNumber()
+        const venda = parseBR(vendaUnit).toNumber()
         if (!unidade.trim()) {
           setError('Unidade é obrigatória para receita.')
           return

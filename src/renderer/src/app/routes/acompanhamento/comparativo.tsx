@@ -9,6 +9,7 @@ import { usePrevistoXRealizado, useCurvaS } from '@/features/acompanhamento/hook
 import { CurvaSComProjecoes } from '@/features/acompanhamento/components/comparativo/CurvaSComProjecoes'
 import { ProgressBarPrevReal } from '@/features/acompanhamento/components/comparativo/ProgressBarPrevReal'
 import { StatusComparativoChip } from '@/features/acompanhamento/components/comparativo/StatusComparativoChip'
+import { projetarItem, type ProjecaoItem } from '@/features/acompanhamento/lib/projecoes'
 import type { PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
@@ -37,6 +38,33 @@ function Inner(): ReactNode {
     () => (selectedId ? curva.filter((p) => p.item_orcamentario_id === selectedId) : curva),
     [selectedId, curva]
   )
+
+  // Projeção de término no ritmo realizado, por item — alimenta a coluna "Δ dias".
+  // Usa os pontos da curva-S (mesma fonte do gráfico) pra ser consistente com a
+  // linha "Proj. atual"; o desvio_dias_estimado da view (baseado na CPU) ficava 0.
+  const projByItem = useMemo(() => {
+    const hojeIso = new Date().toISOString().slice(0, 10)
+    const curvaByItem = new Map<string, typeof curva>()
+    for (const p of curva) {
+      if (!p.item_orcamentario_id) continue
+      const arr = curvaByItem.get(p.item_orcamentario_id) ?? []
+      arr.push(p)
+      curvaByItem.set(p.item_orcamentario_id, arr)
+    }
+    const out = new Map<string, ProjecaoItem>()
+    for (const it of itens) {
+      out.set(
+        it.item_orcamentario_id,
+        projetarItem(
+          curvaByItem.get(it.item_orcamentario_id) ?? [],
+          it.qtd_plan != null ? Number(it.qtd_plan) : null,
+          it.data_fim_plan,
+          hojeIso
+        )
+      )
+    }
+    return out
+  }, [curva, itens])
 
   const columns = useMemo<ColumnDef<PrevistoRealizadoItem, unknown>[]>(() => [
     {
@@ -103,12 +131,18 @@ function Inner(): ReactNode {
       header: 'Δ dias',
       accessorKey: 'desvio_dias_estimado',
       cell: ({ row }) => {
-        const d = row.original.desvio_dias_estimado
+        const proj = projByItem.get(row.original.item_orcamentario_id)
+        const d = proj?.desvioDias
         if (d == null) return <span className="text-text-dim text-xs">—</span>
-        const v = Number(d)
+        const fimProj = proj?.fimProjetado
+          ? new Date(proj.fimProjetado + 'T00:00:00').toLocaleDateString('pt-BR')
+          : null
         return (
-          <span className={`font-mono tabular-nums text-xs ${v < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-            {v > 0 ? '+' : ''}{v}
+          <span
+            className={`font-mono tabular-nums text-xs ${d < 0 ? 'text-red-400' : 'text-emerald-400'}`}
+            title={fimProj ? `Fim projetado (ritmo atual): ${fimProj}` : undefined}
+          >
+            {d > 0 ? '+' : ''}{d}
           </span>
         )
       }
@@ -118,7 +152,7 @@ function Inner(): ReactNode {
       accessorKey: 'status',
       cell: ({ row }) => <StatusComparativoChip status={row.original.status} />
     }
-  ], [selectedId])
+  ], [selectedId, projByItem])
 
   return (
     <div className="flex flex-col h-full">

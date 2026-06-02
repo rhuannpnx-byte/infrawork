@@ -31,7 +31,7 @@ export function useCpus(
       let q = supabase
         .from('cpu')
         .select(
-          'id, obra_id, servico_id, versao, producao_diaria_qtde, producao_diaria_unidade, encargos_sociais_id, notas, custo_eq_dia_calc, custo_comb_dia_calc, custo_mo_dia_calc, custo_mat_dia_calc, custo_unit_calc, is_vigente, criado_por, created_at, servico:servico_id(id, codigo, nome, unidade)'
+          'id, obra_id, servico_id, nome, versao, producao_diaria_qtde, producao_diaria_unidade, encargos_sociais_id, notas, custo_eq_dia_calc, custo_comb_dia_calc, custo_mo_dia_calc, custo_mat_dia_calc, custo_unit_calc, is_vigente, criado_por, created_at, servico:servico_id(id, codigo, nome, unidade)'
         )
         .eq('obra_id', obraId!)
       if (servicoId) {
@@ -55,7 +55,7 @@ export function useCpu(id: string | undefined): ReturnType<typeof useQuery<CpuDe
       const { data: cpu, error: errCpu } = await supabase
         .from('cpu')
         .select(
-          'id, obra_id, servico_id, versao, producao_diaria_qtde, producao_diaria_unidade, encargos_sociais_id, notas, custo_eq_dia_calc, custo_comb_dia_calc, custo_mo_dia_calc, custo_mat_dia_calc, custo_unit_calc, is_vigente, criado_por, created_at, servico:servico_id(id, codigo, nome, unidade)'
+          'id, obra_id, servico_id, nome, versao, producao_diaria_qtde, producao_diaria_unidade, encargos_sociais_id, notas, custo_eq_dia_calc, custo_comb_dia_calc, custo_mo_dia_calc, custo_mat_dia_calc, custo_unit_calc, is_vigente, criado_por, created_at, servico:servico_id(id, codigo, nome, unidade)'
         )
         .eq('id', id!)
         .single()
@@ -124,9 +124,15 @@ export function useCpu(id: string | undefined): ReturnType<typeof useQuery<CpuDe
 
 export interface CreateCpuInput {
   obra_id: string
-  servico_id: string
+  /** Nome próprio da CPU (entidade técnica). Obrigatório. */
+  nome: string
+  /** Servico-dono opcional — vincula CPU a um servico existente. */
+  servico_id?: string | null
   producao_diaria_qtde: number
-  producao_diaria_unidade?: string
+  /** Unidade dimensional produzida por dia (m³, m², t, un, m, vb…). Obrigatória.
+   *  Não aceita "DIA" — esse era um default herdado incorreto que propagava
+   *  pra servico.unidade e item_orcamentario.unidade_referencia. */
+  producao_diaria_unidade: string
   encargos_sociais_id?: string | null
   notas?: string
   marcar_vigente?: boolean
@@ -139,24 +145,29 @@ export function useCreateCpu(): ReturnType<
   return useMutation({
     mutationFn: async (body) => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      // Calcula próxima versão.
-      const { data: existentes, error: errExist } = await supabase
-        .from('cpu')
-        .select('versao')
-        .eq('servico_id', body.servico_id)
-        .order('versao', { ascending: false })
-        .limit(1)
-      if (errExist) throw errExist
-      const proximaVersao = ((existentes?.[0]?.versao as number | undefined) ?? 0) + 1
+      // Próxima versão: se há servico-dono, conta versões existentes do
+      // mesmo servico; senão, versão = 1 (CPU órfã sempre é v1).
+      let proximaVersao = 1
+      if (body.servico_id) {
+        const { data: existentes, error: errExist } = await supabase
+          .from('cpu')
+          .select('versao')
+          .eq('servico_id', body.servico_id)
+          .order('versao', { ascending: false })
+          .limit(1)
+        if (errExist) throw errExist
+        proximaVersao = ((existentes?.[0]?.versao as number | undefined) ?? 0) + 1
+      }
 
       const { data, error } = await supabase
         .from('cpu')
         .insert({
           obra_id: body.obra_id,
-          servico_id: body.servico_id,
+          servico_id: body.servico_id ?? null,
+          nome: body.nome.trim(),
           versao: proximaVersao,
           producao_diaria_qtde: body.producao_diaria_qtde,
-          producao_diaria_unidade: body.producao_diaria_unidade ?? 'DIA',
+          producao_diaria_unidade: body.producao_diaria_unidade,
           encargos_sociais_id: body.encargos_sociais_id ?? null,
           notas: body.notas?.trim() || null,
           is_vigente: body.marcar_vigente ?? proximaVersao === 1
@@ -168,12 +179,15 @@ export function useCreateCpu(): ReturnType<
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus-orfas'] })
     }
   })
 }
 
 export interface UpdateCpuInput {
   id: string
+  nome?: string | null
+  servico_id?: string | null
   producao_diaria_qtde?: number
   producao_diaria_unidade?: string
   encargos_sociais_id?: string | null

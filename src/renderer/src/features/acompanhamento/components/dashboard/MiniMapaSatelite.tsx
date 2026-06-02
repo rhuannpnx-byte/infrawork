@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef } from 'react'
 import { MapPin, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
+import { addBaseMapEsri } from '@/lib/leaflet/tiles'
 
 interface PinFoto {
   id: string
@@ -53,10 +54,7 @@ export function MiniMapaSatelite({ fotos, altura = 200 }: Props): ReactNode {
         touchZoom: false,
         maxZoom: 16
       })
-      L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 18, maxNativeZoom: 18 }
-      ).addTo(map)
+      addBaseMapEsri(map, L)
       mapRef.current = map
 
       if (validos.length === 0) {

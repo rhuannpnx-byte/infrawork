@@ -131,6 +131,27 @@ export function useToggleAtivoRecurso(): ReturnType<
   })
 }
 
+/** Apaga um recurso. Cascade do schema remove recurso_preco vinculados.
+ *  Se o recurso está usado em alguma CPU (cpu_item), o delete falha por FK. */
+export function useDeleteRecurso(): ReturnType<
+  typeof useMutation<void, Error, { id: string }>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }) => {
+      if (!SUPABASE_ENABLED || !supabase) notReady()
+      const { error } = await supabase.from('recurso').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'recursos'] })
+      // Cascata de delete pode ter mexido em cpu_item / cpu (recalc).
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpu'] })
+    }
+  })
+}
+
 // ─── Preços ──────────────────────────────────────────────────────────────
 
 export function useRecursoPrecos(

@@ -50,11 +50,46 @@ export interface Servico {
   ativo: boolean
   descricao: string | null
   referencia_externa: string | null
+  /** Produção diária do servico-agregador (NULL = herda da 1ª CPU vinculada). */
+  producao_diaria_qtde: number | null
+  producao_diaria_unidade: string | null
   created_at: string
 }
 
 export interface ServicoTreeNode extends Servico {
   children: ServicoTreeNode[]
+}
+
+export type ServicoCpuOperacao = 'dividir' | 'multiplicar'
+
+/** Vínculo N:N entre servico-agregador e CPU. */
+export interface ServicoCpuLink {
+  id: string
+  servico_id: string
+  cpu_id: string
+  /** Fator de conversão aplicado conforme `operacao`.
+   *  - operacao='dividir':     custo_link = cpu.custo_unit / fator
+   *  - operacao='multiplicar': custo_link = cpu.custo_unit * fator */
+  fator: number
+  operacao: ServicoCpuOperacao
+  ordem: number
+  observacao: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Linha da view vw_servico_custo_agregado. */
+export interface ServicoCustoAgregado {
+  servico_id: string
+  obra_id: string
+  codigo: string
+  nome: string
+  unidade: string | null
+  cpus_vinculadas: number
+  custo_unit_agregado: number | null
+  producao_diaria_efetiva: number | null
+  producao_diaria_unidade_efetiva: string
+  modo: 'legado' | 'agregador'
 }
 
 /**
@@ -89,7 +124,13 @@ export type EncargosSociaisRegime = TaxaRegime
 export interface Cpu {
   id: string
   obra_id: string
-  servico_id: string
+  /** Servico-dono da CPU. NULL quando a CPU é "órfã" (importada sem servico ou
+   *  teve servico apagado depois). Pode ser promovida em servico via UI. */
+  servico_id: string | null
+  /** Nome próprio da CPU, independente do servico-dono. Backfill copia de
+   *  servico.nome ou extrai de notas pra CPUs antigas. NULL = sem nome
+   *  explícito; frontend usa fallback. */
+  nome: string | null
   versao: number
   producao_diaria_qtde: number
   producao_diaria_unidade: string
@@ -308,8 +349,13 @@ export const INDIRETO_TIPO_LABEL: Record<IndiretoTipo, string> = {
 
 export interface LucratividadeResumo {
   venda_total: number
+  /** Custo direto SEM indiretos vinculados (já isolados em custo_indireto). */
   custo_direto: number
+  /** Custos indiretos totais = standalone + vinculados a agrupadores da planilha. */
   custo_indireto: number
+  /** Detalhamento opcional pra tooltip/breakdown na UI. */
+  custo_indireto_standalone: number
+  custo_indireto_vinculado: number
   aliquota_total_perc: number
   impostos: number
   lucro_liquido: number

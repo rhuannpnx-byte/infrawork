@@ -17,7 +17,7 @@ export function useServicos(
       const { data, error } = await supabase
         .from('servico')
         .select(
-          'id, obra_id, codigo, nome, parent_id, nivel, unidade, ativo, descricao, referencia_externa, created_at'
+          'id, obra_id, codigo, nome, parent_id, nivel, unidade, ativo, descricao, referencia_externa, producao_diaria_qtde, producao_diaria_unidade, created_at'
         )
         .eq('obra_id', obraId!)
         .order('codigo')
@@ -128,6 +128,26 @@ export function useToggleAtivoServico(): ReturnType<
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
+    }
+  })
+}
+
+/** Apaga um servico. Cascade: servico_cpu_link vai junto (FK CASCADE).
+ *  Falha por FK RESTRICT se houver CPU própria, item_orcamentario, ou
+ *  servico-filho apontando pra este. O fluxo de UI usa previewCascadeServicos
+ *  pra avisar antes. */
+export function useDeleteServico(): ReturnType<typeof useMutation<void, Error, { id: string }>> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }) => {
+      if (!SUPABASE_ENABLED || !supabase) notReady()
+      const { error } = await supabase.from('servico').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'servico-custo-agregado'] })
     }
   })
 }

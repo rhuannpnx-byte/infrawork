@@ -117,7 +117,7 @@ export function useObras(): ReturnType<typeof useQuery<ObraComEmpresa[]>> {
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
-        .select('id, empresa_id, nome, codigo, status, unidade_espaco_padrao, created_at, empresa:empresa_id(id, nome)')
+        .select('id, empresa_id, nome, codigo, status, created_at, empresa:empresa_id(id, nome)')
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as unknown as ObraComEmpresa[]
@@ -133,7 +133,7 @@ export function useObra(id: string | undefined): ReturnType<typeof useQuery<Obra
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
-        .select('id, empresa_id, nome, codigo, status, unidade_espaco_padrao, created_at, empresa:empresa_id(id, nome)')
+        .select('id, empresa_id, nome, codigo, status, created_at, empresa:empresa_id(id, nome)')
         .eq('id', id!)
         .single()
       if (error) throw error

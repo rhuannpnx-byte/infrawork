@@ -101,10 +101,40 @@ export function fmtPct2(v: Numeric): string {
   return `${NUM_FMT_2.format(dec(v).times(100).toNumber())}%`
 }
 
-/** Converte string com vírgula brasileira (1.234,56) para Decimal. */
+/**
+ * Converte string numérica aceitando AMBOS os formatos BR e US.
+ *
+ * Heurística baseada na presença de vírgula:
+ *   - Tem vírgula (formato BR "1.234,56"): pontos são separadores de
+ *     milhar, vírgula é decimal → remove pontos + troca vírgula por ponto.
+ *   - Sem vírgula:
+ *     - 2+ pontos ("1.234.567"): pontos são milhar → remove todos.
+ *     - 1 ponto ("18416.67"): assume formato US (decimal) → mantém.
+ *     - 0 pontos ("18416"): inteiro puro.
+ *
+ * Crítico: a versão antiga removia TODOS os pontos sempre, o que inflava
+ * por 10^N strings vindas do banco em formato US (Postgres `numeric` →
+ * PostgREST → "18416.6700"). Quando o display do InlineCell chamava
+ * `parseBR(value)` pra formatar com `fmtQtd`, "18416.67" virava 1.841.667.
+ */
 export function parseBR(s: string): Decimal {
   if (!s) return new Decimal(0)
-  const normalized = s.replace(/\./g, '').replace(',', '.')
+  const trimmed = s.trim()
+  if (trimmed === '') return new Decimal(0)
+  let normalized: string
+  if (trimmed.includes(',')) {
+    // Formato BR — pontos são milhar, vírgula é decimal.
+    normalized = trimmed.replace(/\./g, '').replace(',', '.')
+  } else {
+    const dots = (trimmed.match(/\./g) ?? []).length
+    if (dots > 1) {
+      // Múltiplos pontos sem vírgula = milhar (ex: "1.234.567").
+      normalized = trimmed.replace(/\./g, '')
+    } else {
+      // 0 ou 1 ponto sem vírgula = formato US (decimal) ou inteiro puro.
+      normalized = trimmed
+    }
+  }
   try {
     return new Decimal(normalized)
   } catch {

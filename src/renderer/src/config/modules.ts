@@ -175,6 +175,12 @@ export const MODULES: ModuleConfig[] = [
             requiresObra: true
           },
           {
+            icon: 'route',
+            label: 'Trechos',
+            route: '/planejamento/trechos',
+            requiresObra: true
+          },
+          {
             icon: 'users',
             label: 'Equipes',
             route: '/planejamento/equipes',
@@ -195,6 +201,12 @@ export const MODULES: ModuleConfig[] = [
             icon: 'git-compare',
             label: 'Comparar baseline',
             route: '/planejamento/comparar',
+            requiresObra: true
+          },
+          {
+            icon: 'route',
+            label: 'Marcha-Tempo',
+            route: '/planejamento/marcha-tempo',
             requiresObra: true
           }
         ]

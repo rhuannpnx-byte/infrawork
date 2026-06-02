@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, type ReactNode } from 'react'
+import { memo, useMemo, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   ChevronDown,
@@ -11,12 +11,14 @@ import {
   MoreVertical,
   ArrowUp,
   ArrowDown,
-  Move
+  Move,
+  Unlink
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Dropdown, DropdownItem } from '@/components/ui/dropdown'
-import { fmtBRL, fmtPct2 } from '@/lib/money'
+import { fmtBRL, fmtPct2, parseBR } from '@/lib/money'
 import { cn } from '@/lib/utils'
-import { useDeleteItem, useReorderItem, useUpsertItem } from '../hooks/plan-orc'
+import { useDeleteItem, useReorderItem, useReparentItem, useUpsertItem } from '../hooks/plan-orc'
 import { PlanOrcInlineCell } from './PlanOrcInlineCell'
 import type { ItemTreeNode } from '@/types/orcamento'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
@@ -26,6 +28,8 @@ interface Props {
   flat: ItemTreeNode[]
   podeEditar: boolean
   selectedIds: Set<string>
+  /** Setter direto do estado de seleção — usado pelo "selecionar todos" no header. */
+  setSelectedIds: Dispatch<SetStateAction<Set<string>>>
   onToggleSelect: (
     id: string,
     e?: { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
@@ -44,6 +48,7 @@ export function PlanOrcTree({
   flat,
   podeEditar,
   selectedIds,
+  setSelectedIds,
   onToggleSelect,
   onSelect,
   onNewChild,
@@ -52,6 +57,13 @@ export function PlanOrcTree({
   setExpandedIds
 }: Props): ReactNode {
   const parentRef = useRef<HTMLDivElement>(null)
+
+  // Index do flat por id pra resolver parent → grandparent rapidamente.
+  const byId = useMemo(() => {
+    const m = new Map<string, ItemTreeNode>()
+    for (const n of flat) m.set(n.id, n)
+    return m
+  }, [flat])
 
   // Filtra a flat para esconder filhos de nodes colapsados
   const visible = useMemo(() => {
@@ -85,11 +97,69 @@ export function PlanOrcTree({
     setExpandedIds(next)
   }
 
+  // Tri-state do checkbox "selecionar todos" — baseado em itens VISÍVEIS
+  // (filhos de grupos colapsados não contam, pra coerência com o que o user vê).
+  const visibleIds = useMemo(() => visible.map((n) => n.id), [visible])
+  const visibleSelectedCount = useMemo(
+    () => visibleIds.reduce((acc, id) => acc + (selectedIds.has(id) ? 1 : 0), 0),
+    [visibleIds, selectedIds]
+  )
+  const headerSelectState: 'none' | 'some' | 'all' =
+    visibleSelectedCount === 0
+      ? 'none'
+      : visibleSelectedCount === visibleIds.length
+        ? 'all'
+        : 'some'
+  const onToggleSelectAll = (): void => {
+    setSelectedIds((prev) => {
+      if (visibleSelectedCount === visibleIds.length && visibleIds.length > 0) {
+        // Todos selecionados → desmarca apenas os visíveis (preserva eventuais
+        // selecionados que estão dentro de grupos colapsados).
+        const next = new Set(prev)
+        for (const id of visibleIds) next.delete(id)
+        return next
+      }
+      const next = new Set(prev)
+      for (const id of visibleIds) next.add(id)
+      return next
+    })
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center text-2xs font-mono uppercase tracking-wider text-text-dim bg-bg-elevated border-b border-border sticky top-0 z-10">
-        <div className="px-2 py-1.5" style={{ width: 460 }}>
+        {/* Coluna de seleção (primeira à esquerda) */}
+        <div
+          className="px-2 py-1.5 flex items-center justify-center"
+          style={{ width: 32 }}
+          title={
+            podeEditar
+              ? headerSelectState === 'all'
+                ? 'Desmarcar todos visíveis'
+                : 'Selecionar todos visíveis'
+              : undefined
+          }
+        >
+          {podeEditar ? (
+            <button
+              type="button"
+              onClick={onToggleSelectAll}
+              disabled={visibleIds.length === 0}
+              className={cn(
+                'w-4 h-4 inline-flex items-center justify-center rounded border text-2xs',
+                headerSelectState === 'all'
+                  ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
+                  : headerSelectState === 'some'
+                    ? 'border-accent bg-accent/40 text-[color:var(--primary-foreground)]'
+                    : 'border-border-strong hover:border-accent text-text-faint'
+              )}
+            >
+              {headerSelectState === 'all' ? '✓' : headerSelectState === 'some' ? '−' : ''}
+            </button>
+          ) : null}
+        </div>
+        <div className="px-2 py-1.5" style={{ width: 428 }}>
           Código · Descrição
         </div>
         <div className="px-2 py-1.5 text-center" style={{ width: 60 }}>
@@ -143,6 +213,10 @@ export function PlanOrcTree({
                   onOpen={() => onSelect(node.id)}
                   onNewChild={() => onNewChild(node)}
                   onMover={() => onMover(node)}
+                  grandparentId={
+                    node.parent_id ? (byId.get(node.parent_id)?.parent_id ?? null) : null
+                  }
+                  parentTipo={node.parent_id ? (byId.get(node.parent_id)?.tipo ?? null) : null}
                 />
               </div>
             )
@@ -169,12 +243,19 @@ interface RowProps {
   onOpen: () => void
   onNewChild: () => void
   onMover: () => void
+  /** Parent do parent (avô). Quando o node é filho direto de servico_grupo,
+   * permite desvincular reparentando pra esse avô. NULL quando o pai é raiz. */
+  grandparentId: string | null
+  /** Tipo do parent direto — pra mostrar/esconder "Desvincular do grupo". */
+  parentTipo: ItemTreeNode['tipo'] | null
 }
 
 const PlanOrcRow = memo(function PlanOrcRow({
   node,
   obraId,
   podeEditar,
+  grandparentId,
+  parentTipo,
   isSelected,
   isExpanded,
   onToggle,
@@ -186,23 +267,26 @@ const PlanOrcRow = memo(function PlanOrcRow({
   const upsert = useUpsertItem()
   const del = useDeleteItem()
   const reorder = useReorderItem()
+  const reparent = useReparentItem()
   const confirm = useConfirm()
   const isEtapa = node.tipo === 'etapa'
   const isServicoGrupo = node.tipo === 'servico_grupo'
   const isReceita = node.tipo === 'receita'
   const expandivel = isEtapa || isServicoGrupo
   const editavelQtdRefManual = isServicoGrupo && node.qtd_ref_modo === 'manual'
+  /** Mostrar "Desvincular do grupo" só quando o pai direto é servico_grupo. */
+  const podeDesvincularDoGrupo = isReceita && parentTipo === 'servico_grupo'
 
   const onChangeReceita =
     (field: 'quantidade' | 'venda_unitaria') =>
     async (val: string): Promise<void> => {
-      const num = val.trim() === '' ? null : Number(val.replace(',', '.'))
+      const num = val.trim() === '' ? null : parseBR(val).toNumber()
       if (val.trim() !== '' && (num === null || isNaN(num))) throw new Error('inválido')
       await upsert.mutateAsync({ id: node.id, obra_id: obraId, tipo: node.tipo, [field]: num })
     }
 
   const onChangeQtdRef = async (val: string): Promise<void> => {
-    const num = val.trim() === '' ? null : Number(val.replace(',', '.'))
+    const num = val.trim() === '' ? null : parseBR(val).toNumber()
     if (val.trim() !== '' && (num === null || isNaN(num))) throw new Error('inválido')
     await upsert.mutateAsync({
       id: node.id,
@@ -220,10 +304,31 @@ const PlanOrcRow = memo(function PlanOrcRow({
         'h-7'
       )}
     >
+      {/* Coluna de seleção (primeira à esquerda) */}
+      <div className="px-2 flex items-center justify-center" style={{ width: 32 }}>
+        {podeEditar ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleSelect({ shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey })
+            }}
+            title={isReceita ? 'Selecionar (agrupar / excluir)' : 'Selecionar (excluir em lote)'}
+            className={cn(
+              'w-4 h-4 inline-flex items-center justify-center rounded border text-2xs',
+              isSelected
+                ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
+                : 'border-border text-text-faint hover:border-accent hover:text-text-dim'
+            )}
+          >
+            {isSelected ? '✓' : ''}
+          </button>
+        ) : null}
+      </div>
       {/* Código + descrição (com indentação) */}
       <div
         className="px-2 flex items-center gap-1 truncate"
-        style={{ width: 460, paddingLeft: `${node.depth * 14 + 4}px` }}
+        style={{ width: 428, paddingLeft: `${node.depth * 14 + 4}px` }}
       >
         <button
           type="button"
@@ -262,21 +367,6 @@ const PlanOrcRow = memo(function PlanOrcRow({
           <span className="text-text-dim mr-2">{node.codigo}</span>
           {node.descricao}
         </button>
-        {isReceita && podeEditar ? (
-          <button
-            type="button"
-            onClick={() => onToggleSelect()}
-            title="Selecionar para agrupar"
-            className={cn(
-              'w-4 h-4 inline-flex items-center justify-center rounded border text-2xs',
-              isSelected
-                ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
-                : 'border-border opacity-0 group-hover:opacity-100 hover:border-accent'
-            )}
-          >
-            ✓
-          </button>
-        ) : null}
       </div>
 
       {/* Unidade */}
@@ -378,7 +468,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
                 title={
                   isServicoGrupo ? 'Adicionar receita ao grupo' : 'Adicionar filho neste índice'
                 }
-                className="w-5 h-5 flex items-center justify-center rounded text-text-dim opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-bg-elevated"
+                className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-elevated"
               >
                 <Plus size={11} />
               </button>
@@ -388,7 +478,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
               trigger={
                 <button
                   type="button"
-                  className="w-5 h-5 flex items-center justify-center rounded text-text-dim opacity-0 group-hover:opacity-100 hover:text-text hover:bg-bg-elevated"
+                  className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-elevated"
                 >
                   <MoreVertical size={11} />
                 </button>
@@ -407,6 +497,24 @@ const PlanOrcRow = memo(function PlanOrcRow({
               <DropdownItem onClick={onMover}>
                 <Move size={11} /> Mover para…
               </DropdownItem>
+              {podeDesvincularDoGrupo ? (
+                <DropdownItem
+                  onClick={async () => {
+                    try {
+                      await reparent.mutateAsync({
+                        id: node.id,
+                        obra_id: obraId,
+                        new_parent_id: grandparentId
+                      })
+                      toast.success('Desvinculado do grupo.')
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Falha ao desvincular')
+                    }
+                  }}
+                >
+                  <Unlink size={11} /> Desvincular do grupo
+                </DropdownItem>
+              ) : null}
               <DropdownItem
                 onClick={async () => {
                   const ok = await confirm({

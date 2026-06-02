@@ -26,12 +26,15 @@ import { IndiretoPage } from '@/app/routes/orcamento/indireto'
 import { LucratividadePage } from '@/app/routes/orcamento/lucratividade'
 import { RevisoesPage } from '@/app/routes/orcamento/revisoes'
 import { RevisaoDetailPage } from '@/app/routes/orcamento/revisao-detail'
+import { RevisoesCompararPage } from '@/app/routes/orcamento/revisoes-comparar'
 import { PlanejamentoIndex } from '@/app/routes/planejamento'
 import { PlanejamentoCronogramaPage } from '@/app/routes/planejamento/cronograma'
 import { PlanejamentoCalendarioPage } from '@/app/routes/planejamento/calendario'
+import { PlanejamentoTrechosPage } from '@/app/routes/planejamento/trechos'
 import { PlanejamentoEquipesPage } from '@/app/routes/planejamento/equipes'
 import { PlanejamentoCurvaSPage } from '@/app/routes/planejamento/curva-s'
 import { PlanejamentoCompararPage } from '@/app/routes/planejamento/comparar'
+import { PlanejamentoMarchaTempoPage } from '@/app/routes/planejamento/marcha-tempo'
 import { PlanejamentoRevisoesPage } from '@/app/routes/planejamento/revisoes'
 import { PlanejamentoRevisaoDetalhePage } from '@/app/routes/planejamento/revisao-detalhe'
 import { AcompanhamentoIndex } from '@/app/routes/acompanhamento'
@@ -177,12 +180,18 @@ const orcamentoRevisaoDetailRoute = createRoute({
   path: 'revisoes/$id',
   component: RevisaoDetailPage
 })
+const orcamentoRevisoesCompararRoute = createRoute({
+  getParentRoute: () => orcamentoObraLayout,
+  path: 'revisoes/comparar',
+  component: RevisoesCompararPage
+})
 const orcamentoObraTree = orcamentoObraLayout.addChildren([
   orcamentoObraIndexRoute,
   orcamentoPlanOrcRoute,
   orcamentoIndiretoRoute,
   orcamentoLucratividadeRoute,
   orcamentoRevisoesRoute,
+  orcamentoRevisoesCompararRoute,
   orcamentoRevisaoDetailRoute
 ])
 
@@ -217,6 +226,11 @@ const planejamentoCalendarioRoute = createRoute({
   path: 'calendario',
   component: PlanejamentoCalendarioPage
 })
+const planejamentoTrechosRoute = createRoute({
+  getParentRoute: () => planejamentoLayout,
+  path: 'trechos',
+  component: PlanejamentoTrechosPage
+})
 const planejamentoEquipesRoute = createRoute({
   getParentRoute: () => planejamentoLayout,
   path: 'equipes',
@@ -232,6 +246,11 @@ const planejamentoCompararRoute = createRoute({
   path: 'comparar',
   component: PlanejamentoCompararPage
 })
+const planejamentoMarchaTempoRoute = createRoute({
+  getParentRoute: () => planejamentoLayout,
+  path: 'marcha-tempo',
+  component: PlanejamentoMarchaTempoPage
+})
 const planejamentoRevisoesRoute = createRoute({
   getParentRoute: () => planejamentoLayout,
   path: 'revisoes',
@@ -246,9 +265,11 @@ const planejamentoTree = planejamentoLayout.addChildren([
   planejamentoIndexRoute,
   planejamentoCronogramaRoute,
   planejamentoCalendarioRoute,
+  planejamentoTrechosRoute,
   planejamentoEquipesRoute,
   planejamentoCurvaSRoute,
   planejamentoCompararRoute,
+  planejamentoMarchaTempoRoute,
   planejamentoRevisoesRoute,
   planejamentoRevisaoDetalheRoute
 ])

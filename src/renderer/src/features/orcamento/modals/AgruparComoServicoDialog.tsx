@@ -14,9 +14,9 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useAgruparComoServico } from '../hooks/plan-orc'
 import { useServicos } from '../hooks/servicos'
-import { useCpus } from '../hooks/cpus'
+import { useServicoCustoAgregado } from '../hooks/servico-links'
 import { useIndireto } from '../hooks/indireto'
-import { fmtBRL, fmtQtd } from '@/lib/money'
+import { fmtBRL, fmtQtd, parseBR } from '@/lib/money'
 import type { ItemTreeNode, QtdRefModo } from '@/types/orcamento'
 
 type VinculoModo = 'cpu' | 'indireto'
@@ -36,8 +36,13 @@ export function AgruparComoServicoDialog({
   receitas
 }: Props): ReactNode {
   const { data: servicos = [] } = useServicos(obraId)
-  const { data: cpusVigentes = [] } = useCpus(obraId)
+  const { data: custoAgregadoLista = [] } = useServicoCustoAgregado(obraId)
   const { data: indiretos = [] } = useIndireto(obraId)
+  // Map servico_id → linha da vw_servico_custo_agregado pra lookup O(1)
+  const custoPorServico = useMemo(
+    () => new Map(custoAgregadoLista.map((c) => [c.servico_id, c])),
+    [custoAgregadoLista]
+  )
   const agrupar = useAgruparComoServico()
 
   const [vinculo, setVinculo] = useState<VinculoModo>('cpu')
@@ -63,12 +68,13 @@ export function AgruparComoServicoDialog({
   const servicosFolha = useMemo(() => servicos.filter((s) => s.unidade !== null), [servicos])
 
   const servicoSelecionado = servicos.find((s) => s.id === servicoId)
-  const cpuVigente = cpusVigentes.find((c) => c.servico_id === servicoId)
+  const custoServicoSelecionado = custoPorServico.get(servicoId)
+  const temCpu = (custoServicoSelecionado?.cpus_vinculadas ?? 0) > 0
 
   // Calcula a quantidade efetiva conforme modo escolhido
   const qtdCalculada = useMemo(() => {
     if (modo === 'manual') {
-      return Number(qtdManual.replace(',', '.')) || 0
+      return parseBR(qtdManual).toNumber() || 0
     }
     if (modo === 'heranca') {
       const primeiro = receitas.find((r) => filhosRef.has(r.id))
@@ -173,7 +179,7 @@ export function AgruparComoServicoDialog({
           <div className="text-2xs font-mono text-text-dim">
             {receitas.length} receita(s) serão pendurada(s) sob o novo grupo.{' '}
             {vinculo === 'cpu'
-              ? 'O custo virá da CPU vigente do serviço × quantidade de referência.'
+              ? 'O custo virá do custo agregado do serviço (Σ CPUs vinculadas com fator/operação) × quantidade de referência.'
               : 'O custo virá do item de indireto selecionado × quantidade de referência.'}{' '}
             A venda do grupo será a soma das receitas filhas.
           </div>
@@ -230,30 +236,38 @@ export function AgruparComoServicoDialog({
           {vinculo === 'cpu' ? (
             <div>
               <Label htmlFor="g-serv" className="block">
-                Serviço (com CPU)
+                Serviço (com CPUs vinculadas)
               </Label>
-              <Select
-                id="g-serv"
-                value={servicoId}
-                onChange={(e) => setServicoId(e.target.value)}
-              >
+              <Select id="g-serv" value={servicoId} onChange={(e) => setServicoId(e.target.value)}>
                 <option value="">— selecione —</option>
                 {servicosFolha.map((s) => {
-                  const cpu = cpusVigentes.find((c) => c.servico_id === s.id)
+                  const cs = custoPorServico.get(s.id)
+                  const n = cs?.cpus_vinculadas ?? 0
+                  const custo = cs?.custo_unit_agregado
+                  const sufixo =
+                    n > 0
+                      ? ` · ${n} CPU${n > 1 ? 's' : ''}${
+                          custo != null ? ` · ${fmtBRL(Number(custo))}/un` : ''
+                        }`
+                      : ' · sem CPU vinculada'
                   return (
                     <option key={s.id} value={s.id}>
-                      {s.codigo} · {s.nome} ({s.unidade})
-                      {cpu
-                        ? ` · CPU v${cpu.versao} ${fmtBRL(cpu.custo_unit_calc)}/un`
-                        : ' · sem CPU'}
+                      {s.codigo} · {s.nome} ({s.unidade}){sufixo}
                     </option>
                   )
                 })}
               </Select>
-              {servicoSelecionado && !cpuVigente ? (
+              {servicoSelecionado && !temCpu ? (
                 <p className="text-2xs text-warn font-mono mt-1">
-                  Aviso: serviço selecionado não tem CPU vigente. Grupo será criado mas custo = 0
-                  até você criar a CPU.
+                  Aviso: este serviço ainda não tem CPUs vinculadas. Grupo será criado mas custo = 0
+                  até você vincular pelo menos uma CPU pela página Serviços.
+                </p>
+              ) : servicoSelecionado && temCpu ? (
+                <p className="text-2xs text-text-muted font-mono mt-1">
+                  Custo unit. agregado:{' '}
+                  {fmtBRL(Number(custoServicoSelecionado?.custo_unit_agregado ?? 0))}/
+                  {servicoSelecionado.unidade ?? 'un'} · {custoServicoSelecionado?.cpus_vinculadas}{' '}
+                  CPU(s) vinculada(s).
                 </p>
               ) : null}
             </div>
@@ -262,11 +276,7 @@ export function AgruparComoServicoDialog({
               <Label htmlFor="g-ind" className="block">
                 Item de indireto
               </Label>
-              <Select
-                id="g-ind"
-                value={indiretoId}
-                onChange={(e) => setIndiretoId(e.target.value)}
-              >
+              <Select id="g-ind" value={indiretoId} onChange={(e) => setIndiretoId(e.target.value)}>
                 <option value="">— selecione —</option>
                 {indiretos.map((i) => (
                   <option key={i.id} value={i.id}>

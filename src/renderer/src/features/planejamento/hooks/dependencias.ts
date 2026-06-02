@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import type { DependenciaTipo, PlanejamentoDependencia } from '@/types/planejamento'
+import { recalcBus } from '../lib/recalc-bus'
 
 function notReady(): never {
   throw new Error('Supabase não configurado.')
+}
+
+function emitCpm(planejamento_id: string, source: string): void {
+  recalcBus.emit('mutationDone', { planejamentoId: planejamento_id, source })
 }
 
 export function useDependencias(
@@ -56,6 +61,14 @@ export function useAddDependencia(): ReturnType<
           : error.message
         throw new Error(msg)
       }
+      // Limpa data_inicio_manual da sucessora: agora a dep dirige o ES. Sem
+      // isso, o forward pass do edge ignora a dep (branch legado MSO em
+      // calcular-cronograma:492). Se o usuário quiser fixar mesmo com dep,
+      // que use constraint_type='mso' explicitamente.
+      await supabase
+        .from('planejamento_tarefa')
+        .update({ data_inicio_manual: false })
+        .eq('id', body.sucessora_id)
       return { id: data.id as string }
     },
     onSuccess: (_d, vars) => {
@@ -63,6 +76,7 @@ export function useAddDependencia(): ReturnType<
         queryKey: ['planejamento', 'dependencias', vars.planejamento_id]
       })
       void qc.invalidateQueries({ queryKey: ['planejamento', 'tarefas', vars.planejamento_id] })
+      emitCpm(vars.planejamento_id, 'useAddDependencia')
     }
   })
 }
@@ -91,6 +105,7 @@ export function useUpdateDependencia(): ReturnType<
         queryKey: ['planejamento', 'dependencias', vars.planejamento_id]
       })
       void qc.invalidateQueries({ queryKey: ['planejamento', 'tarefas', vars.planejamento_id] })
+      emitCpm(vars.planejamento_id, 'useUpdateDependencia')
     }
   })
 }
@@ -110,6 +125,7 @@ export function useDeleteDependencia(): ReturnType<
         queryKey: ['planejamento', 'dependencias', vars.planejamento_id]
       })
       void qc.invalidateQueries({ queryKey: ['planejamento', 'tarefas', vars.planejamento_id] })
+      emitCpm(vars.planejamento_id, 'useDeleteDependencia')
     }
   })
 }

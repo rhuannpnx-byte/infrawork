@@ -8,15 +8,17 @@ function notReady(): never {
 
 export function useEquipes(
   obraId: string | null | undefined,
-  opts: { incluirInativas?: boolean } = {}
+  opts: { incluirInativas?: boolean; incluirSistema?: boolean } = {}
 ): ReturnType<typeof useQuery<Equipe[]>> {
+  const incluirSistema = opts.incluirSistema ?? false
   return useQuery({
-    queryKey: ['planejamento', 'equipes', obraId, opts.incluirInativas ?? false],
+    queryKey: ['planejamento', 'equipes', obraId, opts.incluirInativas ?? false, incluirSistema],
     enabled: !!obraId,
     queryFn: async (): Promise<Equipe[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
       let q = supabase.from('equipe').select('*').eq('obra_id', obraId!).order('nome')
       if (!opts.incluirInativas) q = q.eq('ativo', true)
+      if (!incluirSistema) q = q.eq('is_sistema', false)
       const { data, error } = await q
       if (error) throw error
       return (data ?? []) as unknown as Equipe[]

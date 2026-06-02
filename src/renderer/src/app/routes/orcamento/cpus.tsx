@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Plus, FileUp } from 'lucide-react'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
+import { Plus, FileUp, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -9,9 +11,12 @@ import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
 import { DataTable } from '@/components/data-table/DataTable'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCpus } from '@/features/orcamento/hooks/cpus'
+import { previewCascadeCpus } from '@/features/orcamento/hooks/cascade'
+import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { useServicos } from '@/features/orcamento/hooks/servicos'
 import { formatNumber } from '@/lib/format'
 import { NewCpuVersionDialog } from '@/features/orcamento/modals/NewCpuVersionDialog'
@@ -19,6 +24,7 @@ import { ImportCpuDialog } from '@/features/orcamento/modals/ImportCpuDialog'
 import { fmtBRL4 } from '@/lib/money'
 import { formatDate } from '@/lib/format'
 import type { CpuComServico } from '@/types/orcamento'
+import { nomeDaCpu } from '@/features/orcamento/lib/nomeDaCpu'
 
 export function CpusPage(): ReactNode {
   return (
@@ -37,41 +43,116 @@ function CpusInner(): ReactNode {
   const [servicoFiltro, setServicoFiltro] = useState<string>('')
   const { data: servicos = [] } = useServicos(obraId)
   const { data: cpus = [], isLoading, error } = useCpus(obraId, servicoFiltro || null)
+  const confirm = useConfirm()
+  const qc = useQueryClient()
   const [openNew, setOpenNew] = useState(false)
   const [openImport, setOpenImport] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const podeEditar = role === 'god' || role === 'adm' || role === 'engenheiro'
+
+  const handleBulkDelete = async (rows: CpuComServico[], clear: () => void): Promise<void> => {
+    if (rows.length === 0) return
+
+    let preview
+    try {
+      preview = await previewCascadeCpus(rows.map((r) => r.id))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao avaliar dependências')
+      return
+    }
+
+    const ok = await confirm({
+      title: `Excluir ${rows.length} CPU(s)?`,
+      description: (
+        <div className="space-y-2">
+          {preview.cpuItensQueIraoEmbora > 0 ? (
+            <p>
+              <span className="text-warn">{preview.cpuItensQueIraoEmbora} linha(s) de insumo</span>{' '}
+              dentro dessas CPUs serão removidas em cascata.
+            </p>
+          ) : null}
+          {preview.itensOrcamentoComCpuOrigem > 0 ? (
+            <p>
+              <span className="text-text-dim">
+                {preview.itensOrcamentoComCpuOrigem} item(ns) orçamentário(s)
+              </span>{' '}
+              têm essas CPUs como origem. O <strong>snapshot</strong> de custo já está copiado no
+              orçamento — não afeta o publicado. Apenas a referência de origem se perde.
+            </p>
+          ) : null}
+          {preview.cpuItensQueIraoEmbora === 0 && preview.itensOrcamentoComCpuOrigem === 0 ? (
+            <p className="text-text-dim">Nenhuma dependência — exclusão direta.</p>
+          ) : null}
+        </div>
+      ),
+      confirmLabel: 'Excluir',
+      variant: 'danger'
+    })
+    if (!ok) return
+    if (!SUPABASE_ENABLED || !supabase) {
+      toast.error('Supabase não configurado.')
+      return
+    }
+
+    // Limpa seleção imediatamente — UX responsiva.
+    clear()
+    setBulkDeleting(true)
+    const t0 = performance.now()
+
+    try {
+      // Um único DELETE com .in() — N→1 round-trip. cpu_item vai por CASCADE.
+      const ids = rows.map((r) => r.id)
+      const { error: errCpu } = await supabase.from('cpu').delete().in('id', ids)
+      if (errCpu) {
+        console.error('[cpu bulk delete]', errCpu)
+        toast.error(`Falha ao excluir CPUs: ${errCpu.message}`)
+        return
+      }
+      const ms = Math.round(performance.now() - t0)
+      toast.success(`${rows.length} CPU(s) excluída(s) em ${ms}ms.`)
+    } finally {
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpu'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'plan-orc'] })
+      setBulkDeleting(false)
+    }
+  }
 
   const columns = useMemo<ColumnDef<CpuComServico, unknown>[]>(
     () => [
       {
-        id: 'servico_codigo',
-        header: 'Código',
-        accessorFn: (row) => row.servico?.codigo ?? '',
-        cell: (info) => (
-          <span className="font-mono text-2xs text-text-dim">{String(info.getValue() ?? '—')}</span>
-        ),
-        meta: { label: 'Código' },
-        size: 110
-      },
-      {
-        id: 'servico_nome',
-        header: 'Serviço',
-        accessorFn: (row) => row.servico?.nome ?? '',
+        id: 'cpu_nome',
+        header: 'Nome',
+        accessorFn: (row) => nomeDaCpu(row),
         cell: (info) => (
           <span className="text-text font-medium">{String(info.getValue() ?? '—')}</span>
         ),
-        meta: { label: 'Serviço' }
+        meta: { label: 'Nome' }
+      },
+      {
+        id: 'servico',
+        header: 'Servico-dono',
+        accessorFn: (row) => (row.servico ? `${row.servico.codigo} ${row.servico.nome}` : ''),
+        cell: (info) => {
+          const v = info.getValue() as string
+          if (!v) {
+            return <span className="text-text-faint italic text-2xs">— sem servico —</span>
+          }
+          return <span className="text-text-muted text-2xs font-mono">{v}</span>
+        },
+        meta: { label: 'Servico-dono' },
+        size: 220
       },
       {
         id: 'unidade',
-        header: 'Un.',
-        accessorFn: (row) => row.servico?.unidade ?? '',
+        header: 'Un. produção',
+        accessorFn: (row) => row.producao_diaria_unidade ?? '',
         cell: (info) => (
           <span className="text-text-muted font-mono">{String(info.getValue() ?? '—')}</span>
         ),
-        meta: { label: 'Unidade' },
-        size: 60
+        meta: { label: 'Unidade produção' },
+        size: 80
       },
       {
         accessorKey: 'versao',
@@ -196,6 +277,22 @@ function CpusInner(): ReactNode {
           globalSearchPlaceholder="Buscar CPU…"
           emptyMessage="Nenhuma CPU encontrada"
           onRowClick={(row) => navigate({ to: '/orcamento/cpus/$id', params: { id: row.id } })}
+          enableRowSelection={podeEditar}
+          selectionActions={
+            podeEditar
+              ? (rows, clear) => (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleBulkDelete(rows, clear)}
+                    className="text-danger hover:bg-danger/10"
+                    disabled={bulkDeleting}
+                  >
+                    <Trash2 size={11} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
+                  </Button>
+                )
+              : undefined
+          }
         />
       )}
 

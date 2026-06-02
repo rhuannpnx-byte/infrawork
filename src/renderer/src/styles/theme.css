@@ -38,6 +38,9 @@
   --warn: oklch(82% 0.16 80);
   --danger: oklch(70% 0.18 25);
 
+  /* Marco (milestone) — roxo distintivo para diamantes no Gantt */
+  --milestone: oklch(72% 0.18 305);
+
   /* Identidade de módulo */
   --module-orcamento: var(--accent);
   --module-planejamento: oklch(85% 0.12 215);

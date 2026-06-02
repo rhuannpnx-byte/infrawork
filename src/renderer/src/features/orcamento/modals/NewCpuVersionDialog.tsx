@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { parseBR } from '@/lib/money'
 import { useCreateCpu } from '../hooks/cpus'
 import { useServicos } from '../hooks/servicos'
 
@@ -34,17 +35,19 @@ export function NewCpuVersionDialog({
   const navigate = useNavigate()
   const { data: servicos = [] } = useServicos(obraId)
 
+  const [nome, setNome] = useState('')
   const [servicoId, setServicoId] = useState<string>(servicoIdFixo ?? '')
   const [producao, setProducao] = useState('1')
-  const [unidade, setUnidade] = useState('DIA')
+  const [unidade, setUnidade] = useState('')
   const [notas, setNotas] = useState('')
   const [vigente, setVigente] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const reset = (): void => {
+    setNome('')
     setServicoId(servicoIdFixo ?? '')
     setProducao('1')
-    setUnidade('DIA')
+    setUnidade('')
     setNotas('')
     setVigente(true)
     setError(null)
@@ -53,21 +56,31 @@ export function NewCpuVersionDialog({
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError(null)
-    const prod = Number(producao.replace(',', '.'))
+    if (!nome.trim()) {
+      setError('Nome da CPU é obrigatório.')
+      return
+    }
+    const prod = parseBR(producao).toNumber()
     if (isNaN(prod) || prod <= 0) {
       setError('Produção diária precisa ser > 0.')
       return
     }
-    if (!servicoId) {
-      setError('Selecione um serviço.')
+    const unidadeTrim = unidade.trim()
+    if (!unidadeTrim) {
+      setError('Unidade da produção é obrigatória (ex.: m³, m², t, un, m).')
+      return
+    }
+    if (unidadeTrim.toUpperCase() === 'DIA') {
+      setError('Unidade não pode ser "DIA". Informe a unidade dimensional produzida por dia (m³, m², t, un, m).')
       return
     }
     try {
       const { id } = await create.mutateAsync({
         obra_id: obraId,
-        servico_id: servicoId,
+        nome: nome.trim(),
+        servico_id: servicoId || null,
         producao_diaria_qtde: prod,
-        producao_diaria_unidade: unidade,
+        producao_diaria_unidade: unidadeTrim,
         encargos_sociais_id: null,
         notas: notas.trim() || undefined,
         marcar_vigente: vigente
@@ -100,16 +113,29 @@ export function NewCpuVersionDialog({
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
 
+          <div>
+            <Label htmlFor="c-nome">Nome da CPU *</Label>
+            <Input
+              id="c-nome"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              required
+              minLength={2}
+              autoFocus
+              placeholder="Ex.: Produção CBUQ, Aplicação base granular…"
+            />
+            <div className="text-2xs text-text-dim font-mono mt-1">
+              Nome técnico da composição. Independente de serviço — você pode vincular essa CPU a um
+              servico-agregador depois (pela página Serviços) com fator de conversão e operação (×
+              ou ÷).
+            </div>
+          </div>
+
           {!servicoIdFixo ? (
             <div>
-              <Label htmlFor="c-serv">Serviço</Label>
-              <Select
-                id="c-serv"
-                value={servicoId}
-                onChange={(e) => setServicoId(e.target.value)}
-                required
-              >
-                <option value="">Selecione…</option>
+              <Label htmlFor="c-serv">Serviço-dono (opcional)</Label>
+              <Select id="c-serv" value={servicoId} onChange={(e) => setServicoId(e.target.value)}>
+                <option value="">— sem servico-dono —</option>
                 {servicosFolha.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.codigo} — {s.nome} ({s.unidade})
@@ -117,7 +143,8 @@ export function NewCpuVersionDialog({
                 ))}
               </Select>
               <div className="text-2xs text-text-dim font-mono mt-1">
-                Apenas serviços com unidade definida (folhas).
+                Apenas serviços com unidade definida (folhas). Deixe em branco pra criar uma CPU
+                órfã — você pode vinculá-la depois.
               </div>
             </div>
           ) : null}
@@ -131,17 +158,21 @@ export function NewCpuVersionDialog({
                 onChange={(e) => setProducao(e.target.value)}
                 required
                 inputMode="decimal"
-                autoFocus
               />
             </div>
             <div>
-              <Label htmlFor="c-prod-un">Unidade da produção</Label>
+              <Label htmlFor="c-prod-un">Unidade da produção *</Label>
               <Input
                 id="c-prod-un"
                 value={unidade}
                 onChange={(e) => setUnidade(e.target.value)}
-                placeholder="DIA"
+                required
+                minLength={1}
+                placeholder="m³, m², t, un, m, vb…"
               />
+              <div className="text-2xs text-text-dim font-mono mt-1">
+                Unidade dimensional produzida por dia (não use "DIA").
+              </div>
             </div>
           </div>
 
@@ -150,14 +181,16 @@ export function NewCpuVersionDialog({
             <Input id="c-notas" value={notas} onChange={(e) => setNotas(e.target.value)} />
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-text-muted font-mono">
-            <input
-              type="checkbox"
-              checked={vigente}
-              onChange={(e) => setVigente(e.target.checked)}
-            />
-            Marcar como vigente (revoga versões anteriores do mesmo serviço)
-          </label>
+          {servicoId ? (
+            <label className="flex items-center gap-2 text-xs text-text-muted font-mono">
+              <input
+                type="checkbox"
+                checked={vigente}
+                onChange={(e) => setVigente(e.target.checked)}
+              />
+              Marcar como vigente (revoga versões anteriores do mesmo serviço)
+            </label>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { parseBR } from '@/lib/money'
 import { useUpsertIndireto } from '../hooks/indireto'
 import { INDIRETO_TIPO_LABEL, type IndiretoTipo } from '@/types/orcamento'
 
@@ -44,8 +45,9 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError(null)
-    const v = Number(valor.replace(',', '.'))
-    const d = Number(distribuicao.replace(',', '.'))
+    // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
+    const v = parseBR(valor).toNumber()
+    const d = parseBR(distribuicao).toNumber()
     if (isNaN(v) || v < 0) {
       setError('Valor inválido.')
       return

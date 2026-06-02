@@ -22,13 +22,17 @@ export function LucratividadeCards({ data }: Props): ReactNode {
         icon={<Briefcase size={14} />}
         label="Custo Direto"
         value={fmtBRL(data.custo_direto)}
-        hint="grupos de serviço"
+        hint="grupos de serviço (sem indiretos)"
       />
       <Card
         icon={<Briefcase size={14} />}
         label="Custo Indireto"
         value={fmtBRL(data.custo_indireto)}
-        hint="mobiliz., admin etc"
+        hint={
+          data.custo_indireto_vinculado > 0
+            ? `${fmtBRL(data.custo_indireto_vinculado)} via planilha + ${fmtBRL(data.custo_indireto_standalone)} standalone`
+            : 'mobiliz., admin etc'
+        }
       />
       <Card
         icon={<Receipt size={14} />}

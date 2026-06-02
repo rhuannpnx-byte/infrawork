@@ -25,16 +25,18 @@ export interface CalendarioCtx {
 }
 
 export const SAFETY_MAX_WORK_DAYS = 1830 // ~5 anos úteis
-export const SAFETY_MAX_SEMANAS = 260 // ~5 anos semanais
 
-/** Nome da shape de distribuição semanal. Manter alinhado com TS client. */
-export type PerfilNome =
-  | 'uniforme'
-  | 'rampa-subida'
-  | 'rampa-descida'
-  | 'sino'
-  | 'front-loaded'
-  | 'back-loaded'
+/**
+ * Nome da shape de distribuição semanal.
+ *
+ * 2026-06: shapes não-uniformes (sino/rampa/etc) foram removidas do produto.
+ * O tipo segue aqui só pra documentar histórico — o CHECK constraint no DB
+ * (`chk_plan_tar_perfil_flat_uniforme`) garante que só 'uniforme' chega ao
+ * runtime, e o forward pass usa `calcularDuracaoDiaria` + `agruparPorSemana`
+ * em vez de `gerarPerfilSemanal` (deletada). Manter o tipo simplifica a
+ * remoção futura das colunas `perfil_default`/`usa_perfil_customizado`.
+ */
+export type PerfilNome = 'uniforme'
 
 // ─── Utilitários de data ────────────────────────────────────────────────────
 
@@ -98,6 +100,32 @@ export function shiftWorkDays(start: Date, nWork: number, ctx: CalendarioCtx): D
     if (isWorkDay(cur, ctx)) remaining--
   }
   return cur
+}
+
+/**
+ * Diferença em DIAS ÚTEIS entre `from` e `to` (sinalizada).
+ *
+ * Convenção CPM:
+ *   - 0  → mesmas datas
+ *   - >0 → `to` está N dias úteis à frente de `from`
+ *   - <0 → `to` está N dias úteis atrás (constraint violado / drift)
+ *
+ * Não conta `from` (semelhante a `shiftWorkDays` reverso). Útil para
+ * computar Total Float (LF - EF) e Free Float (alvo - EF) em dias úteis,
+ * mesma unidade que o motor opera. Aproximação O(|delta_dias|) ok pra
+ * janelas típicas de cronograma (centenas de dias); pra horizons largos,
+ * pode ser otimizado com counting de feriados.
+ */
+export function diffWorkDays(from: Date, to: Date, ctx: CalendarioCtx): number {
+  if (from.getTime() === to.getTime()) return 0
+  const dir = to > from ? 1 : -1
+  let cur = new Date(from)
+  let count = 0
+  while (cur.getTime() !== to.getTime()) {
+    cur = addDays(cur, dir)
+    if (isWorkDay(cur, ctx)) count += dir
+  }
+  return count
 }
 
 /**
@@ -237,218 +265,109 @@ export interface SemanaPerfil {
   quantidadePlanejada: number
 }
 
-export interface GerarPerfilInput {
-  quantidadeTotal: number
-  dataInicio: Date
-  /** Capacidade máxima da semana (em unidades da tarefa). Factory recomendada: makeCapacidadePorSemana. */
-  capacidadePorSemana: (semanaSegunda: Date) => number
-  perfil: PerfilNome
-  /**
-   * Política quando capacidade da semana < target da shape:
-   *   'rigido'         — cap absoluto; excedente vai pra semana seguinte; perfil deforma. (DEFAULT)
-   *   'preservar-shape' — RESERVADO pra futuro; não shipado nesta entrega.
-   */
-  politicaCap?: 'rigido' | 'preservar-shape'
-  /** Estimativa inicial de duração em semanas; se omitido, calcula via amostragem. */
-  duracaoEstimadaSemanas?: number
-  /** Safety cap pra não loopar; default SAFETY_MAX_SEMANAS. */
-  safetyMaxSemanas?: number
+/**
+ * Agrupa `quantidadePorDia[]` em buckets de semana ISO (segunda-feira UTC).
+ *
+ * Usado pra derivar o perfil semanal — que alimenta a Curva-S via tabela
+ * `planejamento_tarefa_perfil_semana` — a partir do resultado dia-a-dia de
+ * `calcularDuracaoDiaria`. Substitui `gerarPerfilSemanal` no caminho crítico
+ * do forward pass (vide 2026-06: flatten pra uniforme + duração dia-a-dia).
+ *
+ * Soma `quantidade` por `startOfWeekMondayUTC(parseISO(data))`. Retorna
+ * ordenado por `semanaSegunda` ascendente. Semanas sem dia útil não aparecem.
+ */
+export function agruparPorSemana(dias: QuantidadeDia[]): SemanaPerfil[] {
+  if (dias.length === 0) return []
+  const buckets = new Map<string, number>()
+  for (const d of dias) {
+    const seg = isoDate(startOfWeekMondayUTC(parseISO(d.data)))
+    buckets.set(seg, (buckets.get(seg) ?? 0) + d.quantidade)
+  }
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([semanaSegunda, quantidadePlanejada]) => ({
+      semanaSegunda,
+      quantidadePlanejada
+    }))
 }
 
-export interface GerarPerfilResult {
-  semanas: SemanaPerfil[]
-  /** True se rolou spillover além do N estimado (perfil deformou). */
-  excedeuCapacidade: boolean
-  /** True se bateu safetyMaxSemanas com restante > 0 (perfil parcial). */
-  atingiuSafety: boolean
-  /** Soma efetivamente alocada (== quantidadeTotal salvo safety). */
-  somaPlanejada: number
+// ─── Helpers para tarefa indireta ───────────────────────────────────────
+// Diferenças cruciais vs tarefa direta:
+//   * Custo = custo_unit × N períodos (dia/mês/ano). N pode ser fracionado.
+//   * Receita modo "percentual" = % da venda das tarefas diretas que cruzam
+//     o intervalo da indireta, ponderada pela fração de sobreposição.
+//
+// Os helpers abaixo são puros (sem dependência de Deno/PostgREST) pra serem
+// testáveis em Deno test e reusáveis no client se um dia precisar.
+
+/**
+ * Diferença em meses, fracionada. Conta dias dentro do mês.
+ * Exemplo: 15/jan → 15/fev = 1 mês exato. 15/jan → 16/fev = 1 + 1/29 (fev tem 29 dias em ano bissexto, senão 28).
+ * Convenção: usa days-in-month do mês final pra fração fracionária.
+ */
+export function diffMonths(de: Date, ate: Date): number {
+  if (ate.getTime() <= de.getTime()) return 0
+  const yA = de.getUTCFullYear()
+  const mA = de.getUTCMonth()
+  const dA = de.getUTCDate()
+  const yB = ate.getUTCFullYear()
+  const mB = ate.getUTCMonth()
+  const dB = ate.getUTCDate()
+  const mesesInteiros = (yB - yA) * 12 + (mB - mA)
+  // Dias restantes (dB - dA) dentro do mês B → fração do mês B.
+  const diasNoMesB = new Date(Date.UTC(yB, mB + 1, 0)).getUTCDate()
+  const fracao = (dB - dA) / diasNoMesB
+  return mesesInteiros + fracao
 }
 
 /**
- * Capacidade máxima da semana em unidades da tarefa. Itera os 7 dias da
- * semana, soma `prodDiaria × qtdEquipes × fator(d)` apenas pros dias úteis.
- *
- * IMPORTANTE: fator é POR DIA, não por semana. Semana atravessando virada
- * de mês com fatores diferentes usa fator distinto em dias distintos.
- *
- * Factory retorna closure que pode ser chamada repetidamente. Cache externa
- * (por ex. memoizing por `(prod, eqs, semanaSegunda_iso)`) é responsabilidade
- * do caller — esta função é pura e barata o suficiente pra não precisar.
+ * Diferença em anos, fracionada. Usa days-in-year do ano final.
  */
-export function makeCapacidadePorSemana(
-  prodDiaria: number,
-  qtdEquipes: number,
-  ctx: CalendarioCtx
-): (segunda: Date) => number {
-  const eqs = Math.max(1, qtdEquipes)
-  const prodBase = prodDiaria * eqs
-  return (segunda) => {
-    let cap = 0
-    for (let i = 0; i < 7; i++) {
-      const d = addDays(segunda, i)
-      if (!isWorkDay(d, ctx)) continue
-      cap += prodBase * fatorParaData(d, ctx)
-    }
-    return cap
+export function diffYears(de: Date, ate: Date): number {
+  if (ate.getTime() <= de.getTime()) return 0
+  const yA = de.getUTCFullYear()
+  const yB = ate.getUTCFullYear()
+  const inicioAnoB = Date.UTC(yB, 0, 1)
+  const fimAnoB = Date.UTC(yB + 1, 0, 1)
+  const diasAnoB = (fimAnoB - inicioAnoB) / (1000 * 60 * 60 * 24)
+  // Dias decorridos em ano B até a data ate.
+  const diasDecorridosB = (ate.getTime() - inicioAnoB) / (1000 * 60 * 60 * 24)
+  // Dias decorridos em ano A desde de.
+  const inicioAnoA = Date.UTC(yA, 0, 1)
+  const fimAnoA = Date.UTC(yA + 1, 0, 1)
+  const diasAnoA = (fimAnoA - inicioAnoA) / (1000 * 60 * 60 * 24)
+  const diasDecorridosA = (de.getTime() - inicioAnoA) / (1000 * 60 * 60 * 24)
+  const fracaoA = 1 - diasDecorridosA / diasAnoA
+  const fracaoB = diasDecorridosB / diasAnoB
+  const anosInteiros = yB - yA - 1
+  if (anosInteiros < 0) {
+    // mesmo ano: só fracaoB - (1 - fracaoA) = fracaoB + fracaoA - 1, mas pra mesmo ano cai aqui
+    return (ate.getTime() - de.getTime()) / (1000 * 60 * 60 * 24) / diasAnoB
   }
+  return fracaoA + anosInteiros + fracaoB
+}
+
+/** True se [aIni,aFim] e [bIni,bFim] têm interseção (datas-only, dia inteiro). */
+export function sobreposicao(aIni: Date, aFim: Date, bIni: Date, bFim: Date): boolean {
+  return aIni.getTime() <= bFim.getTime() && bIni.getTime() <= aFim.getTime()
 }
 
 /**
- * Pesos relativos por shape. Argumento i ∈ [0, n-1]; n = total de semanas.
- * Retorno >= 0. Normalização ocorre no algoritmo de geração.
+ * Fração do intervalo `[aIni,aFim]` que está dentro de `[bIni,bFim]`.
+ * Resultado entre 0 e 1. 0 quando não há sobreposição. 1 quando `a` está
+ * completamente dentro de `b`.
  *
- * - uniforme:      constante 1
- * - rampa-subida:  linear 0.3 → 1.0
- * - rampa-descida: linear 1.0 → 0.3
- * - sino:          parábola invertida, pico em t=0.5, bordas 0.2
- * - front-loaded:  exponencial decrescente exp(-2t)
- * - back-loaded:   espelho do front
+ * Conta em dias corridos (não úteis) — para distribuição de receita das
+ * tarefas diretas dentro do período da indireta isso é suficiente; receita
+ * é distribuída uniformemente no tempo.
  */
-export function pesoPerfil(perfil: PerfilNome, i: number, n: number): number {
-  if (n <= 0) return 0
-  if (n === 1) return 1 // 1 semana → tudo nela
-
-  const t = i / (n - 1) // ∈ [0, 1]
-
-  switch (perfil) {
-    case 'uniforme':
-      return 1
-    case 'rampa-subida':
-      return 0.3 + 0.7 * t
-    case 'rampa-descida':
-      return 1.0 - 0.7 * t
-    case 'sino': {
-      const x = 2 * t - 1
-      return 1.0 - 0.8 * x * x
-    }
-    case 'front-loaded':
-      return Math.exp(-2.0 * t)
-    case 'back-loaded':
-      return Math.exp(-2.0 * (1 - t))
-  }
+export function fracaoSobreposta(aIni: Date, aFim: Date, bIni: Date, bFim: Date): number {
+  const aDur = (aFim.getTime() - aIni.getTime()) / (1000 * 60 * 60 * 24) + 1
+  if (aDur <= 0) return 0
+  const interIni = Math.max(aIni.getTime(), bIni.getTime())
+  const interFim = Math.min(aFim.getTime(), bFim.getTime())
+  if (interFim < interIni) return 0
+  const interDur = (interFim - interIni) / (1000 * 60 * 60 * 24) + 1
+  return Math.max(0, Math.min(1, interDur / aDur))
 }
 
-/** Estima N (semanas iniciais) via amostragem barata de 26 semanas. */
-function estimarNSemanas(input: GerarPerfilInput): number {
-  if (input.duracaoEstimadaSemanas && input.duracaoEstimadaSemanas > 0) {
-    return input.duracaoEstimadaSemanas
-  }
-  const SAMPLE = 26
-  let soma = 0
-  let nz = 0
-  let cur = startOfWeekMondayUTC(input.dataInicio)
-  for (let i = 0; i < SAMPLE; i++) {
-    const c = input.capacidadePorSemana(cur)
-    if (c > 0) {
-      soma += c
-      nz++
-    }
-    cur = addDays(cur, 7)
-  }
-  if (nz === 0) return 1
-  const capMedia = soma / nz
-  return Math.max(1, Math.ceil(input.quantidadeTotal / capMedia))
-}
-
-/**
- * Gera perfil semanal pra uma tarefa. Approach C — sequential weighting com
- * extensão automática quando capacidade limita.
- *
- * Passos:
- *   1) Estima N inicial via amostragem da capacidade (ou usa duracaoEstimadaSemanas).
- *   2) Calcula pesos w_i = pesoPerfil(perfil, i, N).
- *   3) Pra cada semana i ∈ [0, N): target = (w_i / Σ_remaining(w)) × restante.
- *      Cap em capacidadePorSemana(segunda). Persiste min(target, cap, restante).
- *   4) Se restante > 0 após N semanas: extensão uniforme até zerar.
- *   5) Semana com capacidade 0 (paralisação total): qtd 0; consome peso w_i.
- *      Justificativa: paralisação no meio do projeto preserva shape inicial e
- *      empurra produção residual; manter "semana zerada" visível na UI é
- *      melhor que pular silencioso.
- *   6) Se restante > 0 após safetyMaxSemanas: atingiuSafety = true + parcial.
- *      Caller decide (persiste com warning ou aborta).
- *
- * dataInicio mid-week: primeira semanaSegunda = ISO Monday da semana de dataInicio.
- * Capacidade da semana parcial é menor naturalmente (só dias úteis restantes).
- */
-export function gerarPerfilSemanal(input: GerarPerfilInput): GerarPerfilResult {
-  const safetyMax = input.safetyMaxSemanas ?? SAFETY_MAX_SEMANAS
-  let restante = input.quantidadeTotal
-
-  if (restante <= 0) {
-    return { semanas: [], excedeuCapacidade: false, atingiuSafety: false, somaPlanejada: 0 }
-  }
-
-  const N = estimarNSemanas(input)
-
-  const pesos: number[] = []
-  for (let i = 0; i < N; i++) pesos.push(pesoPerfil(input.perfil, i, N))
-  let somaPesosRestante = pesos.reduce((a, b) => a + b, 0)
-
-  const semanas: SemanaPerfil[] = []
-  let segunda = startOfWeekMondayUTC(input.dataInicio)
-  let i = 0
-  let excedeu = false
-
-  while (restante > 1e-9) {
-    if (semanas.length >= safetyMax) {
-      return {
-        semanas,
-        excedeuCapacidade: excedeu,
-        atingiuSafety: true,
-        somaPlanejada: input.quantidadeTotal - restante
-      }
-    }
-
-    const cap = input.capacidadePorSemana(segunda)
-    let target: number
-
-    if (i < N) {
-      const w = pesos[i]
-      target = somaPesosRestante > 0 ? (w / somaPesosRestante) * restante : restante
-      somaPesosRestante -= w
-    } else {
-      // Fora da janela inicial: distribui o restante uniforme até zerar.
-      excedeu = true
-      target = restante
-    }
-
-    if (cap <= 0) {
-      // Paralisação total nesta semana — zero. Peso w_i ainda foi consumido acima.
-      semanas.push({ semanaSegunda: isoDate(segunda), quantidadePlanejada: 0 })
-      segunda = addDays(segunda, 7)
-      i++
-      continue
-    }
-
-    const plan = Math.min(target, cap, restante)
-    semanas.push({ semanaSegunda: isoDate(segunda), quantidadePlanejada: plan })
-    restante -= plan
-
-    segunda = addDays(segunda, 7)
-    i++
-  }
-
-  return {
-    semanas,
-    excedeuCapacidade: excedeu,
-    atingiuSafety: false,
-    somaPlanejada: input.quantidadeTotal - restante
-  }
-}
-
-/**
- * Desloca todas as semanas de um perfil em `deltaWeeks` semanas (positivo
- * forward, negativo backward). Preserva shape e quantidades; apenas as
- * datas mudam.
- *
- * Uso: predecessor empurra início de tarefa customizada — em vez de
- * regenerar (perdendo customização), faz shift.
- */
-export function shiftPerfilSemanas(semanas: SemanaPerfil[], deltaWeeks: number): SemanaPerfil[] {
-  if (deltaWeeks === 0 || semanas.length === 0) return semanas
-  return semanas.map((s) => ({
-    semanaSegunda: isoDate(addDays(parseISO(s.semanaSegunda), deltaWeeks * 7)),
-    quantidadePlanejada: s.quantidadePlanejada
-  }))
-}

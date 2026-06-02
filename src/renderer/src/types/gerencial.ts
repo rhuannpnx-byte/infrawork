@@ -24,7 +24,23 @@ export interface UsuarioComEmpresa extends UsuarioRow {
   engenheiro?: { id: string; nome: string } | null
 }
 
-export type UnidadeEspacoPadrao = 'km' | 'm' | 'estaca'
+export type UnidadeEspacoPadrao = 'km' | 'm' | 'estaca' | 'custom'
+
+/**
+ * Paleta de cores predefinidas pra trechos. Cores escolhidas pra contrastar
+ * entre si em mapas multi-trecho e serem distintas das cores de equipe
+ * (EQUIPE_CORES_PADRAO em types/planejamento.ts).
+ */
+export const TRECHO_CORES_PADRAO = [
+  '#3b82f6', // azul
+  '#22c55e', // verde
+  '#eab308', // amarelo
+  '#f97316', // laranja
+  '#ef4444', // vermelho
+  '#a855f7', // roxo
+  '#06b6d4', // ciano
+  '#d946ef'  // magenta
+]
 
 export interface Obra {
   id: string
@@ -32,8 +48,6 @@ export interface Obra {
   nome: string
   codigo: string
   status: string
-  /** Unidade de display padrão pra posições espaciais (km|m|estaca). Default 'km'. */
-  unidade_espaco_padrao: UnidadeEspacoPadrao
   created_at: string
 }
 
@@ -51,4 +65,36 @@ export interface ObraPermissao {
   usuario?: { id: string; nome: string; email: string; role: Role }
   /** Profile de quem concedeu. */
   concedente?: { id: string; nome: string }
+}
+
+/**
+ * Trecho de obra — segmento independente com estaqueamento/km proprio.
+ * Obra pode ter N trechos. Tarefa referencia 1 trecho (FK NOT NULL).
+ * Cada trecho carrega sua unidade de display (km|m|estaca|custom).
+ *
+ * Geometria e OPCIONAL — trecho pode existir sem mapa. Quando preenchida,
+ * `geometry_geojson` traz uma LineString GeoJSON; `geometry_sentido` indica
+ * se a UI deve renderizar a coordenada na ordem natural do KML ou invertida.
+ */
+export interface ObraTrecho {
+  id: string
+  obra_id: string
+  nome: string
+  ordem: number
+  unidade_espaco_padrao: UnidadeEspacoPadrao
+  cor: string
+  /** Label da unidade quando `unidade_espaco_padrao = 'custom'`. */
+  unidade_custom_label: string | null
+  /** Quantos metros equivalem a 1 unidade quando `unidade_espaco_padrao = 'custom'`. */
+  unidade_custom_divisor_m: number | null
+  /** Valor da unidade no inicio da polilinha (ex: 5 = trecho comeca no km 5). */
+  marcador_valor_inicial: number
+  /** GeoJSON LineString completo (com sentido ja aplicado se invertido na UI). */
+  geometry_geojson: GeoJSON.LineString | null
+  geometry_bounds: { south: number; west: number; north: number; east: number } | null
+  geometry_comprimento_m: number | null
+  geometry_sentido: 'natural' | 'invertido'
+  geometry_importado_em: string | null
+  created_at: string
+  updated_at: string
 }

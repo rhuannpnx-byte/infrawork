@@ -100,6 +100,106 @@
   }
 }
 
+/* ─── Cronograma Gantt (redesign Fase 1+) ─────────────────────────────────── */
+
+/* Slider de zoom logarítmico do CronogramaToolbar.
+ * Fill colorido até o valor atual + thumb destacado.
+ * Compatível com WebKit (Electron) e Firefox. */
+.cronograma-zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.cronograma-zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid var(--accent-line);
+  cursor: grab;
+  margin-top: -4px;
+  transition: transform 0.1s;
+}
+.cronograma-zoom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+.cronograma-zoom-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.3);
+}
+.cronograma-zoom-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid var(--accent-line);
+  cursor: grab;
+}
+
+/* Texturas de barras (Visualização panel → estilo "Textura").
+ * Cada classe é aplicada ao <TaskBar> baseada no primeiro segmento do
+ * código EAP (1-6 = ramo da árvore). Padrões diferentes facilitam
+ * identificação visual rápida de grupos quando barStyle = textured. */
+.bar-tex-1 { background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.18) 4px, rgba(255,255,255,0.18) 8px); }
+.bar-tex-2 { background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(255,255,255,0.18) 4px, rgba(255,255,255,0.18) 8px); }
+.bar-tex-3 { background-image: repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(255,255,255,0.18) 4px, rgba(255,255,255,0.18) 8px); }
+.bar-tex-4 { background-image: repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(255,255,255,0.18) 4px, rgba(255,255,255,0.18) 8px); }
+.bar-tex-5 { background-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.22) 1.4px, transparent 1.5px); background-size: 8px 8px; }
+.bar-tex-6 { background-image: repeating-linear-gradient(135deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px); }
+
+/* Setas de dependência do Gantt: hover realça em accent. */
+.dep-arrow .dep-arrow-path {
+  transition: stroke 120ms ease-out, stroke-width 120ms ease-out;
+  filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.6));
+}
+.dep-arrow:hover .dep-arrow-path {
+  stroke: var(--accent) !important;
+  stroke-width: 2;
+}
+.dep-arrow.critical:hover .dep-arrow-path {
+  stroke: var(--accent) !important;
+}
+
+/* Linha "HOJE" com chip rotulado no topo. */
+.gantt-today-chip {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  background: var(--accent);
+  color: oklch(12% 0.006 255);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 0 0 3px 0;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* Float (folga) indicator hachurado. */
+.gantt-float-indicator {
+  position: absolute;
+  height: 6px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255,255,255,0.20),
+    rgba(255,255,255,0.20) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top: 1px solid rgba(255,255,255,0.20);
+  border-bottom: 1px solid rgba(255,255,255,0.20);
+  pointer-events: none;
+  z-index: 4;
+}
+
 /* Leaflet — força z-index baixo para o mapa não passar por cima de modais/popovers */
 .leaflet-container { z-index: 0 !important; }
 .leaflet-pane,

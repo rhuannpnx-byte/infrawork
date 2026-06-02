@@ -62,6 +62,28 @@ export function useCriarRevisao(): ReturnType<
   })
 }
 
+/**
+ * Reset da obra com aproveitamento parcial de uma revisão de origem (ou do zero).
+ * Limpa estado live + auto-snapshot de preservação + copia seletivamente.
+ */
+export function useCopiarRevisaoOrcamento(): ReturnType<
+  typeof useMutation<
+    Awaited<ReturnType<typeof adminApi.copiarRevisaoOrcamento>>,
+    Error,
+    Parameters<typeof adminApi.copiarRevisaoOrcamento>[0]
+  >
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body) => adminApi.copiarRevisaoOrcamento(body),
+    onSuccess: (_d, vars) => {
+      // Invalida tudo da obra — orçamento foi resetado.
+      void qc.invalidateQueries({ queryKey: ['orcamento'] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'revisoes', vars.obra_id] })
+    }
+  })
+}
+
 export function useTransicionarStatus(): ReturnType<
   typeof useMutation<
     Awaited<ReturnType<typeof adminApi.transicionarStatusRevisao>>,

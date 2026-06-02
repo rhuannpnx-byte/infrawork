@@ -47,30 +47,54 @@ function Lucratividade(): ReactNode {
                     <th className="text-left px-3 py-2">Descrição</th>
                     <th className="text-right px-3 py-2">Venda</th>
                     <th className="text-right px-3 py-2">Custo</th>
+                    <th
+                      className="text-right px-3 py-2"
+                      title={`Taxa aplicada: ${fmtPct2(lucr.aliquota_total_perc)} sobre a venda`}
+                    >
+                      Taxas ({fmtPct2(lucr.aliquota_total_perc)})
+                    </th>
+                    <th className="text-right px-3 py-2">Lucro R$</th>
                     <th className="text-right px-3 py-2">Lucr.%</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(plan?.tree ?? []).map((raiz) => (
-                    <tr key={raiz.id} className="border-b border-border/40">
-                      <td className="px-3 py-2 text-text-dim">{raiz.codigo}</td>
-                      <td className="px-3 py-2 text-text">{raiz.descricao}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {fmtBRL(raiz.venda_total_calc)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-text-muted">
-                        {fmtBRL(raiz.custo_total_calc)}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {raiz.lucratividade_perc_calc !== null
-                          ? fmtPct2(raiz.lucratividade_perc_calc)
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {(plan?.tree ?? []).map((raiz) => {
+                    const venda = raiz.venda_total_calc
+                    const custo = raiz.custo_total_calc
+                    const taxa = venda * lucr.aliquota_total_perc
+                    const lucroRs = venda - custo - taxa
+                    const lucroPerc = venda > 0 ? lucroRs / venda : null
+                    return (
+                      <tr key={raiz.id} className="border-b border-border/40">
+                        <td className="px-3 py-2 text-text-dim">{raiz.codigo}</td>
+                        <td className="px-3 py-2 text-text">{raiz.descricao}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtBRL(venda)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-text-muted">
+                          {fmtBRL(custo)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-warn">
+                          {fmtBRL(taxa)}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-right tabular-nums ${
+                            lucroRs < 0 ? 'text-danger' : 'text-success'
+                          }`}
+                        >
+                          {fmtBRL(lucroRs)}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-right tabular-nums ${
+                            lucroPerc !== null && lucroPerc < 0 ? 'text-danger' : ''
+                          }`}
+                        >
+                          {lucroPerc !== null ? fmtPct2(lucroPerc) : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {(plan?.tree ?? []).length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-6 text-center text-text-muted">
+                      <td colSpan={7} className="p-6 text-center text-text-muted">
                         Nenhum item no Planilha Orçamentária ainda.
                       </td>
                     </tr>

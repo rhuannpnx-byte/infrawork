@@ -23,7 +23,11 @@ import {
   useReativarVinculo
 } from '@/features/acompanhamento/hooks'
 import { useDashboardResumo, useProducoesDashboard } from '@/features/acompanhamento/hooks/dashboard'
+import { useFotosGeo } from '@/features/acompanhamento/hooks/fotos'
+import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { useDashboardFiltrosStore, periodoDias } from '@/features/acompanhamento/stores/dashboard-filtros'
+import { useMapaPrefsStore } from '@/features/acompanhamento/stores/mapa-prefs'
+import { agruparSequencias, producaoSemFoto } from '@/features/acompanhamento/lib/sequencia-ataque'
 import { CurvaSAcompanhamento } from '@/features/acompanhamento/components/dashboard/CurvaSAcompanhamento'
 import { TopServicosBar } from '@/features/acompanhamento/components/dashboard/TopServicosBar'
 import { RankingProdutividade } from '@/features/acompanhamento/components/dashboard/RankingProdutividade'
@@ -87,6 +91,19 @@ function DashboardAcompanhamento(): ReactNode {
     janela.ate,
     servicoItemId
   )
+  // Mini-mapa: fotos geo enriquecidas + trechos (KMZ) + sequência de ataque,
+  // herdando as preferências da engrenagem (consistência com a página dedicada).
+  const { data: fotosGeo = [] } = useFotosGeo(link?.ativo ? obraId : null)
+  const { data: trechosMapa = [] } = useObraTrechos(link?.ativo ? obraId : null)
+  const mostrarSeqMapa = useMapaPrefsStore((s) => s.mostrarSequenciaAtaque)
+  const sequenciasMapa = useMemo(
+    () => (mostrarSeqMapa ? agruparSequencias(fotosGeo, prodsDash, trechosMapa) : []),
+    [mostrarSeqMapa, fotosGeo, prodsDash, trechosMapa]
+  )
+  const avisosSemFotoMapa = useMemo(
+    () => (mostrarSeqMapa ? producaoSemFoto(fotosGeo, prodsDash) : []),
+    [mostrarSeqMapa, fotosGeo, prodsDash]
+  )
   const sync = useSyncManual()
   const desvincular = useDesvincular()
   const reativar = useReativarVinculo()
@@ -144,9 +161,6 @@ function DashboardAcompanhamento(): ReactNode {
     .filter((p) => p.qtd_plan && p.qtd_plan > 0)
     .map((p) => ({ id: p.item_orcamentario_id, label: `${p.codigo} — ${p.descricao}` }))
 
-  // Foto-set: respeita filtro de serviço se possível (matching por servico_id seria custoso aqui;
-  // o dashboard-resumo retorna fotos_geo sem filtro)
-  const fotos = resumo?.fotos_geo ?? []
 
   return (
     <div className="flex flex-col h-full">
@@ -437,7 +451,13 @@ function DashboardAcompanhamento(): ReactNode {
           </div>
 
           {/* ─── Mapa de fotos (full-width na parte inferior) ─── */}
-          <MapaFotosDashboard fotos={fotos} altura={420} />
+          <MapaFotosDashboard
+            fotos={fotosGeo}
+            trechos={trechosMapa}
+            sequencias={sequenciasMapa}
+            avisosSemFoto={avisosSemFotoMapa}
+            altura={420}
+          />
         </div>
       </div>
     </div>

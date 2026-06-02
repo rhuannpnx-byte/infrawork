@@ -3,7 +3,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { fmtBRL, fmtBRL4, fmtQtd } from '@/lib/money'
+import { fmtBRL, fmtBRL4, fmtQtd, parseBR } from '@/lib/money'
 import type { CpuItemComRecurso, CpuItemGrupo, Recurso } from '@/types/orcamento'
 import { CPU_ITEM_GRUPO_LABEL, CPU_ITEM_GRUPO_TO_RECURSO_GRUPOS } from '@/types/orcamento'
 import { useDeleteCpuItem, useUpsertCpuItem } from '../hooks/cpus'
@@ -311,7 +311,8 @@ function CpuItemRow({ item, grupo, producaoDiaria, onSave, onDelete }: RowProps)
 }
 
 function parseN(s: string): number {
-  const n = Number((s ?? '').replace(',', '.'))
+  // parseBR: aceita "1.234,56" (BR) e "1234.56" (raw). Evita perda silenciosa.
+  const n = parseBR(s ?? '').toNumber()
   return isNaN(n) ? 0 : n
 }
 

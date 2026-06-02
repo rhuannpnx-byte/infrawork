@@ -5,7 +5,11 @@ import { RequireObra } from '@/components/layout/RequireObra'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useFotosInfinite } from '@/features/acompanhamento/hooks/fotos'
+import { useProducao } from '@/features/acompanhamento/hooks/producao'
+import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { useFotosFiltrosStore, type FotosViewMode } from '@/features/acompanhamento/stores/fotos-filtros'
+import { useMapaPrefsStore } from '@/features/acompanhamento/stores/mapa-prefs'
+import { agruparSequencias, producaoSemFoto } from '@/features/acompanhamento/lib/sequencia-ataque'
 import { FotosGridVirtualizado } from '@/features/acompanhamento/components/fotos/FotosGridVirtualizado'
 import { MapaFotosSatelite } from '@/features/acompanhamento/components/fotos/MapaFotosSatelite'
 import { FotoLightbox } from '@/features/acompanhamento/components/fotos/FotoLightbox'
@@ -45,6 +49,22 @@ function Inner(): ReactNode {
   const fotos = useMemo<FotoEnriquecida[]>(
     () => (pages?.pages ?? []).flatMap((p) => p.fotos),
     [pages]
+  )
+
+  // Trechos (KMZ) + sequência de ataque. A sequência só é computada quando ligada.
+  const { data: trechos = [] } = useObraTrechos(obraId)
+  const mostrarSeq = useMapaPrefsStore((s) => s.mostrarSequenciaAtaque)
+  const { data: producoes = [] } = useProducao(obraId, {
+    data_de: filtros.data_de ?? undefined,
+    data_ate: filtros.data_ate ?? undefined
+  })
+  const sequencias = useMemo(
+    () => (mostrarSeq ? agruparSequencias(fotos, producoes, trechos) : []),
+    [mostrarSeq, fotos, producoes, trechos]
+  )
+  const avisosSemFoto = useMemo(
+    () => (mostrarSeq ? producaoSemFoto(fotos, producoes) : []),
+    [mostrarSeq, fotos, producoes]
   )
 
   // Catálogo de serviços do dataset atual (para o filtro)
@@ -135,6 +155,9 @@ function Inner(): ReactNode {
               fotos={fotos}
               onPickFoto={(i) => setLightboxIdx(i)}
               layoutKey={filtros.view_mode}
+              trechos={trechos}
+              sequencias={sequencias}
+              avisosSemFoto={avisosSemFoto}
             />
           </div>
         )}

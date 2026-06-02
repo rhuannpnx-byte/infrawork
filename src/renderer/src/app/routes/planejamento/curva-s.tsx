@@ -11,7 +11,7 @@ import {
 } from '@/features/planejamento/hooks'
 import { calcularCurvaSemanal } from '@/features/planejamento/hooks/cronograma'
 import { CurvaSChart } from '@/features/planejamento/components/CurvaSChart'
-import { fmtBRL, fmtPct2 } from '@/lib/money'
+import { fmtBRL } from '@/lib/money'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 
 export function PlanejamentoCurvaSPage(): ReactNode {
@@ -45,7 +45,17 @@ function CurvaSInner(): ReactNode {
     [tarefasBaseline]
   )
 
-  const totalCusto = tarefas.reduce((acc, t) => acc + (t.custo_total_tarefa ?? 0), 0)
+  // Totais consolidados: indiretas usam custo_total_calc + custo_taxas_calc,
+  // diretas usam custo_total_calc (que via view v10 já é custo_unit × qtd).
+  const totalCusto = tarefas.reduce(
+    (acc, t) =>
+      acc +
+      Number(t.custo_total_calc ?? t.custo_total_tarefa ?? 0) +
+      Number(t.custo_taxas_calc ?? 0),
+    0
+  )
+  const totalReceita = tarefas.reduce((acc, t) => acc + Number(t.receita_total_calc ?? 0), 0)
+  const margem = totalReceita - totalCusto
 
   if (!planAtivo) {
     return (
@@ -82,8 +92,14 @@ function CurvaSInner(): ReactNode {
         }
       />
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           <Stat label="Custo total" value={fmtBRL(totalCusto)} />
+          <Stat label="Receita total" value={fmtBRL(totalReceita)} />
+          <Stat
+            label="Margem"
+            value={fmtBRL(margem)}
+            tone={margem >= 0 ? 'positive' : 'negative'}
+          />
           <Stat
             label="Início"
             value={fmtDataBR(curvaPlanejada[0]?.periodo ?? planSel?.data_referencia_inicio)}
@@ -106,34 +122,36 @@ function CurvaSInner(): ReactNode {
                 <thead className="text-text-dim uppercase text-2xs bg-bg sticky top-0">
                   <tr className="border-b border-border">
                     <th className="text-left px-3 py-1.5">Semana</th>
-                    <th className="text-right px-3 py-1.5">Custo do período</th>
-                    <th className="text-right px-3 py-1.5">Acumulado</th>
-                    <th className="text-right px-3 py-1.5">% Planejado</th>
-                    {curvaBaseline ? (
-                      <th className="text-right px-3 py-1.5">% Baseline</th>
-                    ) : null}
+                    <th className="text-right px-3 py-1.5">Custo período</th>
+                    <th className="text-right px-3 py-1.5">Custo acum.</th>
+                    <th className="text-right px-3 py-1.5">Receita período</th>
+                    <th className="text-right px-3 py-1.5">Receita acum.</th>
+                    <th className="text-right px-3 py-1.5">Δ margem acum.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {curvaPlanejada.map((row) => {
-                    const baseRow = curvaBaseline?.find((b) => b.periodo === row.periodo)
+                    const margemAcum = row.receita_acumulada - row.custo_acumulado
                     return (
                       <tr key={row.periodo} className="border-b border-border/40">
                         <td className="px-3 py-1.5">{fmtDataBR(row.periodo)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {fmtBRL(row.custo_periodo)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">
+                        <td className="px-3 py-1.5 text-right tabular-nums text-accent">
                           {fmtBRL(row.custo_acumulado)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-accent">
-                          {fmtPct2(row.perc_acumulado)}
+                        <td className="px-3 py-1.5 text-right tabular-nums">
+                          {fmtBRL(row.receita_periodo)}
                         </td>
-                        {curvaBaseline ? (
-                          <td className="px-3 py-1.5 text-right tabular-nums text-text-dim">
-                            {baseRow ? fmtPct2(baseRow.perc_acumulado) : '—'}
-                          </td>
-                        ) : null}
+                        <td className="px-3 py-1.5 text-right tabular-nums text-emerald-400">
+                          {fmtBRL(row.receita_acumulada)}
+                        </td>
+                        <td
+                          className={`px-3 py-1.5 text-right tabular-nums ${margemAcum >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                        >
+                          {fmtBRL(margemAcum)}
+                        </td>
                       </tr>
                     )
                   })}
@@ -147,13 +165,23 @@ function CurvaSInner(): ReactNode {
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }): ReactNode {
+function Stat({
+  label,
+  value,
+  tone = 'neutral'
+}: {
+  label: string
+  value: string
+  tone?: 'neutral' | 'positive' | 'negative'
+}): ReactNode {
+  const valueClass =
+    tone === 'positive' ? 'text-emerald-400' : tone === 'negative' ? 'text-red-400' : 'text-text'
   return (
     <div className="rounded border border-border bg-bg-panel p-3">
       <div className="text-2xs font-mono text-text-dim uppercase tracking-wider mb-1">
         {label}
       </div>
-      <div className="text-md font-mono text-text">{value}</div>
+      <div className={`text-md font-mono ${valueClass}`}>{value}</div>
     </div>
   )
 }

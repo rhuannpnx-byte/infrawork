@@ -8,6 +8,7 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type Row,
   type SortingState,
   type RowSelectionState,
   type VisibilityState
@@ -42,6 +43,11 @@ interface DataTableProps<T> {
   emptyMessage?: string
   emptyDescription?: string
   initialPageSize?: number
+  /** Habilita coluna de checkbox de seleção. */
+  enableRowSelection?: boolean
+  /** Slot pra renderizar ações em lote no toolbar quando há seleção.
+   *  Recebe as linhas selecionadas + callback pra limpar a seleção. */
+  selectionActions?: (selectedRows: T[], clearSelection: () => void) => ReactNode
 }
 
 export function DataTable<T>({
@@ -54,7 +60,9 @@ export function DataTable<T>({
   toolbarRight,
   emptyMessage = 'Nenhum registro encontrado',
   emptyDescription,
-  initialPageSize = 50
+  initialPageSize = 50,
+  enableRowSelection = false,
+  selectionActions
 }: DataTableProps<T>): ReactNode {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -65,9 +73,61 @@ export function DataTable<T>({
   const setDensity = useUIStore((s) => s.setDensity)
   const openModal = useUIStore((s) => s.openModal)
 
+  // Pré-pende coluna de checkbox quando enableRowSelection. Mantém memoização
+  // estável: o array de columns recebido como prop não muda, então o spread
+  // só recalcula se enableRowSelection mudar.
+  const effectiveColumns = useMemo<ColumnDef<T, unknown>[]>(() => {
+    if (!enableRowSelection) return columns
+    const selectCol: ColumnDef<T, unknown> = {
+      id: '__select__',
+      size: 32,
+      enableSorting: false,
+      enableHiding: false,
+      header: ({ table }) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            table.toggleAllPageRowsSelected(!table.getIsAllPageRowsSelected())
+          }}
+          className={cn(
+            'w-3.5 h-3.5 inline-flex items-center justify-center rounded border',
+            table.getIsAllPageRowsSelected()
+              ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
+              : table.getIsSomePageRowsSelected()
+                ? 'border-accent bg-accent/40'
+                : 'border-border-strong hover:border-accent'
+          )}
+          title="Selecionar todos nesta página"
+        >
+          {table.getIsAllPageRowsSelected() ? '✓' : table.getIsSomePageRowsSelected() ? '−' : ''}
+        </button>
+      ),
+      cell: ({ row }: { row: Row<T> }) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            row.toggleSelected(!row.getIsSelected())
+          }}
+          className={cn(
+            'w-3.5 h-3.5 inline-flex items-center justify-center rounded border text-2xs',
+            row.getIsSelected()
+              ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
+              : 'border-border-strong hover:border-accent'
+          )}
+        >
+          {row.getIsSelected() ? '✓' : ''}
+        </button>
+      )
+    }
+    return [selectCol, ...columns]
+  }, [columns, enableRowSelection])
+
   const table = useReactTable({
     data,
-    columns,
+    columns: effectiveColumns,
+    enableRowSelection,
     state: { sorting, globalFilter, columnFilters, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
@@ -82,6 +142,13 @@ export function DataTable<T>({
   })
 
   const selectedCount = useMemo(() => Object.keys(rowSelection).length, [rowSelection])
+  const selectedRows = useMemo<T[]>(
+    () => table.getSelectedRowModel().rows.map((r) => r.original),
+    // O `table` é estável; o que muda é rowSelection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rowSelection]
+  )
+  const clearSelection = (): void => setRowSelection({})
 
   const rowHeight = density === 'compact' ? 'h-7' : 'h-8'
   const cellPad = density === 'compact' ? 'px-2 py-1' : 'px-3 py-1.5'
@@ -101,7 +168,15 @@ export function DataTable<T>({
         </div>
 
         {selectedCount > 0 ? (
-          <Badge variant="accent">{selectedCount} selecionado{selectedCount > 1 ? 's' : ''}</Badge>
+          <>
+            <Badge variant="accent">
+              {selectedCount} selecionado{selectedCount > 1 ? 's' : ''}
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
+              Limpar seleção
+            </Button>
+            {selectionActions ? selectionActions(selectedRows, clearSelection) : null}
+          </>
         ) : null}
 
         {toolbarLeft}
