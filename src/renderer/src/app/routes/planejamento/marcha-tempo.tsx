@@ -91,16 +91,24 @@ function MarchaTempoInner(): ReactNode {
   const [trechosSelecionados, setTrechosSelecionados] = useState<string[]>([])
   const [opcoes, setOpcoes] = useState<MarchaTempoOpcoes>(() =>
     carregarOpcoes({
-      eixoXTempo: true,
+      eixoXTempo: false,
       geom: 'perfilada',
       granularidadeTempo: 'auto',
       passoPosicaoM: null,
       mostrarMarcos: true,
       mostrarDependencias: false,
       mostrarTodayLine: true,
-      colunasQuantidade: []
+      mostrarConflitos: true,
+      mostrarNaoTrabalhado: true,
+      eixosEspelhados: true,
+      colunasQuantidade: [],
+      densidade: 'Médio',
+      trajetoria: 'Técnico',
+      ambiente: 'Carbono',
+      estilosSerie: {}
     })
   )
+  const [exportRequest, setExportRequest] = useState(0)
 
   // Persistência: opções globais (salva a cada mudança)
   useEffect(() => {
@@ -197,6 +205,7 @@ function MarchaTempoInner(): ReactNode {
             opcoes={opcoes}
             onChangeOpcoes={setOpcoes}
             templatesPorTrecho={templatesPorTrecho}
+            onExportPdf={() => setExportRequest((n) => n + 1)}
           />
         </div>
 
@@ -223,6 +232,11 @@ function MarchaTempoInner(): ReactNode {
               dependencias={dependencias}
               dataDate={planSel?.data_date ?? null}
               opcoes={opcoes}
+              onChangeOpcoes={setOpcoes}
+              exportRequest={exportRequest}
+              onExportConsumed={() => {
+                /* nada — reaberto pelo next request */
+              }}
             />
           )}
         </div>

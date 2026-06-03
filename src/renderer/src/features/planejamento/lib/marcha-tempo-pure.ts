@@ -542,3 +542,270 @@ export function gerarTicksPosicao(
   }
   return out
 }
+
+// ─── Helpers v2 (port do design Claude Design — Plot redesenhado) ──────────
+
+const FERIADOS = new Set<string>([
+  '2026-06-04',
+  '2026-07-09',
+  '2026-09-07'
+])
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function isoLocal(ms: number): string {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+export function ehFeriado(ms: number): boolean {
+  return FERIADOS.has(isoLocal(ms))
+}
+
+export function ehFimDeSemana(ms: number): boolean {
+  const w = new Date(ms).getDay()
+  return w === 0 || w === 6
+}
+
+export function ehDiaUtil(ms: number): boolean {
+  return !ehFimDeSemana(ms) && !ehFeriado(ms)
+}
+
+export function meiaNoite(ms: number): number {
+  const d = new Date(ms)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+}
+
+const MES_LONGO = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const DIA_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+
+/** "sex · 24 jul" — usado no chip de data do crosshair */
+export function fmtDataLonga(ms: number): string {
+  const d = new Date(ms)
+  return `${DIA_SEM[d.getDay()]} · ${pad2(d.getDate())} ${MES_LONGO[d.getMonth()]}`
+}
+
+/** "24/07" — formato curto dos ticks do eixo Y */
+export function fmtDataBR(ms: number): string {
+  const d = new Date(ms)
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`
+}
+
+/** Compacta quantidade: 1.234.567 → "1,2M" / 12.345 → "12k" / 234 → "234" */
+export function fmtQtdCompact(v: number): string {
+  if (!Number.isFinite(v)) return '—'
+  if (v >= 1e6) return (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace('.', ',') + 'M'
+  if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e4 ? 0 : 1).replace('.', ',') + 'k'
+  return String(Math.round(v))
+}
+
+/** Marcador curto sem decimais — usado em ticks. Ex: 45375.09 → "45+375" */
+export function formatMarcadorCurto(m: number): string {
+  const km = Math.floor(m / 1000)
+  const rest = Math.round(m - km * 1000)
+  return `${km}+${String(rest).padStart(3, '0')}`
+}
+
+// ─── Geometria: cruzamentos entre polilinhas (conflitos espaço-temporais) ──
+
+export interface Ponto2D {
+  x: number
+  y: number
+}
+
+/** Interseção entre 2 segmentos (p1→p2) × (p3→p4). null = sem cruzamento. */
+export function segInter(
+  p1: Ponto2D,
+  p2: Ponto2D,
+  p3: Ponto2D,
+  p4: Ponto2D
+): Ponto2D | null {
+  const d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x)
+  if (Math.abs(d) < 1e-9) return null
+  const t = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d
+  const u = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null
+  return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) }
+}
+
+/** Distância ponto→segmento em px (usado pro hover near-line). */
+export function distSeg(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const l2 = dx * dx + dy * dy
+  let t = l2 ? ((px - x1) * dx + (py - y1) * dy) / l2 : 0
+  t = Math.max(0, Math.min(1, t))
+  const cx = x1 + t * dx
+  const cy = y1 + t * dy
+  return Math.hypot(px - cx, py - cy)
+}
+
+// ─── Path builders (degrau cru vs suavizado Catmull-Rom→Bezier) ────────────
+
+/** Polilinha em degraus retos. Usado pra modo Técnico/Encorpado. */
+export function pathReto(pts: ReadonlyArray<{ x: number; y: number }>): string {
+  if (pts.length === 0) return ''
+  return 'M' + pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')
+}
+
+/** Catmull-Rom → Bezier cúbica. Usado pra modo Fluido (cadência contínua). */
+export function pathSuave(pts: ReadonlyArray<{ x: number; y: number }>): string {
+  if (pts.length < 3) return pathReto(pts)
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[i + 2] || p2
+    const c1x = p1.x + (p2.x - p0.x) / 6
+    const c1y = p1.y + (p2.y - p0.y) / 6
+    const c2x = p2.x - (p3.x - p1.x) / 6
+    const c2y = p2.y - (p3.y - p1.y) / 6
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
+  }
+  return d
+}
+
+// ─── Detecção de conflitos espaço-temporais entre trajetórias ──────────────
+
+export interface ConflitoEspaco {
+  posM: number
+  dateMs: number
+  a: string
+  b: string
+}
+
+/** Para cada par de trajetórias com cruzamento real, retorna o ponto onde
+ *  elas se encontram no espaço-tempo. Trabalha em coords de dado, não px,
+ *  para permanecer invariante a zoom/resize. */
+export function detectarConflitos(
+  tracos: Array<{
+    tarefaId: string
+    ilhas: Array<Array<{ data: string; posicaoM: number }>>
+  }>
+): ConflitoEspaco[] {
+  const out: ConflitoEspaco[] = []
+  // Amostra cada N pontos pra reduzir custo O(N×N×M²)
+  const STEP = 3
+  const pts = tracos.map((t) => {
+    const flat: Array<{ x: number; y: number }> = []
+    for (const ilha of t.ilhas) {
+      for (let i = 0; i < ilha.length; i += STEP) {
+        const p = ilha[i]
+        flat.push({
+          x: p.posicaoM,
+          y: new Date(`${p.data}T00:00:00Z`).getTime()
+        })
+      }
+      const last = ilha[ilha.length - 1]
+      if (last) {
+        flat.push({
+          x: last.posicaoM,
+          y: new Date(`${last.data}T00:00:00Z`).getTime()
+        })
+      }
+    }
+    return flat
+  })
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const A = pts[i]
+      const B = pts[j]
+      for (let a = 0; a < A.length - 1; a++) {
+        for (let b = 0; b < B.length - 1; b++) {
+          const hit = segInter(A[a], A[a + 1], B[b], B[b + 1])
+          if (hit) {
+            out.push({
+              posM: hit.x,
+              dateMs: hit.y,
+              a: tracos[i].tarefaId,
+              b: tracos[j].tarefaId
+            })
+          }
+        }
+      }
+    }
+  }
+  return out
+}
+
+// ─── Fim-de-semana / feriado bands ─────────────────────────────────────────
+
+export interface BandaNaoTrabalhada {
+  inicio: number
+  fim: number
+  fer: boolean
+}
+
+/** Gera bandas no domínio de tempo. Funde dias contíguos do mesmo tipo. */
+export function bandasNaoTrabalhadas(t0: number, t1: number): BandaNaoTrabalhada[] {
+  const out: BandaNaoTrabalhada[] = []
+  let d = meiaNoite(t0)
+  while (d <= t1) {
+    const w = new Date(d).getDay()
+    const fer = ehFeriado(d)
+    if (w === 6 || w === 0 || fer) {
+      out.push({
+        inicio: Math.max(d, t0),
+        fim: Math.min(d + DAY, t1),
+        fer
+      })
+    }
+    d += DAY
+  }
+  const merged: BandaNaoTrabalhada[] = []
+  for (const b of out) {
+    const last = merged[merged.length - 1]
+    if (last && Math.abs(last.fim - b.inicio) < 1 && last.fer === b.fer) {
+      last.fim = b.fim
+    } else {
+      merged.push({ ...b })
+    }
+  }
+  return merged
+}
+
+// ─── Meses no eixo Y (com flag de zebra) ───────────────────────────────────
+
+export interface MesGrid {
+  ms: number
+  msReal: number
+  fim: number
+  nome: string
+  zebra: number
+}
+
+const MES_CURTO = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+
+export function gerarMesesGrid(t0: number, t1: number): MesGrid[] {
+  const out: MesGrid[] = []
+  const d0 = new Date(t0)
+  let cur = new Date(d0.getFullYear(), d0.getMonth(), 1).getTime()
+  while (cur <= t1) {
+    const next = new Date(
+      new Date(cur).getFullYear(),
+      new Date(cur).getMonth() + 1,
+      1
+    ).getTime()
+    if (next > t0) {
+      out.push({
+        ms: Math.max(cur, t0),
+        msReal: cur,
+        fim: Math.min(next, t1),
+        nome: MES_CURTO[new Date(cur).getMonth()],
+        zebra: new Date(cur).getMonth() % 2
+      })
+    }
+    cur = next
+  }
+  return out
+}

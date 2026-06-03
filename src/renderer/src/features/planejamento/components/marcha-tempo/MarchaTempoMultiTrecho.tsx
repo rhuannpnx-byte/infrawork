@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type {
   MarchaTempoOpcoes,
   PlanejamentoDependencia,
@@ -8,6 +8,8 @@ import type {
 import type { ObraTrecho } from '@/types/gerencial'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 import { MarchaTempoPainel } from './MarchaTempoPainel'
+import { MarchaTempoSeriesPanel } from './MarchaTempoSeriesPanel'
+import { MarchaTempoExport } from './MarchaTempoExport'
 
 interface MarchaTempoMultiTrechoProps {
   tarefas: PlanejamentoTarefaCompleta[]
@@ -18,6 +20,9 @@ interface MarchaTempoMultiTrechoProps {
   dependencias: PlanejamentoDependencia[]
   dataDate: string | null
   opcoes: MarchaTempoOpcoes
+  onChangeOpcoes: (op: MarchaTempoOpcoes) => void
+  exportRequest: number
+  onExportConsumed: () => void
 }
 
 export function MarchaTempoMultiTrecho({
@@ -28,7 +33,10 @@ export function MarchaTempoMultiTrecho({
   templatesPorTrecho,
   dependencias,
   dataDate,
-  opcoes
+  opcoes,
+  onChangeOpcoes,
+  exportRequest,
+  onExportConsumed
 }: MarchaTempoMultiTrechoProps): ReactNode {
   const dominioTempo = useMemo<[number, number]>(() => {
     let lo = Number.POSITIVE_INFINITY
@@ -56,23 +64,56 @@ export function MarchaTempoMultiTrecho({
     [trechosSelecionados, trechos]
   )
 
+  // Estado do export: trecho-alvo é o 1º selecionado, modal abre quando
+  // exportRequest muda
+  const [exportOpen, setExportOpen] = useState(false)
+  const [lastReq, setLastReq] = useState(exportRequest)
+  if (exportRequest !== lastReq) {
+    setLastReq(exportRequest)
+    setExportOpen(true)
+  }
+
   if (trechosParaRender.length === 0) return null
+
+  const trechoExport = trechosParaRender[0]
+  const templateExport = templatesPorTrecho.get(trechoExport.id) ?? null
 
   return (
     <div className="flex flex-col gap-3">
       {trechosParaRender.map((trecho) => (
-        <MarchaTempoPainel
-          key={trecho.id}
-          trecho={trecho}
-          template={templatesPorTrecho.get(trecho.id) ?? null}
-          tarefas={tarefas}
-          tracos={tracos}
-          dependencias={dependencias}
-          dominioTempo={dominioTempo}
-          dataDate={dataDate}
-          opcoes={opcoes}
-        />
+        <div key={trecho.id} className="flex flex-col">
+          <MarchaTempoPainel
+            trecho={trecho}
+            template={templatesPorTrecho.get(trecho.id) ?? null}
+            tarefas={tarefas}
+            tracos={tracos}
+            dependencias={dependencias}
+            dominioTempo={dominioTempo}
+            dataDate={dataDate}
+            opcoes={opcoes}
+          />
+          <MarchaTempoSeriesPanel
+            tracos={tracos.filter((t) => t.trechoId === trecho.id)}
+            estilos={opcoes.estilosSerie}
+            onChange={(estilos) => onChangeOpcoes({ ...opcoes, estilosSerie: estilos })}
+          />
+        </div>
       ))}
+
+      <MarchaTempoExport
+        open={exportOpen}
+        onClose={() => {
+          setExportOpen(false)
+          onExportConsumed()
+        }}
+        trecho={trechoExport}
+        template={templateExport}
+        tracos={tracos.filter((t) => t.trechoId === trechoExport.id)}
+        tarefas={tarefas}
+        dataDate={dataDate}
+        dominioTempo={dominioTempo}
+        opcoes={opcoes}
+      />
     </div>
   )
 }

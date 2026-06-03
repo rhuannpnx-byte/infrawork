@@ -1,349 +1,270 @@
-import type { ReactNode } from 'react'
-import { fmtQtd } from '@/lib/money'
-import { corDoServico } from '@/features/planejamento/lib/marcha-tempo-pure'
+// MarchaTempoFaixaQuantidades — faixas de quantidade ancoradas ao mesmo eixo
+// de caminho do plot, com intensity fill (alpha cresce com o valor) + header
+// inline não-rotacionado + Σ total + guia compartilhada com o plot.
+
+import { useCallback, type ReactNode } from 'react'
+import { fmtQtdCompact } from '@/features/planejamento/lib/marcha-tempo-pure'
+import type { EstiloSerie } from '@/types/planejamento'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
+
+interface DensPreset {
+  band: number
+  head: number
+  gap: number
+  font: number
+}
 
 interface MarchaTempoFaixaQuantidadesProps {
   template: TrechoQuantidadeVersaoCompleta | null
   nomesColunas: string[]
   dominioPos: [number, number]
-  innerH: number
+  sx: (v: number) => number
   innerW: number
-  /** true = caminho no Y (faixas à esquerda do plot, verticais). false = caminho no X (faixas em cima, horizontais). */
-  eixoXTempo: boolean
-  larguraFaixa?: number
-  /** Espaço (px) disponível antes do eixo Y. Header horizontal entra aqui. */
-  margemLeft: number
-  /** Px acima do plot reservados pra essa faixa (header vertical quando
-   *  eixoXTempo=true; altura total das faixas horizontais quando false). */
-  topOffset: number
+  majors: number[]
+  alturaFaixas: number
+  dens: DensPreset
+  estilosSerie: Record<string, EstiloSerie>
+  vguide: number | null
+  onBandTip: (b: {
+    cx: number
+    cy: number
+    colunaCodigo: string
+    colunaNome: string
+    colunaCor: string
+    colunaUn: string | null
+    colunaTotal: number
+    segValor: number
+    segIni: number
+    segFim: number
+  } | null) => void
 }
 
-interface Grupo {
-  ini: number
-  fim: number
-  valor: number
-}
-
-/**
- * Agrupa segmentos VIZINHOS DIRETOS (separação ≤ 0,5m) com valor > 0 na
- * coluna. Cada grupo vira 1 bloco contínuo no eixo posição.
- */
-function agruparSegmentos(
-  template: TrechoQuantidadeVersaoCompleta,
-  colunaId: string,
-  domLo: number,
-  domHi: number
-): Grupo[] {
-  const segsOrdenados = [...template.segmentos]
-    .map((s) => ({
-      ini: Math.min(s.posicao_inicio_m, s.posicao_fim_m),
-      fim: Math.max(s.posicao_inicio_m, s.posicao_fim_m),
-      valor: typeof s.valores[colunaId] === 'number' ? Number(s.valores[colunaId]) : 0
-    }))
-    .filter((s) => s.fim > s.ini && s.valor > 0)
-    .sort((a, b) => a.ini - b.ini)
-
-  const grupos: Grupo[] = []
-  const TOLERANCIA = 0.5
-
-  for (const seg of segsOrdenados) {
-    const interLo = Math.max(domLo, seg.ini)
-    const interHi = Math.min(domHi, seg.fim)
-    if (interHi <= interLo) continue
-    const fracao = (interHi - interLo) / (seg.fim - seg.ini)
-    const valorRecortado = seg.valor * fracao
-
-    const ultimo = grupos[grupos.length - 1]
-    if (ultimo && interLo - ultimo.fim <= TOLERANCIA) {
-      ultimo.fim = interHi
-      ultimo.valor += valorRecortado
-    } else {
-      grupos.push({ ini: interLo, fim: interHi, valor: valorRecortado })
-    }
-  }
-  return grupos
-}
-
-/** Extrai o "código" do nome da coluna pra alinhar cor com servico_grupo_codigo
- *  (ex: "004 CBUQ (Aplicação)" → "004"). */
 function extrairCodigo(nome: string): string {
   const m = nome.match(/^\s*([\w.-]+)/)
   return m?.[1] ?? nome
 }
 
-function fmtQtdCompact(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 10_000) return `${(v / 1000).toFixed(0)}k`
-  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`
-  if (v >= 100) return `${Math.round(v)}`
-  return fmtQtd(v)
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t
+}
+
+function clamp01(t: number): number {
+  return Math.max(0, Math.min(1, t))
 }
 
 export function MarchaTempoFaixaQuantidades({
   template,
   nomesColunas,
   dominioPos,
-  innerH,
+  sx,
   innerW,
-  eixoXTempo,
-  larguraFaixa = 30,
-  margemLeft,
-  topOffset
+  majors,
+  alturaFaixas,
+  dens,
+  estilosSerie,
+  vguide,
+  onBandTip
 }: MarchaTempoFaixaQuantidadesProps): ReactNode {
   if (!template || nomesColunas.length === 0) return null
-
-  const [lo, hi] = dominioPos
-  const span = hi - lo
-  if (span <= 0) return null
 
   const colunas = nomesColunas
     .map((nome) => template.colunas.find((c) => c.nome === nome))
     .filter((c): c is NonNullable<typeof c> => !!c)
   if (colunas.length === 0) return null
 
-  function posToPxVertical(p: number): number {
-    return innerH - ((p - lo) / span) * innerH
-  }
-  function posToPxHorizontal(p: number): number {
-    return ((p - lo) / span) * innerW
-  }
+  const [lo, hi] = dominioPos
+  const F_PADTOP = 4
 
-  // ─── eixoXTempo=false (caminho em X) — faixas HORIZONTAIS em cima ──────
-  //
-  // Layout por coluna:
-  //   ┌── LINHA DE TEXTO (header com nome + Σ) ──────────────────────────┐
-  //   │ 004 CBUQ (Aplicação) · Σ 33k T                                     │
-  //   ├── FAIXA DE BLOCOS (altura larguraFaixa) ─────────────────────────┤
-  //   │ █  █ █  ████  █████ █████ █████ █████                              │
-  //   └────────────────────────────────────────────────────────────────────┘
-  //   Total por coluna = HEADER_LINHA_H + larguraFaixa + GAP
-  if (!eixoXTempo) {
-    const HEADER_LINHA_H = 18
-    const GAP = 6
-    const unitTotalH = HEADER_LINHA_H + larguraFaixa + GAP
-    return (
-      <g>
-        {colunas.map((col, i) => {
-          // Primeira faixa começa em y = -topOffset (mais alta).
-          // Cada faixa subsequente desloca por unitTotalH.
-          const yUnit = -topOffset + i * unitTotalH
-          const yHeader = yUnit
-          const yBlocos = yUnit + HEADER_LINHA_H
-          const totalCol = template.segmentos.reduce((s, seg) => {
-            const v = seg.valores[col.id]
-            return s + (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-          }, 0)
-          const grupos = agruparSegmentos(template, col.id, lo, hi)
-          const cor = corDoServico(extrairCodigo(col.nome))
+  // Por coluna: agrupar segmentos com valor>0, computar total/min/max
+  const grupos = colunas.map((col) => {
+    const codigo = extrairCodigo(col.nome)
+    const cor = estilosSerie[codigo]?.cor ?? colorPorCodigo(codigo)
+    const segsOk = template.segmentos
+      .map((s) => {
+        const v =
+          typeof s.valores[col.id] === 'number' ? Number(s.valores[col.id]) : 0
+        return {
+          ini: Math.min(s.posicao_inicio_m, s.posicao_fim_m),
+          fim: Math.max(s.posicao_inicio_m, s.posicao_fim_m),
+          valor: v
+        }
+      })
+      .filter((s) => s.fim > s.ini && s.valor > 0)
+      .sort((a, b) => a.ini - b.ini)
+    const total = segsOk.reduce((s, x) => s + x.valor, 0)
+    const vals = segsOk.map((s) => s.valor)
+    const vmin = vals.length ? Math.min(...vals) : 0
+    const vmax = vals.length ? Math.max(...vals) : 1
+    return { col, codigo, cor, segsOk, total, vmin, vmax }
+  })
 
-          return (
-            <g key={col.id}>
-              {/* Linha de texto larga acima dos blocos */}
-              <rect
-                x={-margemLeft + 4}
-                y={yHeader}
-                width={margemLeft + innerW - 4}
-                height={HEADER_LINHA_H}
-                fill="var(--bg-elevated)"
-                stroke="var(--border-strong)"
-                strokeWidth={0.6}
-                rx={2}
-              />
-              <rect
-                x={-margemLeft + 4}
-                y={yHeader}
-                width={4}
-                height={HEADER_LINHA_H}
-                fill={cor}
-              />
-              <text
-                x={-margemLeft + 12}
-                y={yHeader + 13}
-                fontSize={11}
-                fill="var(--text)"
-                fontFamily="ui-monospace, monospace"
-                fontWeight={600}
-              >
-                {col.nome}
-                <tspan dx={8} fill="var(--text-dim)" fontWeight={400}>
-                  Σ {fmtQtdCompact(totalCol)} {col.unidade}
-                </tspan>
-              </text>
+  const rowTop = (i: number): number => -alturaFaixas + F_PADTOP + i * (dens.head + dens.band + dens.gap)
 
-              {/* Background da faixa de blocos (área do plot) */}
-              <rect
-                x={0}
-                y={yBlocos}
-                width={innerW}
-                height={larguraFaixa}
-                fill="var(--bg)"
-                stroke="var(--border)"
-                strokeWidth={0.5}
-              />
+  const handleMove = useCallback(
+    (e: React.MouseEvent<SVGGElement>, gIdx: number): void => {
+      const group = grupos[gIdx]
+      // identificar posição em metros sob o cursor pelo SVG
+      const svg = e.currentTarget.ownerSVGElement
+      if (!svg) {
+        onBandTip(null)
+        return
+      }
+      const rect = svg.getBoundingClientRect()
+      // estimar posição em metros a partir de innerW + dominioPos (não precisa de transformação SVG complexa)
+      const xRel = e.clientX - rect.left
+      // Margem esquerda do plot: rect.left já é absoluto, e o <g> tem translate(MARGEM.left,...).
+      // A maneira mais robusta: usar getBBox() ou medir via SVG point. Simplificação: pular fora se fora do plot.
+      const xPlot = xRel - 92 // MARGEM.left = 92 (hardcoded — match Painel)
+      if (xPlot < 0 || xPlot > innerW) {
+        onBandTip(null)
+        return
+      }
+      const posM = lo + (xPlot / innerW) * (hi - lo)
+      const seg = group.segsOk.find((s) => posM >= s.ini && posM < s.fim)
+      if (!seg) {
+        onBandTip(null)
+        return
+      }
+      onBandTip({
+        cx: e.clientX,
+        cy: e.clientY,
+        colunaCodigo: group.codigo,
+        colunaNome: group.col.nome,
+        colunaCor: group.cor,
+        colunaUn: group.col.unidade,
+        colunaTotal: group.total,
+        segValor: seg.valor,
+        segIni: seg.ini,
+        segFim: seg.fim
+      })
+    },
+    [grupos, innerW, lo, hi, onBandTip]
+  )
 
-              {/* Blocos agrupados */}
-              {grupos.map((g, idx) => {
-                const x1 = posToPxHorizontal(g.ini)
-                const x2 = posToPxHorizontal(g.fim)
-                const w = Math.max(2, x2 - x1)
-                const cx = (x1 + x2) / 2
-                const cy = yBlocos + larguraFaixa / 2
-                // Valor SEMPRE rotacionado -90° (vertical, lê de baixo pra cima).
-                // Threshold de exibição: blocos com w ≥ 10px renderizam texto.
-                const showText = w >= 10
-                const valorStr = fmtQtdCompact(g.valor)
-                // Fonte adaptativa: cabe em w restrito.
-                const fontSize = w >= 22 ? 11 : w >= 14 ? 10 : 9
-                return (
-                  <g key={idx}>
-                    <rect
-                      x={x1}
-                      y={yBlocos + 2}
-                      width={w}
-                      height={larguraFaixa - 4}
-                      fill={cor}
-                      opacity={0.9}
-                      stroke={cor}
-                      strokeWidth={0.5}
-                    />
-                    {showText ? (
-                      <text
-                        x={cx}
-                        y={cy}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={fontSize}
-                        fill="#0a0b0d"
-                        fontFamily="ui-monospace, monospace"
-                        fontWeight={700}
-                        transform={`rotate(-90 ${cx} ${cy})`}
-                      >
-                        {valorStr}
-                      </text>
-                    ) : null}
-                  </g>
-                )
-              })}
-            </g>
-          )
-        })}
-      </g>
-    )
-  }
+  const handleLeave = useCallback(() => onBandTip(null), [onBandTip])
 
-  // ─── eixoXTempo=true (caminho em Y) — faixas VERTICAIS à esquerda ──────
   return (
     <g>
-      {colunas.map((col, i) => {
-        const xFaixa = -(margemLeft - 4) + i * (larguraFaixa + 4)
-        const totalCol = template.segmentos.reduce((s, seg) => {
-          const v = seg.valores[col.id]
-          return s + (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-        }, 0)
-        const grupos = agruparSegmentos(template, col.id, lo, hi)
-        const cor = corDoServico(extrairCodigo(col.nome))
+      {/* Echo dos majors do plot pra conexão visual (linhas verticais discretas) */}
+      {majors.map((m, i) => (
+        <line
+          key={`g${i}`}
+          x1={sx(m)}
+          y1={-alturaFaixas + F_PADTOP + dens.head - 4}
+          x2={sx(m)}
+          y2={-4}
+          stroke="var(--mt-grid-major)"
+          strokeWidth={1}
+          opacity={0.5}
+        />
+      ))}
 
-        // Header: dentro do espaço topOffset (acima do plot)
-        const headerY = -topOffset
-
+      {grupos.map((g, i) => {
+        const top = rowTop(i)
+        const by = top + dens.head
         return (
-          <g key={col.id}>
-            {/* Header card (acima da faixa) */}
-            <rect
-              x={xFaixa}
-              y={headerY}
-              width={larguraFaixa}
-              height={topOffset - 4}
-              fill="var(--bg-elevated)"
-              stroke="var(--border-strong)"
-              strokeWidth={1}
-              rx={2}
-            />
-            <rect x={xFaixa} y={headerY} width={larguraFaixa} height={4} fill={cor} />
-            {/* Código grande, centralizado */}
+          <g
+            key={g.col.id}
+            onMouseMove={(e) => handleMove(e, i)}
+            onMouseLeave={handleLeave}
+          >
+            {/* Header inline */}
+            <rect x={0} y={top + 4} width={8} height={9} rx={1} fill={g.cor} />
             <text
-              x={xFaixa + larguraFaixa / 2}
-              y={headerY + 22}
-              textAnchor="middle"
-              fontSize={11}
-              fill="var(--text)"
+              x={13}
+              y={top + 12}
+              fontSize={11 * dens.font}
               fontFamily="ui-monospace, monospace"
-              fontWeight={700}
+              fontWeight={600}
+              letterSpacing="0.01em"
+              fill="var(--text-muted)"
             >
-              {extrairCodigo(col.nome)}
+              {g.codigo} · {g.col.nome}
             </text>
-            {/* Total */}
             <text
-              x={xFaixa + larguraFaixa / 2}
-              y={headerY + 35}
-              textAnchor="middle"
-              fontSize={9}
+              x={innerW}
+              y={top + 12}
+              textAnchor="end"
+              fontSize={10.5 * dens.font}
+              fontFamily="ui-monospace, monospace"
               fill="var(--text-dim)"
-              fontFamily="ui-monospace, monospace"
             >
-              {fmtQtdCompact(totalCol)}
-            </text>
-            <text
-              x={xFaixa + larguraFaixa / 2}
-              y={headerY + 46}
-              textAnchor="middle"
-              fontSize={8}
-              fill="var(--text-faint)"
-              fontFamily="ui-monospace, monospace"
-            >
-              {col.unidade}
+              Σ {fmtQtdCompact(g.total)} {g.col.unidade}
             </text>
 
-            {/* Background da faixa (área do plot vertical) */}
+            {/* Trilho da faixa */}
             <rect
-              x={xFaixa}
-              y={0}
-              width={larguraFaixa}
-              height={innerH}
+              x={0}
+              y={by}
+              width={innerW}
+              height={dens.band}
               fill="var(--bg)"
               stroke="var(--border)"
-              strokeWidth={0.5}
+              strokeWidth={1}
             />
 
-            {/* Blocos agrupados */}
-            {grupos.map((g, idx) => {
-              const y1 = posToPxVertical(g.fim)
-              const y2 = posToPxVertical(g.ini)
-              const h = Math.max(2, y2 - y1)
-              const fontSize = h >= 22 ? 10 : 8
-              const showText = h >= 14
+            {/* Blocos */}
+            {g.segsOk.map((s, k) => {
+              const rawX0 = sx(s.ini)
+              const rawX1 = sx(s.fim)
+              const x0 = Math.max(0, Math.min(innerW, rawX0))
+              const x1 = Math.max(0, Math.min(innerW, rawX1))
+              const w = Math.max(0, x1 - x0)
+              if (w < 0.5) return null
+              const t = g.vmax > g.vmin ? (s.valor - g.vmin) / (g.vmax - g.vmin) : 0.5
+              const alpha = lerp(0.16, 0.62, clamp01(t))
+              const ctr = (rawX0 + rawX1) / 2
+              const showVal = w > 30 && ctr >= 0 && ctr <= innerW
               return (
-                <g key={idx}>
+                <g key={k}>
                   <rect
-                    x={xFaixa + 2}
-                    y={y1}
-                    width={larguraFaixa - 4}
-                    height={h}
-                    fill={cor}
-                    opacity={0.9}
-                    stroke={cor}
-                    strokeWidth={0.5}
+                    x={x0}
+                    y={by}
+                    width={w}
+                    height={dens.band}
+                    fill={g.cor}
+                    fillOpacity={alpha}
                   />
-                  {showText ? (
+                  <rect x={x0} y={by} width={w} height={2.5} fill={g.cor} />
+                  {showVal && (
                     <text
-                      x={xFaixa + larguraFaixa / 2}
-                      y={(y1 + y2) / 2 + fontSize / 2 - 1}
+                      x={ctr}
+                      y={by + dens.band / 2 + 7}
                       textAnchor="middle"
-                      fontSize={fontSize}
-                      fill="#0a0b0d"
+                      fontSize={10 * dens.font}
                       fontFamily="ui-monospace, monospace"
                       fontWeight={700}
+                      fill="var(--text)"
                     >
-                      {fmtQtdCompact(g.valor)}
+                      {fmtQtdCompact(s.valor)}
                     </text>
-                  ) : null}
+                  )}
                 </g>
               )
             })}
           </g>
         )
       })}
+
+      {/* Guia vertical compartilhada (plot ↔ faixas) */}
+      {vguide != null && (
+        <line
+          x1={vguide}
+          y1={-alturaFaixas + F_PADTOP}
+          x2={vguide}
+          y2={-4}
+          stroke="var(--mt-cross)"
+          strokeWidth={1}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
     </g>
   )
+}
+
+const PALETA = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c']
+function colorPorCodigo(c: string): string {
+  let h = 0
+  for (let i = 0; i < c.length; i++) h = (h * 31 + c.charCodeAt(i)) | 0
+  return PALETA[Math.abs(h) % PALETA.length]
 }

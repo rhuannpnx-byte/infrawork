@@ -395,12 +395,34 @@ export interface MarchaTempoOpcoes {
   mostrarMarcos: boolean
   mostrarDependencias: boolean
   mostrarTodayLine: boolean
+  /** Anéis vermelhos onde 2 trajetórias se cruzam no espaço-tempo. */
+  mostrarConflitos: boolean
+  /** Sombreamento dos dias não-úteis (sábado/domingo/feriado). */
+  mostrarNaoTrabalhado: boolean
+  /** Eixos espelhados (ticks em ambos os lados). */
+  eixosEspelhados: boolean
   /**
    * Nomes das colunas do template a expor como faixa lateral à esquerda do
    * eixo posição. Cada coluna marcada vira uma faixa estreita com blocos
    * coloridos mostrando o valor da célula em cada segmento + total somado.
    */
   colunasQuantidade: string[]
+  /** Tweak: leitura/densidade (escala tipografia + faixas). */
+  densidade: 'Compacto' | 'Médio' | 'Amplo'
+  /** Tweak: caráter das trajetórias (peso, halo, suavização). */
+  trajetoria: 'Técnico' | 'Encorpado' | 'Fluido'
+  /** Tweak: ambiente (sistema de luminosidade do fundo). */
+  ambiente: 'Carbono' | 'Blueprint' | 'Vanta'
+  /** Estilo por série (código de serviço → cor/traço/largura/visibilidade). */
+  estilosSerie: Record<string, EstiloSerie>
+}
+
+/** Estilo configurável por série (= código de servico). */
+export interface EstiloSerie {
+  visivel: boolean
+  cor: string
+  dash: 'solido' | 'tracejado' | 'pontilhado'
+  width: number
 }
 
 /** Um ponto da polilinha de uma tarefa no plano tempo×caminho. */
@@ -409,6 +431,10 @@ export interface PontoTraco {
   data: string
   /** Posição em metros (no eixo do trecho). */
   posicaoM: number
+  /** Quantidade acumulada ATÉ esse ponto, na unidade do qtd_link. */
+  qtdAcc?: number
+  /** Quantidade produzida NESTE dia (0 = não-trabalhado). */
+  qtdDia?: number
 }
 
 /** Trajetória de uma tarefa direta (marcha-tempo). */

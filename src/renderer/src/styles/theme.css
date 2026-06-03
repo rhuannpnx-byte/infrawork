@@ -41,6 +41,13 @@
   /* Marco (milestone) — roxo distintivo para diamantes no Gantt */
   --milestone: oklch(72% 0.18 305);
 
+  /* Marcha-Tempo plot — derivados dentro do sistema de luminosidade */
+  --mt-zebra: oklch(13.5% 0.007 255);
+  --mt-nao-trab: oklch(9.5% 0.005 255);
+  --mt-grid-minor: oklch(20% 0.010 255);
+  --mt-grid-major: oklch(29% 0.013 255);
+  --mt-cross: oklch(67% 0.18 255 / 0.55);
+
   /* Identidade de módulo */
   --module-orcamento: var(--accent);
   --module-planejamento: oklch(85% 0.12 215);
