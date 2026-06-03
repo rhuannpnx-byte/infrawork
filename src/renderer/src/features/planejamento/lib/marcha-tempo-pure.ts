@@ -326,8 +326,17 @@ export function tracarPerfiladaIlhas(params: TracarPerfiladaParams): PontoTraco[
 
   const qNoTempo = interpoladorQNoTempo(acumulado)
 
-  // Coleta amostras (t, q, idxFatia, pos)
-  type Sample = { t: number; data: string; idxFatia: number; pos: number }
+  // Coleta amostras (t, q, idxFatia, pos). qAcc/qDia REAIS: qAcc = q absoluta
+  // do perfil de tempo (cresce monotonicamente 0→qTotal); qDia = delta vs
+  // sample anterior (≈ produção do dia).
+  type Sample = {
+    t: number
+    data: string
+    idxFatia: number
+    pos: number
+    qAcc: number
+    qDia: number
+  }
   const samples: Sample[] = []
   for (let i = 0; i <= nSamples; i++) {
     const t = tIni + (i / nSamples) * (tFim - tIni)
@@ -335,7 +344,9 @@ export function tracarPerfiladaIlhas(params: TracarPerfiladaParams): PontoTraco[
     const fracao = qTotalPerfil > 0 ? q / qTotalPerfil : 0
     const qAlvo = fracao * qTotal
     const { idxFatia, pos } = localizarQAcumulada(qAlvo, fatias, acumFatias, dir)
-    samples.push({ t, data: msToIso(t), idxFatia, pos })
+    const qAcc = qAlvo // já está na unidade do qtd_link (real, não fração)
+    const qDia = i > 0 ? Math.max(0, qAcc - samples[i - 1].qAcc) : 0
+    samples.push({ t, data: msToIso(t), idxFatia, pos, qAcc, qDia })
   }
 
   // Garante último sample exatamente em (dataFim, fimFatia(last)) — evita
@@ -346,37 +357,68 @@ export function tracarPerfiladaIlhas(params: TracarPerfiladaParams): PontoTraco[
     last.data = dataFim
     last.idxFatia = fatias.length - 1
     last.pos = fimFatia(fatias.length - 1)
+    last.qAcc = qTotal
   }
 
   // Build de ilhas via processamento sequencial dos samples
   const ilhas: PontoTraco[][] = []
   let ilhaAtual: PontoTraco[] = []
   let fatiaAtual = -1
+  let qAccUltimoSample = 0
 
   for (const s of samples) {
     if (s.idxFatia !== fatiaAtual) {
       // Cruza pra outra fatia. Fecha a ilha atual no fim da fatia anterior,
       // abre nova ilha no início da próxima fatia (mesma data — salto invisível
-      // no tempo, salto visível no espaço).
+      // no tempo, salto visível no espaço). Nos pontos sintéticos do salto,
+      // qAcc é preservado (não se ganha quantidade no gap).
       if (fatiaAtual >= 0 && ilhaAtual.length > 0) {
-        ilhaAtual.push({ data: s.data, posicaoM: fimFatia(fatiaAtual) })
+        ilhaAtual.push({
+          data: s.data,
+          posicaoM: fimFatia(fatiaAtual),
+          qtdAcc: qAccUltimoSample,
+          qtdDia: 0
+        })
         if (ilhaAtual.length >= 2) ilhas.push(ilhaAtual)
       }
       // Cobre fatias intermediárias se a frente "pulou" várias de uma vez
       for (let k = fatiaAtual + 1; k < s.idxFatia; k++) {
         ilhas.push([
-          { data: s.data, posicaoM: inicioFatia(k) },
-          { data: s.data, posicaoM: fimFatia(k) }
+          {
+            data: s.data,
+            posicaoM: inicioFatia(k),
+            qtdAcc: qAccUltimoSample,
+            qtdDia: 0
+          },
+          {
+            data: s.data,
+            posicaoM: fimFatia(k),
+            qtdAcc: qAccUltimoSample,
+            qtdDia: 0
+          }
         ])
       }
-      ilhaAtual = [{ data: s.data, posicaoM: inicioFatia(s.idxFatia) }]
+      ilhaAtual = [
+        {
+          data: s.data,
+          posicaoM: inicioFatia(s.idxFatia),
+          qtdAcc: qAccUltimoSample,
+          qtdDia: 0
+        }
+      ]
       fatiaAtual = s.idxFatia
     }
     // Evita ponto duplicado no início da ilha (mesma data + posicao)
     const last = ilhaAtual[ilhaAtual.length - 1]
     if (!last || last.data !== s.data || Math.abs(last.posicaoM - s.pos) > 0.001) {
-      ilhaAtual.push({ data: s.data, posicaoM: s.pos })
+      ilhaAtual.push({
+        data: s.data,
+        posicaoM: s.pos,
+        qtdAcc: s.qAcc,
+        qtdDia: s.qDia
+      })
     }
+    qAccUltimoSample = s.qAcc
   }
 
   // Fecha última ilha
@@ -385,19 +427,74 @@ export function tracarPerfiladaIlhas(params: TracarPerfiladaParams): PontoTraco[
   return ilhas.filter((ilha) => ilha.length >= 2)
 }
 
-/** Modo uniforme: 1 ilha com 2 pontos (linha reta entre extremos). */
+/** Modo uniforme: 1 ilha com 2 pontos (linha reta entre extremos). qtdTotal
+ *  opcional propaga a quantidade entre os pontos extremos (0 → qtdTotal). */
 export function tracarUniforme(params: {
   dataInicio: string
   dataFim: string
   posIni: number
   posFim: number
+  qtdTotal?: number
 }): PontoTraco[][] {
+  const qt = params.qtdTotal ?? 0
   return [
     [
-      { data: params.dataInicio, posicaoM: params.posIni },
-      { data: params.dataFim, posicaoM: params.posFim }
+      { data: params.dataInicio, posicaoM: params.posIni, qtdAcc: 0, qtdDia: 0 },
+      { data: params.dataFim, posicaoM: params.posFim, qtdAcc: qt, qtdDia: 0 }
     ]
   ]
+}
+
+/**
+ * Pós-processamento: junta ilhas consecutivas separadas por gaps PEQUENOS no
+ * eixo posição. Mantém apenas gaps significativos (frente realmente "salta").
+ *
+ * Gap entre ilhas A e B = |posicaoM(último ponto de A) − posicaoM(primeiro
+ * ponto de B)|. Threshold default = max(2500m, 2.5% do range total da tarefa).
+ *
+ * Concatena pontos diretamente — a linha natural entre o último ponto de A e
+ * o primeiro de B representa a passagem da frente pelo gap. Sem inserir
+ * pontos sintéticos (evita ruído visual).
+ */
+export function joinIlhasProximas(
+  ilhas: PontoTraco[][],
+  posIni: number,
+  posFim: number,
+  opts?: { thresholdAbsM?: number; thresholdRel?: number }
+): PontoTraco[][] {
+  if (ilhas.length < 2) return ilhas
+  const thrAbs = opts?.thresholdAbsM ?? 2500
+  const thrRel = opts?.thresholdRel ?? 0.025
+  const total = Math.abs(posFim - posIni)
+  const threshold = Math.max(thrAbs, thrRel * total)
+
+  const out: PontoTraco[][] = []
+  let atual: PontoTraco[] = [...ilhas[0]]
+  for (let i = 1; i < ilhas.length; i++) {
+    const last = atual[atual.length - 1]
+    const next = ilhas[i]
+    const first = next[0]
+    if (!last || !first) {
+      atual = [...next]
+      continue
+    }
+    const gap = Math.abs(first.posicaoM - last.posicaoM)
+    if (gap <= threshold) {
+      // Junta: anexa os pontos da próxima ilha (pulando o primeiro se for
+      // duplicado do último da atual)
+      const start =
+        first.data === last.data && Math.abs(first.posicaoM - last.posicaoM) < 0.001
+          ? 1
+          : 0
+      for (let j = start; j < next.length; j++) atual.push(next[j])
+    } else {
+      // Gap significativo → fecha a ilha atual e começa nova
+      if (atual.length >= 2) out.push(atual)
+      atual = [...next]
+    }
+  }
+  if (atual.length >= 2) out.push(atual)
+  return out
 }
 
 // ─── Adaptador: segmentos por coluna ───────────────────────────────────────

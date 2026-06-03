@@ -20,6 +20,7 @@ import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 import {
   corDoServico,
   granularidadeParaResolucaoDias,
+  joinIlhasProximas,
   segmentosPorColuna,
   tracarPerfiladaIlhas,
   tracarUniforme
@@ -233,6 +234,12 @@ export function useTracosMarchaTempo(
           perfil,
           resolucaoDias
         })
+        // Pós-processamento: junta ilhas separadas por gaps pequenos no eixo
+        // posição (default: < max(2.5 km, 2.5% do range)). Reduz a aparência
+        // pontilhada quando o template tem muitos micro-segmentos adjacentes.
+        if (ilhas.length > 1) {
+          ilhas = joinIlhasProximas(ilhas, posIni, posFim)
+        }
         if (ilhas.length > 0) {
           modo = 'perfilada'
         }
@@ -243,7 +250,8 @@ export function useTracosMarchaTempo(
           dataInicio: t.data_inicio,
           dataFim: t.data_fim,
           posIni,
-          posFim
+          posFim,
+          qtdTotal: qtdAlocada
         })
         modo = 'uniforme'
       }

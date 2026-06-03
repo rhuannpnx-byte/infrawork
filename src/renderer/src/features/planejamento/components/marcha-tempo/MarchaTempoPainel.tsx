@@ -39,7 +39,12 @@ import {
   pathSuave
 } from '@/features/planejamento/lib/marcha-tempo-pure'
 import { MarchaTempoTooltip } from './MarchaTempoTooltip'
-import { MarchaTempoFaixaQuantidades } from './MarchaTempoFaixaQuantidades'
+import {
+  FX_BAND,
+  FX_GAP,
+  FX_HEAD,
+  MarchaTempoFaixaQuantidades
+} from './MarchaTempoFaixaQuantidades'
 
 const DAY = 86400000
 
@@ -245,11 +250,13 @@ export function MarchaTempoPainel({
   // acomoda os rótulos espelhados do eixo X (top tick labels) sem sobrepor
   // com a base dos blocos de quantidade.
   const F_GAP_LABEL_PLOT = 28
+  // Dimensões da faixa de quantidade — independentes de `dens` (faixa precisa
+  // ser legível mesmo com o plot em Compacto).
   const alturaFaixas =
     nColunasFaixa > 0
       ? F_PADTOP +
-        nColunasFaixa * (dens.head + dens.band) +
-        Math.max(0, nColunasFaixa - 1) * dens.gap +
+        nColunasFaixa * (FX_HEAD + FX_BAND) +
+        Math.max(0, nColunasFaixa - 1) * FX_GAP +
         8 +
         F_GAP_LABEL_PLOT
       : 0

@@ -27,6 +27,11 @@ const PAGES = {
   A3: { w: Math.round(297 * PX_MM), h: Math.round(420 * PX_MM) }
 }
 
+function fmtMesAno(ms: number): string {
+  const d = new Date(ms)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+}
+
 function pageDims(tamanho: 'A4' | 'A3', orient: 'retrato' | 'paisagem'): { w: number; h: number } {
   const p = PAGES[tamanho]
   return orient === 'paisagem' ? { w: p.h, h: p.w } : { w: p.w, h: p.h }
@@ -56,7 +61,10 @@ const MARCO_COR = '#1d4ed8'
 interface CarimboCampos {
   empresa: string
   obra: string
+  titulo: string
   trecho: string
+  intervalo: string
+  periodo: string
   revisao: string
   desenhoNum: string
   responsavel: string
@@ -99,16 +107,46 @@ export function MarchaTempoExport({
   const [orient, setOrient] = useState<'retrato' | 'paisagem'>('retrato')
   const [incluirFaixas, setIncluirFaixas] = useState(true)
   const [preview, setPreview] = useState(false)
-  const [carimbo, setCarimbo] = useState<CarimboCampos>({
-    empresa: 'TecPav Engenharia',
-    obra: trecho.nome,
-    trecho: trecho.nome,
-    revisao: 'Rev. 04',
-    desenhoNum: 'MT-001',
-    responsavel: 'Resp. Técnico',
-    escala: '1:1',
-    folha: '01/01'
-  })
+  // Computa intervalo (estaca min→max) e período (mm/aaaa min→max) reais
+  // a partir dos tracos da tarefa atual.
+  const carimboDefaults = useMemo<CarimboCampos>(() => {
+    let posLo = Number.POSITIVE_INFINITY
+    let posHi = Number.NEGATIVE_INFINITY
+    let dataLo = Number.POSITIVE_INFINITY
+    let dataHi = Number.NEGATIVE_INFINITY
+    for (const t of tracos) {
+      if (t.trechoId !== trecho.id) continue
+      for (const ilha of t.ilhas) {
+        for (const p of ilha) {
+          posLo = Math.min(posLo, p.posicaoM)
+          posHi = Math.max(posHi, p.posicaoM)
+          const ms = new Date(`${p.data}T00:00:00Z`).getTime()
+          dataLo = Math.min(dataLo, ms)
+          dataHi = Math.max(dataHi, ms)
+        }
+      }
+    }
+    const intervalo = Number.isFinite(posLo)
+      ? `${formatMarcadorCurto(posLo)} → ${formatMarcadorCurto(posHi)}`
+      : '—'
+    const periodo = Number.isFinite(dataLo)
+      ? `${fmtMesAno(dataLo)} → ${fmtMesAno(dataHi)}`
+      : '—'
+    return {
+      empresa: 'TecPav Engenharia',
+      obra: trecho.nome,
+      titulo: 'Diagrama Marcha-Tempo',
+      trecho: trecho.nome,
+      intervalo,
+      periodo,
+      revisao: 'Rev. 04',
+      desenhoNum: 'MT-001',
+      responsavel: 'Resp. Técnico',
+      escala: '1:1',
+      folha: '01/01'
+    }
+  }, [tracos, trecho.id, trecho.nome])
+  const [carimbo, setCarimbo] = useState<CarimboCampos>(carimboDefaults)
 
   if (!open) return null
 
@@ -181,12 +219,15 @@ export function MarchaTempoExport({
           <div className="grid grid-cols-2 gap-2">
             <Campo label="Empresa" value={carimbo.empresa} onChange={(v) => setCarimbo({ ...carimbo, empresa: v })} />
             <Campo label="Obra" value={carimbo.obra} onChange={(v) => setCarimbo({ ...carimbo, obra: v })} />
+            <Campo label="Título" value={carimbo.titulo} onChange={(v) => setCarimbo({ ...carimbo, titulo: v })} />
             <Campo label="Trecho" value={carimbo.trecho} onChange={(v) => setCarimbo({ ...carimbo, trecho: v })} />
-            <Campo label="Revisão" value={carimbo.revisao} onChange={(v) => setCarimbo({ ...carimbo, revisao: v })} />
+            <Campo label="Intervalo (estaca)" value={carimbo.intervalo} onChange={(v) => setCarimbo({ ...carimbo, intervalo: v })} />
+            <Campo label="Período" value={carimbo.periodo} onChange={(v) => setCarimbo({ ...carimbo, periodo: v })} />
             <Campo label="Desenho nº" value={carimbo.desenhoNum} onChange={(v) => setCarimbo({ ...carimbo, desenhoNum: v })} />
-            <Campo label="Responsável" value={carimbo.responsavel} onChange={(v) => setCarimbo({ ...carimbo, responsavel: v })} />
+            <Campo label="Revisão" value={carimbo.revisao} onChange={(v) => setCarimbo({ ...carimbo, revisao: v })} />
             <Campo label="Escala" value={carimbo.escala} onChange={(v) => setCarimbo({ ...carimbo, escala: v })} />
             <Campo label="Folha" value={carimbo.folha} onChange={(v) => setCarimbo({ ...carimbo, folha: v })} />
+            <Campo label="Responsável" value={carimbo.responsavel} onChange={(v) => setCarimbo({ ...carimbo, responsavel: v })} />
           </div>
         </div>
 
@@ -350,8 +391,9 @@ function Sheet({
 }: SheetProps): ReactNode {
   const PAD = 8
   const innerW = dims.w - PAD * 2
-  const innerH = dims.h - PAD * 2 - 110 // reserva pra legenda + carimbo
-  const diagramH = innerH - 40 - 110 // reserva pra título + legenda + carimbo
+  // Reservas: 104px carimbo + 28px legenda + 8px gaps + 25px header = 165px
+  const innerH = dims.h - PAD * 2 - 132
+  const diagramH = innerH - 40 - 132
 
   // Cor base por código (mesma lógica que MarchaTempoSeriesPanel/Faixas)
   const codigosVisiveis = useMemo(() => {
@@ -377,6 +419,12 @@ function Sheet({
     return Array.from(m.values())
   }, [tracos, codigosVisiveis, opcoes.estilosSerie])
 
+  // Conta conflitos visíveis pra decidir se mostra o marcador na legenda
+  const totalConflitos = useMemo(() => {
+    if (!opcoes.mostrarConflitos) return 0
+    return detectarConflitos(tracos.filter((t) => t.trechoId === trecho.id)).length
+  }, [tracos, trecho.id, opcoes.mostrarConflitos])
+
   return (
     <div
       className="export-sheet"
@@ -400,12 +448,12 @@ function Sheet({
           overflow: 'hidden'
         }}
       >
-        {/* Header */}
+        {/* Header — stack vertical (referência canon) */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
+            gap: 2,
             borderBottom: '1px solid #9ca3af',
             paddingBottom: 5,
             flex: 'none'
@@ -473,6 +521,14 @@ function Sheet({
               </svg>
               <span>HOJE</span>
             </div>
+            {totalConflitos > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#374151' }}>
+                <svg width="14" height="14">
+                  <circle cx="7" cy="7" r="3.2" fill="none" stroke="#dc2626" strokeWidth="1.5" />
+                </svg>
+                <span>CONFLITO</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -526,7 +582,7 @@ function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
         flex: 'none',
         display: 'flex',
         border: '1.5px solid #374151',
-        height: 90
+        height: 104
       }}
     >
       <div
@@ -547,20 +603,33 @@ function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
           {carimbo.empresa}
         </div>
         <div style={{ fontSize: 6.5, letterSpacing: '0.1em', color: '#6b7280' }}>
-          MARCHA-TEMPO (TEMPO × POSIÇÃO)
+          ENGENHARIA · PLANEJAMENTO
         </div>
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Linha 1: OBRA | TÍTULO */}
         <div style={rowStyle}>
           <div style={cellStyle}>
             <div style={kStyle}>OBRA</div>
             <div style={vStyle}>{carimbo.obra}</div>
           </div>
           <div style={{ ...cellStyle, borderRight: 'none' }}>
-            <div style={kStyle}>TÍTULO</div>
-            <div style={vStyle}>Diagrama Marcha-Tempo</div>
+            <div style={kStyle}>TÍTULO DO DOCUMENTO</div>
+            <div style={vStyle}>{carimbo.titulo}</div>
           </div>
         </div>
+        {/* Linha 2: INTERVALO (ESTACA) | PERÍODO */}
+        <div style={rowStyle}>
+          <div style={cellStyle}>
+            <div style={kStyle}>INTERVALO (ESTACA)</div>
+            <div style={vStyle}>{carimbo.intervalo}</div>
+          </div>
+          <div style={{ ...cellStyle, borderRight: 'none' }}>
+            <div style={kStyle}>PERÍODO</div>
+            <div style={vStyle}>{carimbo.periodo}</div>
+          </div>
+        </div>
+        {/* Linha 3: TRECHO | DESENHO Nº | ESCALA | REVISÃO */}
         <div style={rowStyle}>
           <div style={cellStyle}>
             <div style={kStyle}>TRECHO</div>
@@ -579,13 +648,14 @@ function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
             <div style={vStyle}>{carimbo.revisao}</div>
           </div>
         </div>
+        {/* Linha 4: DATA | RESPONSÁVEL TÉCNICO | FOLHA */}
         <div style={{ ...rowStyle, borderBottom: 'none' }}>
           <div style={cellStyle}>
             <div style={kStyle}>DATA</div>
             <div style={vStyle}>{fmtDataBR(Date.now())}</div>
           </div>
           <div style={cellStyle}>
-            <div style={kStyle}>RESPONSÁVEL</div>
+            <div style={kStyle}>RESPONSÁVEL TÉCNICO</div>
             <div style={vStyle}>{carimbo.responsavel}</div>
           </div>
           <div style={{ ...cellStyle, borderRight: 'none' }}>

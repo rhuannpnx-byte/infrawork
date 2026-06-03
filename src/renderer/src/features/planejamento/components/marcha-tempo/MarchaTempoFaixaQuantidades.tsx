@@ -15,6 +15,14 @@ interface DensPreset {
   font: number
 }
 
+// Dimensões da faixa — INDEPENDENTES do preset `dens` do plot.
+// O plot pode estar em Compacto (denso, ~26px), mas a faixa precisa de mais
+// altura pra exibir o valor real do bloco e ficar legível como banner
+// analítico, não decoração.
+export const FX_HEAD = 19 // linha de título (codigo · nome + Σ)
+export const FX_BAND = 38 // altura da barra com os blocos
+export const FX_GAP = 12 // espaço entre faixas sucessivas
+
 interface MarchaTempoFaixaQuantidadesProps {
   template: TrechoQuantidadeVersaoCompleta | null
   nomesColunas: string[]
@@ -76,7 +84,7 @@ export function MarchaTempoFaixaQuantidades({
   const [lo, hi] = dominioPos
   const F_PADTOP = 4
 
-  // Por coluna: agrupar segmentos com valor>0, computar total/min/max
+  // Por coluna: agrupar segmentos com valor>0, computar total/min/max/p75
   const grupos = colunas.map((col) => {
     const codigo = extrairCodigo(col.nome)
     const cor = estilosSerie[codigo]?.cor ?? colorPorCodigo(codigo)
@@ -96,10 +104,15 @@ export function MarchaTempoFaixaQuantidades({
     const vals = segsOk.map((s) => s.valor)
     const vmin = vals.length ? Math.min(...vals) : 0
     const vmax = vals.length ? Math.max(...vals) : 1
-    return { col, codigo, cor, segsOk, total, vmin, vmax }
+    // Percentil 75 — blocos no top quartil forçam label mesmo em larguras pequenas
+    const sorted = [...vals].sort((a, b) => a - b)
+    const p75 = sorted.length
+      ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.75))]
+      : 0
+    return { col, codigo, cor, segsOk, total, vmin, vmax, p75 }
   })
 
-  const rowTop = (i: number): number => -alturaFaixas + F_PADTOP + i * (dens.head + dens.band + dens.gap)
+  const rowTop = (i: number): number => -alturaFaixas + F_PADTOP + i * (FX_HEAD + FX_BAND + FX_GAP)
 
   const handleMove = useCallback(
     (e: React.MouseEvent<SVGGElement>, gIdx: number): void => {
@@ -171,7 +184,7 @@ export function MarchaTempoFaixaQuantidades({
         <line
           key={`g${i}`}
           x1={sx(m)}
-          y1={-alturaFaixas + F_PADTOP + dens.head - 4}
+          y1={-alturaFaixas + F_PADTOP + FX_HEAD - 4}
           x2={sx(m)}
           y2={-4}
           stroke="var(--mt-grid-major)"
@@ -182,7 +195,7 @@ export function MarchaTempoFaixaQuantidades({
 
       {grupos.map((g, i) => {
         const top = rowTop(i)
-        const by = top + dens.head
+        const by = top + FX_HEAD
         return (
           <g
             key={g.col.id}
@@ -218,7 +231,7 @@ export function MarchaTempoFaixaQuantidades({
               x={0}
               y={by}
               width={innerW}
-              height={dens.band}
+              height={FX_BAND}
               fill="var(--bg)"
               stroke="var(--border)"
               strokeWidth={1}
@@ -238,7 +251,13 @@ export function MarchaTempoFaixaQuantidades({
               // vertical, dá profundidade real.
               const alpha = lerp(0.42, 0.95, clamp01(t))
               const ctr = (rawX0 + rawX1) / 2
-              const showVal = w > 30 && ctr >= 0 && ctr <= innerW
+              // Threshold adaptativo: largura >= 22px exibe valor; blocos top
+              // quartil (s.valor >= p75) forçam exibição mesmo abaixo desse
+              // limite (preserva visibilidade dos blocos de maior impacto).
+              const isTopQuartil = s.valor >= g.p75
+              const showVal =
+                ctr >= 0 && ctr <= innerW && (w >= 22 || (isTopQuartil && w >= 14))
+              const fontSize = w >= 38 ? 11 : w >= 28 ? 10 : 9
               return (
                 <g key={k}>
                   {/* Fundo com gradient vertical (top→bottom: 100% → 42% alpha) */}
@@ -246,7 +265,7 @@ export function MarchaTempoFaixaQuantidades({
                     x={x0}
                     y={by}
                     width={w}
-                    height={dens.band}
+                    height={FX_BAND}
                     fill={`url(#bandgrad-${gradId}-${i})`}
                     fillOpacity={alpha}
                   />
@@ -258,7 +277,7 @@ export function MarchaTempoFaixaQuantidades({
                       x={x0}
                       y={by}
                       width={w}
-                      height={dens.band}
+                      height={FX_BAND}
                       fill="none"
                       stroke={g.cor}
                       strokeWidth={0.6}
@@ -268,9 +287,9 @@ export function MarchaTempoFaixaQuantidades({
                   {showVal && (
                     <text
                       x={ctr}
-                      y={by + dens.band / 2 + 7}
+                      y={by + FX_BAND / 2 + 4}
                       textAnchor="middle"
-                      fontSize={10 * dens.font}
+                      fontSize={fontSize * dens.font}
                       fontFamily="ui-monospace, monospace"
                       fontWeight={700}
                       fill="var(--text)"
