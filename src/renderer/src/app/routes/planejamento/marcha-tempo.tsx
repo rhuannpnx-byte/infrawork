@@ -102,9 +102,6 @@ function MarchaTempoInner(): ReactNode {
       mostrarNaoTrabalhado: true,
       eixosEspelhados: true,
       colunasQuantidade: [],
-      densidade: 'Médio',
-      trajetoria: 'Técnico',
-      ambiente: 'Carbono',
       estilosSerie: {}
     })
   )

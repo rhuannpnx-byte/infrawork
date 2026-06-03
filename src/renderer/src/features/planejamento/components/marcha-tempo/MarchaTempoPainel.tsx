@@ -62,43 +62,25 @@ function escalaLinear(d0: number, d1: number, r0: number, r1: number): Escala {
   return fn
 }
 
-// ─── Presets de tweaks expressivos ──────────────────────────────────────────
-
+// ─── Presets fixos (Compacto · Técnico · Carbono) ───────────────────────────
+//
+// Tweaks removidos da UI — defaults canônicos hardcoded. Compacto pra
+// densidade de engenheiro, Técnico pra trajetória crisp/degrau-cru, Carbono
+// pra ambiente cinza-neutro padrão do produto.
 const DENS = {
-  Compacto: { band: 26, head: 15, gap: 8, font: 0.88, tickGapX: 58, tickGapY: 20 },
-  Médio: { band: 34, head: 17, gap: 12, font: 1.0, tickGapX: 76, tickGapY: 26 },
-  Amplo: { band: 46, head: 20, gap: 16, font: 1.16, tickGapX: 110, tickGapY: 40 }
+  band: 26,
+  head: 15,
+  gap: 8,
+  font: 0.88,
+  tickGapX: 58,
+  tickGapY: 20
 } as const
 
 const TRAJ = {
-  Técnico: { mult: 1.0, halo: 3.2, smooth: false },
-  Encorpado: { mult: 1.5, halo: 4.8, smooth: false },
-  Fluido: { mult: 1.2, halo: 3.8, smooth: true }
+  mult: 1.0,
+  halo: 3.2,
+  smooth: false
 } as const
-
-const AMBIENTE: Record<string, Record<string, string>> = {
-  Carbono: {},
-  Blueprint: {
-    '--bg': 'oklch(14% 0.03 250)',
-    '--bg-panel': 'oklch(17% 0.032 250)',
-    '--bg-elevated': 'oklch(20% 0.034 250)',
-    '--mt-zebra': 'oklch(16% 0.028 250)',
-    '--mt-nao-trab': 'oklch(11.5% 0.022 250)',
-    '--mt-grid-minor': 'oklch(25% 0.034 250)',
-    '--mt-grid-major': 'oklch(36% 0.055 250)',
-    '--mt-cross': 'oklch(74% 0.15 250 / 0.62)'
-  },
-  Vanta: {
-    '--bg': 'oklch(7% 0.004 255)',
-    '--bg-panel': 'oklch(10.5% 0.006 255)',
-    '--bg-elevated': 'oklch(14% 0.008 255)',
-    '--mt-zebra': 'oklch(9% 0.005 255)',
-    '--mt-nao-trab': 'oklch(4.5% 0.003 255)',
-    '--mt-grid-minor': 'oklch(17% 0.009 255)',
-    '--mt-grid-major': 'oklch(31% 0.015 255)',
-    '--mt-cross': 'oklch(72% 0.18 255 / 0.65)'
-  }
-}
 
 const DASHES: Record<EstiloSerie['dash'], string> = {
   solido: '',
@@ -236,9 +218,8 @@ export function MarchaTempoPainel({
     return [dom]
   }, [tarefas, trecho.id])
 
-  const dens = DENS[opcoes.densidade] ?? DENS.Médio
-  const trajPreset = TRAJ[opcoes.trajetoria] ?? TRAJ.Técnico
-  const amb = AMBIENTE[opcoes.ambiente] ?? {}
+  const dens = DENS
+  const trajPreset = TRAJ
 
   // Tracos deste trecho + estilo aplicado
   const tracosTrecho = useMemo(
@@ -587,7 +568,6 @@ export function MarchaTempoPainel({
   const todayY = sy(todayMs)
 
   const containerStyle: CSSProperties = {
-    ...(amb as CSSProperties),
     minHeight: alturaSvg + 28,
     ['--fs' as keyof CSSProperties]: dens.font
   } as CSSProperties

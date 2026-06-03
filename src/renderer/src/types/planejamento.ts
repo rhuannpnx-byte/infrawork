@@ -407,12 +407,6 @@ export interface MarchaTempoOpcoes {
    * coloridos mostrando o valor da célula em cada segmento + total somado.
    */
   colunasQuantidade: string[]
-  /** Tweak: leitura/densidade (escala tipografia + faixas). */
-  densidade: 'Compacto' | 'Médio' | 'Amplo'
-  /** Tweak: caráter das trajetórias (peso, halo, suavização). */
-  trajetoria: 'Técnico' | 'Encorpado' | 'Fluido'
-  /** Tweak: ambiente (sistema de luminosidade do fundo). */
-  ambiente: 'Carbono' | 'Blueprint' | 'Vanta'
   /** Estilo por série (código de serviço → cor/traço/largura/visibilidade). */
   estilosSerie: Record<string, EstiloSerie>
 }

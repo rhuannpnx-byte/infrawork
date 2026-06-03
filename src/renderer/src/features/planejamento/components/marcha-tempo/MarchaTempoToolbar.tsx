@@ -12,7 +12,6 @@ import {
 import { cn } from '@/lib/utils'
 import { MultiTrechoSelect, type TrechoOpcao } from './MultiTrechoSelect'
 import { MultiColunaSelect } from './MultiColunaSelect'
-import { MarchaTempoTweaks } from './MarchaTempoTweaks'
 import type { MarchaTempoOpcoes } from '@/types/planejamento'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 
@@ -121,8 +120,6 @@ export function MarchaTempoToolbar({
         <Printer size={12} />
         <span>Exportar PDF</span>
       </button>
-
-      <MarchaTempoTweaks opcoes={opcoes} onChange={onChangeOpcoes} />
     </div>
   )
 }
