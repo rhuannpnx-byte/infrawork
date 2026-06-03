@@ -62,8 +62,9 @@ import {
   useTracosMarchaTempo,
   useTemplatesAtuaisPorTrecho
 } from '@/features/planejamento/hooks/marcha-tempo'
-import { MarchaTempoToolbar } from '@/features/planejamento/components/marcha-tempo/MarchaTempoToolbar'
 import { MarchaTempoMultiTrecho } from '@/features/planejamento/components/marcha-tempo/MarchaTempoMultiTrecho'
+import { MarchaTempoOpcoesPopover } from '@/features/planejamento/components/marcha-tempo/MarchaTempoOpcoesPopover'
+import { MultiTrechoSelect } from '@/features/planejamento/components/marcha-tempo/MultiTrechoSelect'
 import type { MarchaTempoOpcoes } from '@/types/planejamento'
 
 export function PlanejamentoMarchaTempoPage(): ReactNode {
@@ -179,33 +180,33 @@ function MarchaTempoInner(): ReactNode {
         title="Marcha-Tempo"
         subtitle={`${scope.obra?.nome ?? ''}: avanço espacial das frentes ao longo do tempo (TILOS).`}
         actions={
-          <select
-            value={planSel?.id ?? ''}
-            onChange={(e) => setPlanId(e.target.value)}
-            className="bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
-          >
-            {planejamentos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome} {p.is_baseline ? '★' : ''}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <MultiTrechoSelect
+              trechos={trechosOpcoes}
+              selecionados={trechosSelecionados}
+              onChange={setTrechosSelecionados}
+            />
+            <MarchaTempoOpcoesPopover
+              opcoes={opcoes}
+              onChangeOpcoes={setOpcoes}
+              templatesPorTrecho={templatesPorTrecho}
+              onExportPdf={() => setExportRequest((n) => n + 1)}
+            />
+            <select
+              value={planSel?.id ?? ''}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
+            >
+              {planejamentos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome} {p.is_baseline ? '★' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         }
       />
       <div className="flex-1 overflow-auto">
-        {/* Toolbar sticky no topo (mesmo padrão do dashboard de acompanhamento) */}
-        <div className="sticky top-0 z-20 bg-bg border-b border-border px-4 py-3">
-          <MarchaTempoToolbar
-            trechos={trechosOpcoes}
-            selecionados={trechosSelecionados}
-            onChangeSelecionados={setTrechosSelecionados}
-            opcoes={opcoes}
-            onChangeOpcoes={setOpcoes}
-            templatesPorTrecho={templatesPorTrecho}
-            onExportPdf={() => setExportRequest((n) => n + 1)}
-          />
-        </div>
-
         <div className="p-4 space-y-3">
           {semDados ? (
             <div className="flex items-center justify-center py-12">
@@ -214,7 +215,7 @@ function MarchaTempoInner(): ReactNode {
                 title="Sem trajetórias para exibir"
                 description={
                   trechosSelecionados.length === 0
-                    ? 'Selecione 1 ou mais trechos na toolbar acima.'
+                    ? 'Selecione 1 ou mais trechos no menu Filtros acima.'
                     : 'Nenhuma tarefa com data + posição definida no(s) trecho(s) selecionado(s).'
                 }
               />

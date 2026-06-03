@@ -1,8 +1,9 @@
 // MarchaTempoFaixaQuantidades — faixas de quantidade ancoradas ao mesmo eixo
 // de caminho do plot, com intensity fill (alpha cresce com o valor) + header
-// inline não-rotacionado + Σ total + guia compartilhada com o plot.
+// inline não-rotacionado + Σ total + guia compartilhada com o plot. Cada bloco
+// recebe um linearGradient vertical (mais opaco no topo) pra dar profundidade.
 
-import { useCallback, type ReactNode } from 'react'
+import { useCallback, useId, type ReactNode } from 'react'
 import { fmtQtdCompact } from '@/features/planejamento/lib/marcha-tempo-pure'
 import type { EstiloSerie } from '@/types/planejamento'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
@@ -143,8 +144,28 @@ export function MarchaTempoFaixaQuantidades({
 
   const handleLeave = useCallback(() => onBandTip(null), [onBandTip])
 
+  const gradId = useId().replace(/:/g, '')
+
   return (
     <g>
+      {/* Gradientes verticais — 1 por cor, reusado em todos os blocos da faixa */}
+      <defs>
+        {grupos.map((g, i) => (
+          <linearGradient
+            key={`grad-${i}`}
+            id={`bandgrad-${gradId}-${i}`}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+            <stop offset="0%" stopColor={g.cor} stopOpacity="1" />
+            <stop offset="55%" stopColor={g.cor} stopOpacity="0.78" />
+            <stop offset="100%" stopColor={g.cor} stopOpacity="0.42" />
+          </linearGradient>
+        ))}
+      </defs>
+
       {/* Echo dos majors do plot pra conexão visual (linhas verticais discretas) */}
       {majors.map((m, i) => (
         <line
@@ -212,20 +233,38 @@ export function MarchaTempoFaixaQuantidades({
               const w = Math.max(0, x1 - x0)
               if (w < 0.5) return null
               const t = g.vmax > g.vmin ? (s.valor - g.vmin) / (g.vmax - g.vmin) : 0.5
-              const alpha = lerp(0.16, 0.62, clamp01(t))
+              // Alpha mais agressivo: até bloco com menor valor visível (0.42),
+              // bloco com maior valor sólido (0.95). Combinado com o gradient
+              // vertical, dá profundidade real.
+              const alpha = lerp(0.42, 0.95, clamp01(t))
               const ctr = (rawX0 + rawX1) / 2
               const showVal = w > 30 && ctr >= 0 && ctr <= innerW
               return (
                 <g key={k}>
+                  {/* Fundo com gradient vertical (top→bottom: 100% → 42% alpha) */}
                   <rect
                     x={x0}
                     y={by}
                     width={w}
                     height={dens.band}
-                    fill={g.cor}
+                    fill={`url(#bandgrad-${gradId}-${i})`}
                     fillOpacity={alpha}
                   />
-                  <rect x={x0} y={by} width={w} height={2.5} fill={g.cor} />
+                  {/* Cap superior — fina barra sólida no topo do bloco */}
+                  <rect x={x0} y={by} width={w} height={3} fill={g.cor} />
+                  {/* Borda fina nas laterais quando bloco é largo o suficiente */}
+                  {w > 6 && (
+                    <rect
+                      x={x0}
+                      y={by}
+                      width={w}
+                      height={dens.band}
+                      fill="none"
+                      stroke={g.cor}
+                      strokeWidth={0.6}
+                      opacity={0.5}
+                    />
+                  )}
                   {showVal && (
                     <text
                       x={ctr}

@@ -241,7 +241,10 @@ export function MarchaTempoPainel({
 
   // Altura das faixas (acima do plot) — empurra SVG total
   const F_PADTOP = 4
-  const F_GAP_LABEL_PLOT = 10
+  // Folga entre o fim da última faixa de quantidade e o topo do plot —
+  // acomoda os rótulos espelhados do eixo X (top tick labels) sem sobrepor
+  // com a base dos blocos de quantidade.
+  const F_GAP_LABEL_PLOT = 28
   const alturaFaixas =
     nColunasFaixa > 0
       ? F_PADTOP +
