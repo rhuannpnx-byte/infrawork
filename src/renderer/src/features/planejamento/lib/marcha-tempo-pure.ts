@@ -227,23 +227,60 @@ function interpoladorQNoTempo(
   perfilAcumulado: Array<{ semanaSegunda: string; qtdAcumulada: number }>
 ): (t: number) => number {
   if (perfilAcumulado.length === 0) return () => 0
-  const semanas = perfilAcumulado.map((s, i) => {
+  // Pré-computa por semana: timestamps dos dias úteis (seg-sex menos feriados),
+  // mais qIni/qFim acumulado. Permite uma curva FIEL à velocidade real:
+  // q cresce APENAS nos dias úteis; fica HORIZONTAL em sábados/domingos/feriados.
+  interface SemanaInfo {
+    tIni: number
+    tFim: number
+    qIni: number
+    qFim: number
+    diasUteis: number[] // timestamps (à meia-noite) dos dias úteis dessa semana
+  }
+  const semanas: SemanaInfo[] = perfilAcumulado.map((s, i) => {
     const tIni = dataMsLocal(s.semanaSegunda)
     const tFim = tIni + 7 * DAY
     const qIni = i === 0 ? 0 : perfilAcumulado[i - 1].qtdAcumulada
     const qFim = s.qtdAcumulada
-    return { tIni, tFim, qIni, qFim }
+    const diasUteis: number[] = []
+    for (let d = 0; d < 7; d++) {
+      const ts = tIni + d * DAY
+      if (ehDiaUtil(ts)) diasUteis.push(ts)
+    }
+    return { tIni, tFim, qIni, qFim, diasUteis }
   })
   const qTotal = perfilAcumulado[perfilAcumulado.length - 1].qtdAcumulada
   return (t: number): number => {
     if (t <= semanas[0].tIni) return 0
     if (t >= semanas[semanas.length - 1].tFim) return qTotal
-    // Busca semana correspondente (linear; perf OK pra ≤ 100 semanas)
     for (const s of semanas) {
       if (t < s.tFim) {
         if (t <= s.tIni) return s.qIni
-        const frac = (t - s.tIni) / (s.tFim - s.tIni)
-        return s.qIni + (s.qFim - s.qIni) * frac
+        const span = s.qFim - s.qIni
+        if (s.diasUteis.length === 0 || span <= 0) {
+          // Semana inteira não-útil ou sem progresso → q fica em qIni
+          return s.qIni
+        }
+        // Cada dia útil "ganha" 1/N da quantidade da semana. Dentro do dia
+        // útil, distribui linearmente em 24h. Em dias não-úteis, q fica
+        // igual ao acumulado do último dia útil concluído.
+        const perDia = span / s.diasUteis.length
+        let qLocal = 0
+        for (const dIni of s.diasUteis) {
+          const dFim = dIni + DAY
+          if (t >= dFim) {
+            qLocal += perDia
+          } else if (t > dIni) {
+            // Dia útil em andamento — distribui linearmente nas 24h
+            const frac = (t - dIni) / DAY
+            qLocal += perDia * frac
+            return s.qIni + qLocal
+          } else {
+            // t cai antes deste dia útil (pode ser fim-de-semana intermediário)
+            return s.qIni + qLocal
+          }
+        }
+        return s.qIni + qLocal
       }
     }
     return qTotal
@@ -318,10 +355,14 @@ export function tracarPerfiladaIlhas(params: TracarPerfiladaParams): PontoTraco[
     ]
   }
 
-  // Calcula nSamples baseado na resolução. Sempre garante ≥ 4 pontos e ≤ 400
-  // (caps razoáveis pro tamanho de dados típico).
+  // Sampling DIÁRIO sempre: permite que a curva represente a velocidade real
+  // do serviço dia-a-dia (slope local = m/dia naquele momento). O parâmetro
+  // resolucaoDias é mantido como fallback pra tarefas muito longas (cap em
+  // 400 samples), mas o passo mínimo é 1 dia.
   const totalDias = Math.max(1, (tFim - tIni) / DAY)
-  const passo = Math.max(1, Math.round(resolucaoDias))
+  const passoSolicitado = Math.max(1, Math.round(resolucaoDias))
+  // Force passo=1 (diário) se a tarefa cabe em 400 amostras
+  const passo = totalDias <= 400 ? 1 : passoSolicitado
   const nSamples = Math.max(4, Math.min(400, Math.ceil(totalDias / passo)))
 
   const qNoTempo = interpoladorQNoTempo(acumulado)
@@ -463,8 +504,10 @@ export function joinIlhasProximas(
   opts?: { thresholdAbsM?: number; thresholdRel?: number }
 ): PontoTraco[][] {
   if (ilhas.length < 2) return ilhas
-  const thrAbs = opts?.thresholdAbsM ?? 2500
-  const thrRel = opts?.thresholdRel ?? 0.025
+  // Threshold APERTADO: só une ilhas separadas por gaps realmente pequenos
+  // (< 800m absoluto OU < 1.2% do range total — o que for maior).
+  const thrAbs = opts?.thresholdAbsM ?? 800
+  const thrRel = opts?.thresholdRel ?? 0.012
   const total = Math.abs(posFim - posIni)
   const threshold = Math.max(thrAbs, thrRel * total)
 
@@ -781,56 +824,108 @@ export interface ConflitoEspaco {
   b: string
 }
 
-/** Para cada par de trajetórias com cruzamento real, retorna o ponto onde
- *  elas se encontram no espaço-tempo. Trabalha em coords de dado, não px,
- *  para permanecer invariante a zoom/resize. */
+/**
+ * Detecta conflitos espaço-temporais reais entre frentes:
+ *
+ * Conflito real = duas frentes de **serviços distintos** (códigos
+ * diferentes) ocupam aproximadamente a mesma posição no mesmo dia. Não
+ * trata como conflito quando:
+ *  - As duas frentes são do MESMO serviço (mesma equipe atuando, não
+ *    competem por espaço-tempo).
+ *  - O cruzamento ocorre em pontos extremos coincidentes (ex.: ambas
+ *    começam no km 0 no dia 0).
+ *  - Múltiplos cruzamentos no mesmo "vizinhança" (km ± 500m e dia ± 1) —
+ *    deduplicados para um único conflito representativo.
+ *
+ * Sampling DENSO: usa TODOS os pontos das ilhas (não pula via STEP) pra
+ * detectar com precisão. Custo O(N²·M²) com N tarefas e M pontos médios;
+ * típico (10 tarefas × 100 pontos) ≈ 100k operações — instantâneo.
+ */
 export function detectarConflitos(
   tracos: Array<{
     tarefaId: string
+    codigo: string | null
     ilhas: Array<Array<{ data: string; posicaoM: number }>>
   }>
 ): ConflitoEspaco[] {
-  const out: ConflitoEspaco[] = []
-  // Amostra cada N pontos pra reduzir custo O(N×N×M²)
-  const STEP = 3
+  // Achata cada trajetória em pontos ordenados (sem STEP — full density)
   const pts = tracos.map((t) => {
     const flat: Array<{ x: number; y: number }> = []
     for (const ilha of t.ilhas) {
-      for (let i = 0; i < ilha.length; i += STEP) {
-        const p = ilha[i]
+      for (const p of ilha) {
         flat.push({
           x: p.posicaoM,
           y: new Date(`${p.data}T00:00:00Z`).getTime()
         })
       }
-      const last = ilha[ilha.length - 1]
-      if (last) {
-        flat.push({
-          x: last.posicaoM,
-          y: new Date(`${last.data}T00:00:00Z`).getTime()
-        })
-      }
     }
     return flat
   })
+
+  const candidatos: ConflitoEspaco[] = []
   for (let i = 0; i < pts.length; i++) {
     for (let j = i + 1; j < pts.length; j++) {
+      // Filtro 1: mesmo serviço → não é conflito (mesma equipe)
+      const codI = tracos[i].codigo
+      const codJ = tracos[j].codigo
+      if (codI && codJ && codI === codJ) continue
+
       const A = pts[i]
       const B = pts[j]
       for (let a = 0; a < A.length - 1; a++) {
         for (let b = 0; b < B.length - 1; b++) {
           const hit = segInter(A[a], A[a + 1], B[b], B[b + 1])
-          if (hit) {
-            out.push({
-              posM: hit.x,
-              dateMs: hit.y,
-              a: tracos[i].tarefaId,
-              b: tracos[j].tarefaId
-            })
+          if (!hit) continue
+          // Filtro 2: rejeita cruzamento em endpoints coincidentes (início
+          // ou fim quase exato de qualquer das duas trajetórias).
+          const proximoIniA = Math.hypot(
+            hit.x - A[0].x,
+            (hit.y - A[0].y) / DAY
+          )
+          const proximoFimA = Math.hypot(
+            hit.x - A[A.length - 1].x,
+            (hit.y - A[A.length - 1].y) / DAY
+          )
+          const proximoIniB = Math.hypot(
+            hit.x - B[0].x,
+            (hit.y - B[0].y) / DAY
+          )
+          const proximoFimB = Math.hypot(
+            hit.x - B[B.length - 1].x,
+            (hit.y - B[B.length - 1].y) / DAY
+          )
+          const TOL_ENDPOINT = 600 // 600m ou ~600 dias (≈ 1.6 anos) — leve
+          if (
+            proximoIniA < TOL_ENDPOINT ||
+            proximoFimA < TOL_ENDPOINT ||
+            proximoIniB < TOL_ENDPOINT ||
+            proximoFimB < TOL_ENDPOINT
+          ) {
+            continue
           }
+          candidatos.push({
+            posM: hit.x,
+            dateMs: hit.y,
+            a: tracos[i].tarefaId,
+            b: tracos[j].tarefaId
+          })
         }
       }
     }
+  }
+
+  // Filtro 3: deduplicação por vizinhança (cluster ± 500m × ± 1 dia)
+  const TOL_POS = 500
+  const TOL_TEMPO = DAY
+  const out: ConflitoEspaco[] = []
+  for (const c of candidatos) {
+    const jaTem = out.find(
+      (o) =>
+        ((o.a === c.a && o.b === c.b) || (o.a === c.b && o.b === c.a)) &&
+        Math.abs(o.posM - c.posM) <= TOL_POS &&
+        Math.abs(o.dateMs - c.dateMs) <= TOL_TEMPO
+    )
+    if (!jaTem) out.push(c)
   }
   return out
 }

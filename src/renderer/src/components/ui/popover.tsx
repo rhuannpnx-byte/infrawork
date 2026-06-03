@@ -84,6 +84,7 @@ export function Popover({
         ? createPortal(
             <div
               ref={menuRef}
+              data-portal-popover=""
               style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000 }}
               className={cn(
                 'min-w-[220px] rounded-md border border-border-strong bg-bg-elevated p-1 shadow-xl animate-slide-up',

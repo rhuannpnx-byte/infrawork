@@ -103,7 +103,8 @@ function MarchaTempoInner(): ReactNode {
       mostrarNaoTrabalhado: true,
       eixosEspelhados: true,
       colunasQuantidade: [],
-      estilosSerie: {}
+      estilosSerie: {},
+      joinThresholdM: 800
     })
   )
   const [exportRequest, setExportRequest] = useState(0)
@@ -146,7 +147,8 @@ function MarchaTempoInner(): ReactNode {
   const tracos = useTracosMarchaTempo(tarefas, templatesPorTrecho, {
     geom: opcoes.geom,
     trechoIds: trechosSelecionados,
-    granularidadeTempo: opcoes.granularidadeTempo
+    granularidadeTempo: opcoes.granularidadeTempo,
+    joinThresholdM: opcoes.joinThresholdM
   })
 
   const trechosOpcoes = useMemo(
@@ -190,6 +192,9 @@ function MarchaTempoInner(): ReactNode {
               opcoes={opcoes}
               onChangeOpcoes={setOpcoes}
               templatesPorTrecho={templatesPorTrecho}
+              trechoRef={
+                trechos.find((t) => t.id === trechosSelecionados[0]) ?? null
+              }
               onExportPdf={() => setExportRequest((n) => n + 1)}
             />
             <select

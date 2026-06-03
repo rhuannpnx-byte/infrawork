@@ -330,10 +330,17 @@ export function MarchaTempoPainel({
     [vy0, vy1, opcoes.mostrarNaoTrabalhado]
   )
 
-  const conflitos = useMemo(
-    () => (opcoes.mostrarConflitos ? detectarConflitos(tracosTrecho) : []),
-    [tracosTrecho, opcoes.mostrarConflitos]
-  )
+  const conflitos = useMemo(() => {
+    if (!opcoes.mostrarConflitos) return []
+    // Conflitos só pra séries VISÍVEIS — esconder uma série remove seus
+    // conflitos automaticamente.
+    const visiveis = tracosTrecho.filter((t) => {
+      const cod = t.codigo
+      if (!cod) return true
+      return opcoes.estilosSerie[cod]?.visivel !== false
+    })
+    return detectarConflitos(visiveis)
+  }, [tracosTrecho, opcoes.mostrarConflitos, opcoes.estilosSerie])
 
   const marcos = useMemo(
     () =>

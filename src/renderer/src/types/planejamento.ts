@@ -409,6 +409,10 @@ export interface MarchaTempoOpcoes {
   colunasQuantidade: string[]
   /** Estilo por série (código de serviço → cor/traço/largura/visibilidade). */
   estilosSerie: Record<string, EstiloSerie>
+  /** Threshold em METROS para o pós-processamento `joinIlhasProximas`.
+   *  Ilhas separadas por gaps ≤ esse valor são unidas; maiores ficam
+   *  visíveis como saltos. 0 = sem join (renderiza cada fatia separada). */
+  joinThresholdM: number
 }
 
 /** Estilo configurável por série (= código de servico). */

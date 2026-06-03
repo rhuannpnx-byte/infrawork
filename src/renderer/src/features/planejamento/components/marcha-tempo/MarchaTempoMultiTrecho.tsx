@@ -75,9 +75,6 @@ export function MarchaTempoMultiTrecho({
 
   if (trechosParaRender.length === 0) return null
 
-  const trechoExport = trechosParaRender[0]
-  const templateExport = templatesPorTrecho.get(trechoExport.id) ?? null
-
   return (
     <div className="flex flex-col gap-3">
       {trechosParaRender.map((trecho) => (
@@ -100,15 +97,16 @@ export function MarchaTempoMultiTrecho({
         </div>
       ))}
 
+      {/* Export agora recebe ARRAY de trechos — gera 1 página por trecho. */}
       <MarchaTempoExport
         open={exportOpen}
         onClose={() => {
           setExportOpen(false)
           onExportConsumed()
         }}
-        trecho={trechoExport}
-        template={templateExport}
-        tracos={tracos.filter((t) => t.trechoId === trechoExport.id)}
+        trechos={trechosParaRender}
+        templatesPorTrecho={templatesPorTrecho}
+        tracos={tracos}
         tarefas={tarefas}
         dataDate={dataDate}
         dominioTempo={dominioTempo}

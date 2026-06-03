@@ -208,3 +208,75 @@
 .leaflet-bottom { z-index: 10 !important; }
 .leaflet-popup,
 .leaflet-tooltip { z-index: 30 !important; }
+
+/* ===== Print mode pro Marcha-Tempo Export ============================== */
+@media print {
+  /* @page é definido dinamicamente em <style> dentro do PreviewSheet
+     (porque depende do tamanho A4/A3 e orientação escolhidos). */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    width: auto !important;
+    height: auto !important;
+  }
+  body.mt-printing > *:not(.mt-print-root) {
+    display: none !important;
+  }
+  body.mt-printing .mt-print-root {
+    position: static !important;
+    background: #fff !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    inset: auto !important;
+  }
+  /* Esconde a toolbar do preview */
+  body.mt-printing .mt-print-toolbar { display: none !important; }
+  /* Neutraliza qualquer flex/scroll/padding do wrapper de páginas */
+  body.mt-printing .mt-print-pages {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    gap: 0 !important;
+    flex: none !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+  }
+  body.mt-printing .export-page {
+    transform: none !important;
+    page-break-after: always;
+    break-after: page;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    box-shadow: none !important;
+    flex: none !important;
+    width: auto !important;
+    height: auto !important;
+    gap: 0 !important;
+  }
+  /* Esconde o badge "Página N / total" no print — só o sheet vai pro PDF */
+  body.mt-printing .mt-print-page-badge { display: none !important; }
+  /* Wrapper da escala vira sem-escala no print */
+  body.mt-printing .export-page > div {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body.mt-printing .export-page > div > div {
+    transform: none !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+  }
+  body.mt-printing .export-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  body.mt-printing .export-sheet {
+    box-shadow: none !important;
+  }
+}

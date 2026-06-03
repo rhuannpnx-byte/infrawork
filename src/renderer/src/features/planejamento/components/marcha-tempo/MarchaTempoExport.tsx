@@ -5,9 +5,19 @@
 
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import {
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   bandasNaoTrabalhadas,
+  corDoServico,
   detectarConflitos,
   fmtDataBR,
   fmtQtdCompact,
@@ -16,6 +26,8 @@ import {
   meiaNoite,
   pathReto
 } from '@/features/planejamento/lib/marcha-tempo-pure'
+import { useAuthStore } from '@/stores/auth-store'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
 import type { EstiloSerie, MarchaTempoOpcoes, TracoTarefa } from '@/types/planejamento'
 import type { ObraTrecho } from '@/types/gerencial'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
@@ -75,8 +87,10 @@ interface CarimboCampos {
 interface MarchaTempoExportProps {
   open: boolean
   onClose: () => void
-  trecho: ObraTrecho
-  template: TrechoQuantidadeVersaoCompleta | null
+  /** Trechos a exportar — 1 página de PDF por trecho. */
+  trechos: ObraTrecho[]
+  templatesPorTrecho: Map<string, TrechoQuantidadeVersaoCompleta | null>
+  /** Tracos de TODOS os trechos — filtrado internamente por trechoId. */
   tracos: TracoTarefa[]
   tarefas: Array<{
     id: string
@@ -95,8 +109,8 @@ interface MarchaTempoExportProps {
 export function MarchaTempoExport({
   open,
   onClose,
-  trecho,
-  template,
+  trechos,
+  templatesPorTrecho,
   tracos,
   tarefas,
   dataDate,
@@ -107,46 +121,42 @@ export function MarchaTempoExport({
   const [orient, setOrient] = useState<'retrato' | 'paisagem'>('retrato')
   const [incluirFaixas, setIncluirFaixas] = useState(true)
   const [preview, setPreview] = useState(false)
-  // Computa intervalo (estaca min→max) e período (mm/aaaa min→max) reais
-  // a partir dos tracos da tarefa atual.
+
+  // Auto-fill via auth-store + scope — campos não-editáveis pelo user
+  const empresaNome = useAuthStore((s) => s.empresa?.nome ?? '—')
+  const userNome = useAuthStore((s) => s.profile?.nome ?? '—')
+  const scope = useCurrentScope()
+  const obraNome = scope.obra?.nome ?? ''
+
+  // Campos do carimbo. Empresa/obra/responsável vêm do sistema (auto-fill).
+  // Trecho/intervalo/período são recomputados por página dentro do Sheet.
+  // Título/desenho/escala/revisão são editáveis pelo user.
   const carimboDefaults = useMemo<CarimboCampos>(() => {
-    let posLo = Number.POSITIVE_INFINITY
-    let posHi = Number.NEGATIVE_INFINITY
-    let dataLo = Number.POSITIVE_INFINITY
-    let dataHi = Number.NEGATIVE_INFINITY
-    for (const t of tracos) {
-      if (t.trechoId !== trecho.id) continue
-      for (const ilha of t.ilhas) {
-        for (const p of ilha) {
-          posLo = Math.min(posLo, p.posicaoM)
-          posHi = Math.max(posHi, p.posicaoM)
-          const ms = new Date(`${p.data}T00:00:00Z`).getTime()
-          dataLo = Math.min(dataLo, ms)
-          dataHi = Math.max(dataHi, ms)
-        }
-      }
-    }
-    const intervalo = Number.isFinite(posLo)
-      ? `${formatMarcadorCurto(posLo)} → ${formatMarcadorCurto(posHi)}`
-      : '—'
-    const periodo = Number.isFinite(dataLo)
-      ? `${fmtMesAno(dataLo)} → ${fmtMesAno(dataHi)}`
-      : '—'
     return {
-      empresa: 'TecPav Engenharia',
-      obra: trecho.nome,
+      empresa: empresaNome,
+      obra: obraNome,
       titulo: 'Diagrama Marcha-Tempo',
-      trecho: trecho.nome,
-      intervalo,
-      periodo,
+      trecho: trechos[0]?.nome ?? '',
+      intervalo: '—',
+      periodo: '—',
       revisao: 'Rev. 04',
       desenhoNum: 'MT-001',
-      responsavel: 'Resp. Técnico',
-      escala: '1:1',
+      responsavel: userNome,
+      escala: 'INDICADA',
       folha: '01/01'
     }
-  }, [tracos, trecho.id, trecho.nome])
+  }, [empresaNome, obraNome, userNome, trechos])
   const [carimbo, setCarimbo] = useState<CarimboCampos>(carimboDefaults)
+
+  // Sincroniza auto-fill se mudar empresa/obra/usuário enquanto modal aberto
+  useEffect(() => {
+    setCarimbo((c) => ({
+      ...c,
+      empresa: empresaNome,
+      obra: obraNome,
+      responsavel: userNome
+    }))
+  }, [empresaNome, obraNome, userNome])
 
   if (!open) return null
 
@@ -157,8 +167,8 @@ export function MarchaTempoExport({
         orient={orient}
         carimbo={carimbo}
         incluirFaixas={incluirFaixas}
-        trecho={trecho}
-        template={template}
+        trechos={trechos}
+        templatesPorTrecho={templatesPorTrecho}
         tracos={tracos}
         tarefas={tarefas}
         dataDate={dataDate}
@@ -170,91 +180,80 @@ export function MarchaTempoExport({
     )
   }
 
-  return createPortal(
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-6"
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose()
+      }}
+      size="md"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-[460px] max-w-full max-h-[92vh] overflow-auto rounded-lg border border-border-strong bg-bg-menu shadow-2xl"
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="text-sm font-semibold">Exportar Marcha-Tempo em PDF</div>
-          <button
-            onClick={onClose}
-            className="w-6 h-6 rounded text-text-dim hover:bg-bg-hover hover:text-text flex items-center justify-center"
-          >
-            <X size={14} />
-          </button>
+      <DialogHeader>
+        <DialogTitle>Exportar Marcha-Tempo em PDF</DialogTitle>
+      </DialogHeader>
+      <DialogBody className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
+        <Linha label="Tamanho">
+          <Seg opts={['A4', 'A3'] as const} value={tamanho} onChange={(v) => setTamanho(v)} />
+        </Linha>
+        <Linha label="Orientação">
+          <Seg
+            opts={['retrato', 'paisagem'] as const}
+            value={orient}
+            onChange={(v) => setOrient(v)}
+          />
+        </Linha>
+        <label className="flex items-center gap-2 cursor-pointer text-text-muted text-xs">
+          <input
+            type="checkbox"
+            checked={incluirFaixas}
+            onChange={(e) => setIncluirFaixas(e.target.checked)}
+            className="w-3.5 h-3.5 accent-accent"
+          />
+          Incluir faixas de quantidade
+        </label>
+        <div className="text-2xs text-text-dim font-mono">
+          {trechos.length} {trechos.length === 1 ? 'página' : 'páginas'} no PDF
+          (1 por trecho selecionado)
         </div>
 
-        <div className="px-4 py-4 flex flex-col gap-3 font-mono text-xs">
-          <Linha label="Tamanho">
-            <Seg
-              opts={['A4', 'A3'] as const}
-              value={tamanho}
-              onChange={(v) => setTamanho(v)}
-            />
-          </Linha>
-          <Linha label="Orientação">
-            <Seg
-              opts={['retrato', 'paisagem'] as const}
-              value={orient}
-              onChange={(v) => setOrient(v)}
-            />
-          </Linha>
-          <label className="flex items-center gap-2 cursor-pointer text-text-muted">
-            <input
-              type="checkbox"
-              checked={incluirFaixas}
-              onChange={(e) => setIncluirFaixas(e.target.checked)}
-              className="w-3.5 h-3.5 accent-accent"
-            />
-            Incluir faixas de quantidade
-          </label>
+        <div className="h-px bg-border my-1" />
+        <div className="text-2xs uppercase tracking-wider text-text-dim">Carimbo</div>
 
-          <div className="h-px bg-border my-1" />
-          <div className="text-2xs uppercase tracking-wider text-text-dim">Carimbo</div>
-          <div className="grid grid-cols-2 gap-2">
-            <Campo label="Empresa" value={carimbo.empresa} onChange={(v) => setCarimbo({ ...carimbo, empresa: v })} />
-            <Campo label="Obra" value={carimbo.obra} onChange={(v) => setCarimbo({ ...carimbo, obra: v })} />
-            <Campo label="Título" value={carimbo.titulo} onChange={(v) => setCarimbo({ ...carimbo, titulo: v })} />
-            <Campo label="Trecho" value={carimbo.trecho} onChange={(v) => setCarimbo({ ...carimbo, trecho: v })} />
-            <Campo label="Intervalo (estaca)" value={carimbo.intervalo} onChange={(v) => setCarimbo({ ...carimbo, intervalo: v })} />
-            <Campo label="Período" value={carimbo.periodo} onChange={(v) => setCarimbo({ ...carimbo, periodo: v })} />
-            <Campo label="Desenho nº" value={carimbo.desenhoNum} onChange={(v) => setCarimbo({ ...carimbo, desenhoNum: v })} />
-            <Campo label="Revisão" value={carimbo.revisao} onChange={(v) => setCarimbo({ ...carimbo, revisao: v })} />
-            <Campo label="Escala" value={carimbo.escala} onChange={(v) => setCarimbo({ ...carimbo, escala: v })} />
-            <Campo label="Folha" value={carimbo.folha} onChange={(v) => setCarimbo({ ...carimbo, folha: v })} />
-            <Campo label="Responsável" value={carimbo.responsavel} onChange={(v) => setCarimbo({ ...carimbo, responsavel: v })} />
-          </div>
+        {/* Campos auto-fill (read-only) — vêm do sistema */}
+        <div className="grid grid-cols-2 gap-2 px-2 py-2 rounded bg-bg/50 border border-border/60 text-2xs font-mono">
+          <AutoCampo label="Empresa" value={carimbo.empresa} />
+          <AutoCampo label="Obra" value={carimbo.obra} />
+          <AutoCampo label="Responsável" value={carimbo.responsavel} />
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded border border-border-strong bg-bg text-text-muted hover:bg-bg-hover"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => setPreview(true)}
-            className="px-3 py-1.5 text-xs font-semibold rounded border bg-accent text-bg border-accent hover:bg-accent-hover"
-          >
-            Pré-visualizar
-          </button>
+        {/* Campos editáveis */}
+        <div className="grid grid-cols-2 gap-2">
+          <Campo label="Título" value={carimbo.titulo} onChange={(v) => setCarimbo({ ...carimbo, titulo: v })} />
+          <Campo label="Desenho nº" value={carimbo.desenhoNum} onChange={(v) => setCarimbo({ ...carimbo, desenhoNum: v })} />
+          <Campo label="Revisão" value={carimbo.revisao} onChange={(v) => setCarimbo({ ...carimbo, revisao: v })} />
+          <Campo label="Escala" value={carimbo.escala} onChange={(v) => setCarimbo({ ...carimbo, escala: v })} />
         </div>
-      </div>
-    </div>,
-    document.body
+        <p className="text-2xs text-text-faint">
+          Trecho/intervalo/período/folha são preenchidos automaticamente por
+          página a partir das tarefas atuais.
+        </p>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button variant="default" size="sm" onClick={() => setPreview(true)}>
+          Pré-visualizar
+        </Button>
+      </DialogFooter>
+    </Dialog>
   )
 }
 
 function Linha({ label, children }: { label: string; children: ReactNode }): ReactNode {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-text-muted">{label}</span>
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <Label className="!mb-0">{label}</Label>
       {children}
     </div>
   )
@@ -298,15 +297,29 @@ function Campo({
   onChange: (v: string) => void
 }): ReactNode {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-2xs text-text-dim">{label}</span>
-      <input
+    <div className="flex flex-col gap-1">
+      <Label className="text-2xs">{label}</Label>
+      <Input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="text-xs font-mono px-2 py-1.5 rounded border border-border bg-bg text-text focus:outline focus:outline-1 focus:outline-accent focus:border-accent"
+        className="font-mono text-xs"
       />
-    </label>
+    </div>
+  )
+}
+
+function AutoCampo({ label, value }: { label: string; value: string }): ReactNode {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-2xs uppercase tracking-wider text-text-faint">{label}</span>
+      <span
+        className="text-xs text-text-muted truncate"
+        title={value}
+      >
+        {value || '—'}
+      </span>
+    </div>
   )
 }
 
@@ -322,6 +335,13 @@ interface PreviewSheetProps extends Omit<MarchaTempoExportProps, 'open'> {
 function PreviewSheet(props: PreviewSheetProps): ReactNode {
   const dims = pageDims(props.tamanho, props.orient)
   const [scale, setScale] = useState(1)
+
+  // @page size — usa keywords (A4/A3 + landscape/portrait) que o browser
+  // respeita melhor que dimensões em mm pra rotação automática.
+  const pageSize = useMemo(() => {
+    const orient = props.orient === 'paisagem' ? 'landscape' : 'portrait'
+    return `${props.tamanho} ${orient}`
+  }, [props.tamanho, props.orient])
 
   useEffect(() => {
     const calc = (): void => {
@@ -344,42 +364,109 @@ function PreviewSheet(props: PreviewSheetProps): ReactNode {
   }
 
   return (
-    <div className="fixed inset-0 z-[2000] flex flex-col bg-[oklch(14%_0.006_255)]">
-      <div className="flex items-center justify-between px-4 py-2 bg-bg-elevated border-b border-border">
+    <div className="mt-print-root fixed inset-0 z-[2000] flex flex-col bg-[oklch(14%_0.006_255)]">
+      {/* @page dinâmico (injeção via <style>) — browser usa esse tamanho ao
+          imprimir, evitando crop por mismatch de tamanho de papel default. */}
+      <style>{`@media print { @page { size: ${pageSize}; margin: 0; } }`}</style>
+      <div className="mt-print-toolbar flex items-center justify-between px-4 py-2 bg-bg-elevated border-b border-border">
         <span className="text-xs text-text-muted">
-          Pré-visualização · {props.tamanho} {props.orient}
+          Pré-visualização · {props.tamanho} {props.orient} ·{' '}
+          {props.trechos.length} página{props.trechos.length > 1 ? 's' : ''}
         </span>
         <div className="flex gap-2">
-          <button
-            onClick={props.onClose}
-            className="text-xs px-3 py-1.5 rounded border border-border-strong bg-bg text-text-muted hover:bg-bg-hover"
-          >
+          <Button variant="ghost" size="sm" onClick={props.onClose}>
             Voltar
-          </button>
-          <button
-            onClick={handlePrint}
-            className="text-xs font-semibold px-3 py-1.5 rounded border bg-accent text-bg border-accent hover:bg-accent-hover"
-          >
+          </Button>
+          <Button variant="default" size="sm" onClick={handlePrint}>
             Imprimir / Salvar PDF
-          </button>
+          </Button>
         </div>
       </div>
-      <div className="flex-1 overflow-auto flex justify-center p-6">
-        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
-          <Sheet {...props} dims={dims} />
-        </div>
+      <div className="mt-print-pages flex-1 overflow-auto flex flex-col items-center gap-6 px-6 py-4">
+        {props.trechos.map((tr, idx) => (
+          <div
+            key={tr.id}
+            data-mt-export-page={idx + 1}
+            className="export-page flex flex-col items-center gap-2"
+            // Layout total = scaled size + badge height (~24px)
+            style={{ width: dims.w * scale, scrollMarginTop: 16 }}
+          >
+            <div className="mt-print-page-badge flex items-center gap-2 text-2xs font-mono uppercase tracking-widest text-text-dim">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border bg-bg-elevated text-text-muted">
+                <span className="text-text-faint">Página</span>
+                <span className="text-text font-semibold">{idx + 1}</span>
+                <span className="text-text-faint">/ {props.trechos.length}</span>
+              </span>
+              <span className="text-text-muted">{tr.nome}</span>
+            </div>
+            <div
+              style={{
+                width: dims.w * scale,
+                height: dims.h * scale,
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                style={{
+                  width: dims.w,
+                  height: dims.h,
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0
+                }}
+              >
+                <SheetPagina
+                  dims={dims}
+                  carimbo={props.carimbo}
+                  incluirFaixas={props.incluirFaixas}
+                  trecho={tr}
+                  template={props.templatesPorTrecho.get(tr.id) ?? null}
+                  tracos={props.tracos.filter((t) => t.trechoId === tr.id)}
+                  tarefas={props.tarefas}
+                  dataDate={props.dataDate}
+                  dominioTempo={props.dominioTempo}
+                  opcoes={props.opcoes}
+                  pageIndex={idx}
+                  pageCount={props.trechos.length}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-interface SheetProps extends PreviewSheetProps {
+interface SheetPaginaProps {
   dims: { w: number; h: number }
+  carimbo: CarimboCampos
+  incluirFaixas: boolean
+  trecho: ObraTrecho
+  template: TrechoQuantidadeVersaoCompleta | null
+  tracos: TracoTarefa[]
+  tarefas: Array<{
+    id: string
+    tipo_no: string
+    data_inicio: string | null
+    nome_custom: string | null
+    servico_grupo_descricao: string | null
+    codigo_eap: string | null
+    trecho_id: string | null
+  }>
+  dataDate: string | null
+  dominioTempo: [number, number]
+  opcoes: MarchaTempoOpcoes
+  pageIndex: number
+  pageCount: number
 }
 
-function Sheet({
+function SheetPagina({
   dims,
-  carimbo,
+  carimbo: carimboBase,
   incluirFaixas,
   trecho,
   template,
@@ -387,13 +474,56 @@ function Sheet({
   tarefas,
   dataDate,
   dominioTempo,
-  opcoes
-}: SheetProps): ReactNode {
+  opcoes,
+  pageIndex,
+  pageCount
+}: SheetPaginaProps): ReactNode {
+  // Layout DINÂMICO: carimbo ancorado no fundo, diagrama cresce pra ocupar
+  // o espaço entre header (em cima) e legenda/carimbo (em baixo).
+  // Reservas fixas (todas precisas, somando até a altura usada):
   const PAD = 8
+  const HEADER_H = 32 // título 13 + sub 10 + paddingBottom 5 + margem
+  const LEGENDA_H = 36 // 1-2 linhas de chips
+  const CARIMBO_H = 124
+  const GAP = 8 // entre header→diagrama, diagrama→legenda, legenda→carimbo
   const innerW = dims.w - PAD * 2
-  // Reservas: 104px carimbo + 28px legenda + 8px gaps + 25px header = 165px
-  const innerH = dims.h - PAD * 2 - 132
-  const diagramH = innerH - 40 - 132
+  // 3 gaps (header→diagrama, diagrama→legenda, legenda→carimbo) = 24
+  const usadoH = PAD * 2 + HEADER_H + LEGENDA_H + CARIMBO_H + 3 * GAP
+  const diagramH = Math.max(200, dims.h - usadoH)
+
+  // Carimbo: começa do base (campos globais) + overrides por trecho
+  // (obra/trecho/intervalo/periodo/folha são recomputados PRA CADA página).
+  const carimbo: CarimboCampos = useMemo(() => {
+    let posLo = Number.POSITIVE_INFINITY
+    let posHi = Number.NEGATIVE_INFINITY
+    let dataLo = Number.POSITIVE_INFINITY
+    let dataHi = Number.NEGATIVE_INFINITY
+    for (const t of tracos) {
+      for (const ilha of t.ilhas) {
+        for (const p of ilha) {
+          posLo = Math.min(posLo, p.posicaoM)
+          posHi = Math.max(posHi, p.posicaoM)
+          const ms = new Date(`${p.data}T00:00:00Z`).getTime()
+          dataLo = Math.min(dataLo, ms)
+          dataHi = Math.max(dataHi, ms)
+        }
+      }
+    }
+    const intervalo = Number.isFinite(posLo)
+      ? `${formatMarcadorCurto(posLo)} → ${formatMarcadorCurto(posHi)}`
+      : carimboBase.intervalo
+    const periodo = Number.isFinite(dataLo)
+      ? `${fmtMesAno(dataLo)} → ${fmtMesAno(dataHi)}`
+      : carimboBase.periodo
+    return {
+      ...carimboBase,
+      obra: carimboBase.obra || trecho.nome,
+      trecho: trecho.nome,
+      intervalo,
+      periodo,
+      folha: `${String(pageIndex + 1).padStart(2, '0')}/${String(pageCount).padStart(2, '0')}`
+    }
+  }, [carimboBase, tracos, trecho.nome, pageIndex, pageCount])
 
   // Cor base por código (mesma lógica que MarchaTempoSeriesPanel/Faixas)
   const codigosVisiveis = useMemo(() => {
@@ -408,22 +538,32 @@ function Sheet({
   }, [tracos, opcoes.estilosSerie])
 
   const legendaItems = useMemo(() => {
-    const m = new Map<string, { codigo: string; label: string; cor: string }>()
+    const m = new Map<
+      string,
+      { codigo: string; label: string; cor: string; count: number }
+    >()
     for (const t of tracos) {
       const cod = t.codigo ?? t.tarefaId
       if (!codigosVisiveis.has(cod)) continue
       const est = opcoes.estilosSerie[cod]
       const cor = pcor(est?.cor ?? t.cor)
-      if (!m.has(cod)) m.set(cod, { codigo: cod, label: t.label, cor })
+      const atual = m.get(cod)
+      if (atual) atual.count++
+      else m.set(cod, { codigo: cod, label: t.label, cor, count: 1 })
     }
     return Array.from(m.values())
   }, [tracos, codigosVisiveis, opcoes.estilosSerie])
 
-  // Conta conflitos visíveis pra decidir se mostra o marcador na legenda
+  // Conflitos só pra séries VISÍVEIS
   const totalConflitos = useMemo(() => {
     if (!opcoes.mostrarConflitos) return 0
-    return detectarConflitos(tracos.filter((t) => t.trechoId === trecho.id)).length
-  }, [tracos, trecho.id, opcoes.mostrarConflitos])
+    const visiveis = tracos.filter(
+      (t) =>
+        t.trechoId === trecho.id &&
+        (!t.codigo || opcoes.estilosSerie[t.codigo]?.visivel !== false)
+    )
+    return detectarConflitos(visiveis).length
+  }, [tracos, trecho.id, opcoes.mostrarConflitos, opcoes.estilosSerie])
 
   return (
     <div
@@ -467,8 +607,9 @@ function Sheet({
           </div>
         </div>
 
-        {/* Diagrama */}
-        <div style={{ flex: 'none' }}>
+        {/* Diagrama — `flex: 1` faz absorver TODO o espaço restante entre
+            header (no topo) e legenda/carimbo (no fim). Sem espaço morto. */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <DiagramaExport
             W={innerW}
             H={diagramH}
@@ -481,6 +622,7 @@ function Sheet({
             estilosSerie={opcoes.estilosSerie}
             colunasQuantidade={opcoes.colunasQuantidade}
             incluirFaixas={incluirFaixas}
+            passoPosicaoM={opcoes.passoPosicaoM}
           />
         </div>
 
@@ -512,7 +654,14 @@ function Sheet({
                 <svg width="20" height="6">
                   <line x1="0" y1="3" x2="20" y2="3" stroke={l.cor} strokeWidth="2" />
                 </svg>
-                <span>{l.label}</span>
+                <span>
+                  {l.label}
+                  {l.count > 1 && (
+                    <span style={{ color: '#6b7280', marginLeft: 4 }}>
+                      ×{l.count}
+                    </span>
+                  )}
+                </span>
               </div>
             ))}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#374151' }}>
@@ -543,12 +692,13 @@ function Sheet({
 
 function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
   const cellStyle: CSSProperties = {
+    boxSizing: 'border-box',
     borderRight: '1px solid #9ca3af',
-    padding: '3px 8px',
+    padding: '5px 8px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
-    gap: 1,
+    gap: 2,
     overflow: 'hidden',
     minWidth: 0,
     flex: 1
@@ -559,30 +709,35 @@ function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
     color: '#6b7280',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
-    textOverflow: 'ellipsis'
+    textOverflow: 'ellipsis',
+    lineHeight: 1.15
   }
   const vStyle: CSSProperties = {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 600,
     color: '#111827',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
-    textOverflow: 'ellipsis'
+    textOverflow: 'ellipsis',
+    lineHeight: 1.15
   }
   const rowStyle: CSSProperties = {
+    boxSizing: 'border-box',
     flex: 1,
     display: 'flex',
     borderBottom: '1px solid #9ca3af',
-    minHeight: 0
+    minHeight: 0,
+    alignItems: 'stretch'
   }
 
   return (
     <div
       style={{
         flex: 'none',
+        boxSizing: 'border-box',
         display: 'flex',
         border: '1.5px solid #374151',
-        height: 104
+        height: 124
       }}
     >
       <div
@@ -614,7 +769,7 @@ function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
             <div style={vStyle}>{carimbo.obra}</div>
           </div>
           <div style={{ ...cellStyle, borderRight: 'none' }}>
-            <div style={kStyle}>TÍTULO DO DOCUMENTO</div>
+            <div style={kStyle}>TÍTULO</div>
             <div style={vStyle}>{carimbo.titulo}</div>
           </div>
         </div>
@@ -655,7 +810,7 @@ function Carimbo({ carimbo }: { carimbo: CarimboCampos }): ReactNode {
             <div style={vStyle}>{fmtDataBR(Date.now())}</div>
           </div>
           <div style={cellStyle}>
-            <div style={kStyle}>RESPONSÁVEL TÉCNICO</div>
+            <div style={kStyle}>RESPONSÁVEL</div>
             <div style={vStyle}>{carimbo.responsavel}</div>
           </div>
           <div style={{ ...cellStyle, borderRight: 'none' }}>
@@ -690,6 +845,8 @@ interface DiagramaExportProps {
   estilosSerie: Record<string, EstiloSerie>
   colunasQuantidade: string[]
   incluirFaixas: boolean
+  /** Passo do eixo X em metros (null = auto). Espelha opção do usuário no menu. */
+  passoPosicaoM: number | null
 }
 
 function DiagramaExport({
@@ -703,7 +860,8 @@ function DiagramaExport({
   dominioTempo,
   estilosSerie,
   colunasQuantidade,
-  incluirFaixas
+  incluirFaixas,
+  passoPosicaoM
 }: DiagramaExportProps): ReactNode {
   const [t0, t1] = dominioTempo
 
@@ -745,9 +903,12 @@ function DiagramaExport({
   const sx = (v: number): number => ((v - px0) / Math.max(1, px1 - px0)) * innerW
   const sy = (ms: number): number => ((ms - t0) / Math.max(1, t1 - t0)) * innerH
 
-  // grids
+  // grids — respeita passoPosicaoM personalizado quando definido pelo user
   const spanX = px1 - px0
-  const cands = [500, 1000, 2000, 5000, 10000, 25000, 50000]
+  const cands =
+    passoPosicaoM != null && passoPosicaoM > 0
+      ? [passoPosicaoM]
+      : [500, 1000, 2000, 5000, 10000, 25000, 50000]
   let majX = cands[cands.length - 1]
   for (const c of cands) {
     if (innerW / (spanX / c) >= 82) {
@@ -782,7 +943,13 @@ function DiagramaExport({
   const todayY = sy(todayMs)
   const dentro = (y: number): boolean => y >= -1 && y <= innerH + 1
 
-  const conflitos = detectarConflitos(tracos.filter((t) => t.trechoId === trecho.id))
+  const conflitos = detectarConflitos(
+    tracos.filter(
+      (t) =>
+        t.trechoId === trecho.id &&
+        (!t.codigo || estilosSerie[t.codigo]?.visivel !== false)
+    )
+  )
 
   const marcos = tarefas.filter(
     (t) =>
@@ -806,7 +973,9 @@ function DiagramaExport({
             const top = i * (FH + FB + FG)
             const by = top + FH
             const codigo = col.nome.match(/^\s*([\w.-]+)/)?.[1] ?? col.nome
-            const cor = pcor(estilosSerie[codigo]?.cor ?? '#1d4ed8')
+            // Cor da faixa = cor do serviço no plot (mesma regra: custom se
+            // user definiu, senão hash determinístico via corDoServico).
+            const cor = pcor(estilosSerie[codigo]?.cor ?? corDoServico(codigo))
             const segs = template.segmentos
               .map((s) => ({
                 ini: Math.min(s.posicao_inicio_m, s.posicao_fim_m),
@@ -830,35 +999,94 @@ function DiagramaExport({
                   Σ {fmtQtdCompact(total)} {col.unidade}
                 </text>
                 <rect x={0} y={by} width={innerW} height={FB} fill="#fff" stroke="#d1d5db" strokeWidth={0.75} />
-                {segs.map((s, j) => {
-                  const rx0 = sx(s.ini)
-                  const rx1 = sx(s.fim)
-                  const x0 = Math.max(0, Math.min(innerW, rx0))
-                  const x1 = Math.max(0, Math.min(innerW, rx1))
-                  const w = x1 - x0
-                  if (w < 0.5) return null
-                  const tt = vmax > vmin ? (s.valor - vmin) / (vmax - vmin) : 0.5
-                  const a = 0.12 + Math.max(0, Math.min(1, tt)) * 0.38
-                  return (
-                    <g key={j}>
-                      <rect x={x0} y={by} width={w} height={FB} fill={cor} fillOpacity={a} />
-                      <rect x={x0} y={by} width={w} height={2} fill={cor} />
-                      {w > 26 && (
-                        <text
-                          x={(rx0 + rx1) / 2}
-                          y={by + FB / 2 + 3.5}
-                          textAnchor="middle"
-                          fontSize={8}
-                          fontWeight={700}
-                          fill="#111827"
-                          fontFamily="ui-monospace, monospace"
-                        >
-                          {fmtQtdCompact(s.valor)}
-                        </text>
-                      )}
-                    </g>
-                  )
-                })}
+                {/* Clusterização: agrupa segmentos adjacentes até a largura
+                    permitir escrita do valor. Mais agressiva no PDF pra que
+                    quase todos os blocos exibam o valor (canon do design). */}
+                {(() => {
+                  const MIN_LABEL_PX = 18
+                  const GAP_PX = 1.2
+                  interface Cl {
+                    ini: number
+                    fim: number
+                    valor: number
+                    count: number
+                  }
+                  const clusters: Cl[] = []
+                  let cur: Cl | null = null
+                  for (const s of segs) {
+                    const xIni = sx(s.ini)
+                    const xFim = sx(s.fim)
+                    if (xFim < 0 || xIni > innerW) continue
+                    if (!cur) {
+                      cur = { ini: s.ini, fim: s.fim, valor: s.valor, count: 1 }
+                      continue
+                    }
+                    const xCurFim = sx(cur.fim)
+                    const wCur = xCurFim - sx(cur.ini)
+                    const gap = xIni - xCurFim
+                    if (wCur >= MIN_LABEL_PX && gap > GAP_PX) {
+                      clusters.push(cur)
+                      cur = { ini: s.ini, fim: s.fim, valor: s.valor, count: 1 }
+                    } else {
+                      cur.fim = s.fim
+                      cur.valor += s.valor
+                      cur.count += 1
+                    }
+                  }
+                  if (cur) clusters.push(cur)
+                  return clusters.map((c, j) => {
+                    const rx0 = sx(c.ini)
+                    const rx1 = sx(c.fim)
+                    const x0 = Math.max(0, Math.min(innerW, rx0))
+                    const x1 = Math.max(0, Math.min(innerW, rx1))
+                    const w = x1 - x0
+                    if (w < 0.5) return null
+                    const v = c.count > 0 ? c.valor / c.count : c.valor
+                    const tt = vmax > vmin ? (v - vmin) / (vmax - vmin) : 0.5
+                    const a = 0.12 + Math.max(0, Math.min(1, tt)) * 0.38
+                    return (
+                      <g key={j}>
+                        <rect x={x0} y={by} width={w} height={FB} fill={cor} fillOpacity={a} />
+                        <rect x={x0} y={by} width={w} height={2} fill={cor} />
+                        {/* Sub-divisões internas pra preservar fidelidade */}
+                        {c.count > 1 &&
+                          w > 12 &&
+                          segs
+                            .filter((s) => s.ini >= c.ini && s.fim <= c.fim)
+                            .slice(0, -1)
+                            .map((s, sj) => {
+                              const xSub = sx(s.fim)
+                              if (xSub < x0 + 1 || xSub > x1 - 1) return null
+                              return (
+                                <line
+                                  key={`sub${sj}`}
+                                  x1={xSub}
+                                  x2={xSub}
+                                  y1={by + 2}
+                                  y2={by + FB - 1}
+                                  stroke={cor}
+                                  strokeWidth={0.5}
+                                  opacity={0.35}
+                                />
+                              )
+                            })}
+                        {w >= 14 && (
+                          <text
+                            x={(rx0 + rx1) / 2}
+                            y={by + FB / 2 + 3.5}
+                            textAnchor="middle"
+                            fontSize={w >= 28 ? 8 : 7}
+                            fontWeight={700}
+                            fill="#111827"
+                            fontFamily="ui-monospace, monospace"
+                          >
+                            {fmtQtdCompact(c.valor)}
+                          </text>
+                        )}
+                      </g>
+                    )
+                  })
+                })()}
               </g>
             )
           })}

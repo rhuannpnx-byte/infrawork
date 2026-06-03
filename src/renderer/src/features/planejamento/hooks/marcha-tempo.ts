@@ -169,6 +169,8 @@ interface OpcoesTracos {
   trechoIds?: string[]
   /** Granularidade temporal: define a resolução de pontos na polilinha. */
   granularidadeTempo: GranularidadeTempo
+  /** Threshold em METROS pro join de ilhas próximas (0 = sem join). */
+  joinThresholdM?: number
 }
 
 /**
@@ -235,10 +237,14 @@ export function useTracosMarchaTempo(
           resolucaoDias
         })
         // Pós-processamento: junta ilhas separadas por gaps pequenos no eixo
-        // posição (default: < max(2.5 km, 2.5% do range)). Reduz a aparência
-        // pontilhada quando o template tem muitos micro-segmentos adjacentes.
-        if (ilhas.length > 1) {
-          ilhas = joinIlhasProximas(ilhas, posIni, posFim)
+        // posição. Threshold controlado pelo usuário via opcoes.joinThresholdM.
+        // 0 = sem join, valores maiores juntam mais ilhas.
+        const thresholdM = opcoes.joinThresholdM ?? 800
+        if (ilhas.length > 1 && thresholdM > 0) {
+          ilhas = joinIlhasProximas(ilhas, posIni, posFim, {
+            thresholdAbsM: thresholdM,
+            thresholdRel: 0
+          })
         }
         if (ilhas.length > 0) {
           modo = 'perfilada'
@@ -282,7 +288,8 @@ export function useTracosMarchaTempo(
     templatesPorTrecho,
     opcoes.geom,
     opcoes.trechoIds,
-    opcoes.granularidadeTempo
+    opcoes.granularidadeTempo,
+    opcoes.joinThresholdM
   ])
 }
 

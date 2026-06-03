@@ -19,18 +19,56 @@ import { cn } from '@/lib/utils'
 import { MultiColunaSelect } from './MultiColunaSelect'
 import type { MarchaTempoOpcoes } from '@/types/planejamento'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
+import type { ObraTrecho } from '@/types/gerencial'
+import { divisorMetrosPorUnidade } from '@/lib/format/posicao'
 
 interface MarchaTempoOpcoesPopoverProps {
   opcoes: MarchaTempoOpcoes
   onChangeOpcoes: (op: MarchaTempoOpcoes) => void
   templatesPorTrecho: Map<string, TrechoQuantidadeVersaoCompleta | null>
+  /** Trecho de referência para a unidade do slider de join (km/m/estaca/custom). */
+  trechoRef: ObraTrecho | null
   onExportPdf: () => void
+}
+
+function labelGapNaUnidadeDoTrecho(
+  thresholdM: number,
+  trecho: ObraTrecho | null
+): string {
+  if (thresholdM === 0) return 'sem junção'
+  if (!trecho) {
+    // fallback: m / km
+    return thresholdM >= 1000
+      ? `${(thresholdM / 1000).toFixed(1).replace('.', ',')} km`
+      : `${thresholdM} m`
+  }
+  const divisor = divisorMetrosPorUnidade(trecho)
+  const unidades = thresholdM / divisor
+  const sufixo =
+    trecho.unidade_espaco_padrao === 'km'
+      ? 'km'
+      : trecho.unidade_espaco_padrao === 'm'
+        ? 'm'
+        : trecho.unidade_espaco_padrao === 'estaca'
+          ? unidades === 1
+            ? 'estaca'
+            : 'estacas'
+          : (trecho.unidade_custom_label ?? '')
+  // Formata número adaptativo: inteiro se > 10, 1 casa se entre 1 e 10, 2 se < 1
+  const fmt =
+    unidades >= 10
+      ? Math.round(unidades).toString()
+      : unidades >= 1
+        ? unidades.toFixed(1).replace('.', ',')
+        : unidades.toFixed(2).replace('.', ',')
+  return `${fmt} ${sufixo}`.trim()
 }
 
 export function MarchaTempoOpcoesPopover({
   opcoes,
   onChangeOpcoes,
   templatesPorTrecho,
+  trechoRef,
   onExportPdf
 }: MarchaTempoOpcoesPopoverProps): ReactNode {
   const [aberto, setAberto] = useState(false)
@@ -39,7 +77,11 @@ export function MarchaTempoOpcoesPopover({
   useEffect(() => {
     if (!aberto) return
     const h = (e: MouseEvent): void => {
-      if (!wrapRef.current?.contains(e.target as Node)) setAberto(false)
+      const target = e.target as HTMLElement
+      // Ignora cliques em popovers portal (MultiColunaSelect etc.) — eles
+      // renderizam em document.body fora do wrapRef.
+      if (target.closest('[data-portal-popover]')) return
+      if (!wrapRef.current?.contains(target)) setAberto(false)
     }
     const k = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') setAberto(false)
@@ -127,6 +169,45 @@ export function MarchaTempoOpcoesPopover({
 
           <div className="h-px bg-border" />
 
+          {/* Granularidade do eixo X (passo de ticks na unidade do trecho) */}
+          <Secao titulo="Granularidade do eixo X">
+            <GranularidadeXSelect
+              passoM={opcoes.passoPosicaoM}
+              trecho={trechoRef}
+              onChange={(passoM) => setOpc({ passoPosicaoM: passoM })}
+            />
+          </Secao>
+
+          <div className="h-px bg-border" />
+
+          {/* Slider de join — threshold de gap pra unir ilhas */}
+          <Secao titulo="Junção de ilhas">
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={0}
+                max={10000}
+                step={100}
+                value={opcoes.joinThresholdM}
+                onChange={(e) =>
+                  setOpc({ joinThresholdM: Number(e.target.value) })
+                }
+                onInput={(e) =>
+                  setOpc({ joinThresholdM: Number((e.target as HTMLInputElement).value) })
+                }
+                className="flex-1 accent-accent"
+              />
+              <span className="text-2xs text-text font-mono whitespace-nowrap min-w-[74px] text-right">
+                {labelGapNaUnidadeDoTrecho(opcoes.joinThresholdM, trechoRef)}
+              </span>
+            </div>
+            <p className="text-2xs text-text-faint mt-1.5 leading-snug">
+              Une trajetórias separadas por gaps menores que esse valor (na unidade do trecho). 0 = nenhuma união.
+            </p>
+          </Secao>
+
+          <div className="h-px bg-border" />
+
           {/* Camadas (toggles) */}
           <Secao titulo="Camadas">
             <div className="grid grid-cols-2 gap-1.5">
@@ -192,6 +273,69 @@ export function MarchaTempoOpcoesPopover({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Seletor de granularidade do eixo X: Auto + presets em unidades do trecho.
+ * Mínimo de 5 unidades (= 5 × divisor metros) conforme convenção topográfica.
+ * Stored como `passoPosicaoM` em METROS (null = auto). UI traduz pra unidade
+ * do trecho ao exibir.
+ */
+function GranularidadeXSelect({
+  passoM,
+  trecho,
+  onChange
+}: {
+  passoM: number | null
+  trecho: ObraTrecho | null
+  onChange: (passoM: number | null) => void
+}): ReactNode {
+  const divisor = trecho ? divisorMetrosPorUnidade(trecho) : 1000
+  // Sufixo genérico "Un" — a unidade real (km / m / estaca / custom) está
+  // definida na criação do trecho. Mostrar "5 Un" mantém os botões
+  // visualmente uniformes independente de o trecho ser km, metro ou estaca.
+  const sufixo = 'Un'
+  const presetsUnidades = [5, 10, 25, 50, 100, 250, 500]
+
+  const isAuto = passoM == null
+  // Encontra a unidade atual (passoM / divisor)
+  const unidadesAtuais = passoM != null ? Math.round(passoM / divisor) : null
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        className={cn(
+          'px-2 py-1 text-2xs rounded border transition-colors',
+          isAuto
+            ? 'border-border-accent bg-accent/10 text-accent-hover'
+            : 'border-border bg-bg text-text-dim hover:bg-bg-hover'
+        )}
+      >
+        Auto
+      </button>
+      {presetsUnidades.map((u) => {
+        const valM = u * divisor
+        const sel = !isAuto && unidadesAtuais === u
+        return (
+          <button
+            key={u}
+            type="button"
+            onClick={() => onChange(valM)}
+            className={cn(
+              'px-2 py-1 text-2xs rounded border transition-colors',
+              sel
+                ? 'border-border-accent bg-accent/10 text-accent-hover'
+                : 'border-border bg-bg text-text-dim hover:bg-bg-hover'
+            )}
+          >
+            {u} {sufixo}
+          </button>
+        )
+      })}
     </div>
   )
 }
