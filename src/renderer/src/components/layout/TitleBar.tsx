@@ -1,47 +1,71 @@
 import { type ReactNode } from 'react'
-import { Check, Star, ChevronDown, LogOut, User, Building2, Folder } from 'lucide-react'
+import { Search, Star, ChevronDown, LogOut, User, Building2, Folder } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useEmpresas } from '@/features/gerencial/hooks'
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '@/components/ui/dropdown'
 import { cn } from '@/lib/utils'
+import { WindowControls } from './WindowControls'
+import infraworkIcon from '@/assets/infrawork-icon.png'
 
-const MENU_ITEMS = ['Arquivo', 'Editar', 'Exibir', 'Inserir', 'Ferramentas', 'Ajuda']
+const isMac = window.infrawork?.platform === 'darwin'
 
-export function MenuBar(): ReactNode {
+/**
+ * Barra de título customizada (estilo VSCode), unificando logo, menu, busca,
+ * indicadores e os controles de janela numa única faixa arrastável.
+ */
+export function TitleBar(): ReactNode {
+  const openModal = useUIStore((s) => s.openModal)
+
   return (
     <div
-      style={{ gridArea: 'menu' }}
-      className="bg-bg-menu border-b border-border flex items-center px-2 text-xs"
+      style={{ gridArea: 'title' }}
+      className={cn(
+        'drag-region relative bg-bg-tabs border-b border-border flex items-center gap-2 pr-0 text-xs',
+        // espaço p/ os traffic lights nativos no macOS
+        isMac ? 'pl-[78px]' : 'pl-2'
+      )}
     >
-      {/* Left: menus */}
-      <div className="flex items-center gap-px">
-        {MENU_ITEMS.map((m) => (
-          <button
-            key={m}
-            type="button"
-            className="h-6 px-2 rounded-sm text-text-muted hover:text-text hover:bg-bg-hover"
-          >
-            {m}
-          </button>
-        ))}
+      {/* Brand */}
+      <div className="flex items-center shrink-0" title="InfraWork">
+        <img
+          src={infraworkIcon}
+          alt="InfraWork"
+          className="h-8 w-8 select-none"
+          draggable={false}
+        />
       </div>
 
-      {/* Center: saved + scope pill */}
-      <div className="flex-1 flex items-center justify-center gap-3">
-        <div className="flex items-center gap-1 text-2xs text-text-muted">
-          <Check size={11} className="text-success" strokeWidth={2.5} />
-          Salvo
-        </div>
+      {/* Busca */}
+      <button
+        type="button"
+        onClick={() => openModal('commandPalette')}
+        className="no-drag flex items-center gap-1.5 w-[180px] h-6 px-2 rounded bg-bg-elevated border border-border-strong text-2xs text-text-dim hover:border-border-accent shrink-0"
+      >
+        <Search size={11} />
+        <span className="flex-1 text-left">Buscar ou comando…</span>
+        <span className="font-mono text-text-faint">⌘K</span>
+      </button>
+
+      {/* Área central arrastável */}
+      <div className="flex-1 min-w-0" />
+
+      {/* Seletor de empresa/obra — centralizado horizontalmente na barra */}
+      <div className="no-drag absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <ScopePill />
       </div>
 
-      {/* Right: version + user menu */}
-      <div className="flex items-center gap-3 text-2xs font-mono text-text-dim">
-        <span title="Versão do app">v{__APP_VERSION__}</span>
+      {/* Cluster direito */}
+      <div className="no-drag flex items-center gap-3 shrink-0 pl-1">
+        <span className="text-2xs font-mono text-text-dim" title="Versão do app">
+          v{__APP_VERSION__}
+        </span>
         <UserMenu />
       </div>
+
+      {/* Controles de janela (Win/Linux) — encostados na borda direita */}
+      <WindowControls />
     </div>
   )
 }
@@ -52,8 +76,9 @@ function ScopePill(): ReactNode {
   const scope = useCurrentScope()
   // God não tem `empresa` no profile — busca pelo id no catálogo
   const { data: empresasList = [] } = useEmpresas()
-  const empresaSelecionada = empresa
-    ?? (scope.empresaId ? empresasList.find((e) => e.id === scope.empresaId) ?? null : null)
+  const empresaSelecionada =
+    empresa ??
+    (scope.empresaId ? (empresasList.find((e) => e.id === scope.empresaId) ?? null) : null)
 
   const empresaLabel = empresaSelecionada?.nome ?? null
 

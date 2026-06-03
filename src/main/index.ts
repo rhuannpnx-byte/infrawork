@@ -40,7 +40,9 @@ function createWindow(routeHash = ''): BrowserWindow {
     minHeight: 800,
     show: false,
     backgroundColor: '#08090b',
-    frame: true,
+    // Win/Linux: frameless — barra de título customizada (estilo VSCode).
+    // macOS mantém a moldura + hiddenInset, preservando os traffic lights nativos.
+    frame: process.platform === 'darwin',
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     icon,
@@ -74,6 +76,10 @@ function createWindow(routeHash = ''): BrowserWindow {
   win.on('closed', () => {
     windows.delete(win)
   })
+
+  // Notifica o renderer p/ alternar o ícone maximizar/restaurar nos controles custom.
+  win.on('maximize', () => win.webContents.send('window:maximized', true))
+  win.on('unmaximize', () => win.webContents.send('window:maximized', false))
 
   win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -195,6 +201,10 @@ app.whenReady().then(() => {
   ipcMain.on('window:close', (e) => {
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
+  ipcMain.handle(
+    'window:is-maximized',
+    (e) => BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false
+  )
 
   // IPC channels — settings
   ipcMain.handle('settings:get', (_e, key: string) => {

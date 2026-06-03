@@ -1,11 +1,11 @@
 import { type ReactNode } from 'react'
-import { useNavigate, useLocation } from '@tanstack/react-router'
 import { Settings, HelpCircle, Home } from 'lucide-react'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Icon } from './IconRenderer'
-import { MODULES, getModuleByRoute } from '@/config/modules'
+import { MODULES } from '@/config/modules'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useTabsStore, useActiveTab } from '@/stores/tabs-store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -16,22 +16,23 @@ import { cn } from '@/lib/utils'
  *   4. módulos de sistema/admin (Gerencial) + ajuda + configurações
  */
 export function PrimaryRail(): ReactNode {
-  const navigate = useNavigate()
-  const location = useLocation()
   const openModal = useUIStore((s) => s.openModal)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
   const role = useAuthStore((s) => s.profile?.role ?? null)
-  const active = getModuleByRoute(location.pathname)?.key
+  const openModule = useTabsStore((s) => s.openModule)
+  const active = useActiveTab()?.moduleKey
 
   const visibleModules = MODULES.filter(
     (m) => !m.requiredRoles || (role && m.requiredRoles.includes(role))
   )
 
-  const engineeringModules = visibleModules.filter((m) => (m.category ?? 'engineering') === 'engineering')
+  const engineeringModules = visibleModules.filter(
+    (m) => (m.category ?? 'engineering') === 'engineering'
+  )
   const systemModules = visibleModules.filter((m) => m.category === 'system')
 
-  const handleModuleClick = (modKey: string, route: string): void => {
+  const handleModuleClick = (modKey: string): void => {
     if (active === modKey && !sidebarOpen) {
       setSidebarOpen(true)
       return
@@ -39,7 +40,8 @@ export function PrimaryRail(): ReactNode {
     if (active !== modKey && !sidebarOpen) {
       setSidebarOpen(true)
     }
-    navigate({ to: route })
+    // Foca/cria a aba do módulo (preservando seu estado / rota lembrada).
+    openModule(modKey)
   }
 
   const renderModuleButton = (mod: (typeof visibleModules)[number]): ReactNode => {
@@ -56,7 +58,7 @@ export function PrimaryRail(): ReactNode {
         <button
           type="button"
           aria-label={mod.title}
-          onClick={() => handleModuleClick(mod.key, mod.routePrefix)}
+          onClick={() => handleModuleClick(mod.key)}
           className={cn(
             'relative w-8 h-8 rounded flex items-center justify-center transition-colors',
             isActive
@@ -82,15 +84,15 @@ export function PrimaryRail(): ReactNode {
           <button
             type="button"
             aria-label="Início"
-            onClick={() => navigate({ to: '/' })}
+            onClick={() => openModule('home')}
             className={cn(
               'relative w-8 h-8 rounded flex items-center justify-center transition-colors',
-              location.pathname === '/'
+              active === 'home'
                 ? 'bg-accent-glow text-accent'
                 : 'text-text-muted hover:text-text hover:bg-bg-hover'
             )}
           >
-            {location.pathname === '/' ? <span className="nav-item-active-bar" /> : null}
+            {active === 'home' ? <span className="nav-item-active-bar" /> : null}
             <Home size={16} strokeWidth={1.8} />
           </button>
         </Tooltip>

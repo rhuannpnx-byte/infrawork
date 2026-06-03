@@ -12,9 +12,10 @@
 // durante scroll horizontal. Implementado via `position: sticky; left: X`
 // no header e em cada cell row.
 
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
+import { useTabVisible } from '@/app/tab-visible'
 import {
   type GridColumnConfig,
   type GridColumnGroup,
@@ -106,6 +107,13 @@ export function Grid({
     estimateSize: () => rowHeight,
     overscan: 12
   })
+
+  // Keep-alive: ao reaparecer (vinha de display:none), o scroll element media 0
+  // → força o virtualizador a remedir, evitando um frame de grade vazia.
+  const tabVisible = useTabVisible()
+  useEffect(() => {
+    if (tabVisible) virtualizer.measure()
+  }, [tabVisible, virtualizer])
 
   return (
     <div

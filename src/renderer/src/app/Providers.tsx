@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider } from '@tanstack/react-router'
 import { Toaster, toast } from 'sonner'
-import { router } from './router'
 import { useShortcuts } from '@/hooks/useShortcuts'
 import { AuthGate } from './AuthGate'
+import { AppShell } from '@/components/layout/AppShell'
+import { TabViewport } from './TabViewport'
+import { Modals } from '@/components/modals/Modals'
 
 function ShortcutsBoot(): null {
   useShortcuts()
@@ -38,7 +39,7 @@ export function Providers(): ReactNode {
           onError: (err, _vars, _ctx, mutation) => {
             // Quando a mutation define seu proprio onError, deixa ele assumir.
             if (mutation.options.onError) return
-            // eslint-disable-next-line no-console
+
             console.error('[mutation]', err)
             toast.error(`Falha: ${describeError(err)}`)
           }
@@ -47,7 +48,7 @@ export function Providers(): ReactNode {
         queryCache: new QueryCache({
           onError: (err, query) => {
             if (query.options.meta?.silent) return
-            // eslint-disable-next-line no-console
+
             console.error('[query]', err)
           }
         })
@@ -58,7 +59,10 @@ export function Providers(): ReactNode {
     <QueryClientProvider client={queryClient}>
       <AuthGate>
         <ShortcutsBoot />
-        <RouterProvider router={router} />
+        <AppShell>
+          <TabViewport />
+        </AppShell>
+        <Modals />
       </AuthGate>
       <Toaster
         position="bottom-right"

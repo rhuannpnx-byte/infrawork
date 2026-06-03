@@ -99,11 +99,14 @@ export interface OrcamentoParseMapping {
 }
 
 interface InfraworkAPI {
+  platform: NodeJS.Platform
   window: {
     openNew: (route: string) => Promise<void>
     minimize: () => void
     maximize: () => void
     close: () => void
+    isMaximized: () => Promise<boolean>
+    onMaximizedChange: (cb: (v: boolean) => void) => () => void
   }
   settings: {
     get: (key: string) => Promise<unknown>

@@ -32,7 +32,7 @@ async function fetchMe(): Promise<MePayload | null> {
   return (await r.json()) as MePayload
 }
 
-export const useAuthStore = create<AuthStore>((set, get) => ({
+export const useAuthStore = create<AuthStore>((set) => ({
   status: 'idle',
   profile: null,
   empresa: null,
@@ -92,7 +92,25 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ status: 'guest', error: error.message })
       throw error
     }
-    await get().refreshMe()
+    // Carrega o perfil diretamente (em vez de refreshMe, que engole erros): assim uma
+    // falha pós-login no /me vira erro visível na tela de login.
+    try {
+      const me = await fetchMe()
+      if (!me) {
+        set({ status: 'guest', profile: null, empresa: null, obras: [] })
+        throw new Error('/me retornou vazio')
+      }
+      set({
+        status: 'authenticated',
+        profile: me.profile,
+        empresa: me.empresa,
+        obras: me.obras,
+        error: null
+      })
+    } catch (e) {
+      set({ status: 'guest', error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
   },
 
   async signOut() {

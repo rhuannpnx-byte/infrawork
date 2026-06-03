@@ -3,6 +3,7 @@ import { MapPin, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import { addBaseMapEsri } from '@/lib/leaflet/tiles'
+import { useTabVisible } from '@/app/tab-visible'
 
 interface PinFoto {
   id: string
@@ -11,7 +12,10 @@ interface PinFoto {
   equipe_display_cor: string | null
 }
 
-interface Props { fotos: PinFoto[]; altura?: number }
+interface Props {
+  fotos: PinFoto[]
+  altura?: number
+}
 
 // Lazy load do Leaflet
 let LeafletModule: typeof import('leaflet') | null = null
@@ -30,7 +34,10 @@ export function MiniMapaSatelite({ fotos, altura = 200 }: Props): ReactNode {
 
   type FotoValida = Omit<PinFoto, 'lat' | 'lng'> & { lat: number; lng: number }
   const validos = useMemo<FotoValida[]>(
-    () => fotos.flatMap((f) => (f.lat != null && f.lng != null ? [{ ...f, lat: f.lat, lng: f.lng }] : [])),
+    () =>
+      fotos.flatMap((f) =>
+        f.lat != null && f.lng != null ? [{ ...f, lat: f.lat, lng: f.lng }] : []
+      ),
     [fotos]
   )
 
@@ -64,14 +71,22 @@ export function MiniMapaSatelite({ fotos, altura = 200 }: Props): ReactNode {
 
       const lats = validos.map((v) => v.lat)
       const lngs = validos.map((v) => v.lng)
-      const south = Math.min(...lats); const north = Math.max(...lats)
-      const west = Math.min(...lngs); const east = Math.max(...lngs)
+      const south = Math.min(...lats)
+      const north = Math.max(...lats)
+      const west = Math.min(...lngs)
+      const east = Math.max(...lngs)
       const distLat = north - south
       const distLng = east - west
       if (distLat < 0.001 && distLng < 0.001) {
         map.setView([lats[0], lngs[0]], 15, { animate: false })
       } else {
-        map.fitBounds([[south, west], [north, east]], { padding: [20, 20], maxZoom: 15, animate: false })
+        map.fitBounds(
+          [
+            [south, west],
+            [north, east]
+          ],
+          { padding: [20, 20], maxZoom: 15, animate: false }
+        )
       }
 
       // Limita a 80 marcadores no minimap pra não pesar
@@ -95,8 +110,25 @@ export function MiniMapaSatelite({ fotos, altura = 200 }: Props): ReactNode {
     }
   }, [validos])
 
+  // Keep-alive: revalida o tamanho ao reaparecer (vinha de display:none).
+  const tabVisible = useTabVisible()
+  useEffect(() => {
+    if (!tabVisible) return
+    const id = requestAnimationFrame(() => {
+      try {
+        mapRef.current?.invalidateSize(false)
+      } catch {
+        /* */
+      }
+    })
+    return () => cancelAnimationFrame(id)
+  }, [tabVisible])
+
   return (
-    <div className="rounded border border-border bg-bg-panel overflow-hidden flex flex-col" style={{ height: altura }}>
+    <div
+      className="rounded border border-border bg-bg-panel overflow-hidden flex flex-col"
+      style={{ height: altura }}
+    >
       <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
         <h4 className="text-xs font-semibold text-text flex items-center gap-1.5">
           <MapPin size={11} /> Mapa de fotos
@@ -110,9 +142,7 @@ export function MiniMapaSatelite({ fotos, altura = 200 }: Props): ReactNode {
       </div>
       <div className="relative flex-1">
         <div ref={ref} className="absolute inset-0" />
-        {validos.length === 0 && (
-          <ChartEmptyState overlay message="Sem fotos com GPS" />
-        )}
+        {validos.length === 0 && <ChartEmptyState overlay message="Sem fotos com GPS" />}
         <div className="absolute bottom-1 right-2 text-[9px] text-text/60 font-mono pointer-events-none">
           Esri Satélite
         </div>

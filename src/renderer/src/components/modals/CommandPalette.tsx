@@ -1,18 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 import { Command } from 'cmdk'
 import { Search } from 'lucide-react'
 import { Icon } from '@/components/layout/IconRenderer'
 import { useUIStore } from '@/stores/ui-store'
 import { useTabsStore } from '@/stores/tabs-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { MODULES } from '@/config/modules'
 
 export function CommandPalette(): ReactNode {
   const open = useUIStore((s) => s.activeModals.has('commandPalette'))
   const close = (): void => useUIStore.getState().closeModal('commandPalette')
   const openModal = useUIStore((s) => s.openModal)
-  const navigate = useNavigate()
   const recentTabs = useTabsStore((s) => s.tabs)
   const signOut = useAuthStore((s) => s.signOut)
   const [value, setValue] = useState('')
@@ -76,7 +75,7 @@ export function CommandPalette(): ReactNode {
               <Command.Item
                 key={m.key}
                 value={`ir ${m.title} ${m.shortcut}`}
-                onSelect={() => runAndClose(() => navigate({ to: m.routePrefix }))}
+                onSelect={() => runAndClose(() => navigateActiveTab(m.routePrefix))}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-text cursor-pointer aria-selected:bg-bg-hover data-[selected=true]:bg-bg-hover"
               >
                 <Icon name={m.icon} size={12} className="text-accent" strokeWidth={1.8} />
@@ -134,7 +133,7 @@ export function CommandPalette(): ReactNode {
                 <Command.Item
                   key={t.id}
                   value={`aba ${t.title}`}
-                  onSelect={() => runAndClose(() => navigate({ to: t.route }))}
+                  onSelect={() => runAndClose(() => useTabsStore.getState().setActive(t.id))}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-text cursor-pointer aria-selected:bg-bg-hover data-[selected=true]:bg-bg-hover"
                 >
                   <Icon name={t.icon} size={12} className="text-text-muted" strokeWidth={1.8} />

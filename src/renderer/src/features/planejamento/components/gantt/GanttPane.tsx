@@ -18,21 +18,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import type { Equipe } from '@/types/planejamento'
-import { addDaysLocal, diffDaysLocal, isWeekend, MS_DAY, pickScaleTiers, iterateTier } from '../../lib/time-scale'
+import {
+  addDaysLocal,
+  diffDaysLocal,
+  isWeekend,
+  MS_DAY,
+  pickScaleTiers,
+  iterateTier
+} from '../../lib/time-scale'
 import { parseISO as parseISOLocal } from '../../lib/dates'
 import { TimeScale } from './TimeScale'
-import {
-  DependencyArrow,
-  MilestoneMark,
-  SummaryBar,
-  TaskBar
-} from './bars'
+import { DependencyArrow, MilestoneMark, SummaryBar, TaskBar } from './bars'
 import { GanttTooltip } from './GanttTooltip'
-import {
-  type BarStyle,
-  type ColorMode,
-  type DepMode
-} from '../../hooks/useCronogramaTweaks'
+import { type BarStyle, type ColorMode, type DepMode } from '../../hooks/useCronogramaTweaks'
 import type { VisibleNode } from './cells/types'
 import type { DragZone, UseGanttDragReturn } from '../../hooks/useGanttDrag'
 import type { UseGanttLassoReturn } from '../../hooks/useGanttLasso'
@@ -361,7 +359,10 @@ export function GanttPane({
       onMouseMove={(e) => setMouseXY({ x: e.clientX, y: e.clientY })}
       onMouseLeave={() => setMouseXY(null)}
     >
-      <div className="relative" style={{ width: totalWidth, height: totalHeight + 56 /* time-scale */ }}>
+      <div
+        className="relative"
+        style={{ width: totalWidth, height: totalHeight + 56 /* time-scale */ }}
+      >
         <TimeScale origin={origin} end={end} pxPerDay={pxPerDay} todayDate={todayDate} />
 
         {/* Canvas body (offset pelo time-scale = 56px) */}
@@ -440,9 +441,7 @@ export function GanttPane({
           </div>
 
           {/* Layer 5: Bars */}
-          <div className="absolute inset-0">
-            {flat.map((n, i) => renderRow(n, i))}
-          </div>
+          <div className="absolute inset-0">{flat.map((n, i) => renderRow(n, i))}</div>
 
           {/* Layer 12: Dependency arrows (SVG overlay) */}
           <svg
@@ -519,9 +518,7 @@ export function GanttPane({
       </div>
 
       {/* Tooltip */}
-      {tooltipNode && mouseXY && (
-        <GanttTooltip node={tooltipNode} x={mouseXY.x} y={mouseXY.y} />
-      )}
+      {tooltipNode && mouseXY && <GanttTooltip node={tooltipNode} x={mouseXY.x} y={mouseXY.y} />}
     </div>
   )
 }
@@ -554,10 +551,7 @@ function BackgroundLayer({
     shades.push(
       <div
         key={i}
-        className={cn(
-          'absolute top-0',
-          feriado ? 'bg-warn/10' : 'bg-bg-elevated/40'
-        )}
+        className={cn('absolute top-0', feriado ? 'bg-warn/10' : 'bg-bg-elevated/40')}
         style={{ left: i * pxPerDay, width: pxPerDay, height: totalHeight }}
         title={feriado ? `Feriado: ${iso}` : undefined}
       />

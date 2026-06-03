@@ -1,13 +1,12 @@
 import {
-  createHashHistory,
+  createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
   Outlet
 } from '@tanstack/react-router'
 
-import { AppShell } from '@/components/layout/AppShell'
-import { Modals } from '@/components/modals/Modals'
+import { TabRoot } from './TabRoot'
 import { HomePage } from '@/app/routes/HomePage'
 import { GerencialIndex } from '@/app/routes/gerencial'
 import { EmpresasPage } from '@/app/routes/gerencial/empresas'
@@ -46,298 +45,246 @@ import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/compa
 import { AcompanhamentoAlertasPage } from '@/app/routes/acompanhamento/alertas'
 
 /**
- * Router programático (não file-based). Cada módulo declara um layout pai com
- * `<Outlet />` e suas rotas filhas. Adicionar novo módulo é replicar o padrão.
+ * Router por aba (keep-alive). Cada aba aberta tem sua própria instância de
+ * router com history em memória; por isso a árvore de rotas é construída por
+ * uma FÁBRICA (`buildRouteTree`) — compartilhar o mesmo objeto de árvore entre
+ * vários routers cruzaria o estado de match/preload entre eles.
+ *
+ * O chrome (TitleBar, TabBar, rail, sidebar) vive FORA dos routers; o root de
+ * cada aba renderiza apenas o conteúdo (`<Outlet/>`), isolado por ErrorBoundary.
  */
 
-const rootRoute = createRootRoute({
-  component: function RootLayout() {
-    return (
-      <>
-        <AppShell>
-          <Outlet />
-        </AppShell>
-        <Modals />
-      </>
-    )
-  }
-})
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- árvore de rotas do TanStack tem tipo derivado complexo
+function buildRouteTree() {
+  const rootRoute = createRootRoute({ component: TabRoot })
 
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: HomePage
-})
+  const indexRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/',
+    component: HomePage
+  })
 
-// ─── Gerencial ───────────────────────────────────────────────────────────
-const gerencialLayout = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'gerencial',
-  component: () => <Outlet />
-})
-const gerencialIndexRoute = createRoute({
-  getParentRoute: () => gerencialLayout,
-  path: '/',
-  component: GerencialIndex
-})
-const gerencialEmpresasRoute = createRoute({
-  getParentRoute: () => gerencialLayout,
-  path: 'empresas',
-  component: EmpresasPage
-})
-const gerencialUsuariosRoute = createRoute({
-  getParentRoute: () => gerencialLayout,
-  path: 'usuarios',
-  component: UsuariosPage
-})
-const gerencialObrasListRoute = createRoute({
-  getParentRoute: () => gerencialLayout,
-  path: 'obras',
-  component: ObrasPage
-})
-const gerencialObraDetailRoute = createRoute({
-  getParentRoute: () => gerencialLayout,
-  path: 'obras/$id',
-  component: ObraDetailPage
-})
-const gerencialTree = gerencialLayout.addChildren([
-  gerencialIndexRoute,
-  gerencialEmpresasRoute,
-  gerencialUsuariosRoute,
-  gerencialObrasListRoute,
-  gerencialObraDetailRoute
-])
+  // ─── Gerencial ───────────────────────────────────────────────────────────
+  const gerencialLayout = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'gerencial',
+    component: () => <Outlet />
+  })
+  const gerencialTree = gerencialLayout.addChildren([
+    createRoute({ getParentRoute: () => gerencialLayout, path: '/', component: GerencialIndex }),
+    createRoute({
+      getParentRoute: () => gerencialLayout,
+      path: 'empresas',
+      component: EmpresasPage
+    }),
+    createRoute({
+      getParentRoute: () => gerencialLayout,
+      path: 'usuarios',
+      component: UsuariosPage
+    }),
+    createRoute({ getParentRoute: () => gerencialLayout, path: 'obras', component: ObrasPage }),
+    createRoute({
+      getParentRoute: () => gerencialLayout,
+      path: 'obras/$id',
+      component: ObraDetailPage
+    })
+  ])
 
-// ─── Orçamento ───────────────────────────────────────────────────────────
-const orcamentoLayout = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'orcamento',
-  component: () => <Outlet />
-})
-const orcamentoIndexRoute = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: '/',
-  component: OrcamentoIndex
-})
-const orcamentoRecursosRoute = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: 'recursos',
-  component: RecursosPage
-})
-const orcamentoServicosRoute = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: 'servicos',
-  component: ServicosPage
-})
-const orcamentoCpusRoute = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: 'cpus',
-  component: CpusPage
-})
-const orcamentoCpuEditorRoute = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: 'cpus/$id',
-  component: CpuEditorPage
-})
-const orcamentoTaxasRoute = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: 'taxas',
-  component: TaxasPage
-})
-// Sub-rotas obra-scoped (com RequireObra)
-const orcamentoObraLayout = createRoute({
-  getParentRoute: () => orcamentoLayout,
-  path: 'obra',
-  component: () => <Outlet />
-})
-const orcamentoObraIndexRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: '/',
-  component: ObraIndexPage
-})
-const orcamentoPlanOrcRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: 'plan-orc',
-  component: PlanOrcPage
-})
-const orcamentoIndiretoRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: 'indireto',
-  component: IndiretoPage
-})
-const orcamentoLucratividadeRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: 'lucratividade',
-  component: LucratividadePage
-})
-const orcamentoRevisoesRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: 'revisoes',
-  component: RevisoesPage
-})
-const orcamentoRevisaoDetailRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: 'revisoes/$id',
-  component: RevisaoDetailPage
-})
-const orcamentoRevisoesCompararRoute = createRoute({
-  getParentRoute: () => orcamentoObraLayout,
-  path: 'revisoes/comparar',
-  component: RevisoesCompararPage
-})
-const orcamentoObraTree = orcamentoObraLayout.addChildren([
-  orcamentoObraIndexRoute,
-  orcamentoPlanOrcRoute,
-  orcamentoIndiretoRoute,
-  orcamentoLucratividadeRoute,
-  orcamentoRevisoesRoute,
-  orcamentoRevisoesCompararRoute,
-  orcamentoRevisaoDetailRoute
-])
+  // ─── Orçamento ───────────────────────────────────────────────────────────
+  const orcamentoLayout = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'orcamento',
+    component: () => <Outlet />
+  })
+  const orcamentoObraLayout = createRoute({
+    getParentRoute: () => orcamentoLayout,
+    path: 'obra',
+    component: () => <Outlet />
+  })
+  const orcamentoObraTree = orcamentoObraLayout.addChildren([
+    createRoute({ getParentRoute: () => orcamentoObraLayout, path: '/', component: ObraIndexPage }),
+    createRoute({
+      getParentRoute: () => orcamentoObraLayout,
+      path: 'plan-orc',
+      component: PlanOrcPage
+    }),
+    createRoute({
+      getParentRoute: () => orcamentoObraLayout,
+      path: 'indireto',
+      component: IndiretoPage
+    }),
+    createRoute({
+      getParentRoute: () => orcamentoObraLayout,
+      path: 'lucratividade',
+      component: LucratividadePage
+    }),
+    createRoute({
+      getParentRoute: () => orcamentoObraLayout,
+      path: 'revisoes',
+      component: RevisoesPage
+    }),
+    createRoute({
+      getParentRoute: () => orcamentoObraLayout,
+      path: 'revisoes/comparar',
+      component: RevisoesCompararPage
+    }),
+    createRoute({
+      getParentRoute: () => orcamentoObraLayout,
+      path: 'revisoes/$id',
+      component: RevisaoDetailPage
+    })
+  ])
+  const orcamentoTree = orcamentoLayout.addChildren([
+    createRoute({ getParentRoute: () => orcamentoLayout, path: '/', component: OrcamentoIndex }),
+    createRoute({
+      getParentRoute: () => orcamentoLayout,
+      path: 'recursos',
+      component: RecursosPage
+    }),
+    createRoute({
+      getParentRoute: () => orcamentoLayout,
+      path: 'servicos',
+      component: ServicosPage
+    }),
+    createRoute({ getParentRoute: () => orcamentoLayout, path: 'cpus', component: CpusPage }),
+    createRoute({
+      getParentRoute: () => orcamentoLayout,
+      path: 'cpus/$id',
+      component: CpuEditorPage
+    }),
+    createRoute({ getParentRoute: () => orcamentoLayout, path: 'taxas', component: TaxasPage }),
+    orcamentoObraTree
+  ])
 
-const orcamentoTree = orcamentoLayout.addChildren([
-  orcamentoIndexRoute,
-  orcamentoRecursosRoute,
-  orcamentoServicosRoute,
-  orcamentoCpusRoute,
-  orcamentoCpuEditorRoute,
-  orcamentoTaxasRoute,
-  orcamentoObraTree
-])
+  // ─── Planejamento ──────────────────────────────────────────────────────────
+  const planejamentoLayout = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'planejamento',
+    component: () => <Outlet />
+  })
+  const planejamentoTree = planejamentoLayout.addChildren([
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: '/',
+      component: PlanejamentoIndex
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'cronograma',
+      component: PlanejamentoCronogramaPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'calendario',
+      component: PlanejamentoCalendarioPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'trechos',
+      component: PlanejamentoTrechosPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'equipes',
+      component: PlanejamentoEquipesPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'curva-s',
+      component: PlanejamentoCurvaSPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'comparar',
+      component: PlanejamentoCompararPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'marcha-tempo',
+      component: PlanejamentoMarchaTempoPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'revisoes',
+      component: PlanejamentoRevisoesPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
+      path: 'revisoes/$id',
+      component: PlanejamentoRevisaoDetalhePage
+    })
+  ])
 
-// ─── Planejamento ────────────────────────────────────────────────────────
-const planejamentoLayout = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'planejamento',
-  component: () => <Outlet />
-})
-const planejamentoIndexRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: '/',
-  component: PlanejamentoIndex
-})
-const planejamentoCronogramaRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'cronograma',
-  component: PlanejamentoCronogramaPage
-})
-const planejamentoCalendarioRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'calendario',
-  component: PlanejamentoCalendarioPage
-})
-const planejamentoTrechosRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'trechos',
-  component: PlanejamentoTrechosPage
-})
-const planejamentoEquipesRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'equipes',
-  component: PlanejamentoEquipesPage
-})
-const planejamentoCurvaSRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'curva-s',
-  component: PlanejamentoCurvaSPage
-})
-const planejamentoCompararRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'comparar',
-  component: PlanejamentoCompararPage
-})
-const planejamentoMarchaTempoRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'marcha-tempo',
-  component: PlanejamentoMarchaTempoPage
-})
-const planejamentoRevisoesRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'revisoes',
-  component: PlanejamentoRevisoesPage
-})
-const planejamentoRevisaoDetalheRoute = createRoute({
-  getParentRoute: () => planejamentoLayout,
-  path: 'revisoes/$id',
-  component: PlanejamentoRevisaoDetalhePage
-})
-const planejamentoTree = planejamentoLayout.addChildren([
-  planejamentoIndexRoute,
-  planejamentoCronogramaRoute,
-  planejamentoCalendarioRoute,
-  planejamentoTrechosRoute,
-  planejamentoEquipesRoute,
-  planejamentoCurvaSRoute,
-  planejamentoCompararRoute,
-  planejamentoMarchaTempoRoute,
-  planejamentoRevisoesRoute,
-  planejamentoRevisaoDetalheRoute
-])
+  // ─── Acompanhamento ────────────────────────────────────────────────────────
+  const acompanhamentoLayout = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'acompanhamento',
+    component: () => <Outlet />
+  })
+  const acompanhamentoTree = acompanhamentoLayout.addChildren([
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: '/',
+      component: AcompanhamentoIndex
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'vincular',
+      component: AcompanhamentoVincularPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'producao',
+      component: AcompanhamentoProducaoPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'fotos',
+      component: AcompanhamentoFotosPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'equipes',
+      component: AcompanhamentoEquipesPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'comparativo',
+      component: AcompanhamentoComparativoPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'alertas',
+      component: AcompanhamentoAlertasPage
+    })
+  ])
 
-// ─── Acompanhamento ──────────────────────────────────────────────────────
-const acompanhamentoLayout = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'acompanhamento',
-  component: () => <Outlet />
-})
-const acompanhamentoIndexRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: '/',
-  component: AcompanhamentoIndex
-})
-const acompanhamentoVincularRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: 'vincular',
-  component: AcompanhamentoVincularPage
-})
-const acompanhamentoProducaoRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: 'producao',
-  component: AcompanhamentoProducaoPage
-})
-const acompanhamentoFotosRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: 'fotos',
-  component: AcompanhamentoFotosPage
-})
-const acompanhamentoEquipesRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: 'equipes',
-  component: AcompanhamentoEquipesPage
-})
-const acompanhamentoComparativoRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: 'comparativo',
-  component: AcompanhamentoComparativoPage
-})
-const acompanhamentoAlertasRoute = createRoute({
-  getParentRoute: () => acompanhamentoLayout,
-  path: 'alertas',
-  component: AcompanhamentoAlertasPage
-})
-const acompanhamentoTree = acompanhamentoLayout.addChildren([
-  acompanhamentoIndexRoute,
-  acompanhamentoVincularRoute,
-  acompanhamentoProducaoRoute,
-  acompanhamentoFotosRoute,
-  acompanhamentoEquipesRoute,
-  acompanhamentoComparativoRoute,
-  acompanhamentoAlertasRoute
-])
+  return rootRoute.addChildren([
+    indexRoute,
+    gerencialTree,
+    orcamentoTree,
+    planejamentoTree,
+    acompanhamentoTree
+  ])
+}
 
-const routeTree = rootRoute.addChildren([indexRoute, gerencialTree, orcamentoTree, planejamentoTree, acompanhamentoTree])
+/**
+ * Cria uma instância de router (uma por aba) com history em memória, semeada
+ * na localização inicial da aba.
+ */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- o tipo do router é a base do AppRouter (anotar criaria ciclo)
+export function buildTabRouter(initialPath: string) {
+  return createRouter({
+    routeTree: buildRouteTree(),
+    defaultPreload: 'intent',
+    history: createMemoryHistory({ initialEntries: [initialPath || '/'] })
+  })
+}
 
-// HashHistory: necessario em producao (Electron carrega via file://, onde
-// browser history nao consegue resolver `/` — pathname vira o caminho do
-// arquivo no disco e cai sempre em Not Found).
-export const router = createRouter({
-  routeTree,
-  defaultPreload: 'intent',
-  history: createHashHistory()
-})
+export type AppRouter = ReturnType<typeof buildTabRouter>
 
 declare module '@tanstack/react-router' {
   interface Register {
-    router: typeof router
+    router: AppRouter
   }
 }

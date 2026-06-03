@@ -2,11 +2,18 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 const infrawork = {
+  platform: process.platform,
   window: {
     openNew: (route: string) => ipcRenderer.invoke('window:open', route),
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),
-    close: () => ipcRenderer.send('window:close')
+    close: () => ipcRenderer.send('window:close'),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:is-maximized'),
+    onMaximizedChange: (cb: (v: boolean) => void) => {
+      const l = (_e: unknown, v: boolean): void => cb(v)
+      ipcRenderer.on('window:maximized', l)
+      return () => ipcRenderer.removeListener('window:maximized', l)
+    }
   },
   settings: {
     get: (key: string) => ipcRenderer.invoke('settings:get', key),

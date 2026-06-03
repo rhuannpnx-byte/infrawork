@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUpdateNotifier } from '@/hooks/useUpdateNotifier'
+import { SystemTitleBar } from '@/components/layout/SystemTitleBar'
 import { LoginPage } from './routes/LoginPage'
 
 export function AuthGate({ children }: { children: ReactNode }): ReactNode {
@@ -15,14 +16,22 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
 
   if (status === 'idle' || status === 'loading') {
     return (
-      <div className="flex items-center justify-center h-screen bg-bg">
-        <div className="text-text-muted text-sm font-mono">Carregando…</div>
-      </div>
+      <>
+        <SystemTitleBar />
+        <div className="flex items-center justify-center h-screen bg-bg">
+          <div className="text-text-muted text-sm font-mono">Carregando…</div>
+        </div>
+      </>
     )
   }
 
   if (status === 'guest') {
-    return <LoginPage />
+    return (
+      <>
+        <SystemTitleBar />
+        <LoginPage />
+      </>
+    )
   }
 
   return <>{children}</>

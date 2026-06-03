@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { useNavigate } from '@tanstack/react-router'
 import { useUIStore } from '@/stores/ui-store'
 import { useTabsStore } from '@/stores/tabs-store'
+import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { MODULES } from '@/config/modules'
 
 const GO_SEQUENCE_MAP: Record<string, string> = {
@@ -13,7 +13,6 @@ const GO_SEQUENCE_MAP: Record<string, string> = {
 const TIMEOUT_MS = 800
 
 export function useShortcuts(): void {
-  const navigate = useNavigate()
   const openModal = useUIStore((s) => s.openModal)
   const closeModal = useUIStore((s) => s.closeModal)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
@@ -56,7 +55,8 @@ export function useShortcuts(): void {
     const n = key ? parseInt(key, 10) : NaN
     if (!Number.isFinite(n)) return
     const { tabs, setActive } = useTabsStore.getState()
-    if (tabs[n - 1]) setActive(tabs[n - 1].id)
+    const tab = tabs[n - 1]
+    if (tab) setActive(tab.id)
   })
 
   // ? — keyboard shortcuts overlay
@@ -84,7 +84,7 @@ export function useShortcuts(): void {
         const route = GO_SEQUENCE_MAP[e.key.toLowerCase()]
         if (route) {
           e.preventDefault()
-          navigate({ to: route })
+          navigateActiveTab(route)
         }
         waitingForG.current = false
         if (gTimer.current) clearTimeout(gTimer.current)
@@ -106,7 +106,7 @@ export function useShortcuts(): void {
       document.removeEventListener('keydown', onKey)
       if (gTimer.current) clearTimeout(gTimer.current)
     }
-  }, [navigate])
+  }, [])
 
   // Side effect: ensure all module shortcuts are registered (for display)
   void MODULES

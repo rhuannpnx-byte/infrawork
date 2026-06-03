@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react'
-import { useLocation, useNavigate } from '@tanstack/react-router'
 import { X, Info, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
 import { Icon } from './IconRenderer'
 import { Badge } from '@/components/ui/badge'
@@ -10,27 +9,33 @@ import { getModuleByRoute } from '@/config/modules'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useActiveLocation } from '@/stores/tabs-store'
+import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { visibleFor } from '@/types/module'
 import { cn } from '@/lib/utils'
 
 const INFO_ICONS = { info: Info, warn: AlertTriangle, success: CheckCircle2 }
 
 export function SecondarySidebar(): ReactNode {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const pathname = useActiveLocation().split('?')[0]
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
   const openModal = useUIStore((s) => s.openModal)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const { obraId } = useCurrentScope()
 
-  const mod = getModuleByRoute(location.pathname)
+  const mod = getModuleByRoute(pathname)
   // Quando fechada, não renderiza — o grid template do AppShell colapsa a
   // coluna de 268px → 0 e o main expande automaticamente.
   if (!mod || !sidebarOpen) return null
 
   const InfoIcon = mod.infoCard ? INFO_ICONS[mod.infoCard.variant ?? 'info'] : null
-  const infoColor = mod.infoCard?.variant === 'warn' ? 'warn' : mod.infoCard?.variant === 'success' ? 'success' : 'accent'
+  const infoColor =
+    mod.infoCard?.variant === 'warn'
+      ? 'warn'
+      : mod.infoCard?.variant === 'success'
+        ? 'success'
+        : 'accent'
 
   return (
     <aside
@@ -43,11 +48,7 @@ export function SecondarySidebar(): ReactNode {
           <Icon name={mod.icon} size={14} className="text-accent" strokeWidth={1.8} />
           <h2 className="text-sm font-semibold text-text">{mod.title}</h2>
         </div>
-        <IconButton
-          size="sm"
-          aria-label="Fechar painel"
-          onClick={() => setSidebarOpen(false)}
-        >
+        <IconButton size="sm" aria-label="Fechar painel" onClick={() => setSidebarOpen(false)}>
           <X size={12} />
         </IconButton>
       </div>
@@ -56,12 +57,12 @@ export function SecondarySidebar(): ReactNode {
       {mod.pills && mod.pills.length > 0 ? (
         <div className="px-3 py-2 flex gap-1 border-b border-border overflow-x-auto">
           {visibleFor(mod.pills, role).map((p) => {
-            const isActive = location.pathname === p.route || location.pathname.startsWith(p.route + '/')
+            const isActive = pathname === p.route || pathname.startsWith(p.route + '/')
             return (
               <button
                 key={p.route}
                 type="button"
-                onClick={() => navigate({ to: p.route })}
+                onClick={() => navigateActiveTab(p.route)}
                 className={cn(
                   'flex items-center gap-1.5 px-2 py-1 rounded-sm text-2xs font-medium border whitespace-nowrap transition-colors',
                   isActive
@@ -111,7 +112,7 @@ export function SecondarySidebar(): ReactNode {
             </div>
             <div className="space-y-px">
               {visibleFor(section.items, role).map((item) => {
-                const isActive = location.pathname === item.route
+                const isActive = pathname === item.route
                 const blockedByObra = item.requiresObra && !obraId
                 if (blockedByObra) {
                   return (
@@ -135,7 +136,7 @@ export function SecondarySidebar(): ReactNode {
                   <button
                     key={item.route}
                     type="button"
-                    onClick={() => navigate({ to: item.route })}
+                    onClick={() => navigateActiveTab(item.route)}
                     className={cn(
                       'group w-full flex items-center justify-between gap-2 px-2 py-1 rounded-sm transition-colors text-left',
                       isActive
@@ -148,7 +149,15 @@ export function SecondarySidebar(): ReactNode {
                       <span className="text-xs truncate">{item.label}</span>
                     </div>
                     {item.badge !== undefined ? (
-                      <Badge variant={item.status === 'warn' ? 'warn' : item.status === 'danger' ? 'danger' : 'default'}>
+                      <Badge
+                        variant={
+                          item.status === 'warn'
+                            ? 'warn'
+                            : item.status === 'danger'
+                              ? 'danger'
+                              : 'default'
+                        }
+                      >
                         {item.badge}
                       </Badge>
                     ) : null}
