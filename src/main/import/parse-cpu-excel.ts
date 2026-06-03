@@ -224,8 +224,13 @@ function parsearCpu(aba_nome: string, ws: Worksheet): ParsedCpu | null {
         item.horas_dia = readNum(ws.getCell(r, COL_H))
         item.quantidade = readNum(ws.getCell(r, COL_I))
         item.consumo_combustivel_lh = readNum(ws.getCell(r, COL_M))
+        // Col N é "% Produtivo" — fração 0..1 usada como multiplicador no custo
+        // de combustível. Algumas planilhas reaproveitam essa coluna para o
+        // ÍNDICE DE PRODUTIVIDADE de produção (valor grande, ex.: 50/100/250),
+        // que não é fração e estouraria indice_produtividade numeric(5,4). Nesses
+        // casos assumimos % produtivo = 100% (1.0). Frações válidas são mantidas.
         const idx = readNum(ws.getCell(r, COL_N))
-        item.indice_produtividade = idx ?? 1
+        item.indice_produtividade = idx != null && idx >= 0 && idx <= 1 ? idx : 1
       } else if (bloco.grupo === 'MO') {
         item.horas_dia = readNum(ws.getCell(r, COL_H))
         item.quantidade = readNum(ws.getCell(r, COL_I))

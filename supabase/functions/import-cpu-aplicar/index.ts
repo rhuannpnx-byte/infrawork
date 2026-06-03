@@ -269,6 +269,19 @@ Deno.serve(async (req) => {
         const horasDia =
           it.horas_dia ?? (it.grupo === 'EQUIPAMENTO' || it.grupo === 'MO' ? 0 : null)
 
+        // indice_produtividade é o multiplicador de % produtivo no cálculo de
+        // combustível — uma FRAÇÃO 0..1 (numeric(5,4), teto 9.9999). Algumas
+        // planilhas usam a col "% Produtivo" para o índice de produtividade de
+        // PRODUÇÃO (valor grande, ex.: 50/100/250), que não é uma fração e
+        // estouraria a coluna. Nesses casos assumimos % produtivo = 100% (1.0),
+        // conforme acordado. Frações legítimas (0..1) são preservadas.
+        const idxProd =
+          it.indice_produtividade != null &&
+          it.indice_produtividade >= 0 &&
+          it.indice_produtividade <= 1
+            ? it.indice_produtividade
+            : 1
+
         const cpuItemPayload = {
           cpu_id: novaCpu.id as string,
           grupo: it.grupo,
@@ -276,7 +289,7 @@ Deno.serve(async (req) => {
           quantidade: it.quantidade ?? 0,
           horas_dia: horasDia,
           consumo_combustivel_lh: it.consumo_combustivel_lh,
-          indice_produtividade: it.indice_produtividade ?? 1,
+          indice_produtividade: idxProd,
           consumo_material_por_unid: it.consumo_material_por_unid,
           ordem: ordem++
         }
