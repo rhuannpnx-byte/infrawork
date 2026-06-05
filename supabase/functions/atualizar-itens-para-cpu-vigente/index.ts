@@ -1,9 +1,17 @@
 // POST /functions/v1/atualizar-itens-para-cpu-vigente
 // Body: { obra_id: string, servico_ids?: string[] }
 //
-// Para uma obra, identifica itens cujo snapshot está desatualizado em
-// relação à CPU vigente do serviço (versão diferente ou custo_unit
-// diferente), e re-snapshota todos. Ao final, recalcula a obra.
+// Para uma obra, identifica itens (servico_grupo) cujo snapshot está
+// desatualizado em relação à CPU/serviço vigente — comparando CUSTO e
+// PRODUTIVIDADE EFETIVOS (via vw_servico_custo_agregado, que resolve tanto o
+// modo legado quanto o agregador + override de produtividade no serviço) — e
+// re-snapshota delegando à função canônica `snapshot-cpu-no-item` (que trata
+// legado, agregador e produtividade do serviço corretamente, e recalcula o
+// orçamento).
+//
+// Importante: a versão anterior usava um re-snapshot inline "legado-only" e
+// buscava CPU vigente por servico_id — serviços AGREGADORES (sem CPU própria)
+// eram pulados, então mudar a produtividade do serviço não refletia em nada.
 //
 // Se `servico_ids` for passado, restringe ao subconjunto.
 
@@ -40,7 +48,7 @@ Deno.serve(async (req) => {
   const acc = await assertObraAccess(ctx, obra_id, { write: true })
   if (acc) return acc
 
-  // 1) Pega itens servico_grupo da obra com servico_id
+  // 1) Itens servico_grupo da obra com servico_id
   let q = admin
     .from('item_orcamentario')
     .select('id, servico_id, cpu_snapshot_id')
@@ -54,66 +62,158 @@ Deno.serve(async (req) => {
   if (errItens) return json({ error: errItens.message }, 400)
   const lista: ItemRow[] = (itens ?? []) as ItemRow[]
 
-  // 2) Pega CPUs vigentes desses serviços
   const servicoIds = Array.from(new Set(lista.map((i) => i.servico_id!).filter(Boolean)))
   if (servicoIds.length === 0) {
     return json({ atualizados: 0, custo_total_anterior: 0, custo_total_novo: 0, diff_perc: 0 }, 200)
   }
 
+  // 2) Valores EFETIVOS por serviço (custo + produtividade), resolvendo
+  //    agregador (Σ cpu/fator + producao_diaria_efetiva) e override no serviço.
+  const { data: agg } = await admin
+    .from('vw_servico_custo_agregado')
+    .select('servico_id, cpus_vinculadas, custo_unit_agregado, producao_diaria_efetiva')
+    .in('servico_id', servicoIds)
+  const aggPorServico = new Map<
+    string,
+    { cpus_vinculadas: number; custo_unit_agregado: number | null; producao_diaria_efetiva: number | null }
+  >()
+  for (const a of agg ?? []) {
+    aggPorServico.set(a.servico_id as string, {
+      cpus_vinculadas: Number(a.cpus_vinculadas ?? 0),
+      custo_unit_agregado: a.custo_unit_agregado == null ? null : Number(a.custo_unit_agregado),
+      producao_diaria_efetiva:
+        a.producao_diaria_efetiva == null ? null : Number(a.producao_diaria_efetiva)
+    })
+  }
+
+  // 3) CPU vigente por serviço (modo legado: custo/produtividade/versão da CPU)
   const { data: cpusVig } = await admin
     .from('cpu')
-    .select('id, servico_id, versao, custo_unit_calc')
+    .select('id, servico_id, versao, custo_unit_calc, producao_diaria_qtde')
     .in('servico_id', servicoIds)
     .eq('is_vigente', true)
-  const cpuPorServico = new Map<string, { id: string; versao: number; custo_unit_calc: number }>()
+  const cpuPorServico = new Map<
+    string,
+    { id: string; versao: number; custo_unit_calc: number; producao_diaria_qtde: number | null }
+  >()
   for (const c of cpusVig ?? []) {
     cpuPorServico.set(c.servico_id as string, c as never)
   }
 
-  // 3) Pega snapshots atuais (para comparar)
+  // 4) Snapshots atuais (para comparar custo + produtividade + tipo)
   const snapIds = Array.from(new Set(lista.map((i) => i.cpu_snapshot_id).filter(Boolean))) as string[]
-  let snapMap = new Map<string, { cpu_id_origem: string | null; versao_origem: number | null; custo_unit: number }>()
+  const snapMap = new Map<
+    string,
+    {
+      cpu_id_origem: string | null
+      versao_origem: number | null
+      custo_unit: number
+      producao_diaria_qtde: number | null
+    }
+  >()
   if (snapIds.length > 0) {
     const { data: snaps } = await admin
       .from('cpu_snapshot')
-      .select('id, cpu_id_origem, versao_origem, custo_unit')
+      .select('id, cpu_id_origem, versao_origem, custo_unit, producao_diaria_qtde')
       .in('id', snapIds)
-    snapMap = new Map(
-      (snaps ?? []).map((s) => [
-        s.id as string,
-        { cpu_id_origem: s.cpu_id_origem, versao_origem: s.versao_origem, custo_unit: Number(s.custo_unit) }
-      ])
-    )
+    for (const s of snaps ?? []) {
+      snapMap.set(s.id as string, {
+        cpu_id_origem: s.cpu_id_origem,
+        versao_origem: s.versao_origem,
+        custo_unit: Number(s.custo_unit),
+        producao_diaria_qtde: s.producao_diaria_qtde == null ? null : Number(s.producao_diaria_qtde)
+      })
+    }
   }
 
-  // 4) Decide quais precisam re-snapshot
+  const aprox = (a: number, b: number): boolean => Math.abs(a - b) < 0.0001
+
+  // 5) Decide quais precisam re-snapshot
   let custoAnterior = 0
   let custoNovo = 0
-  let atualizados = 0
+  const staleItemIds: string[] = []
   for (const it of lista) {
+    const a = aggPorServico.get(it.servico_id!)
     const cpuVig = cpuPorServico.get(it.servico_id!)
-    if (!cpuVig) continue
+    const isAggreg = !!a && a.cpus_vinculadas > 0
+
+    const efCusto = isAggreg
+      ? (a!.custo_unit_agregado ?? 0)
+      : cpuVig
+        ? Number(cpuVig.custo_unit_calc)
+        : null
+    const efProd = isAggreg
+      ? (a!.producao_diaria_efetiva ?? 0)
+      : cpuVig
+        ? Number(cpuVig.producao_diaria_qtde ?? 0)
+        : null
+    if (efCusto === null && efProd === null) continue // serviço sem fonte vigente
+
     const snap = it.cpu_snapshot_id ? snapMap.get(it.cpu_snapshot_id) : null
 
-    const precisa =
-      !snap ||
-      snap.cpu_id_origem !== cpuVig.id ||
-      snap.versao_origem !== cpuVig.versao ||
-      snap.custo_unit !== Number(cpuVig.custo_unit_calc)
+    const tipoMismatch = isAggreg
+      ? !snap || snap.cpu_id_origem !== null // agregador → snapshot deve ter cpu_id_origem NULL
+      : !snap || snap.cpu_id_origem !== cpuVig?.id || snap.versao_origem !== cpuVig?.versao
+    const custoMudou = !snap || (efCusto !== null && !aprox(snap.custo_unit, efCusto))
+    const prodMudou =
+      !snap || (efProd !== null && Number(snap.producao_diaria_qtde ?? 0) !== efProd)
 
-    if (!precisa) continue
+    if (!(tipoMismatch || custoMudou || prodMudou)) continue
 
     custoAnterior += snap?.custo_unit ?? 0
-    custoNovo += Number(cpuVig.custo_unit_calc)
-
-    // Re-snapshot inline (chamada interna ao admin client)
-    await reSnapshot(admin, it.id, it.servico_id!, caller.id)
-    atualizados++
+    custoNovo += efCusto ?? 0
+    staleItemIds.push(it.id)
   }
 
-  // 5) Recalcula
+  // 6) Re-snapshot delegando à função canônica (legado + agregador + recalc).
+  //    Forward do JWT do usuário para passar no resolveCaller/assertRole de lá.
+  const url = Deno.env.get('SUPABASE_URL') ?? ''
+  const apikey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+  const auth = req.headers.get('Authorization') ?? ''
+  const erros: string[] = []
+  for (const itemId of staleItemIds) {
+    try {
+      const r = await fetch(`${url}/functions/v1/snapshot-cpu-no-item`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: auth, apikey },
+        body: JSON.stringify({ item_id: itemId, force: true })
+      })
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '')
+        erros.push(`${itemId}: HTTP ${r.status} ${txt.slice(0, 120)}`)
+      }
+    } catch (e) {
+      erros.push(`${itemId}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  const atualizados = staleItemIds.length - erros.length
+
+  // 7) Recalcula o cronograma APENAS do planejamento atual em edição: o mais
+  //    recente NÃO arquivado e NÃO baseline. A baseline é imutável e não deve
+  //    mudar; se a revisão atual estiver travada (baseline/arquivada), nada é
+  //    recalculado (calcular-cronograma também recusa baseline com 409).
+  //    Produtividade afeta as durações, que só são recomputadas pela
+  //    calcular-cronograma (recalcular_orcamento não mexe no cronograma).
   if (atualizados > 0) {
-    await admin.rpc('recalcular_orcamento', { _obra_id: obra_id })
+    const { data: plans } = await admin
+      .from('planejamento')
+      .select('id, is_baseline, created_at')
+      .eq('obra_id', obra_id)
+      .neq('status', 'arquivado')
+      .order('created_at', { ascending: false })
+    const atual = (plans ?? []).find((p) => !p.is_baseline)
+    if (atual) {
+      try {
+        await fetch(`${url}/functions/v1/calcular-cronograma`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: auth, apikey },
+          body: JSON.stringify({ planejamento_id: atual.id as string, force: true })
+        })
+      } catch {
+        /* recalc best-effort — não bloqueia a atualização do orçamento */
+      }
+    }
   }
 
   return json(
@@ -122,90 +222,9 @@ Deno.serve(async (req) => {
       custo_total_anterior: custoAnterior,
       custo_total_novo: custoNovo,
       diff_perc:
-        custoAnterior > 0 ? (custoNovo - custoAnterior) / custoAnterior : custoNovo > 0 ? 1 : 0
+        custoAnterior > 0 ? (custoNovo - custoAnterior) / custoAnterior : custoNovo > 0 ? 1 : 0,
+      erros: erros.slice(0, 5)
     },
     200
   )
 })
-
-// Reimplementação inline do snapshot — evita HTTP loop entre funções
-async function reSnapshot(
-  // deno-lint-ignore no-explicit-any
-  admin: any,
-  itemId: string,
-  servicoId: string,
-  callerId: string
-): Promise<void> {
-  const { data: cpu } = await admin
-    .from('cpu')
-    .select(
-      'id, obra_id, servico_id, versao, producao_diaria_qtde, producao_diaria_unidade, ' +
-        'custo_unit_calc, custo_eq_dia_calc, custo_comb_dia_calc, custo_mo_dia_calc, custo_mat_dia_calc, ' +
-        'servico:servico_id(codigo, nome, unidade)'
-    )
-    .eq('servico_id', servicoId)
-    .eq('is_vigente', true)
-    .maybeSingle()
-  if (!cpu) return
-
-  const { data: item } = await admin
-    .from('item_orcamentario')
-    .select('obra_id')
-    .eq('id', itemId)
-    .single()
-  if (cpu.obra_id !== item.obra_id) return
-
-  const { data: itens } = await admin
-    .from('cpu_item')
-    .select(
-      'id, grupo, recurso_id, quantidade, horas_dia, consumo_combustivel_lh, indice_produtividade, ' +
-        'consumo_material_por_unid, ordem, custo_total_calc, ' +
-        'recurso:recurso_id(id, nome, unidade, grupo, codigo)'
-    )
-    .eq('cpu_id', cpu.id)
-    .order('grupo')
-    .order('ordem')
-
-  const recursosIds = Array.from(new Set((itens ?? []).map((i: { recurso_id: string }) => i.recurso_id)))
-  let precosMap: Record<string, number | null> = {}
-  if (recursosIds.length > 0) {
-    const { data: precos } = await admin
-      .from('vw_recurso_com_preco')
-      .select('id, preco_vigente')
-      .in('id', recursosIds)
-    precosMap = Object.fromEntries(
-      (precos ?? []).map((p: { id: string; preco_vigente: number | null }) => [p.id, p.preco_vigente])
-    )
-  }
-
-  const itensEnriched = (itens ?? []).map((it: Record<string, unknown>) => ({
-    ...it,
-    preco_vigente: precosMap[it.recurso_id as string] ?? null
-  }))
-
-  const servico = (cpu as { servico?: { codigo: string; nome: string; unidade: string | null } }).servico
-
-  const { data: snap } = await admin
-    .from('cpu_snapshot')
-    .insert({
-      obra_id: item.obra_id,
-      cpu_id_origem: cpu.id,
-      versao_origem: cpu.versao,
-      criado_por: callerId,
-      custo_unit: cpu.custo_unit_calc,
-      custo_eq_dia: cpu.custo_eq_dia_calc,
-      custo_comb_dia: cpu.custo_comb_dia_calc,
-      custo_mo_dia: cpu.custo_mo_dia_calc,
-      custo_mat_dia: cpu.custo_mat_dia_calc,
-      producao_diaria_qtde: cpu.producao_diaria_qtde,
-      producao_diaria_unidade: cpu.producao_diaria_unidade,
-      servico_codigo: servico?.codigo ?? null,
-      servico_nome: servico?.nome ?? null,
-      servico_unidade: servico?.unidade ?? null,
-      payload: { cpu, itens: itensEnriched, snapshot_em: new Date().toISOString() }
-    })
-    .select('id')
-    .single()
-  if (!snap) return
-  await admin.from('item_orcamentario').update({ cpu_snapshot_id: snap.id }).eq('id', itemId)
-}

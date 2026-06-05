@@ -452,8 +452,11 @@ export function useAtualizarItensParaCpuVigente(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.atualizarItensParaCpuVigente(body),
-    onSuccess: (_d, vars) => {
+    onSuccess: (d, vars) => {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'plan-orc', vars.obra_id] })
+      // A função já re-snapshota e recalcula orçamento + cronograma (server-side).
+      // Aqui só invalidamos os caches do planejamento p/ a UI refletir.
+      if (d?.atualizados) void qc.invalidateQueries({ queryKey: ['planejamento'] })
     }
   })
 }
