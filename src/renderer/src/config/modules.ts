@@ -245,6 +245,12 @@ export const MODULES: ModuleConfig[] = [
             requiresObra: true
           },
           {
+            icon: 'trending-up',
+            label: 'Valor Agregado',
+            route: '/acompanhamento/valor-agregado',
+            requiresObra: true
+          },
+          {
             icon: 'list-checks',
             label: 'Produção',
             route: '/acompanhamento/producao',

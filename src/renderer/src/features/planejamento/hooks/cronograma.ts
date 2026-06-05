@@ -48,7 +48,7 @@ export interface CurvaSBucket {
   perc_acumulado: number
 }
 
-function segundaDaSemanaISO(iso: string): string {
+export function segundaDaSemanaISO(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`)
   const dia = d.getUTCDay() // 0=dom, 1=seg, ..., 6=sab
   const ajuste = dia === 0 ? -6 : 1 - dia
@@ -56,7 +56,7 @@ function segundaDaSemanaISO(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
-function semanasEntre(inicioIso: string, fimIso: string): string[] {
+export function semanasEntre(inicioIso: string, fimIso: string): string[] {
   const out: string[] = []
   let cur = segundaDaSemanaISO(inicioIso)
   const fimSeg = segundaDaSemanaISO(fimIso)

@@ -98,6 +98,59 @@ export interface OrcamentoParseMapping {
   }
 }
 
+export interface MedicaoExportRow {
+  tipo: 'servico' | 'indireto'
+  grupo_codigo: string
+  grupo_descricao: string
+  item_codigo: string
+  item_descricao: string
+  unidade: string
+  qtd_contratual: number
+  pct_avanco: number
+  medicao_qtd: number
+  venda_unitaria: number
+  medicao_valor: number
+}
+
+export interface MemoriaDia {
+  data: string
+  aggQtd: number
+  pct: number
+  qtd: number
+  valor: number
+  contexto: string
+}
+
+export interface MemoriaServico {
+  codigo: string
+  descricao: string
+  unidade: string
+  agregadorCodigo: string
+  agregadorDescricao: string
+  agregadorUnidade: string
+  qtdContratual: number
+  vendaUnitaria: number
+  dias: MemoriaDia[]
+}
+
+export interface FotoExport {
+  base64: string
+  extension: 'jpeg' | 'png'
+  data: string
+  servico: string
+  frente: string
+  obs: string
+}
+
+export interface MedicaoExportPayload {
+  obraNome: string
+  periodoLabel: string
+  periodoArquivo: string
+  medicao: MedicaoExportRow[]
+  memorias: MemoriaServico[]
+  fotos: FotoExport[]
+}
+
 interface InfraworkAPI {
   platform: NodeJS.Platform
   window: {
@@ -127,6 +180,11 @@ interface InfraworkAPI {
       path: string
     }) => Promise<{ ok: true; result: OrcamentoParseCpuResult } | { ok: false; error: string }>
     lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
+  }
+  medicao: {
+    exportXlsx: (
+      payload: MedicaoExportPayload
+    ) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
   }
   updater: {
     check: () => Promise<{ ok: true; version: string | null } | { ok: false; error: string }>

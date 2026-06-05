@@ -39,6 +39,7 @@ import { PlanejamentoRevisaoDetalhePage } from '@/app/routes/planejamento/revisa
 import { AcompanhamentoIndex } from '@/app/routes/acompanhamento'
 import { AcompanhamentoVincularPage } from '@/app/routes/acompanhamento/vincular'
 import { AcompanhamentoProducaoPage } from '@/app/routes/acompanhamento/producao'
+import { AcompanhamentoValorAgregadoPage } from '@/app/routes/acompanhamento/valor-agregado'
 import { AcompanhamentoFotosPage } from '@/app/routes/acompanhamento/fotos'
 import { AcompanhamentoEquipesPage } from '@/app/routes/acompanhamento/equipes'
 import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/comparativo'
@@ -231,6 +232,11 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: 'vincular',
       component: AcompanhamentoVincularPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'valor-agregado',
+      component: AcompanhamentoValorAgregadoPage
     }),
     createRoute({
       getParentRoute: () => acompanhamentoLayout,

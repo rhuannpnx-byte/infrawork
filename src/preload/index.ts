@@ -27,6 +27,9 @@ const infrawork = {
       ipcRenderer.invoke('orcamento:parse-cpu-excel', params),
     lerArquivoBytes: (path: string) => ipcRenderer.invoke('orcamento:upload-arquivo-bytes', path)
   },
+  medicao: {
+    exportXlsx: (payload: unknown) => ipcRenderer.invoke('medicao:export-xlsx', payload)
+  },
   updater: {
     check: () => ipcRenderer.invoke('update:check'),
     quitAndInstall: () => ipcRenderer.send('update:quit-and-install'),

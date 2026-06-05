@@ -142,6 +142,52 @@ interface InfraworkBridge {
     }) => Promise<{ ok: true; result: OrcamentoParseCpuResult } | { ok: false; error: string }>
     lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
   }
+  medicao: {
+    exportXlsx: (payload: {
+      obraNome: string
+      periodoLabel: string
+      periodoArquivo: string
+      medicao: Array<{
+        tipo: 'servico' | 'indireto'
+        grupo_codigo: string
+        grupo_descricao: string
+        item_codigo: string
+        item_descricao: string
+        unidade: string
+        qtd_contratual: number
+        pct_avanco: number
+        medicao_qtd: number
+        venda_unitaria: number
+        medicao_valor: number
+      }>
+      memorias: Array<{
+        codigo: string
+        descricao: string
+        unidade: string
+        agregadorCodigo: string
+        agregadorDescricao: string
+        agregadorUnidade: string
+        qtdContratual: number
+        vendaUnitaria: number
+        dias: Array<{
+          data: string
+          aggQtd: number
+          pct: number
+          qtd: number
+          valor: number
+          contexto: string
+        }>
+      }>
+      fotos: Array<{
+        base64: string
+        extension: 'jpeg' | 'png'
+        data: string
+        servico: string
+        frente: string
+        obs: string
+      }>
+    }) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
+  }
   updater: {
     check: () => Promise<{ ok: true; version: string | null } | { ok: false; error: string }>
     quitAndInstall: () => void

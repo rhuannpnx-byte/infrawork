@@ -7,6 +7,7 @@ import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { parseExcelFile, type ParseMapping } from './import/parse-excel'
 import { parseCpuExcelFile } from './import/parse-cpu-excel'
+import { gerarMedicaoXlsx, type MedicaoExportPayload } from './export/medicao-xlsx'
 
 interface WindowState {
   width: number
@@ -276,6 +277,45 @@ app.whenReady().then(() => {
         bytes: Array.from(buf),
         name: path.split(/[\\/]/).pop() ?? path,
         size: st.size
+      }
+    }
+  )
+
+  // IPC — export da medição (Valor Agregado) em .xlsx via dialog de salvar.
+  ipcMain.handle(
+    'medicao:export-xlsx',
+    async (
+      e,
+      payload: MedicaoExportPayload
+    ): Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }> => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win) return { ok: false, canceled: true }
+      const limpar = (s: string): string => (s || '').replace(/[\\/:*?"<>|]/g, '-').trim()
+      const nomeSeguro = limpar(payload.obraNome || 'obra').slice(0, 60)
+      const periodo = limpar(payload.periodoArquivo)
+      // Timestamp atual (YYYY-MM-DD HH-MM-SS) — garante nome único sempre.
+      const ts = new Date()
+      const p2 = (n: number): string => String(n).padStart(2, '0')
+      const stamp =
+        `${ts.getFullYear()}-${p2(ts.getMonth() + 1)}-${p2(ts.getDate())} ` +
+        `${p2(ts.getHours())}-${p2(ts.getMinutes())}-${p2(ts.getSeconds())}`
+      const base = periodo ? `Medição ${nomeSeguro} ${periodo}` : `Medição ${nomeSeguro}`
+      const nomeArquivo = `${base} - ${stamp}.xlsx`
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Exportar medição',
+        defaultPath: nomeArquivo,
+        filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+      })
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true }
+      try {
+        await gerarMedicaoXlsx(payload, res.filePath)
+        return { ok: true, canceled: false, path: res.filePath }
+      } catch (err) {
+        return {
+          ok: false,
+          canceled: false,
+          error: err instanceof Error ? err.message : String(err)
+        }
       }
     }
   )
