@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { EmptyState } from '@/components/layout/EmptyState'
+import { PulseBlock } from '@/components/ui/PulseBlock'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 
 // ─── Persistência local: opções globais + trechos por obra ──────────────────
@@ -79,17 +80,22 @@ function MarchaTempoInner(): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!
   const { data: planejamentos = [] } = usePlanejamentos(obraId)
-  const { data: planAtivo } = usePlanejamentoAtivo(obraId)
+  const { data: planAtivo, isLoading: loadingAtivo } = usePlanejamentoAtivo(obraId)
   const [planId, setPlanId] = useState<string | null>(null)
   const planSel = planId
     ? (planejamentos.find((p) => p.id === planId) ?? planAtivo)
     : planAtivo
 
-  const { data: tarefas = [] } = useTarefas(planSel?.id)
+  const { data: tarefas = [], isLoading: loadingTarefas } = useTarefas(planSel?.id)
   const { data: dependencias = [] } = useDependencias(planSel?.id)
   const { data: trechos = [] } = useObraTrechos(obraId)
 
-  const [trechosSelecionados, setTrechosSelecionados] = useState<string[]>([])
+  // Hidrata os trechos selecionados do localStorage SINCRONAMENTE no 1º render
+  // — evita o flash "sem trechos / config default" → "filtros do usuário". A
+  // validação contra a lista real de trechos roda no efeito abaixo.
+  const [trechosSelecionados, setTrechosSelecionados] = useState<string[]>(
+    () => carregarTrechos(obraId) ?? []
+  )
   const [opcoes, setOpcoes] = useState<MarchaTempoOpcoes>(() =>
     carregarOpcoes({
       eixoXTempo: false,
@@ -140,9 +146,8 @@ function MarchaTempoInner(): ReactNode {
   }, [trechos.length, obraId])
 
   // Templates dos trechos selecionados
-  const { data: templatesPorTrecho = new Map() } = useTemplatesAtuaisPorTrecho(
-    trechosSelecionados
-  )
+  const templatesQuery = useTemplatesAtuaisPorTrecho(trechosSelecionados)
+  const templatesPorTrecho = templatesQuery.data ?? new Map()
 
   const tracos = useTracosMarchaTempo(tarefas, templatesPorTrecho, {
     geom: opcoes.geom,
@@ -163,17 +168,26 @@ function MarchaTempoInner(): ReactNode {
     return (
       <div className="flex flex-col h-full">
         <PageHeader title="Marcha-Tempo" subtitle={scope.obra?.nome ?? ''} />
-        <div className="flex-1 flex items-center justify-center">
-          <EmptyState
-            icon="route"
-            title="Sem planejamento ativo"
-            description="Crie uma revisão e calcule o cronograma para visualizar a marcha-tempo."
-          />
+        <div className="flex-1 flex items-center justify-center p-4">
+          {loadingAtivo ? (
+            <PulseBlock h={460} className="w-full max-w-6xl" />
+          ) : (
+            <EmptyState
+              icon="route"
+              title="Sem planejamento ativo"
+              description="Crie uma revisão e calcule o cronograma para visualizar a marcha-tempo."
+            />
+          )}
         </div>
       </div>
     )
   }
 
+  // Enquanto tarefas/templates dos trechos não carregam, a perfilada cairia no
+  // fallback "uniforme" e a tela saltaria depois pra versão final. Mostra um
+  // skeleton até estar tudo pronto, evitando esse flash de "app bugado".
+  const carregando =
+    loadingTarefas || (trechosSelecionados.length > 0 && templatesQuery.isLoading)
   const semDados = trechosSelecionados.length === 0 || tracos.length === 0
 
   return (
@@ -213,7 +227,9 @@ function MarchaTempoInner(): ReactNode {
       />
       <div className="flex-1 overflow-auto">
         <div className="p-4 space-y-3">
-          {semDados ? (
+          {carregando ? (
+            <PulseBlock h={460} />
+          ) : semDados ? (
             <div className="flex items-center justify-center py-12">
               <EmptyState
                 icon="route"
