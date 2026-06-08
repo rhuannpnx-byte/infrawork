@@ -352,6 +352,8 @@ export interface PrevistoRealizadoItem {
   descricao: string
   unidade: string | null
   qtd_plan: number | null
+  /** Quantidade planejada acumulada até hoje (cronograma do baseline). */
+  qtd_plan_periodo: number | null
   qtd_real: number
   pct_avanco: number | null
   data_inicio_plan: string | null

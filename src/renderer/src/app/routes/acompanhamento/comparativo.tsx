@@ -98,6 +98,21 @@ function Inner(): ReactNode {
       )
     },
     {
+      header: 'Qtd planejada período',
+      accessorKey: 'qtd_plan_periodo',
+      cell: ({ row }) => (
+        <span
+          className="font-mono tabular-nums text-xs"
+          title="Quantidade prevista acumulada até hoje, segundo o cronograma do baseline"
+        >
+          {row.original.qtd_plan_periodo != null
+            ? formatNumber(Number(row.original.qtd_plan_periodo), 1)
+            : '—'}
+          {row.original.unidade ? <span className="text-text-dim ml-1">{row.original.unidade}</span> : null}
+        </span>
+      )
+    },
+    {
       header: 'Qtd realizada',
       accessorKey: 'qtd_real',
       cell: ({ row }) => (
