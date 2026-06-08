@@ -18,7 +18,8 @@ import {
 } from '@/features/acompanhamento/stores/valor-agregado-filtros'
 import {
   montarMemoriasFilhos,
-  carregarFotosExport
+  carregarFotosExport,
+  carregarMateriaisProducao
 } from '@/features/acompanhamento/lib/valor-agregado-export'
 import { CurvaSValorAgregado } from '@/features/acompanhamento/components/valor-agregado/CurvaSValorAgregado'
 import { PlanejadoProjetadoPorServico } from '@/features/acompanhamento/components/valor-agregado/PlanejadoProjetadoPorServico'
@@ -70,7 +71,16 @@ function ValorAgregadoInner(): ReactNode {
     if (medicao.length === 0) return
     setExportando(true)
     try {
-      const memorias = montarMemoriasFilhos(grupos, curvaSRows, producao, servicoItemId, de, ate)
+      const materialPorId = await carregarMateriaisProducao(obraId, de, ate)
+      const memorias = montarMemoriasFilhos(
+        grupos,
+        curvaSRows,
+        producao,
+        materialPorId,
+        servicoItemId,
+        de,
+        ate
+      )
       const fotos = await carregarFotosExport(obraId, de, ate)
       const dmy = (s: string): string => {
         const [y, m, d] = s.split('-')

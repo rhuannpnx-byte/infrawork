@@ -30,6 +30,12 @@ export interface MemoriaDia {
   qtd: number
   /** Valor do dia = qtd × venda unitária. */
   valor: number
+  /** Estaca(s) do dia. */
+  estaca: string
+  /** Material(is) do dia (SIGA payload_bruto). */
+  material: string
+  /** Observação(ões) do dia. */
+  observacao: string
   /** Frentes/equipes do dia (contexto). */
   contexto: string
 }
@@ -159,10 +165,15 @@ function abaMedicao(wb: ExcelJS.Workbook, p: MedicaoExportPayload): void {
   let r = ini + 1
   for (const row of p.medicao) {
     const l = ws.getRow(r)
-    if (row.tipo === 'indireto') {
-      ws.mergeCells(r, 1, r, 8)
-      l.getCell(1).value = row.item_descricao || 'Indireto'
-      l.getCell(1).font = { italic: true }
+    if (row.tipo === 'indireto' && !row.item_codigo) {
+      // Fallback: indireto sem itens de receita cadastrados.
+      l.getCell(1).value = row.grupo_codigo
+      ws.mergeCells(r, 2, r, 5)
+      l.getCell(2).value = row.item_descricao || 'Indireto'
+      l.getCell(2).font = { italic: true }
+      l.getCell(6).value = row.pct_avanco
+      l.getCell(6).numFmt = PCT
+      ws.mergeCells(r, 7, r, 8)
       l.getCell(9).value = row.medicao_valor
       l.getCell(9).numFmt = MOEDA
     } else {
@@ -211,7 +222,10 @@ function abaMemoria(
     { key: 'qtd', width: 16 },
     { key: 'acum', width: 16 },
     { key: 'valor', width: 16 },
-    { key: 'contexto', width: 42 }
+    { key: 'estaca', width: 18 },
+    { key: 'material', width: 24 },
+    { key: 'obs', width: 34 },
+    { key: 'contexto', width: 34 }
   ]
   const ini = escreverCabecalho(
     ws,
@@ -222,7 +236,7 @@ function abaMemoria(
   )
 
   // Linha de informações do agregador / contrato.
-  ws.mergeCells(ini, 1, ini, 7)
+  ws.mergeCells(ini, 1, ini, 10)
   ws.getCell(ini, 1).value =
     `Agregador: ${m.agregadorCodigo} — ${m.agregadorDescricao}` +
     `   •   Qtd contratual: ${m.qtdContratual} ${m.unidade || ''}` +
@@ -237,11 +251,16 @@ function abaMemoria(
     `Qtd medida (${m.unidade || '—'})`,
     'Acumulado',
     'Valor medido',
+    'Estaca',
+    'Material',
+    'Observação',
     'Frentes / Equipes'
   ]
   const hr = ws.getRow(headerRow)
   header.forEach((h, i) => (hr.getCell(i + 1).value = h))
   estilizarHeaderRow(hr, 1)
+  // Cabeçalhos de colunas de texto: alinhar à esquerda (estaca..frentes).
+  for (let c = 7; c <= 10; c++) hr.getCell(c).alignment = { horizontal: 'left', vertical: 'middle' }
 
   let r = headerRow + 1
   let acum = 0
@@ -261,7 +280,12 @@ function abaMemoria(
     l.getCell(5).numFmt = NUM
     l.getCell(6).value = d.valor
     l.getCell(6).numFmt = MOEDA
-    l.getCell(7).value = d.contexto
+    l.getCell(7).value = d.estaca
+    l.getCell(8).value = d.material
+    l.getCell(9).value = d.observacao
+    l.getCell(9).alignment = { wrapText: true, vertical: 'top' }
+    l.getCell(10).value = d.contexto
+    l.getCell(10).alignment = { wrapText: true, vertical: 'top' }
     r++
   }
 

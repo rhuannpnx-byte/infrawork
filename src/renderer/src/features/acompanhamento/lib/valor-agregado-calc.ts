@@ -265,6 +265,8 @@ export interface MontarMedicaoInput {
   curvaSRows: CurvaSDiaRow[]
   de: string
   ate: string
+  /** Inclui as linhas de indireto (default true; falso ao filtrar 1 serviço). */
+  incluirIndireto?: boolean
 }
 
 /**
@@ -275,6 +277,12 @@ export interface MontarMedicaoInput {
  */
 export function montarMedicao(input: MontarMedicaoInput): MedicaoRow[] {
   const { grupos, tarefas, curvaSRows, de, ate } = input
+  const incluirIndireto = input.incluirIndireto ?? true
+
+  // Ids dos agregadores indiretos (medidos por tempo, não por produção física).
+  const indiretoGrupoIds = new Set(
+    tarefas.filter((t) => t.is_indireto && t.item_orcamentario_id).map((t) => t.item_orcamentario_id!)
+  )
 
   // Realizado por grupo dentro do período.
   const realPorGrupo = new Map<string, number>()
@@ -287,6 +295,7 @@ export function montarMedicao(input: MontarMedicaoInput): MedicaoRow[] {
 
   const rows: MedicaoRow[] = []
   for (const g of grupos) {
+    if (indiretoGrupoIds.has(g.id)) continue // indireto tratado à parte (abaixo)
     const realPeriodo = realPorGrupo.get(g.id) ?? 0
     if (realPeriodo <= 0) continue
     const pct = g.quantidade_referencia > 0 ? realPeriodo / g.quantidade_referencia : 0
@@ -308,31 +317,63 @@ export function montarMedicao(input: MontarMedicaoInput): MedicaoRow[] {
     }
   }
 
-  // Indireto: fração das semanas da indireta dentro do período × receita.
-  const semDe = segundaDaSemanaISO(de)
-  let indiretoValor = 0
-  for (const t of tarefas) {
-    if (!t.is_indireto || !t.data_inicio || !t.data_fim) continue
-    const sems = semanasEntre(t.data_inicio, t.data_fim)
-    if (!sems.length) continue
-    const dentro = sems.filter((s) => s >= semDe && s <= ate).length
-    if (dentro === 0) continue
-    indiretoValor += num(t.receita_total_calc) * (dentro / sems.length)
-  }
-  if (indiretoValor > 0) {
-    rows.push({
-      tipo: 'indireto',
-      grupo_codigo: '',
-      grupo_descricao: 'Indireto',
-      item_codigo: '',
-      item_descricao: 'Custos indiretos do período (rateio Curva-S)',
-      unidade: '—',
-      qtd_contratual: 0,
-      pct_avanco: 0,
-      medicao_qtd: 0,
-      venda_unitaria: 0,
-      medicao_valor: indiretoValor
-    })
+  // Indireto: avanço = fração das semanas da indireta dentro do período (mesma
+  // lógica da Curva-S, confirmada com o usuário), aplicado às QUANTIDADES dos
+  // itens `receita` que compõem o agregador (ADMINISTRAÇÃO DE OBRAS, CANTEIRO,
+  // MOBILIZAÇÃO, DESMOBILIZAÇÃO…). Mesma semântica da medição direta
+  // (pct × qtd contratual), só que o pct vem do tempo, não da produção física.
+  if (incluirIndireto) {
+    const gruposById = new Map(grupos.map((g) => [g.id, g]))
+    const semDe = segundaDaSemanaISO(de)
+    for (const t of tarefas) {
+      if (!t.is_indireto || !t.data_inicio || !t.data_fim) continue
+      const sems = semanasEntre(t.data_inicio, t.data_fim)
+      if (!sems.length) continue
+      const dentro = sems.filter((s) => s >= semDe && s <= ate).length
+      if (dentro === 0) continue
+      const fracPeriodo = dentro / sems.length
+
+      const g = t.item_orcamentario_id ? gruposById.get(t.item_orcamentario_id) : undefined
+      const grupoCod = t.servico_grupo_codigo ?? g?.codigo ?? ''
+      const grupoDesc = t.servico_grupo_descricao ?? g?.descricao ?? 'Indireto'
+      const filhos = (g?.filhos ?? []).filter((f) => f.quantidade * f.venda_unitaria > 0)
+
+      if (filhos.length > 0) {
+        for (const f of filhos) {
+          const medQtd = fracPeriodo * f.quantidade
+          rows.push({
+            tipo: 'indireto',
+            grupo_codigo: grupoCod,
+            grupo_descricao: grupoDesc,
+            item_codigo: f.codigo,
+            item_descricao: f.descricao,
+            unidade: f.unidade || '—',
+            qtd_contratual: f.quantidade,
+            pct_avanco: fracPeriodo,
+            medicao_qtd: medQtd,
+            venda_unitaria: f.venda_unitaria,
+            medicao_valor: medQtd * f.venda_unitaria
+          })
+        }
+      } else {
+        // Sem itens de receita cadastrados: linha única pelo total do agregador.
+        const receitaPeriodo = num(t.receita_total_calc) * fracPeriodo
+        if (receitaPeriodo <= 0) continue
+        rows.push({
+          tipo: 'indireto',
+          grupo_codigo: grupoCod,
+          grupo_descricao: grupoDesc,
+          item_codigo: '',
+          item_descricao: grupoDesc,
+          unidade: '—',
+          qtd_contratual: 0,
+          pct_avanco: fracPeriodo,
+          medicao_qtd: 0,
+          venda_unitaria: 0,
+          medicao_valor: receitaPeriodo
+        })
+      }
+    }
   }
   return rows
 }

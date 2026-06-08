@@ -118,6 +118,9 @@ export interface MemoriaDia {
   pct: number
   qtd: number
   valor: number
+  estaca: string
+  material: string
+  observacao: string
   contexto: string
 }
 

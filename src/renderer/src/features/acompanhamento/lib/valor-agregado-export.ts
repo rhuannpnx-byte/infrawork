@@ -4,6 +4,7 @@
 //   - fotos do período (baixa os bytes e converte p/ base64 p/ embutir no xlsx)
 
 import { adminApi } from '@/lib/supabase/functions'
+import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import type { EapGrupo, CurvaSDiaRow } from './valor-agregado-calc'
@@ -18,6 +19,12 @@ export interface MemoriaDiaExport {
   qtd: number
   /** Valor do dia = qtd × venda unitária do filho. */
   valor: number
+  /** Estaca(s) do dia (estaca_inicial/estaca_final da produção). */
+  estaca: string
+  /** Material(is) do dia (payload_bruto SIGA: nome + qtd + unidade). */
+  material: string
+  /** Observação(ões) do dia (campo obs da produção). */
+  observacao: string
   /** Frentes/equipes do dia (contexto da produção). */
   contexto: string
 }
@@ -59,6 +66,8 @@ export function montarMemoriasFilhos(
   grupos: EapGrupo[],
   curvaSRows: CurvaSDiaRow[],
   producao: ProducaoEnriquecida[],
+  /** Material por id de produção (payload_bruto SIGA) — ver carregarMateriaisProducao. */
+  materialPorId: Map<string, string>,
   servicoItemId: string | null,
   de: string,
   ate: string
@@ -77,8 +86,16 @@ export function montarMemoriasFilhos(
     m.set(r.data, (m.get(r.data) ?? 0) + real)
   }
 
-  // Contexto (frentes/equipes) por item/dia, vindo da produção enriquecida.
-  const ctx = new Map<string, Map<string, { frentes: Set<string>; equipes: Set<string> }>>()
+  // Contexto (frentes/equipes/estaca/material/obs) por item/dia, vindo da
+  // produção enriquecida + material do payload_bruto (mapa por id de produção).
+  interface CtxDia {
+    frentes: Set<string>
+    equipes: Set<string>
+    estacas: Set<string>
+    materiais: Set<string>
+    obs: Set<string>
+  }
+  const ctx = new Map<string, Map<string, CtxDia>>()
   for (const p of producao) {
     const id = p.item_orcamentario_id
     if (!id || !p.data) continue
@@ -90,12 +107,20 @@ export function montarMemoriasFilhos(
     }
     let e = mi.get(p.data)
     if (!e) {
-      e = { frentes: new Set(), equipes: new Set() }
+      e = { frentes: new Set(), equipes: new Set(), estacas: new Set(), materiais: new Set(), obs: new Set() }
       mi.set(p.data, e)
     }
     if (p.frente) e.frentes.add(p.frente)
     const eq = p.equipe_display_nome ?? p.siga_equipe_nome
     if (eq) e.equipes.add(eq)
+    const ini = (p.estaca_inicial ?? '').trim()
+    const fim = (p.estaca_final ?? '').trim()
+    const estaca = ini && fim ? `${ini} a ${fim}` : ini || fim
+    if (estaca) e.estacas.add(estaca)
+    const mat = materialPorId.get(p.id)
+    if (mat) e.materiais.add(mat)
+    const obs = (p.obs ?? '').trim()
+    if (obs) e.obs.add(obs)
   }
 
   const out: MemoriaServicoExport[] = []
@@ -112,7 +137,20 @@ export function montarMemoriasFilhos(
         const qtd = pct * f.quantidade
         const c = ctxItem?.get(data)
         const contexto = c ? [...c.frentes, ...c.equipes].filter(Boolean).join(', ') : ''
-        return { data: fmtDataBR(data), aggQtd, pct, qtd, valor: qtd * f.venda_unitaria, contexto }
+        const estaca = c ? [...c.estacas].filter(Boolean).join('; ') : ''
+        const material = c ? [...c.materiais].filter(Boolean).join('; ') : ''
+        const observacao = c ? [...c.obs].filter(Boolean).join('; ') : ''
+        return {
+          data: fmtDataBR(data),
+          aggQtd,
+          pct,
+          qtd,
+          valor: qtd * f.venda_unitaria,
+          estaca,
+          material,
+          observacao,
+          contexto
+        }
       })
       out.push({
         codigo: f.codigo,
@@ -128,6 +166,42 @@ export function montarMemoriasFilhos(
     }
   }
   return out.sort((a, b) => a.codigo.localeCompare(b.codigo))
+}
+
+/**
+ * Mapa id-de-produção → rótulo de material, lido do `payload_bruto` SIGA da
+ * tabela bruta `acompanhamento_producao` (o material não está na view
+ * enriquecida). Rótulo: "Nome (qtd unidade)".
+ */
+export async function carregarMateriaisProducao(
+  obraId: string,
+  de: string,
+  ate: string
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (!SUPABASE_ENABLED || !supabase) return out
+  const { data, error } = await supabase
+    .from('acompanhamento_producao')
+    .select('id, payload_bruto')
+    .eq('obra_id', obraId)
+    .gte('data', de)
+    .lte('data', ate)
+    .limit(20_000)
+  if (error || !data) return out
+  for (const r of data) {
+    const pb = (r.payload_bruto ?? {}) as Record<string, unknown>
+    const nome = pb.controle_producao_material_nome
+    if (nome == null || String(nome).trim() === '') continue
+    const qtd = pb.controle_producao_material_qtd
+    const un = pb.controle_producao_material_unidade_nome
+    const qtdNum = qtd == null ? null : Number(qtd)
+    const sufixo =
+      qtdNum && Number.isFinite(qtdNum) && qtdNum > 0
+        ? ` (${qtdNum}${un ? ' ' + String(un) : ''})`
+        : ''
+    out.set(r.id as string, `${String(nome).trim()}${sufixo}`)
+  }
+  return out
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {

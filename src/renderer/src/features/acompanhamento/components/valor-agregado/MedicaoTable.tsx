@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { Download } from 'lucide-react'
 import type { MedicaoRow } from '../../lib/valor-agregado-calc'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { fmtBRL } from '@/lib/money'
 import { formatNumber } from '@/lib/format'
 
@@ -52,17 +53,26 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
             </thead>
             <tbody>
               {rows.map((r, i) =>
-                r.tipo === 'indireto' ? (
+                r.tipo === 'indireto' && !r.item_codigo ? (
+                  // Fallback: indireto sem itens de receita cadastrados.
                   <tr key={`ind-${i}`} className="border-b border-border/40 bg-accent/5">
-                    <td className="px-3 py-1.5 text-text-dim" colSpan={7}>
+                    <td className="px-3 py-1.5 text-text-dim">{r.grupo_codigo}</td>
+                    <td className="px-3 py-1.5" colSpan={3}>
                       {r.item_descricao}
                     </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-text-dim">
+                      {(r.pct_avanco * 100).toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-1.5" colSpan={2} />
                     <td className="px-3 py-1.5 text-right tabular-nums text-emerald-400">
                       {fmtBRL(r.medicao_valor)}
                     </td>
                   </tr>
                 ) : (
-                  <tr key={`${r.item_codigo}-${i}`} className="border-b border-border/40">
+                  <tr
+                    key={`${r.tipo}-${r.item_codigo}-${i}`}
+                    className={cn('border-b border-border/40', r.tipo === 'indireto' && 'bg-accent/5')}
+                  >
                     <td className="px-3 py-1.5 text-text-dim">{r.grupo_codigo}</td>
                     <td className="px-3 py-1.5">
                       <span className="text-text-dim">{r.item_codigo}</span> {r.item_descricao}

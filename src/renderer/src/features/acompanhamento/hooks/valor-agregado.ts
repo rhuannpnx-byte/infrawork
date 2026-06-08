@@ -141,8 +141,16 @@ export function useValorAgregado(
     [tarefasF, curvaSF, de, ate]
   )
   const medicao = useMemo(
-    () => montarMedicao({ grupos: gruposF, tarefas: tarefasF, curvaSRows: curvaSF, de, ate }),
-    [gruposF, tarefasF, curvaSF, de, ate]
+    () =>
+      montarMedicao({
+        grupos: gruposF,
+        tarefas: tarefasF,
+        curvaSRows: curvaSF,
+        de,
+        ate,
+        incluirIndireto: !servicoItemId
+      }),
+    [gruposF, tarefasF, curvaSF, de, ate, servicoItemId]
   )
 
   const listaServicos = useMemo(
