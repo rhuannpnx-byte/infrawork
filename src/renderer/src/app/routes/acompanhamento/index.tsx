@@ -321,7 +321,7 @@ function DashboardAcompanhamento(): ReactNode {
                   icon={<Gauge size={11} />}
                   label="Avanço físico"
                   value={r?.avanco_pct != null ? `${(Number(r.avanco_pct) * 100).toFixed(1)}%` : '—'}
-                  hint={r?.avanco_pct == null ? 'sem baseline ativo' : 'ponderado por custo'}
+                  hint={r?.avanco_pct == null ? 'sem baseline ativo' : 'ponderado por receita'}
                 />
                 {(() => {
                   // Compute total + dias_trabalhados respeitando o filtro de servico.
