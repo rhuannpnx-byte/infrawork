@@ -61,6 +61,168 @@ export function corDoServico(chave: string | null | undefined): string {
   return PALETA_SERVICOS[Math.abs(hash) % PALETA_SERVICOS.length]
 }
 
+/** Código embutido no início do nome (ex.: "005 Micro" → "005"). */
+export function extrairCodigoColuna(nome: string): string {
+  return nome.match(/^\s*([\w.-]+)/)?.[1] ?? nome
+}
+
+/** Normaliza texto p/ casar nome de coluna ↔ descrição de série (sem acento/caixa). */
+function normalizarNome(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Série do plot (trajetória) usada p/ casar cor com a faixa de quantidades. */
+export interface SerieCorRef {
+  /** Chave em estilosSerie (servico_grupo_codigo). */
+  codigo: string
+  /** Rótulo "codigo · descricao". */
+  label: string
+  /** Cor padrão da série (corDaTarefa). */
+  cor: string
+}
+
+/**
+ * Resolve a cor de cada coluna de quantidades casando-a com a série do plot,
+ * para que a barra de quantidades use EXATAMENTE a mesma cor da trajetória do
+ * serviço (inclusive a cor custom escolhida no painel de séries).
+ *
+ * Casamento, em ordem: (1) código no início do nome da coluna == série.codigo;
+ * (2) nome da coluna == descrição da série (normalizado, sem acento/caixa).
+ * Sem casamento → hash determinístico (corDoServico) sobre o código extraído.
+ */
+export function resolverCoresColunas(
+  nomesColunas: string[],
+  series: SerieCorRef[],
+  estilos: Record<string, { cor?: string } | undefined>
+): Record<string, string> {
+  const porCodigo = new Map<string, SerieCorRef>()
+  const porDescricao = new Map<string, SerieCorRef>()
+  for (const s of series) {
+    if (s.codigo && !porCodigo.has(s.codigo)) porCodigo.set(s.codigo, s)
+    const desc = normalizarNome(s.label.replace(/^\s*[\w.-]+\s*[·•\-–]?\s*/, ''))
+    if (desc && !porDescricao.has(desc)) porDescricao.set(desc, s)
+  }
+  const out: Record<string, string> = {}
+  for (const nome of nomesColunas) {
+    const code = extrairCodigoColuna(nome)
+    const serie = porCodigo.get(code) ?? porDescricao.get(normalizarNome(nome))
+    const chave = serie?.codigo ?? code
+    out[nome] = estilos[chave]?.cor ?? serie?.cor ?? corDoServico(code)
+  }
+  return out
+}
+
+// ─── Faixa de quantidades: clusterização + densidade ────────────────────────
+//
+// Lógica ÚNICA usada tanto na visualização interativa (MarchaTempoFaixaQuantidades)
+// quanto na impressão/export (MarchaTempoExport) — garante que a barra de
+// quantidades tenha clusterização e gradiente idênticos nos dois.
+
+export interface ClusterQtd {
+  ini: number
+  fim: number
+  valor: number
+  count: number
+  vmin: number
+  vmax: number
+  /** Soma de (valor/metro) por segmento — base da média de densidade. */
+  sumDensidade: number
+}
+
+/** Desvio-padrão da densidade (valor/metro) dos segmentos — base da segregação. */
+export function desvioDensidadeSegs(
+  segs: Array<{ ini: number; fim: number; valor: number }>
+): number {
+  const dens = segs.map((s) => s.valor / Math.max(1, s.fim - s.ini))
+  if (dens.length === 0) return 0
+  const mean = dens.reduce((a, b) => a + b, 0) / dens.length
+  const varr = dens.reduce((a, b) => a + (b - mean) ** 2, 0) / dens.length
+  return Math.sqrt(varr)
+}
+
+/**
+ * Cluster de segmentos contíguos com segregação por desvio de densidade + cap
+ * anti-supercluster. Regras:
+ *  1) Largura mínima (`minLabelPx`) antes de fechar (pra caber o valor escrito).
+ *  2) Segregação: segmento que desvia > 1× std da densidade média do cluster
+ *     fecha o cluster (destaca mudanças de densidade).
+ *  3) Cap (`maxClusterPx`): cluster largo demais força fechamento.
+ *  4) Gap visual > 1.5px conta como separador.
+ */
+export function clusterizarSegmentos(
+  segs: Array<{ ini: number; fim: number; valor: number }>,
+  sx: (m: number) => number,
+  innerW: number,
+  minLabelPx: number,
+  stdDensidade: number,
+  maxClusterPx: number
+): ClusterQtd[] {
+  if (segs.length === 0) return []
+  const out: ClusterQtd[] = []
+  let atual: ClusterQtd | null = null
+  const GAP_PX = 1.5
+  const K_SEGREGA = 1.0
+  const stdEfetivo = Math.max(stdDensidade, 1e-9)
+
+  for (const s of segs) {
+    const xIni = sx(s.ini)
+    const xFim = sx(s.fim)
+    if (xFim < 0 || xIni > innerW) continue
+    const compS = Math.max(1, s.fim - s.ini)
+    const densS = s.valor / compS
+
+    if (!atual) {
+      atual = {
+        ini: s.ini,
+        fim: s.fim,
+        valor: s.valor,
+        count: 1,
+        vmin: s.valor,
+        vmax: s.valor,
+        sumDensidade: densS
+      }
+      continue
+    }
+
+    const xAtualFim = sx(atual.fim)
+    const gapPx = xIni - xAtualFim
+    const wAtual = xAtualFim - sx(atual.ini)
+    const mediaDensAtual = atual.sumDensidade / atual.count
+    const desvio = Math.abs(densS - mediaDensAtual)
+    const segregaPorDensidade = desvio > K_SEGREGA * stdEfetivo
+
+    const podeFechar = wAtual >= minLabelPx
+    const motivoNormal = podeFechar && (gapPx > GAP_PX || segregaPorDensidade)
+    const motivoCap = wAtual >= maxClusterPx
+    if (motivoNormal || motivoCap) {
+      out.push(atual)
+      atual = {
+        ini: s.ini,
+        fim: s.fim,
+        valor: s.valor,
+        count: 1,
+        vmin: s.valor,
+        vmax: s.valor,
+        sumDensidade: densS
+      }
+    } else {
+      atual.fim = s.fim
+      atual.valor += s.valor
+      atual.count += 1
+      atual.vmin = Math.min(atual.vmin, s.valor)
+      atual.vmax = Math.max(atual.vmax, s.valor)
+      atual.sumDensidade += densS
+    }
+  }
+  if (atual) out.push(atual)
+  return out
+}
+
 // ─── Fatias com trabalho ────────────────────────────────────────────────────
 
 export interface FatiaTrabalho {

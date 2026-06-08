@@ -36,7 +36,8 @@ import {
   gerarMesesGrid,
   meiaNoite,
   pathReto,
-  pathSuave
+  pathSuave,
+  resolverCoresColunas
 } from '@/features/planejamento/lib/marcha-tempo-pure'
 import { MarchaTempoTooltip } from './MarchaTempoTooltip'
 import {
@@ -239,6 +240,18 @@ export function MarchaTempoPainel({
       template.colunas.some((c) => c.nome === nome)
     ).length
   }, [template, opcoes.colunasQuantidade])
+
+  // Cor de cada coluna de quantidade = cor da trajetória do serviço no plot
+  // (casada por código ou por nome), incl. a cor custom do painel de séries.
+  const coresColunas = useMemo(
+    () =>
+      resolverCoresColunas(
+        opcoes.colunasQuantidade,
+        tracosTrecho.map((t) => ({ codigo: t.codigo ?? t.tarefaId, label: t.label, cor: t.cor })),
+        opcoes.estilosSerie
+      ),
+    [opcoes.colunasQuantidade, tracosTrecho, opcoes.estilosSerie]
+  )
 
   // Inner dimensions
   const innerW = Math.max(120, width - MARGEM.left - MARGEM.right)
@@ -658,6 +671,7 @@ export function MarchaTempoPainel({
               alturaFaixas={alturaFaixas}
               dens={dens}
               estilosSerie={opcoes.estilosSerie}
+              coresColunas={coresColunas}
               vguide={vguide}
               onBandTip={setBandTip}
             />

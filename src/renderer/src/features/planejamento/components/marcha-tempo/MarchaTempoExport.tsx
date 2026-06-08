@@ -17,14 +17,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   bandasNaoTrabalhadas,
+  clusterizarSegmentos,
   corDoServico,
+  desvioDensidadeSegs,
   detectarConflitos,
   fmtDataBR,
   fmtQtdCompact,
   formatMarcadorCurto,
   gerarMesesGrid,
   meiaNoite,
-  pathReto
+  pathReto,
+  resolverCoresColunas
 } from '@/features/planejamento/lib/marcha-tempo-pure'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -889,6 +892,13 @@ function DiagramaExport({
         .map((nome) => template.colunas.find((c) => c.nome === nome))
         .filter((c): c is NonNullable<typeof c> => !!c)
     : []
+  const coresColunas = resolverCoresColunas(
+    colsVis.map((c) => c.nome),
+    tracos.map((t) => ({ codigo: t.codigo ?? t.tarefaId, label: t.label, cor: t.cor })),
+    estilosSerie
+  )
+  // Sufixo único p/ ids de gradiente (evita colisão entre páginas/trechos).
+  const gradSuffix = trecho.id.replace(/[^a-zA-Z0-9]/g, '')
   const FH = 14
   const FB = 26
   const FG = 9
@@ -973,9 +983,9 @@ function DiagramaExport({
             const top = i * (FH + FB + FG)
             const by = top + FH
             const codigo = col.nome.match(/^\s*([\w.-]+)/)?.[1] ?? col.nome
-            // Cor da faixa = cor do serviço no plot (mesma regra: custom se
-            // user definiu, senão hash determinístico via corDoServico).
-            const cor = pcor(estilosSerie[codigo]?.cor ?? corDoServico(codigo))
+            // Cor da faixa = cor da trajetória do serviço no plot (casada por
+            // código ou nome), incl. a cor custom escolhida no painel de séries.
+            const cor = pcor(coresColunas[col.nome] ?? estilosSerie[codigo]?.cor ?? corDoServico(codigo))
             const segs = template.segmentos
               .map((s) => ({
                 ini: Math.min(s.posicao_inicio_m, s.posicao_fim_m),
@@ -999,41 +1009,29 @@ function DiagramaExport({
                   Σ {fmtQtdCompact(total)} {col.unidade}
                 </text>
                 <rect x={0} y={by} width={innerW} height={FB} fill="#fff" stroke="#d1d5db" strokeWidth={0.75} />
-                {/* Clusterização: agrupa segmentos adjacentes até a largura
-                    permitir escrita do valor. Mais agressiva no PDF pra que
-                    quase todos os blocos exibam o valor (canon do design). */}
+                {/* Gradiente vertical por coluna — mesma estética da visualização. */}
+                <defs>
+                  <linearGradient id={`bandgrad-${i}-${gradSuffix}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={cor} stopOpacity="1" />
+                    <stop offset="55%" stopColor={cor} stopOpacity="0.78" />
+                    <stop offset="100%" stopColor={cor} stopOpacity="0.42" />
+                  </linearGradient>
+                </defs>
+                {/* Clusterização IDÊNTICA à visualização: segregação por desvio de
+                    densidade + cap anti-supercluster, e gradiente com intensidade
+                    proporcional ao valor (lib compartilhada). */}
                 {(() => {
-                  const MIN_LABEL_PX = 18
-                  const GAP_PX = 1.2
-                  interface Cl {
-                    ini: number
-                    fim: number
-                    valor: number
-                    count: number
-                  }
-                  const clusters: Cl[] = []
-                  let cur: Cl | null = null
-                  for (const s of segs) {
-                    const xIni = sx(s.ini)
-                    const xFim = sx(s.fim)
-                    if (xFim < 0 || xIni > innerW) continue
-                    if (!cur) {
-                      cur = { ini: s.ini, fim: s.fim, valor: s.valor, count: 1 }
-                      continue
-                    }
-                    const xCurFim = sx(cur.fim)
-                    const wCur = xCurFim - sx(cur.ini)
-                    const gap = xIni - xCurFim
-                    if (wCur >= MIN_LABEL_PX && gap > GAP_PX) {
-                      clusters.push(cur)
-                      cur = { ini: s.ini, fim: s.fim, valor: s.valor, count: 1 }
-                    } else {
-                      cur.fim = s.fim
-                      cur.valor += s.valor
-                      cur.count += 1
-                    }
-                  }
-                  if (cur) clusters.push(cur)
+                  const MIN_LABEL_PX = 22
+                  const MAX_CLUSTER_PX = Math.min(220, innerW / 6)
+                  const stdDens = desvioDensidadeSegs(segs)
+                  const clusters = clusterizarSegmentos(
+                    segs,
+                    sx,
+                    innerW,
+                    MIN_LABEL_PX,
+                    stdDens,
+                    MAX_CLUSTER_PX
+                  )
                   return clusters.map((c, j) => {
                     const rx0 = sx(c.ini)
                     const rx1 = sx(c.fim)
@@ -1043,12 +1041,20 @@ function DiagramaExport({
                     if (w < 0.5) return null
                     const v = c.count > 0 ? c.valor / c.count : c.valor
                     const tt = vmax > vmin ? (v - vmin) / (vmax - vmin) : 0.5
-                    const a = 0.12 + Math.max(0, Math.min(1, tt)) * 0.38
+                    const alpha = 0.42 + Math.max(0, Math.min(1, tt)) * (0.95 - 0.42)
+                    const ctr = (rx0 + rx1) / 2
                     return (
                       <g key={j}>
-                        <rect x={x0} y={by} width={w} height={FB} fill={cor} fillOpacity={a} />
-                        <rect x={x0} y={by} width={w} height={2} fill={cor} />
-                        {/* Sub-divisões internas pra preservar fidelidade */}
+                        <rect
+                          x={x0}
+                          y={by}
+                          width={w}
+                          height={FB}
+                          fill={`url(#bandgrad-${i}-${gradSuffix})`}
+                          fillOpacity={alpha}
+                        />
+                        <rect x={x0} y={by} width={w} height={2.5} fill={cor} />
+                        {/* Sub-divisões internas quando o cluster tem múltiplos segmentos */}
                         {c.count > 1 &&
                           w > 12 &&
                           segs
@@ -1070,12 +1076,25 @@ function DiagramaExport({
                                 />
                               )
                             })}
-                        {w >= 14 && (
+                        {/* Borda do cluster */}
+                        {w > 6 && (
+                          <rect
+                            x={x0}
+                            y={by}
+                            width={w}
+                            height={FB}
+                            fill="none"
+                            stroke={cor}
+                            strokeWidth={0.5}
+                            opacity={0.6}
+                          />
+                        )}
+                        {w >= 16 && ctr >= 0 && ctr <= innerW && (
                           <text
-                            x={(rx0 + rx1) / 2}
+                            x={ctr}
                             y={by + FB / 2 + 3.5}
                             textAnchor="middle"
-                            fontSize={w >= 28 ? 8 : 7}
+                            fontSize={w >= 44 ? 9 : w >= 32 ? 8 : 7}
                             fontWeight={700}
                             fill="#111827"
                             fontFamily="ui-monospace, monospace"

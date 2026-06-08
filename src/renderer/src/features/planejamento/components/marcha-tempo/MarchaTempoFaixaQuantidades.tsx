@@ -5,7 +5,9 @@
 
 import { useCallback, useId, type ReactNode } from 'react'
 import {
+  clusterizarSegmentos,
   corDoServico,
+  desvioDensidadeSegs,
   fmtQtdCompact
 } from '@/features/planejamento/lib/marcha-tempo-pure'
 import type { EstiloSerie } from '@/types/planejamento'
@@ -35,6 +37,8 @@ interface MarchaTempoFaixaQuantidadesProps {
   alturaFaixas: number
   dens: DensPreset
   estilosSerie: Record<string, EstiloSerie>
+  /** Cor resolvida por nome de coluna (casa coluna↔série do plot). */
+  coresColunas?: Record<string, string>
   vguide: number | null
   onBandTip: (b: {
     cx: number
@@ -63,108 +67,6 @@ function clamp01(t: number): number {
   return Math.max(0, Math.min(1, t))
 }
 
-/**
- * Cluster de segmentos contíguos com SEGREGAÇÃO por desvio + CAP anti-supercluster.
- *
- * Regras:
- *  1) Largura mínima: cluster precisa atingir `minLabelPx` antes de ser fechado
- *     (pra caber o valor escrito). Se não atingiu, força merge mesmo com gap.
- *  2) Segregação por desvio: se a média de valor por metro do PRÓXIMO segmento
- *     difere >1× std da média de valor por metro do cluster atual, fecha
- *     cluster — destaca regiões com mudança significativa de densidade.
- *  3) Cap anti-supercluster: cluster com largura >= `maxClusterPx` força
- *     fechamento — evita um cluster gigante engolir todos os segmentos.
- *  4) Gap visual: gaps > 1.5px na tela contam como separador (existente).
- */
-interface Cluster {
-  ini: number
-  fim: number
-  valor: number
-  count: number
-  vmin: number
-  vmax: number
-  /** Acumula soma de (valor/metro) por segmento, pra computar média densidade. */
-  sumDensidade: number
-}
-
-function clusterizar(
-  segs: Array<{ ini: number; fim: number; valor: number }>,
-  sx: (m: number) => number,
-  innerW: number,
-  minLabelPx: number,
-  /** Std-dev global da densidade da coluna (valor/m). */
-  stdDensidade: number,
-  /** Cap máximo de largura em px do cluster (evita supercluster). */
-  maxClusterPx: number
-): Cluster[] {
-  if (segs.length === 0) return []
-  const out: Cluster[] = []
-  let atual: Cluster | null = null
-  const GAP_PX = 1.5
-  // Fator k: segmento que desvia > k * stdDensidade da média do cluster
-  // atual quebra o cluster (segregação por mudança de densidade).
-  const K_SEGREGA = 1.0
-  // Tolerância mínima quando std = 0 (todos iguais): nunca segrega
-  const stdEfetivo = Math.max(stdDensidade, 1e-9)
-
-  for (const s of segs) {
-    const xIni = sx(s.ini)
-    const xFim = sx(s.fim)
-    if (xFim < 0 || xIni > innerW) continue
-    const compS = Math.max(1, s.fim - s.ini)
-    const densS = s.valor / compS
-
-    if (!atual) {
-      atual = {
-        ini: s.ini,
-        fim: s.fim,
-        valor: s.valor,
-        count: 1,
-        vmin: s.valor,
-        vmax: s.valor,
-        sumDensidade: densS
-      }
-      continue
-    }
-
-    const xAtualFim = sx(atual.fim)
-    const gapPx = xIni - xAtualFim
-    const wAtual = xAtualFim - sx(atual.ini)
-    const mediaDensAtual = atual.sumDensidade / atual.count
-    const desvio = Math.abs(densS - mediaDensAtual)
-    const segregaPorDensidade = desvio > K_SEGREGA * stdEfetivo
-
-    // 3 motivos pra fechar cluster:
-    //  - Largura suficiente E (gap visível OU mudança de densidade significativa)
-    //  - Cap de largura atingido (anti-supercluster) — força, mesmo sem label
-    const podeFechar = wAtual >= minLabelPx
-    const motivoNormal = podeFechar && (gapPx > GAP_PX || segregaPorDensidade)
-    const motivoCap = wAtual >= maxClusterPx
-    const fecha = motivoNormal || motivoCap
-    if (fecha) {
-      out.push(atual)
-      atual = {
-        ini: s.ini,
-        fim: s.fim,
-        valor: s.valor,
-        count: 1,
-        vmin: s.valor,
-        vmax: s.valor,
-        sumDensidade: densS
-      }
-    } else {
-      atual.fim = s.fim
-      atual.valor += s.valor
-      atual.count += 1
-      atual.vmin = Math.min(atual.vmin, s.valor)
-      atual.vmax = Math.max(atual.vmax, s.valor)
-      atual.sumDensidade += densS
-    }
-  }
-  if (atual) out.push(atual)
-  return out
-}
-
 export function MarchaTempoFaixaQuantidades({
   template,
   nomesColunas,
@@ -175,6 +77,7 @@ export function MarchaTempoFaixaQuantidades({
   alturaFaixas,
   dens,
   estilosSerie,
+  coresColunas,
   vguide,
   onBandTip
 }: MarchaTempoFaixaQuantidadesProps): ReactNode {
@@ -191,9 +94,9 @@ export function MarchaTempoFaixaQuantidades({
   // Por coluna: agrupar segmentos com valor>0, computar total/min/max/p75
   const grupos = colunas.map((col) => {
     const codigo = extrairCodigo(col.nome)
-    // Cor da faixa = cor da trajetória do mesmo código (mesma regra usada
-    // no plot). Permite que mudar cor no SeriesPanel atualize ambos juntos.
-    const cor = estilosSerie[codigo]?.cor ?? corDoServico(codigo)
+    // Cor da faixa = cor da trajetória correspondente no plot (casada por
+    // código OU por nome). Mudar a cor no painel de séries reflete aqui.
+    const cor = coresColunas?.[col.nome] ?? estilosSerie[codigo]?.cor ?? corDoServico(codigo)
     const segsOk = template.segmentos
       .map((s) => {
         const v =
@@ -210,15 +113,8 @@ export function MarchaTempoFaixaQuantidades({
     const vals = segsOk.map((s) => s.valor)
     const vmin = vals.length ? Math.min(...vals) : 0
     const vmax = vals.length ? Math.max(...vals) : 1
-    // Densidades (valor/m) por segmento — base pra segregação dos clusters.
-    const densidades = segsOk.map((s) => s.valor / Math.max(1, s.fim - s.ini))
-    const meanDens = densidades.length
-      ? densidades.reduce((a, b) => a + b, 0) / densidades.length
-      : 0
-    const varDens = densidades.length
-      ? densidades.reduce((a, b) => a + (b - meanDens) ** 2, 0) / densidades.length
-      : 0
-    const stdDens = Math.sqrt(varDens)
+    // Densidade (valor/m) — base pra segregação dos clusters (lib compartilhada).
+    const stdDens = desvioDensidadeSegs(segsOk)
     // Percentil 75 — fallback semântico (mantido pra futura visualização)
     const sorted = [...vals].sort((a, b) => a - b)
     const p75 = sorted.length
@@ -360,7 +256,7 @@ export function MarchaTempoFaixaQuantidades({
               const MIN_LABEL_PX = 22 // largura mínima pra label caber
               // Cap anti-supercluster: ~1/6 da largura interna ou 220px (o menor)
               const MAX_CLUSTER_PX = Math.min(220, innerW / 6)
-              const clusters = clusterizar(
+              const clusters = clusterizarSegmentos(
                 g.segsOk,
                 sx,
                 innerW,
