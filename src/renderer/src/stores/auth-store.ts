@@ -15,6 +15,41 @@ interface AuthStore {
   refreshMe: () => Promise<void>
 }
 
+// ─── Presença / acessos ────────────────────────────────────────────────────
+// Heartbeat enquanto o app está aberto + registro de 1 acesso por boot/login.
+// "Online agora" no painel de usuários = last_seen_at nos últimos ~2,5 min.
+
+const HEARTBEAT_MS = 60_000
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+function pararHeartbeat(): void {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
+}
+
+function iniciarHeartbeat(): void {
+  if (!supabase || heartbeatTimer) return
+  heartbeatTimer = setInterval(() => {
+    void supabase!.rpc('registrar_presenca').then(
+      () => {},
+      () => {} // best-effort — nunca quebra a sessão
+    )
+  }, HEARTBEAT_MS)
+}
+
+/** Registra 1 acesso (login OU abertura do app com sessão) e liga o heartbeat. */
+async function registrarAcessoEHeartbeat(): Promise<void> {
+  if (!supabase) return
+  try {
+    await supabase.rpc('registrar_acesso')
+  } catch {
+    /* não bloqueia o login se a RPC falhar */
+  }
+  iniciarHeartbeat()
+}
+
 async function fetchMe(): Promise<MePayload | null> {
   if (!supabase) return null
   const { data: sessionData } = await supabase.auth.getSession()
@@ -77,6 +112,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         obras: me.obras,
         error: null
       })
+      void registrarAcessoEHeartbeat()
     } catch (e) {
       set({ status: 'guest', error: e instanceof Error ? e.message : String(e) })
     }
@@ -107,6 +143,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         obras: me.obras,
         error: null
       })
+      void registrarAcessoEHeartbeat()
     } catch (e) {
       set({ status: 'guest', error: e instanceof Error ? e.message : String(e) })
       throw e
@@ -114,6 +151,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   async signOut() {
+    pararHeartbeat()
     if (supabase) {
       await supabase.auth.signOut()
     }
@@ -145,6 +183,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 if (supabase) {
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || !session) {
+      pararHeartbeat()
       useAuthStore.setState({ status: 'guest', profile: null, empresa: null, obras: [] })
     } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
       void useAuthStore.getState().refreshMe()

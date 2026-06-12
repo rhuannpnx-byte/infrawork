@@ -9,7 +9,8 @@ import { DataTable } from '@/components/data-table/DataTable'
 import { useUsuarios } from '@/features/gerencial/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import { NewUsuarioDialog } from '@/features/gerencial/modals/NewUsuarioDialog'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type { Role } from '@/types/auth'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
@@ -20,9 +21,22 @@ const ROLE_VARIANT: Record<Role, 'accent' | 'success' | 'warn' | 'default'> = {
   apoio: 'default'
 }
 
+/** "Online agora" = visto nos últimos 2,5 min (heartbeat roda a cada 60s). */
+const ONLINE_THRESHOLD_MS = 150_000
+
+function estaOnline(lastSeen: string | null | undefined): boolean {
+  if (!lastSeen) return false
+  const t = new Date(lastSeen).getTime()
+  return Number.isFinite(t) && Date.now() - t < ONLINE_THRESHOLD_MS
+}
+
 export function UsuariosPage(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
-  const { data: usuarios = [], isLoading, error } = useUsuarios()
+  const ehGod = role === 'god'
+  // Só God vê acesso/presença; refetch periódico mantém "Online" atualizado.
+  const { data: usuarios = [], isLoading, error } = useUsuarios(
+    ehGod ? { refetchInterval: 45_000 } : undefined
+  )
   const [openNew, setOpenNew] = useState(false)
 
   const podeAcessar = role === 'god' || role === 'adm' || role === 'engenheiro'
@@ -80,6 +94,58 @@ export function UsuariosPage(): ReactNode {
         meta: { label: 'Status' },
         size: 90
       },
+      ...(ehGod
+        ? ([
+            {
+              id: 'online',
+              header: 'Online',
+              accessorFn: (row) => row.last_seen_at ?? '',
+              cell: (info) => {
+                const lastSeen = info.row.original.last_seen_at
+                if (estaOnline(lastSeen)) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 text-2xs font-mono text-success">
+                      <span className="size-2 rounded-full bg-success animate-pulse" />
+                      online
+                    </span>
+                  )
+                }
+                return (
+                  <span className="text-2xs font-mono text-text-faint" title={lastSeen ? formatDateTimeShort(lastSeen) : undefined}>
+                    {lastSeen ? timeAgo(lastSeen) : '—'}
+                  </span>
+                )
+              },
+              meta: { label: 'Online' },
+              size: 110
+            },
+            {
+              accessorKey: 'acessos_count',
+              header: 'Acessos',
+              cell: (info) => (
+                <span className="font-mono tabular-nums text-text-muted">
+                  {Number(info.getValue() ?? 0)}
+                </span>
+              ),
+              meta: { label: 'Acessos' },
+              size: 80
+            },
+            {
+              accessorKey: 'last_access_at',
+              header: 'Último acesso',
+              cell: (info) => {
+                const v = info.getValue() as string | null
+                return (
+                  <span className={cn('font-mono text-2xs', v ? 'text-text-dim' : 'text-text-faint')}>
+                    {v ? formatDateTimeShort(v) : '—'}
+                  </span>
+                )
+              },
+              meta: { label: 'Último acesso' },
+              size: 140
+            }
+          ] as ColumnDef<UsuarioComEmpresa, unknown>[])
+        : []),
       {
         accessorKey: 'created_at',
         header: 'Criado em',
@@ -90,7 +156,7 @@ export function UsuariosPage(): ReactNode {
         size: 110
       }
     ],
-    []
+    [ehGod]
   )
 
   if (!podeAcessar) {

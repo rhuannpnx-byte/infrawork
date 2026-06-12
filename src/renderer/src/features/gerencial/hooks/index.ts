@@ -49,16 +49,20 @@ export function useCreateEmpresa(): ReturnType<
 
 // ─── Usuários ────────────────────────────────────────────────────────────
 
-export function useUsuarios(): ReturnType<typeof useQuery<UsuarioComEmpresa[]>> {
+export function useUsuarios(
+  opts?: { refetchInterval?: number }
+): ReturnType<typeof useQuery<UsuarioComEmpresa[]>> {
   return useQuery({
     queryKey: ['gerencial', 'usuarios'],
+    // refetch periódico mantém "Online agora" atualizado (só ligado p/ God na UI).
+    refetchInterval: opts?.refetchInterval,
     queryFn: async (): Promise<UsuarioComEmpresa[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
       // RLS filtra: God vê tudo, Adm vê própria empresa, Eng vê os Apoios dele.
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at, empresa:empresa_id(id, nome), engenheiro:engenheiro_id(id, nome)'
+          'id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at, acessos_count, last_access_at, last_seen_at, empresa:empresa_id(id, nome), engenheiro:engenheiro_id(id, nome)'
         )
         .order('created_at', { ascending: false })
       if (error) throw error

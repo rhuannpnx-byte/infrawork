@@ -22,6 +22,10 @@ export interface UsuarioRow {
 export interface UsuarioComEmpresa extends UsuarioRow {
   empresa?: { id: string; nome: string } | null
   engenheiro?: { id: string; nome: string } | null
+  /** Rastreio de acesso/presença (visível só p/ God). */
+  acessos_count?: number | null
+  last_access_at?: string | null
+  last_seen_at?: string | null
 }
 
 export type UnidadeEspacoPadrao = 'km' | 'm' | 'estaca' | 'custom'
