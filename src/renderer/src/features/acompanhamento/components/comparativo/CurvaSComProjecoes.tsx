@@ -208,21 +208,26 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
           cursor.setDate(cursor.getDate() + 1)
         }
 
-        // Pinta proj_atual + proj_necessaria a partir do dia seguinte ao "hoje"
+        // Pinta proj_atual + proj_necessaria a partir do dia seguinte ao "hoje".
+        // Cada projeção TERMINA ao atingir 100% (último ponto = qtdTotal, depois
+        // null) — sem segmento horizontal "deitado" no topo.
         const idxHojeFinal = dataRowsRender.findIndex((r) => r.data === hojeIso)
+        let doneA = false
+        let doneN = false
         for (let i = idxHojeFinal + 1; i < dataRowsRender.length; i++) {
           const dataAtual = dataRowsRender[i].data
           const diasFromHoje = Math.round(
             (new Date(dataAtual + 'T00:00:00').getTime() - new Date(hojeIso + 'T00:00:00').getTime()) / 86_400_000
           )
-          if (mediaAtual != null) {
+          if (mediaAtual != null && !doneA) {
             const v = ancoraValor + mediaAtual * diasFromHoje
-            // Para a projeção quando atinge qtdTotal
-            dataRowsRender[i].proj_atual = qtdTotal != null ? Math.min(v, qtdTotal) : v
+            if (qtdTotal != null && v >= qtdTotal) { dataRowsRender[i].proj_atual = qtdTotal; doneA = true }
+            else dataRowsRender[i].proj_atual = v
           }
-          if (mediaNecessaria != null) {
+          if (mediaNecessaria != null && !doneN) {
             const v = ancoraValor + mediaNecessaria * diasFromHoje
-            dataRowsRender[i].proj_necessaria = qtdTotal != null ? Math.min(v, qtdTotal) : v
+            if (qtdTotal != null && v >= qtdTotal) { dataRowsRender[i].proj_necessaria = qtdTotal; doneN = true }
+            else dataRowsRender[i].proj_necessaria = v
           }
         }
       }
@@ -314,7 +319,7 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
               <ReferenceLine x={projStats.fim_planejado} stroke="oklch(67% 0.18 255)" strokeDasharray="2 4" label={{ value: 'Fim plan.', fontSize: 9, fill: 'oklch(67% 0.18 255)' }} />
             )}
             {projStats.fim_atual && (
-              <ReferenceLine x={projStats.fim_atual} stroke="oklch(74% 0.16 50)" strokeDasharray="2 4" label={{ value: 'Proj. atual', fontSize: 9, fill: 'oklch(74% 0.16 50)' }} />
+              <ReferenceLine x={projStats.fim_atual} stroke="oklch(74% 0.16 50)" strokeDasharray="2 4" label={{ value: 'Fim proj.', fontSize: 9, fill: 'oklch(74% 0.16 50)' }} />
             )}
             <defs>
               <linearGradient id="g_plan" x1="0" y1="0" x2="0" y2="1">

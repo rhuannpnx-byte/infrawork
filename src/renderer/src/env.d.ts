@@ -191,6 +191,28 @@ interface InfraworkBridge {
       }>
     }) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
   }
+  tabela: {
+    exportXlsx: (payload: {
+      obraNome: string
+      titulo: string
+      filenameBase: string
+      colunas: Array<{ header: string; numFmt?: string }>
+      linhas: Array<Array<string | number | null>>
+      servicos: Array<{
+        codigo: string
+        descricao: string
+        unidade: string
+        mediaNec: number | null
+        semanas: Array<{ prev: number; real: number; media: number | null; range: string }>
+      }>
+    }) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
+  }
+  relatorio: {
+    exportPdf: (payload: {
+      html: string
+      filenameBase: string
+    }) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
+  }
   updater: {
     check: () => Promise<{ ok: true; version: string | null } | { ok: false; error: string }>
     quitAndInstall: () => void

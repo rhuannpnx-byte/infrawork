@@ -30,6 +30,13 @@ const infrawork = {
   medicao: {
     exportXlsx: (payload: unknown) => ipcRenderer.invoke('medicao:export-xlsx', payload)
   },
+  tabela: {
+    exportXlsx: (payload: unknown) => ipcRenderer.invoke('tabela:export-xlsx', payload)
+  },
+  relatorio: {
+    exportPdf: (payload: { html: string; filenameBase: string }) =>
+      ipcRenderer.invoke('relatorio:export-pdf', payload)
+  },
   updater: {
     check: () => ipcRenderer.invoke('update:check'),
     quitAndInstall: () => ipcRenderer.send('update:quit-and-install'),

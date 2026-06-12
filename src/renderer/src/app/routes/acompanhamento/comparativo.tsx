@@ -1,18 +1,20 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { DataTable } from '@/components/data-table/DataTable'
+import type { TableExportConfig } from '@/components/data-table/export-types'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { usePrevistoXRealizado, useCurvaS } from '@/features/acompanhamento/hooks/comparativo'
 import { CurvaSComProjecoes } from '@/features/acompanhamento/components/comparativo/CurvaSComProjecoes'
 import { ProgressBarPrevReal } from '@/features/acompanhamento/components/comparativo/ProgressBarPrevReal'
 import { StatusComparativoChip } from '@/features/acompanhamento/components/comparativo/StatusComparativoChip'
 import { projetarItem, type ProjecaoItem } from '@/features/acompanhamento/lib/projecoes'
-import type { PrevistoRealizadoItem } from '@/types/acompanhamento'
+import { STATUS_COMP_LABEL, type CurvaSPonto, type PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
+import infraworkIcon from '@/assets/infrawork-icon.png'
 
 export function AcompanhamentoComparativoPage(): ReactNode {
   return (
@@ -65,6 +67,89 @@ function Inner(): ReactNode {
     }
     return out
   }, [curva, itens])
+
+  // Logo (data URL) p/ embutir no relatório PDF — carregada uma vez.
+  const [logoDataUrl, setLogoDataUrl] = useState('')
+  useEffect(() => {
+    let cancel = false
+    fetch(infraworkIcon)
+      .then((r) => r.blob())
+      .then((b) => {
+        const fr = new FileReader()
+        fr.onload = () => { if (!cancel) setLogoDataUrl(String(fr.result)) }
+        fr.readAsDataURL(b)
+      })
+      .catch(() => {})
+    return () => { cancel = true }
+  }, [])
+
+  // Curva-S agrupada por item — alimenta o relatório por serviço.
+  const curvaByItem = useMemo(() => {
+    const m = new Map<string, CurvaSPonto[]>()
+    for (const p of curva) {
+      if (!p.item_orcamentario_id) continue
+      const arr = m.get(p.item_orcamentario_id) ?? []
+      arr.push(p)
+      m.set(p.item_orcamentario_id, arr)
+    }
+    return m
+  }, [curva])
+
+  // Config de exportação: tabela plana (CSV/Excel) + relatório por serviço (PDF + abas).
+  const getExportConfig = useMemo(
+    () =>
+      (visibleRows: PrevistoRealizadoItem[]): TableExportConfig => {
+        const linhas = visibleRows.map((it) => {
+          const proj = projByItem.get(it.item_orcamentario_id)
+          const fimProj = proj?.fimProjetado
+            ? new Date(proj.fimProjetado + 'T00:00:00').toLocaleDateString('pt-BR')
+            : '—'
+          return [
+            it.codigo,
+            it.descricao,
+            it.unidade ?? '',
+            it.qtd_plan ?? null,
+            it.qtd_plan_periodo ?? null,
+            it.qtd_real ?? 0,
+            (it.pct_avanco ?? 0) * 100,
+            it.dias_plan ?? null,
+            it.dias_real ?? null,
+            proj?.desvioDias ?? null,
+            fimProj,
+            STATUS_COMP_LABEL[it.status]
+          ] as Array<string | number | null>
+        })
+        return {
+          filenameBase: `Previsto x Realizado - ${scope.obra?.nome ?? 'obra'}`,
+          titulo: 'Previsto × Realizado',
+          obraNome: scope.obra?.nome ?? '',
+          colunas: [
+            { header: 'Código' },
+            { header: 'Descrição' },
+            { header: 'Unidade' },
+            { header: 'Qtd planejada', numFmt: '#,##0.0' },
+            { header: 'Qtd planejada período', numFmt: '#,##0.0' },
+            { header: 'Qtd realizada', numFmt: '#,##0.0' },
+            { header: 'Avanço', numFmt: '0.0"%"' },
+            { header: 'Dias plan' },
+            { header: 'Dias real' },
+            { header: 'Δ dias' },
+            { header: 'Fim projetado' },
+            { header: 'Status' }
+          ],
+          linhas,
+          // PDF/abas usam TODOS os serviços do baseline (ignora filtro da tabela).
+          relatorio: {
+            logoDataUrl,
+            servicos: itens.map((pr) => ({
+              pr,
+              cs: curvaByItem.get(pr.item_orcamentario_id) ?? []
+            }))
+          }
+        }
+      },
+    [itens, projByItem, curvaByItem, logoDataUrl, scope.obra?.nome]
+  )
 
   const columns = useMemo<ColumnDef<PrevistoRealizadoItem, unknown>[]>(() => [
     {
@@ -201,6 +286,7 @@ function Inner(): ReactNode {
           emptyMessage="Sem comparativo disponível"
           emptyDescription="Defina baseline no Planejamento e vincule serviços do SIGA."
           onRowClick={(row) => setSelectedId((cur) => cur === row.item_orcamentario_id ? null : row.item_orcamentario_id)}
+          getExportConfig={getExportConfig}
         />
       </div>
     </div>

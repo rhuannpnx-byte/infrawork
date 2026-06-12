@@ -8,6 +8,8 @@ import icon from '../../resources/icon.png?asset'
 import { parseExcelFile, type ParseMapping } from './import/parse-excel'
 import { parseCpuExcelFile } from './import/parse-cpu-excel'
 import { gerarMedicaoXlsx, type MedicaoExportPayload } from './export/medicao-xlsx'
+import { gerarTabelaXlsx, type TabelaXlsxPayload } from './export/tabela-xlsx'
+import { gerarRelatorioPdf } from './export/relatorio-pdf'
 
 interface WindowState {
   width: number
@@ -316,6 +318,65 @@ app.whenReady().then(() => {
           canceled: false,
           error: err instanceof Error ? err.message : String(err)
         }
+      }
+    }
+  )
+
+  // Nome de arquivo seguro com timestamp.
+  const nomeComStamp = (base: string, ext: string): string => {
+    const limpo = (base || 'export').replace(/[\\/:*?"<>|]/g, '-').trim().slice(0, 80)
+    const ts = new Date()
+    const p2 = (n: number): string => String(n).padStart(2, '0')
+    const stamp =
+      `${ts.getFullYear()}-${p2(ts.getMonth() + 1)}-${p2(ts.getDate())} ` +
+      `${p2(ts.getHours())}-${p2(ts.getMinutes())}-${p2(ts.getSeconds())}`
+    return `${limpo} - ${stamp}.${ext}`
+  }
+
+  // IPC — export genérico de tabela (Previsto × Realizado) em .xlsx.
+  ipcMain.handle(
+    'tabela:export-xlsx',
+    async (
+      e,
+      payload: TabelaXlsxPayload
+    ): Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }> => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win) return { ok: false, canceled: true }
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Exportar tabela',
+        defaultPath: nomeComStamp(payload.filenameBase, 'xlsx'),
+        filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+      })
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true }
+      try {
+        await gerarTabelaXlsx(payload, res.filePath)
+        return { ok: true, canceled: false, path: res.filePath }
+      } catch (err) {
+        return { ok: false, canceled: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  // IPC — export do relatório por serviço em .pdf (HTML montado no renderer).
+  ipcMain.handle(
+    'relatorio:export-pdf',
+    async (
+      e,
+      payload: { html: string; filenameBase: string }
+    ): Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }> => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win) return { ok: false, canceled: true }
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Exportar relatório',
+        defaultPath: nomeComStamp(payload.filenameBase, 'pdf'),
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      })
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true }
+      try {
+        await gerarRelatorioPdf(payload.html, res.filePath)
+        return { ok: true, canceled: false, path: res.filePath }
+      } catch (err) {
+        return { ok: false, canceled: false, error: err instanceof Error ? err.message : String(err) }
       }
     }
   )

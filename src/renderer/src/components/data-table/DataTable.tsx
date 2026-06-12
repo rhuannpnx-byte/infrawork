@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dropdown, DropdownItem, DropdownLabel } from '@/components/ui/dropdown'
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
+import type { TableExportConfig } from './export-types'
 
 interface DataTableProps<T> {
   data: T[]
@@ -48,6 +49,9 @@ interface DataTableProps<T> {
   /** Slot pra renderizar ações em lote no toolbar quando há seleção.
    *  Recebe as linhas selecionadas + callback pra limpar a seleção. */
   selectionActions?: (selectedRows: T[], clearSelection: () => void) => ReactNode
+  /** Habilita exportação real (CSV/Excel/PDF). Recebe as linhas visíveis
+   *  (filtro + ordenação atuais) e devolve a config de exportação. */
+  getExportConfig?: (visibleRows: T[]) => TableExportConfig
 }
 
 export function DataTable<T>({
@@ -62,7 +66,8 @@ export function DataTable<T>({
   emptyDescription,
   initialPageSize = 50,
   enableRowSelection = false,
-  selectionActions
+  selectionActions,
+  getExportConfig
 }: DataTableProps<T>): ReactNode {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -221,7 +226,19 @@ export function DataTable<T>({
           Filtros
         </Button>
 
-        <Button variant="secondary" size="sm" onClick={() => openModal('export')}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            if (getExportConfig) {
+              const visibleRows = table.getSortedRowModel().rows.map((r) => r.original)
+              openModal('export', getExportConfig(visibleRows))
+            } else {
+              // limpa payload anterior p/ não vazar config de outra tabela
+              openModal('export', null)
+            }
+          }}
+        >
           <Download size={11} /> Exportar
         </Button>
       </div>

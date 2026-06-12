@@ -1,14 +1,14 @@
 import { type ReactNode, useMemo, useState } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Download, Camera, Image as ImageIcon } from 'lucide-react'
+import { Camera, Image as ImageIcon } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/data-table/DataTable'
+import type { TableExportConfig } from '@/components/data-table/export-types'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
-import { useProducao, exportarProducaoCsv, type ProducaoFiltros } from '@/features/acompanhamento/hooks/producao'
+import { useProducao, type ProducaoFiltros } from '@/features/acompanhamento/hooks/producao'
 import { useAcompanhamentoLink } from '@/features/acompanhamento/hooks/link'
 import { ProducaoDetailPanel } from '@/features/acompanhamento/components/producao/ProducaoDetailPanel'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
@@ -167,6 +167,54 @@ function ProducaoInner(): ReactNode {
     return Array.from(m.entries()).sort((a, b) => (a[1] ?? '').localeCompare(b[1] ?? ''))
   }, [rows])
 
+  // Exportação simplificada da tabela de produção (Excel + CSV) — sem relatório
+  // por serviço. Usa as linhas visíveis (filtros + busca/ordenação atuais).
+  const getExportConfig = useMemo(
+    () =>
+      (visibleRows: ProducaoEnriquecida[]): TableExportConfig => ({
+        filenameBase: `Produção - ${scope.obra?.nome ?? 'obra'}`,
+        titulo: 'Produção',
+        obraNome: scope.obra?.nome ?? '',
+        colunas: [
+          { header: 'Data' },
+          { header: 'Serviço' },
+          { header: 'Equipe SIGA' },
+          { header: 'Equipe vinculada' },
+          { header: 'Encarregado' },
+          { header: 'Qtd SIGA', numFmt: '#,##0.00' },
+          { header: 'Unid. SIGA' },
+          { header: 'Fator', numFmt: '#,##0.######' },
+          { header: 'Qtd convertida', numFmt: '#,##0.00' },
+          { header: 'Unid. plano' },
+          { header: 'Frente' },
+          { header: 'Trecho' },
+          { header: 'Estaca' },
+          { header: 'Observação' },
+          { header: 'Tarefa baseline' },
+          { header: 'Fotos', numFmt: '0' }
+        ],
+        linhas: visibleRows.map((r) => [
+          formatDate(r.data),
+          r.servico_display_nome ?? r.siga_servico_nome ?? '',
+          r.siga_equipe_nome ?? '',
+          r.equipe_planejamento_id ? (r.equipe_display_nome ?? '') : '',
+          r.siga_encarregado_nome ?? '',
+          r.qtd ?? null,
+          r.siga_unidade_nome ?? '',
+          Number(r.fator_conversao ?? 1),
+          r.qtd_convertida ?? r.qtd ?? null,
+          r.unidade_plano ?? r.servico_unidade ?? '',
+          r.frente ?? '',
+          r.trecho ?? '',
+          r.estaca_inicial ?? '',
+          (r.obs ?? '').replace(/\n/g, ' '),
+          r.tarefa_baseline_id ? 'Sim' : 'Não',
+          Number(r.fotos_count ?? 0)
+        ]) as Array<Array<string | number | null>>
+      }),
+    [scope.obra?.nome]
+  )
+
   if (!link) {
     return (
       <div className="flex flex-col h-full">
@@ -183,11 +231,6 @@ function ProducaoInner(): ReactNode {
       <PageHeader
         title="Produção"
         subtitle={`${scope.obra?.nome ?? ''} — ${rows.length} registros`}
-        actions={
-          <Button size="sm" variant="ghost" onClick={() => exportarProducaoCsv(rows)} disabled={!rows.length}>
-            <Download size={11} /> Exportar CSV
-          </Button>
-        }
       />
 
       {/* Filtros */}
@@ -228,6 +271,7 @@ function ProducaoInner(): ReactNode {
           onRowClick={(r) => setSelecionada(r)}
           emptyMessage="Sem produção no período"
           emptyDescription="Ajuste os filtros ou aguarde o próximo sync."
+          getExportConfig={getExportConfig}
         />
       </div>
 

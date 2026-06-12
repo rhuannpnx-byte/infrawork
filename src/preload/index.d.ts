@@ -154,6 +154,24 @@ export interface MedicaoExportPayload {
   fotos: FotoExport[]
 }
 
+export interface TabelaExportColuna { header: string; numFmt?: string }
+export interface TabelaExportSemana { prev: number; real: number; media: number | null; range: string }
+export interface TabelaExportServico {
+  codigo: string
+  descricao: string
+  unidade: string
+  mediaNec: number | null
+  semanas: TabelaExportSemana[]
+}
+export interface TabelaXlsxPayload {
+  obraNome: string
+  titulo: string
+  filenameBase: string
+  colunas: TabelaExportColuna[]
+  linhas: Array<Array<string | number | null>>
+  servicos: TabelaExportServico[]
+}
+
 interface InfraworkAPI {
   platform: NodeJS.Platform
   window: {
@@ -187,6 +205,16 @@ interface InfraworkAPI {
   medicao: {
     exportXlsx: (
       payload: MedicaoExportPayload
+    ) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
+  }
+  tabela: {
+    exportXlsx: (
+      payload: TabelaXlsxPayload
+    ) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
+  }
+  relatorio: {
+    exportPdf: (
+      payload: { html: string; filenameBase: string }
     ) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
   }
   updater: {
