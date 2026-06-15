@@ -42,7 +42,9 @@ const TEXTO = 'FF111827'
 const TEXTO_DIM = 'FF6B7280'
 const AZUL_TXT = 'FF1D4ED8'
 const VERDE_TXT = 'FF047857'
-const NUM = '0.##'
+// Formato Número padrão InfraWork: separador de milhar + 2 casas decimais.
+// Aplicado só a células com valor → célula vazia continua em branco.
+const NUM = '#,##0.00'
 
 function soma(arr: number[]): number {
   return Math.trunc(arr.reduce((a, b) => a + b, 0) * 100) / 100
