@@ -47,15 +47,30 @@ interface AggPonto {
 export function CurvaSAcompanhamento({ pontos, altura = 280 }: Props): ReactNode {
   const data = useMemo<AggPonto[]>(() => {
     if (!pontos || pontos.length === 0) return []
-    // Agrega por data (soma todos os itens daquele dia)
-    const map = new Map<string, AggPonto>()
+    // A view emite uma linha por item só nos dias com atividade — então em dias
+    // sem atividade de um item (ex.: sábado) ele "some" da soma e o acumulado
+    // agregado afunda. Acumulado é função-degrau: forward-fill o último valor
+    // conhecido de cada item antes de somar, garantindo monotonia.
+    const datas = Array.from(new Set(pontos.map((p) => p.data))).sort((a, b) => a.localeCompare(b))
+    const porItem = new Map<string, Map<string, { plan: number; real: number }>>()
     for (const p of pontos) {
-      const cur = map.get(p.data) ?? { data: p.data, planejado_acumulado: 0, realizado_acumulado: 0 }
-      cur.planejado_acumulado += Number(p.planejado_acumulado ?? 0)
-      cur.realizado_acumulado += Number(p.realizado_acumulado ?? 0)
-      map.set(p.data, cur)
+      const k = p.item_orcamentario_id ?? '∅'
+      let m = porItem.get(k)
+      if (!m) { m = new Map(); porItem.set(k, m) }
+      m.set(p.data, { plan: Number(p.planejado_acumulado ?? 0), real: Number(p.realizado_acumulado ?? 0) })
     }
-    return Array.from(map.values()).sort((a, b) => a.data.localeCompare(b.data))
+    const ultimo = new Map<string, { plan: number; real: number }>()
+    return datas.map((d) => {
+      let plan = 0
+      let real = 0
+      for (const [k, serie] of porItem) {
+        const v = serie.get(d)
+        if (v) ultimo.set(k, v)
+        const lv = ultimo.get(k) // 0 antes do 1º registro do item (ainda não iniciado)
+        if (lv) { plan += lv.plan; real += lv.real }
+      }
+      return { data: d, planejado_acumulado: plan, realizado_acumulado: real }
+    })
   }, [pontos])
 
   const hojeIso = new Date().toISOString().slice(0, 10)

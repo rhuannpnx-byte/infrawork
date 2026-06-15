@@ -69,19 +69,31 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
       return { data: [], projStats: emptyStats() }
     }
 
-    // Agrega por data (caso pontos venham por servico)
-    const map = new Map<string, { plan: number; real: number; hasReal: boolean }>()
+    // Agrega por data (caso pontos venham de vários serviços). A view só emite
+    // linha por item nos dias com atividade; somar cru afunda o acumulado em
+    // dias onde um item não tem linha. Acumulado é função-degrau → forward-fill
+    // o último valor de cada item antes de somar (monotônico).
+    const datas = Array.from(new Set(pontos.map((p) => p.data))).sort((a, b) => a.localeCompare(b))
+    const porItem = new Map<string, Map<string, { plan: number; real: number }>>()
     for (const p of pontos) {
-      const cur = map.get(p.data) ?? { plan: 0, real: 0, hasReal: false }
-      cur.plan += Number(p.planejado_acumulado ?? 0)
-      const r = Number(p.realizado_acumulado ?? 0)
-      cur.real += r
-      if (r > 0) cur.hasReal = true
-      map.set(p.data, cur)
+      const k = p.item_orcamentario_id ?? '∅'
+      let m = porItem.get(k)
+      if (!m) { m = new Map(); porItem.set(k, m) }
+      m.set(p.data, { plan: Number(p.planejado_acumulado ?? 0), real: Number(p.realizado_acumulado ?? 0) })
     }
-    const rows = Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([data, v]) => ({ data, plan: v.plan, real: v.real, hasReal: v.hasReal }))
+    const ultimo = new Map<string, { plan: number; real: number }>()
+    const rows = datas.map((data) => {
+      let plan = 0
+      let real = 0
+      let hasReal = false
+      for (const [k, serie] of porItem) {
+        const v = serie.get(data)
+        if (v) ultimo.set(k, v)
+        const lv = ultimo.get(k)
+        if (lv) { plan += lv.plan; real += lv.real; if (lv.real > 0) hasReal = true }
+      }
+      return { data, plan, real, hasReal }
+    })
 
     const hojeIso = new Date().toISOString().slice(0, 10)
 
