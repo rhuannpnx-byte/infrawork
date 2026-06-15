@@ -242,17 +242,17 @@ export const MODULES: ModuleConfig[] = [
           // Fotos & Mapa, Previsto × Realizado). Os demais excluem 'cliente'
           // explicitamente — ambiente do cliente é só acompanhamento da obra.
           {
-            icon: 'calendar-days',
-            label: 'Calendário',
-            route: '/acompanhamento/calendario',
-            requiresObra: true
-          },
-          {
             icon: 'gauge',
             label: 'Dashboard',
             route: '/acompanhamento',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
+          },
+          {
+            icon: 'calendar-days',
+            label: 'Calendário',
+            route: '/acompanhamento/calendario',
+            requiresObra: true
           },
           {
             icon: 'trending-up',
