@@ -53,7 +53,7 @@ export const adminApi = {
   createUsuario: (body: {
     email: string
     nome: string
-    role: 'god' | 'adm' | 'engenheiro' | 'apoio'
+    role: 'god' | 'adm' | 'engenheiro' | 'apoio' | 'cliente'
     empresa_id?: string | null
     engenheiro_id?: string | null
     password?: string

@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { RefreshCw, Link2Off } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -19,9 +20,11 @@ type Tab = 'equipes' | 'encarregados' | 'servicos'
 
 export function AcompanhamentoEquipesPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Equipes & Vínculos">
-      <Inner />
-    </RequireObra>
+    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Equipes & Vínculos">
+      <RequireObra pageTitle="Equipes & Vínculos">
+        <Inner />
+      </RequireObra>
+    </RequireRole>
   )
 }
 

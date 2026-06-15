@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
-import type { AuthEmpresa, AuthObra, AuthProfile, MePayload } from '@/types/auth'
+import { useTabsStore } from '@/stores/tabs-store'
+import type { AuthEmpresa, AuthObra, AuthProfile, MePayload, Role } from '@/types/auth'
+
+/**
+ * Remove abas persistidas de módulos que o novo papel não pode acessar.
+ * Segurança: abas de uma sessão god/adm não podem sobreviver ao login de um
+ * cliente (que só acessa Acompanhamento).
+ */
+function sanitizarAbasParaPapel(role: Role | null): void {
+  useTabsStore.getState().sanitizeForRole(role)
+}
 
 interface AuthStore {
   status: 'idle' | 'loading' | 'authenticated' | 'guest'
@@ -91,6 +101,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         empresa: null,
         obras: []
       })
+      sanitizarAbasParaPapel('god')
       return
     }
     set({ status: 'loading', error: null })
@@ -112,6 +123,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         obras: me.obras,
         error: null
       })
+      sanitizarAbasParaPapel(me.profile.role)
       void registrarAcessoEHeartbeat()
     } catch (e) {
       set({ status: 'guest', error: e instanceof Error ? e.message : String(e) })
@@ -143,6 +155,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         obras: me.obras,
         error: null
       })
+      sanitizarAbasParaPapel(me.profile.role)
       void registrarAcessoEHeartbeat()
     } catch (e) {
       set({ status: 'guest', error: e instanceof Error ? e.message : String(e) })
@@ -156,6 +169,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       await supabase.auth.signOut()
     }
     set({ status: 'guest', profile: null, empresa: null, obras: [] })
+    // Não deixa abas (e seus módulos) sobreviverem ao logout.
+    useTabsStore.getState().resetToHome()
   },
 
   async refreshMe() {
@@ -173,6 +188,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         obras: me.obras,
         error: null
       })
+      sanitizarAbasParaPapel(me.profile.role)
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
     }
@@ -185,6 +201,7 @@ if (supabase) {
     if (event === 'SIGNED_OUT' || !session) {
       pararHeartbeat()
       useAuthStore.setState({ status: 'guest', profile: null, empresa: null, obras: [] })
+      useTabsStore.getState().resetToHome()
     } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
       void useAuthStore.getState().refreshMe()
     }

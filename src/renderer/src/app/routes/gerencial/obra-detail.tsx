@@ -108,10 +108,10 @@ export function ObraDetailPage(): ReactNode {
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <div className="flex items-center gap-2">
               <KeyRound size={12} className="text-accent" />
-              <h2 className="text-sm font-semibold text-text">Engenheiros com acesso</h2>
+              <h2 className="text-sm font-semibold text-text">Usuários com acesso</h2>
             </div>
             <span className="text-2xs font-mono text-text-dim">
-              {permissoes.length} {permissoes.length === 1 ? 'engenheiro' : 'engenheiros'}
+              {permissoes.length} {permissoes.length === 1 ? 'usuário' : 'usuários'}
             </span>
           </div>
 
@@ -121,8 +121,8 @@ export function ObraDetailPage(): ReactNode {
             <div className="px-3 py-10">
               <EmptyState
                 icon="key-round"
-                title="Nenhum engenheiro com acesso"
-                description="Conceda acesso a um Engenheiro da empresa para que ele possa visualizar esta obra. Apoios vinculados herdam o acesso automaticamente."
+                title="Nenhum usuário com acesso"
+                description="Conceda acesso a um Engenheiro ou Cliente da empresa para que possa visualizar esta obra. Apoios vinculados a um engenheiro herdam o acesso automaticamente."
                 action={
                   <Button variant="default" size="sm" onClick={() => setOpenGrant(true)}>
                     <Plus size={11} /> Conceder acesso
@@ -148,7 +148,9 @@ export function ObraDetailPage(): ReactNode {
                     <tr key={p.id} className="border-b border-border last:border-b-0 hover:bg-bg-hover">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <Badge variant="success">eng</Badge>
+                          <Badge variant={p.usuario?.role === 'cliente' ? 'default' : 'success'}>
+                            {p.usuario?.role === 'cliente' ? 'cliente' : 'eng'}
+                          </Badge>
                           <div>
                             <div className="text-text font-medium">{p.usuario?.nome ?? '—'}</div>
                             <div className="text-2xs font-mono text-text-dim">{p.usuario?.email ?? ''}</div>

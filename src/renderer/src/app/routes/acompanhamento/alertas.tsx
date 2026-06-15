@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { RefreshCw, Filter } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -13,9 +14,11 @@ import { cn } from '@/lib/utils'
 
 export function AcompanhamentoAlertasPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Alertas">
-      <Inner />
-    </RequireObra>
+    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Alertas">
+      <RequireObra pageTitle="Alertas">
+        <Inner />
+      </RequireObra>
+    </RequireRole>
   )
 }
 

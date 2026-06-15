@@ -60,6 +60,24 @@ export async function assertObraAccess(
     return null
   }
 
+  // 4b) Cliente: espelha o engenheiro (permissão direta), porém SOMENTE leitura.
+  if (caller.role === 'cliente') {
+    if (write) {
+      return json({ error: 'Cliente não pode editar dados da obra' }, 403)
+    }
+    if (caller.empresa_id !== obra.empresa_id) {
+      return json({ error: 'Obra fora da sua empresa' }, 403)
+    }
+    const { data: perm } = await admin
+      .from('obra_permissoes')
+      .select('id')
+      .eq('obra_id', obraId)
+      .eq('user_id', caller.id)
+      .maybeSingle()
+    if (!perm) return json({ error: 'Você não tem acesso a esta obra' }, 403)
+    return null
+  }
+
   // 5) Apoio: só leitura via engenheiro_id, bloqueado em escrita
   if (caller.role === 'apoio') {
     if (write) {

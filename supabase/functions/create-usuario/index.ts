@@ -10,9 +10,10 @@
 //
 // Matriz aplicada:
 //   God        → cria qualquer papel em qualquer empresa
-//   Adm        → cria adm/engenheiro/apoio na sua empresa
+//   Adm        → cria adm/engenheiro/apoio/cliente na sua empresa
 //   Engenheiro → cria apenas apoio vinculado a si (próprio engenheiro_id)
 //   Apoio      → negado
+//   Cliente    → tem empresa fixa, engenheiro_id sempre null (não-apoio)
 //
 // Estratégia:
 //   1. Validar papel + escopo
@@ -56,7 +57,7 @@ Deno.serve(async (req) => {
   if (!email || !nome || !role) {
     return json({ error: 'email, nome e role são obrigatórios' }, 400)
   }
-  if (!['god', 'adm', 'engenheiro', 'apoio'].includes(role)) {
+  if (!['god', 'adm', 'engenheiro', 'apoio', 'cliente'].includes(role)) {
     return json({ error: 'role inválido' }, 400)
   }
 
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
       return json({ error: 'apoio precisa de engenheiro_id' }, 400)
     }
   } else if (caller.role === 'adm') {
-    if (!['adm', 'engenheiro', 'apoio'].includes(role)) {
+    if (!['adm', 'engenheiro', 'apoio', 'cliente'].includes(role)) {
       return json({ error: 'Adm não pode criar god' }, 403)
     }
     // Adm SEMPRE atua na própria empresa — ignora o que veio no body

@@ -37,6 +37,7 @@ import { PlanejamentoMarchaTempoPage } from '@/app/routes/planejamento/marcha-te
 import { PlanejamentoRevisoesPage } from '@/app/routes/planejamento/revisoes'
 import { PlanejamentoRevisaoDetalhePage } from '@/app/routes/planejamento/revisao-detalhe'
 import { AcompanhamentoIndex } from '@/app/routes/acompanhamento'
+import { AcompanhamentoCalendarioPage } from '@/app/routes/acompanhamento/calendario'
 import { AcompanhamentoVincularPage } from '@/app/routes/acompanhamento/vincular'
 import { AcompanhamentoProducaoPage } from '@/app/routes/acompanhamento/producao'
 import { AcompanhamentoValorAgregadoPage } from '@/app/routes/acompanhamento/valor-agregado'
@@ -227,6 +228,11 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: '/',
       component: AcompanhamentoIndex
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'calendario',
+      component: AcompanhamentoCalendarioPage
     }),
     createRoute({
       getParentRoute: () => acompanhamentoLayout,

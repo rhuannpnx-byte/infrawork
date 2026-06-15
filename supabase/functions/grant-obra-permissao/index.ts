@@ -2,9 +2,9 @@
 // Body: { obra_id: string, user_id: string }
 // Permissão:
 //   - God: qualquer obra
-//   - Adm: obra da sua empresa, e user_id deve ser ENGENHEIRO da mesma empresa
+//   - Adm: obra da sua empresa, e user_id deve ser ENGENHEIRO ou CLIENTE da mesma empresa
 // Notas:
-//   - Só Engenheiros recebem permissão direta. Apoios herdam via engenheiro_id.
+//   - Engenheiros e Clientes recebem permissão direta. Apoios herdam via engenheiro_id.
 //   - Idempotente: se já existe vínculo, retorna 200.
 
 import { handlePreflight, json } from '../_shared/cors.ts'
@@ -47,12 +47,12 @@ Deno.serve(async (req) => {
     .single()
   if (!alvo) return json({ error: 'Usuário não encontrado' }, 404)
 
-  if (alvo.role !== 'engenheiro') {
-    return json({ error: 'Permissões diretas só para Engenheiro (Apoio herda)' }, 400)
+  if (alvo.role !== 'engenheiro' && alvo.role !== 'cliente') {
+    return json({ error: 'Permissões diretas só para Engenheiro ou Cliente (Apoio herda)' }, 400)
   }
-  if (!alvo.ativo) return json({ error: 'Engenheiro inativo' }, 400)
+  if (!alvo.ativo) return json({ error: 'Usuário inativo' }, 400)
   if (alvo.empresa_id !== obra.empresa_id) {
-    return json({ error: 'Engenheiro e obra de empresas diferentes' }, 400)
+    return json({ error: 'Usuário e obra de empresas diferentes' }, 400)
   }
 
   // Adm precisa ser da mesma empresa da obra

@@ -2,11 +2,13 @@ import { useEffect, useRef } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useUIStore } from '@/stores/ui-store'
 import { useTabsStore } from '@/stores/tabs-store'
-import { navigateActiveTab } from '@/app/navigateActiveTab'
+import { useAuthStore } from '@/stores/auth-store'
 import { MODULES } from '@/config/modules'
 
+// Sequência "g + letra" → chave do módulo (não a rota): abrimos via openModule,
+// gateado por papel, para o papel não pular para módulos ocultos (ex.: cliente).
 const GO_SEQUENCE_MAP: Record<string, string> = {
-  g: '/gerencial'
+  g: 'gerencial'
   // Demais módulos voltarão aqui quando forem implementados.
 }
 
@@ -81,10 +83,16 @@ export function useShortcuts(): void {
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (waitingForG.current) {
-        const route = GO_SEQUENCE_MAP[e.key.toLowerCase()]
-        if (route) {
-          e.preventDefault()
-          navigateActiveTab(route)
+        const modKey = GO_SEQUENCE_MAP[e.key.toLowerCase()]
+        if (modKey) {
+          const role = useAuthStore.getState().profile?.role ?? null
+          const mod = MODULES.find((m) => m.key === modKey)
+          const visivel = !!mod && (!mod.requiredRoles || (!!role && mod.requiredRoles.includes(role)))
+          if (visivel) {
+            e.preventDefault()
+            useUIStore.getState().setSidebarOpen(true)
+            useTabsStore.getState().openModule(modKey)
+          }
         }
         waitingForG.current = false
         if (gTimer.current) clearTimeout(gTimer.current)

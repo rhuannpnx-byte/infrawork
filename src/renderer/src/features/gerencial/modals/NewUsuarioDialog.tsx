@@ -24,12 +24,13 @@ interface Props {
 /**
  * Aplica a matriz de papéis:
  *   - God        → escolhe role, empresa e (se apoio) engenheiro
- *   - Adm        → role ∈ {adm, engenheiro, apoio}; empresa = caller.empresa
+ *   - Adm        → role ∈ {adm, engenheiro, apoio, cliente}; empresa = caller.empresa
  *   - Engenheiro → role obrigatório = apoio; engenheiro_id = caller.id
+ *   - Cliente    → empresa fixa, sem engenheiro; recebe obras via permissões
  */
 function rolesAllowedFor(caller: Role | undefined): Role[] {
-  if (caller === 'god') return ['god', 'adm', 'engenheiro', 'apoio']
-  if (caller === 'adm') return ['adm', 'engenheiro', 'apoio']
+  if (caller === 'god') return ['god', 'adm', 'engenheiro', 'apoio', 'cliente']
+  if (caller === 'adm') return ['adm', 'engenheiro', 'apoio', 'cliente']
   if (caller === 'engenheiro') return ['apoio']
   return []
 }
@@ -38,7 +39,8 @@ const ROLE_LABEL: Record<Role, string> = {
   god: 'God',
   adm: 'Administrador',
   engenheiro: 'Engenheiro',
-  apoio: 'Apoio'
+  apoio: 'Apoio',
+  cliente: 'Cliente'
 }
 
 export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {

@@ -5,15 +5,20 @@ import { Icon } from '@/components/layout/IconRenderer'
 import { useUIStore } from '@/stores/ui-store'
 import { useTabsStore } from '@/stores/tabs-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { MODULES } from '@/config/modules'
+import { visibleFor } from '@/types/module'
 
 export function CommandPalette(): ReactNode {
   const open = useUIStore((s) => s.activeModals.has('commandPalette'))
   const close = (): void => useUIStore.getState().closeModal('commandPalette')
   const openModal = useUIStore((s) => s.openModal)
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
   const recentTabs = useTabsStore((s) => s.tabs)
+  const openModule = useTabsStore((s) => s.openModule)
   const signOut = useAuthStore((s) => s.signOut)
+  const role = useAuthStore((s) => s.profile?.role ?? null)
+  // Esconde módulos que o papel não acessa (ex.: cliente só vê Acompanhamento).
+  const modulosVisiveis = visibleFor(MODULES, role)
   const [value, setValue] = useState('')
 
   useEffect(() => {
@@ -71,11 +76,11 @@ export function CommandPalette(): ReactNode {
             heading="Ir para"
             className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-dim"
           >
-            {MODULES.map((m) => (
+            {modulosVisiveis.map((m) => (
               <Command.Item
                 key={m.key}
                 value={`ir ${m.title} ${m.shortcut}`}
-                onSelect={() => runAndClose(() => navigateActiveTab(m.routePrefix))}
+                onSelect={() => runAndClose(() => { setSidebarOpen(true); openModule(m.key) })}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs text-text cursor-pointer aria-selected:bg-bg-hover data-[selected=true]:bg-bg-hover"
               >
                 <Icon name={m.icon} size={12} className="text-accent" strokeWidth={1.8} />

@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { Icon } from '@/components/layout/IconRenderer'
 import { MODULES } from '@/config/modules'
+import { useTabsStore } from '@/stores/tabs-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { visibleFor } from '@/types/module'
@@ -53,7 +54,8 @@ const SUMMARIES: Record<string, ModuleSummary> = {
 }
 
 export function HomePage(): ReactNode {
-  const navigate = useNavigate()
+  const openModule = useTabsStore((s) => s.openModule)
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
   const profile = useAuthStore((s) => s.profile)
   const empresa = useAuthStore((s) => s.empresa)
   const role = useAuthStore((s) => s.profile?.role ?? null)
@@ -139,7 +141,12 @@ export function HomePage(): ReactNode {
                 <button
                   key={mod.key}
                   type="button"
-                  onClick={() => navigate({ to: mod.routePrefix })}
+                  onClick={() => {
+                    // Abre o módulo com o menu lateral expandido — entrar
+                    // colapsado faz parecer que existe só aquela página.
+                    setSidebarOpen(true)
+                    openModule(mod.key)
+                  }}
                   className={cn(
                     'group relative text-left rounded-md border border-border bg-bg-panel px-3 py-2.5',
                     'transition-all hover:border-border-accent hover:bg-bg-hover',
@@ -207,6 +214,8 @@ function labelRole(r: string): string {
       return 'Engenheiro'
     case 'apoio':
       return 'Apoio'
+    case 'cliente':
+      return 'Cliente'
     default:
       return r
   }

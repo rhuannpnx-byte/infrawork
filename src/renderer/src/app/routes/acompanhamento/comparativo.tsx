@@ -6,6 +6,7 @@ import { RequireObra } from '@/components/layout/RequireObra'
 import { DataTable } from '@/components/data-table/DataTable'
 import type { TableExportConfig } from '@/components/data-table/export-types'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useAuthStore } from '@/stores/auth-store'
 import { usePrevistoXRealizado, useCurvaS } from '@/features/acompanhamento/hooks/comparativo'
 import { CurvaSComProjecoes } from '@/features/acompanhamento/components/comparativo/CurvaSComProjecoes'
 import { ProgressBarPrevReal } from '@/features/acompanhamento/components/comparativo/ProgressBarPrevReal'
@@ -27,6 +28,9 @@ export function AcompanhamentoComparativoPage(): ReactNode {
 function Inner(): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!
+  // Cliente: visão pura planejado × realizado — sem projeções de adiantamento/
+  // atraso (Δ dias, fim projetado, status, linhas de tendência da curva).
+  const isCliente = useAuthStore((s) => s.profile?.role === 'cliente')
   const { data: itens = [], isLoading } = usePrevistoXRealizado(obraId)
   const { data: curva = [] } = useCurvaS(obraId, 180)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -99,6 +103,33 @@ function Inner(): ReactNode {
   const getExportConfig = useMemo(
     () =>
       (visibleRows: PrevistoRealizadoItem[]): TableExportConfig => {
+        // Cliente: export enxuto — só planejado × realizado, sem projeções
+        // (Δ dias, fim projetado), sem status e sem relatório rico por serviço.
+        if (isCliente) {
+          return {
+            filenameBase: `Previsto x Realizado - ${scope.obra?.nome ?? 'obra'}`,
+            titulo: 'Previsto × Realizado',
+            obraNome: scope.obra?.nome ?? '',
+            colunas: [
+              { header: 'Código' },
+              { header: 'Descrição' },
+              { header: 'Unidade' },
+              { header: 'Qtd planejada', numFmt: '#,##0.0' },
+              { header: 'Qtd planejada período', numFmt: '#,##0.0' },
+              { header: 'Qtd realizada', numFmt: '#,##0.0' },
+              { header: 'Avanço', numFmt: '0.0"%"' }
+            ],
+            linhas: visibleRows.map((it) => [
+              it.codigo,
+              it.descricao,
+              it.unidade ?? '',
+              it.qtd_plan ?? null,
+              it.qtd_plan_periodo ?? null,
+              it.qtd_real ?? 0,
+              (it.pct_avanco ?? 0) * 100
+            ] as Array<string | number | null>)
+          }
+        }
         const linhas = visibleRows.map((it) => {
           const proj = projByItem.get(it.item_orcamentario_id)
           const fimProj = proj?.fimProjetado
@@ -148,7 +179,7 @@ function Inner(): ReactNode {
           }
         }
       },
-    [itens, projByItem, curvaByItem, logoDataUrl, scope.obra?.nome]
+    [isCliente, itens, projByItem, curvaByItem, logoDataUrl, scope.obra?.nome]
   )
 
   const columns = useMemo<ColumnDef<PrevistoRealizadoItem, unknown>[]>(() => [
@@ -214,6 +245,7 @@ function Inner(): ReactNode {
           pct={row.original.pct_avanco}
           esperado={row.original.pct_esperado_hoje}
           status={row.original.status}
+          neutral={isCliente}
         />
       )
     },
@@ -227,32 +259,37 @@ function Inner(): ReactNode {
       accessorKey: 'dias_real',
       cell: ({ row }) => <span className="font-mono tabular-nums text-xs">{row.original.dias_real ?? '—'}</span>
     },
-    {
-      header: 'Δ dias',
-      accessorKey: 'desvio_dias_estimado',
-      cell: ({ row }) => {
-        const proj = projByItem.get(row.original.item_orcamentario_id)
-        const d = proj?.desvioDias
-        if (d == null) return <span className="text-text-dim text-xs">—</span>
-        const fimProj = proj?.fimProjetado
-          ? new Date(proj.fimProjetado + 'T00:00:00').toLocaleDateString('pt-BR')
-          : null
-        return (
-          <span
-            className={`font-mono tabular-nums text-xs ${d < 0 ? 'text-red-400' : 'text-emerald-400'}`}
-            title={fimProj ? `Fim projetado (ritmo atual): ${fimProj}` : undefined}
-          >
-            {d > 0 ? '+' : ''}{d}
-          </span>
-        )
-      }
-    },
-    {
-      header: 'Status',
-      accessorKey: 'status',
-      cell: ({ row }) => <StatusComparativoChip status={row.original.status} />
-    }
-  ], [selectedId, projByItem])
+    // Δ dias e Status são projeções/julgamento de adiantamento-atraso — ocultos p/ cliente.
+    ...(isCliente
+      ? []
+      : [
+          {
+            header: 'Δ dias',
+            accessorKey: 'desvio_dias_estimado',
+            cell: ({ row }) => {
+              const proj = projByItem.get(row.original.item_orcamentario_id)
+              const d = proj?.desvioDias
+              if (d == null) return <span className="text-text-dim text-xs">—</span>
+              const fimProj = proj?.fimProjetado
+                ? new Date(proj.fimProjetado + 'T00:00:00').toLocaleDateString('pt-BR')
+                : null
+              return (
+                <span
+                  className={`font-mono tabular-nums text-xs ${d < 0 ? 'text-red-400' : 'text-emerald-400'}`}
+                  title={fimProj ? `Fim projetado (ritmo atual): ${fimProj}` : undefined}
+                >
+                  {d > 0 ? '+' : ''}{d}
+                </span>
+              )
+            }
+          },
+          {
+            header: 'Status',
+            accessorKey: 'status',
+            cell: ({ row }) => <StatusComparativoChip status={row.original.status} />
+          }
+        ] as ColumnDef<PrevistoRealizadoItem, unknown>[])
+  ], [selectedId, projByItem, isCliente])
 
   return (
     <div className="flex flex-col h-full">
@@ -271,11 +308,13 @@ function Inner(): ReactNode {
         }
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
-        <CurvaSComProjecoes pontos={curvaFiltrada} item={itemSelecionado} altura={360} />
+        <CurvaSComProjecoes pontos={curvaFiltrada} item={itemSelecionado} altura={360} ocultarProjecoes={isCliente} />
 
         {!selectedId && (
           <div className="text-2xs font-mono text-text-dim">
-            Clique em uma linha da tabela para filtrar a curva-S por serviço e ativar projeções de término.
+            {isCliente
+              ? 'Clique em uma linha da tabela para filtrar a curva-S por serviço.'
+              : 'Clique em uma linha da tabela para filtrar a curva-S por serviço e ativar projeções de término.'}
           </div>
         )}
 

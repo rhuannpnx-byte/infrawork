@@ -232,23 +232,34 @@ export const MODULES: ModuleConfig[] = [
     routePrefix: '/acompanhamento',
     color: 'var(--accent)',
     category: 'engineering',
-    requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
+    requiredRoles: ['god', 'adm', 'engenheiro', 'apoio', 'cliente'],
     pills: [],
     sections: [
       {
         title: 'OBRA',
         items: [
+          // Itens SEM requiredRoles são visíveis ao Cliente (Calendário, Produção,
+          // Fotos & Mapa, Previsto × Realizado). Os demais excluem 'cliente'
+          // explicitamente — ambiente do cliente é só acompanhamento da obra.
+          {
+            icon: 'calendar-days',
+            label: 'Calendário',
+            route: '/acompanhamento/calendario',
+            requiresObra: true
+          },
           {
             icon: 'gauge',
             label: 'Dashboard',
             route: '/acompanhamento',
-            requiresObra: true
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           },
           {
             icon: 'trending-up',
             label: 'Valor Agregado',
             route: '/acompanhamento/valor-agregado',
-            requiresObra: true
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           },
           {
             icon: 'list-checks',
@@ -266,7 +277,8 @@ export const MODULES: ModuleConfig[] = [
             icon: 'users',
             label: 'Equipes',
             route: '/acompanhamento/equipes',
-            requiresObra: true
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           },
           {
             icon: 'scale',
@@ -278,7 +290,8 @@ export const MODULES: ModuleConfig[] = [
             icon: 'alert-triangle',
             label: 'Alertas',
             route: '/acompanhamento/alertas',
-            requiresObra: true
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           }
         ]
       },

@@ -84,7 +84,7 @@ export function PrimaryRail(): ReactNode {
           <button
             type="button"
             aria-label="Início"
-            onClick={() => openModule('home')}
+            onClick={() => openModule('home', '/')}
             className={cn(
               'relative w-8 h-8 rounded flex items-center justify-center transition-colors',
               active === 'home'

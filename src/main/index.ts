@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import { join } from 'path'
-import { readFile, stat } from 'node:fs/promises'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
 import { autoUpdater } from 'electron-updater'
@@ -10,6 +10,7 @@ import { parseCpuExcelFile } from './import/parse-cpu-excel'
 import { gerarMedicaoXlsx, type MedicaoExportPayload } from './export/medicao-xlsx'
 import { gerarTabelaXlsx, type TabelaXlsxPayload } from './export/tabela-xlsx'
 import { gerarRelatorioPdf } from './export/relatorio-pdf'
+import { parseMsProjectXml } from './import/parse-msproject'
 
 interface WindowState {
   width: number
@@ -374,6 +375,55 @@ app.whenReady().then(() => {
       if (res.canceled || !res.filePath) return { ok: false, canceled: true }
       try {
         await gerarRelatorioPdf(payload.html, res.filePath)
+        return { ok: true, canceled: false, path: res.filePath }
+      } catch (err) {
+        return { ok: false, canceled: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  // IPC — cronograma ↔ MS Project XML
+  ipcMain.handle(
+    'cronograma:escolher-arquivo',
+    async (e): Promise<{ canceled: boolean; path?: string; name?: string }> => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win) return { canceled: true }
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Importar cronograma do MS Project',
+        filters: [{ name: 'MS Project XML', extensions: ['xml'] }],
+        properties: ['openFile']
+      })
+      if (res.canceled || !res.filePaths[0]) return { canceled: true }
+      const p = res.filePaths[0]
+      return { canceled: false, path: p, name: p.split(/[\\/]/).pop() }
+    }
+  )
+
+  ipcMain.handle('cronograma:parse-msproject', async (_e, params: { path: string }) => {
+    try {
+      const result = await parseMsProjectXml(params.path)
+      return { ok: true as const, result }
+    } catch (err) {
+      return { ok: false as const, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle(
+    'cronograma:export-xml',
+    async (
+      e,
+      payload: { xml: string; filenameBase: string }
+    ): Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }> => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win) return { ok: false, canceled: true }
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Exportar cronograma para MS Project',
+        defaultPath: nomeComStamp(payload.filenameBase, 'xml'),
+        filters: [{ name: 'MS Project XML', extensions: ['xml'] }]
+      })
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true }
+      try {
+        await writeFile(res.filePath, payload.xml, 'utf8')
         return { ok: true, canceled: false, path: res.filePath }
       } catch (err) {
         return { ok: false, canceled: false, error: err instanceof Error ? err.message : String(err) }

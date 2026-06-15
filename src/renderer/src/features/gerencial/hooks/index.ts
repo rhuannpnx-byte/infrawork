@@ -95,6 +95,29 @@ export function useEngenheiros(empresaId: string | null | undefined): ReturnType
   })
 }
 
+/**
+ * Clientes ativos de uma empresa específica — usado pra escolher target em
+ * grant-obra-permissao (clientes recebem permissão direta, como engenheiros).
+ */
+export function useClientes(empresaId: string | null | undefined): ReturnType<typeof useQuery<UsuarioRow[]>> {
+  return useQuery({
+    queryKey: ['gerencial', 'clientes', empresaId],
+    enabled: !!empresaId,
+    queryFn: async (): Promise<UsuarioRow[]> => {
+      if (!SUPABASE_ENABLED || !supabase) notReady()
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at')
+        .eq('role', 'cliente')
+        .eq('empresa_id', empresaId!)
+        .eq('ativo', true)
+        .order('nome')
+      if (error) throw error
+      return (data ?? []) as UsuarioRow[]
+    }
+  })
+}
+
 export function useCreateUsuario(): ReturnType<
   typeof useMutation<
     { id: string; email: string; role: string },
@@ -108,6 +131,7 @@ export function useCreateUsuario(): ReturnType<
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
       void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'clientes'] })
     }
   })
 }

@@ -112,6 +112,41 @@ interface OrcamentoImportParseMapping {
   }
 }
 
+interface MspPredecessor {
+  predUid: number
+  mspType: number
+  lagDias: number
+}
+interface MspTask {
+  uid: number
+  id: number
+  name: string
+  outlineLevel: number
+  summary: boolean
+  milestone: boolean
+  startISO: string | null
+  finishISO: string | null
+  durationDias: number | null
+  wbs: string | null
+  predecessors: MspPredecessor[]
+  constraintType: string | null
+  constraintDate: string | null
+  ext: {
+    infraworkId?: string
+    itemCodigo?: string
+    trecho?: string
+    equipes?: string
+    unidade?: string
+    quantidade?: number
+    posIni?: number
+    posFim?: number
+  }
+}
+interface MsProjectParse {
+  projectName: string
+  tasks: MspTask[]
+}
+
 interface InfraworkBridge {
   platform: string
   window: {
@@ -210,6 +245,17 @@ interface InfraworkBridge {
   relatorio: {
     exportPdf: (payload: {
       html: string
+      filenameBase: string
+    }) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
+  }
+  cronograma: {
+    escolherArquivo: () => Promise<{ canceled: boolean; path?: string; name?: string }>
+    parseMsProject: (params: { path: string }) => Promise<
+      | { ok: true; result: MsProjectParse }
+      | { ok: false; error: string }
+    >
+    exportXml: (payload: {
+      xml: string
       filenameBase: string
     }) => Promise<{ ok: boolean; canceled: boolean; path?: string; error?: string }>
   }

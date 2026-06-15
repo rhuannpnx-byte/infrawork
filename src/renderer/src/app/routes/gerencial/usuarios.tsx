@@ -18,7 +18,8 @@ const ROLE_VARIANT: Record<Role, 'accent' | 'success' | 'warn' | 'default'> = {
   god: 'accent',
   adm: 'warn',
   engenheiro: 'success',
-  apoio: 'default'
+  apoio: 'default',
+  cliente: 'default'
 }
 
 /** "Online agora" = visto nos últimos 2,5 min (heartbeat roda a cada 60s). */

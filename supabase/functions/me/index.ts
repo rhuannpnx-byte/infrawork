@@ -50,7 +50,8 @@ Deno.serve(async (req) => {
       .eq('empresa_id', caller.empresa_id!)
       .order('created_at', { ascending: false })
     obras = data ?? []
-  } else if (caller.role === 'engenheiro') {
+  } else if (caller.role === 'engenheiro' || caller.role === 'cliente') {
+    // Cliente espelha o engenheiro: obras via permissão direta em obra_permissoes.
     const { data } = await admin
       .from('obra_permissoes')
       .select('obras:obra_id ( id, nome, codigo, status, empresa_id )')

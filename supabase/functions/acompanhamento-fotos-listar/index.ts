@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
   const ctx = await resolveCaller(req)
   if (ctx instanceof Response) return ctx
-  const roleErr = assertRole(ctx.caller, ['god', 'adm', 'engenheiro', 'apoio'])
+  const roleErr = assertRole(ctx.caller, ['god', 'adm', 'engenheiro', 'apoio', 'cliente'])
   if (roleErr) return roleErr
   const accErr = await assertObraAccess(ctx, body.obra_id, { write: false })
   if (accErr) return accErr

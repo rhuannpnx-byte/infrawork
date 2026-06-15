@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/auth-store'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 
 function notReady(): never { throw new Error('Supabase não configurado.') }
@@ -30,19 +31,29 @@ export function useProducao(
   obraId: string | null | undefined,
   filtros: ProducaoFiltros = {}
 ): ReturnType<typeof useQuery<ProducaoEnriquecida[]>> {
+  // Cliente lê via função SECURITY DEFINER (sem RLS direto na view — evita
+  // vazamento de preço de item_orcamentario). Demais papéis: SELECT na view.
+  const isCliente = useAuthStore((s) => s.profile?.role === 'cliente')
   return useQuery({
-    queryKey: ['acompanhamento', 'producao', obraId, filtros],
+    queryKey: ['acompanhamento', 'producao', obraId, filtros, isCliente],
     enabled: !!obraId,
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      let q = supabase
-        .from('vw_acompanhamento_producao_enriquecida')
-        .select(PROD_COLS)
-        .eq('obra_id', obraId!)
-        .order('data', { ascending: false })
-        .order('sincronizado_em', { ascending: false })
-        .limit(5000)
+      let q = isCliente
+        ? supabase
+            .rpc('cliente_producao', { _obra_id: obraId! })
+            .select(PROD_COLS)
+            .order('data', { ascending: false })
+            .order('sincronizado_em', { ascending: false })
+            .limit(5000)
+        : supabase
+            .from('vw_acompanhamento_producao_enriquecida')
+            .select(PROD_COLS)
+            .eq('obra_id', obraId!)
+            .order('data', { ascending: false })
+            .order('sincronizado_em', { ascending: false })
+            .limit(5000)
       if (filtros.data_de) q = q.gte('data', filtros.data_de)
       if (filtros.data_ate) q = q.lte('data', filtros.data_ate)
       if (filtros.equipe_nomes?.length) q = q.in('siga_equipe_nome', filtros.equipe_nomes)

@@ -11,7 +11,7 @@
 // num único header coerente.
 
 import { type ReactNode } from 'react'
-import { Plus, RefreshCw, Star, AlertCircle, ChevronDown } from 'lucide-react'
+import { Plus, RefreshCw, Star, AlertCircle, ChevronDown, FileDown, FileUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { Planejamento } from '@/types/planejamento'
@@ -31,6 +31,11 @@ interface CronogramaHeaderProps {
   onBaseline: () => void
   podeEditar: boolean
   isBaseline: boolean
+  /** Exporta o cronograma atual para MS Project XML. */
+  onExportarMsProject?: () => void
+  exportandoMsProject?: boolean
+  /** Abre o wizard de importação do MS Project. */
+  onImportarMsProject?: () => void
 }
 
 export function CronogramaHeader({
@@ -47,7 +52,10 @@ export function CronogramaHeader({
   recalculando,
   onBaseline,
   podeEditar,
-  isBaseline
+  isBaseline,
+  onExportarMsProject,
+  exportandoMsProject,
+  onImportarMsProject
 }: CronogramaHeaderProps): ReactNode {
   return (
     <header className="flex items-center justify-between gap-4 px-5 py-3 border-b border-border bg-bg-panel">
@@ -117,6 +125,16 @@ export function CronogramaHeader({
         <Button size="sm" variant="ghost" onClick={onNovaRevisao}>
           <Plus size={11} /> Nova revisão
         </Button>
+        {onExportarMsProject && (
+          <Button size="sm" variant="ghost" onClick={onExportarMsProject} disabled={exportandoMsProject} title="Exportar para MS Project (XML)">
+            <FileDown size={11} className={exportandoMsProject ? 'animate-pulse' : ''} /> Project
+          </Button>
+        )}
+        {podeEditar && onImportarMsProject && (
+          <Button size="sm" variant="ghost" onClick={onImportarMsProject} title="Importar do MS Project (XML)">
+            <FileUp size={11} /> Importar
+          </Button>
+        )}
         {podeEditar && (
           <>
             <Button size="sm" variant="default" onClick={onNovaTarefa}>

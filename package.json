@@ -50,6 +50,7 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.8.3",
     "exceljs": "^4.4.0",
+    "fast-xml-parser": "^4.5.6",
     "frappe-gantt": "^1.2.2",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",

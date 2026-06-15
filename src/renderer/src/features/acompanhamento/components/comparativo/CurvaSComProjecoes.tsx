@@ -13,6 +13,9 @@ interface Props {
   /** Item selecionado (1 servico_grupo) — projeções só fazem sentido pra 1 serviço */
   item?: PrevistoRealizadoItem | null
   altura?: number
+  /** Cliente: esconde projeções de tendência (média atual/necessária, fim
+   *  projetado). Mostra só planejado × realizado acumulados. */
+  ocultarProjecoes?: boolean
 }
 
 interface RowChart {
@@ -63,7 +66,7 @@ interface ProjecaoStats {
   dias_uteis_restantes_plan: number | null
 }
 
-export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): ReactNode {
+export function CurvaSComProjecoes({ pontos, item, altura = 360, ocultarProjecoes = false }: Props): ReactNode {
   const { data, projStats } = useMemo<{ data: RowChart[]; projStats: ProjecaoStats }>(() => {
     if (!pontos || pontos.length === 0) {
       return { data: [], projStats: emptyStats() }
@@ -109,8 +112,9 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
       if (r.data <= hojeIso && r.real > 0) qtdRealAteHoje = r.real
     }
 
-    // Projeções só fazem sentido pra 1 serviço — se for agregado, não geramos
-    const renderProjecoes = !!item
+    // Projeções só fazem sentido pra 1 serviço — se for agregado, não geramos.
+    // Para o Cliente (ocultarProjecoes) nunca geramos projeção de tendência.
+    const renderProjecoes = !!item && !ocultarProjecoes
 
     // Média móvel 15 dias trabalhados (apenas com servico filtrado)
     let mediaAtual: number | null = null
@@ -269,7 +273,7 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
         dias_uteis_restantes_plan: diasRestantesPlan
       }
     }
-  }, [pontos, item])
+  }, [pontos, item, ocultarProjecoes])
 
   const hojeIso = new Date().toISOString().slice(0, 10)
 
@@ -286,16 +290,16 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
     <div className="rounded border border-border bg-bg-panel p-3 flex flex-col" style={{ height: altura }}>
       <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <h3 className="text-xs font-semibold text-text">
-          Curva-S — Realizado × Previsto × Projeções
+          {ocultarProjecoes ? 'Curva-S — Realizado × Previsto' : 'Curva-S — Realizado × Previsto × Projeções'}
           {item && <span className="ml-2 text-2xs font-mono text-accent">{item.codigo} — {item.descricao}</span>}
         </h3>
         <div className="flex items-center gap-3 text-2xs font-mono text-text-dim">
-          {projStats.media_atual != null && (
+          {!ocultarProjecoes && projStats.media_atual != null && (
             <span>
               <span className="text-orange-400">●</span> média atual: <span className="text-text">{fmtNum(projStats.media_atual)}/dia</span>
             </span>
           )}
-          {projStats.media_necessaria != null && (
+          {!ocultarProjecoes && projStats.media_necessaria != null && (
             <span>
               <span className="text-violet-400">●</span> média necessária: <span className="text-text">{fmtNum(projStats.media_necessaria)}/dia</span>
             </span>
@@ -330,7 +334,7 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
             {projStats.fim_planejado && (
               <ReferenceLine x={projStats.fim_planejado} stroke="oklch(67% 0.18 255)" strokeDasharray="2 4" label={{ value: 'Fim plan.', fontSize: 9, fill: 'oklch(67% 0.18 255)' }} />
             )}
-            {projStats.fim_atual && (
+            {!ocultarProjecoes && projStats.fim_atual && (
               <ReferenceLine x={projStats.fim_atual} stroke="oklch(74% 0.16 50)" strokeDasharray="2 4" label={{ value: 'Fim proj.', fontSize: 9, fill: 'oklch(74% 0.16 50)' }} />
             )}
             <defs>
@@ -345,8 +349,12 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360 }: Props): React
             </defs>
             <Area name="Planejado acumulado" type="monotone" dataKey="planejado" stroke={CHART_THEME.series[0]} strokeWidth={1.4} fill="url(#g_plan)" isAnimationActive={false} />
             <Area name="Realizado acumulado" type="monotone" dataKey="realizado" stroke={CHART_THEME.series[2]} strokeWidth={1.8} fill="url(#g_real)" connectNulls isAnimationActive={false} />
-            <Line name="Projeção (média atual)" type="monotone" dataKey="proj_atual" stroke="oklch(74% 0.16 50)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
-            <Line name="Projeção (média necessária)" type="monotone" dataKey="proj_necessaria" stroke="oklch(74% 0.14 295)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+            {!ocultarProjecoes && (
+              <Line name="Projeção (média atual)" type="monotone" dataKey="proj_atual" stroke="oklch(74% 0.16 50)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+            )}
+            {!ocultarProjecoes && (
+              <Line name="Projeção (média necessária)" type="monotone" dataKey="proj_necessaria" stroke="oklch(74% 0.14 295)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

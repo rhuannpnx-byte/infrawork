@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import {
@@ -43,6 +43,15 @@ import { SYNC_STATUS_LABEL } from '@/types/acompanhamento'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 export function AcompanhamentoIndex(): ReactNode {
+  // O Cliente não vê o Dashboard (KPIs + valor agregado). A landing do módulo
+  // para ele é o Calendário planejado × executado.
+  const role = useAuthStore((s) => s.profile?.role ?? null)
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (role === 'cliente') void navigate({ to: '/acompanhamento/calendario', replace: true })
+  }, [role, navigate])
+  if (role === 'cliente') return null
+
   return (
     <RequireObra pageTitle="Acompanhamento">
       <DashboardAcompanhamento />

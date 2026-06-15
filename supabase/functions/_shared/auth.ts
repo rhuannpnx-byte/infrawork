@@ -6,7 +6,7 @@
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { json } from './cors.ts'
 
-export type Role = 'god' | 'adm' | 'engenheiro' | 'apoio'
+export type Role = 'god' | 'adm' | 'engenheiro' | 'apoio' | 'cliente'
 
 export interface CallerProfile {
   id: string

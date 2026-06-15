@@ -37,6 +37,13 @@ const infrawork = {
     exportPdf: (payload: { html: string; filenameBase: string }) =>
       ipcRenderer.invoke('relatorio:export-pdf', payload)
   },
+  cronograma: {
+    escolherArquivo: () => ipcRenderer.invoke('cronograma:escolher-arquivo'),
+    parseMsProject: (params: { path: string }) =>
+      ipcRenderer.invoke('cronograma:parse-msproject', params),
+    exportXml: (payload: { xml: string; filenameBase: string }) =>
+      ipcRenderer.invoke('cronograma:export-xml', payload)
+  },
   updater: {
     check: () => ipcRenderer.invoke('update:check'),
     quitAndInstall: () => ipcRenderer.send('update:quit-and-install'),

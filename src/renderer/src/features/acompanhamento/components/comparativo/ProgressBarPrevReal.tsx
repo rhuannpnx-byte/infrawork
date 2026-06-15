@@ -5,12 +5,15 @@ interface Props {
   pct: number | null
   esperado?: number | null
   status: StatusComparativo
+  /** Modo neutro (cliente): cor de acento, sem marcador "esperado" nem semântica
+   *  de atraso/adiantamento. */
+  neutral?: boolean
 }
 
-export function ProgressBarPrevReal({ pct, esperado, status }: Props): ReactNode {
+export function ProgressBarPrevReal({ pct, esperado, status, neutral }: Props): ReactNode {
   const real = pct != null ? Math.max(0, Math.min(1, Number(pct))) : 0
-  const exp = esperado != null ? Math.max(0, Math.min(1, Number(esperado))) : null
-  const cor = STATUS_COMP_COR[status]
+  const exp = neutral || esperado == null ? null : Math.max(0, Math.min(1, Number(esperado)))
+  const cor = neutral ? 'var(--accent)' : STATUS_COMP_COR[status]
 
   return (
     <div className="flex items-center gap-2 min-w-[140px]">

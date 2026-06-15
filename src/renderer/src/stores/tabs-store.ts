@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { getModuleByKey, getModuleByRoute } from '@/config/modules'
+import { getModuleByKey, getModuleByRoute, MODULES } from '@/config/modules'
 import { getTabRouter } from '@/app/tab-routers'
+import type { Role } from '@/types/auth'
 
 /**
  * Aba de documento (estilo VSCode), com keep-alive: uma aba por módulo, cada
@@ -34,6 +35,23 @@ interface TabsStore {
   reorderTabs: (from: number, to: number) => void
   reopenLastClosed: () => void
   cycleActive: (delta: number) => void
+  /**
+   * Remove abas de módulos que o papel atual não pode acessar (segurança:
+   * abas persistidas de uma sessão god/adm não podem sobreviver ao login de um
+   * cliente). Mantém sempre a Home. Chamado pelo auth-store ao autenticar.
+   */
+  sanitizeForRole: (role: Role | null) => void
+  /** Volta para apenas a aba Home (usado no logout). */
+  resetToHome: () => void
+}
+
+/** Um módulo é visível para o papel? (mesma regra da PrimaryRail/sidebar). */
+function moduleVisibleForRole(moduleKey: string, role: Role | null): boolean {
+  if (moduleKey === 'home') return true
+  const mod = MODULES.find((m) => m.key === moduleKey)
+  if (!mod) return false // módulo desconhecido → não mantém aba órfã
+  if (!mod.requiredRoles) return true
+  return !!role && mod.requiredRoles.includes(role)
 }
 
 const HOME_TAB_ID = 'tab-home'
@@ -238,6 +256,36 @@ export const useTabsStore = create<TabsStore>((set, get) => {
       )
       const id = tabs[(i + delta + tabs.length) % tabs.length].id
       set((s) => ({ activeTabId: id, mountedTabIds: addId(s.mountedTabIds, id) }))
+      persist()
+    },
+
+    sanitizeForRole: (role) => {
+      const state = get()
+      let tabs = withHome(state.tabs.filter((t) => moduleVisibleForRole(t.moduleKey, role)))
+      // Início SEMPRE em '/': o launcher não pode transformar a aba Início num
+      // módulo (era o que fazia o Início "mostrar o calendário" no cliente).
+      tabs = tabs.map((t) => (t.moduleKey === 'home' && t.location !== '/' ? { ...t, location: '/' } : t))
+      const igual =
+        tabs.length === state.tabs.length &&
+        tabs.every((t, i) => state.tabs[i]?.id === t.id && state.tabs[i]?.location === t.location)
+      if (igual) return
+      const activeOk = tabs.some((t) => t.id === state.activeTabId)
+      const activeTabId = activeOk ? state.activeTabId : (tabs[0]?.id ?? null)
+      let mounted = state.mountedTabIds.filter((id) => tabs.some((t) => t.id === id))
+      if (activeTabId) mounted = addId(mounted, activeTabId)
+      set({ tabs, activeTabId, mountedTabIds: mounted })
+      persist()
+      // Se a aba Início já está montada numa rota "drifted", leva o router vivo p/ '/'.
+      const home = tabs.find((t) => t.moduleKey === 'home')
+      if (home) {
+        const r = getTabRouter(home.id)
+        if (r && r.state.location.pathname !== '/') void r.navigate({ to: '/' })
+      }
+    },
+
+    resetToHome: () => {
+      const home = homeTab()
+      set({ tabs: [home], activeTabId: home.id, mountedTabIds: [home.id] })
       persist()
     }
   }

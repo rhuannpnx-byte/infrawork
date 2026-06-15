@@ -1,4 +1,4 @@
-export type Role = 'god' | 'adm' | 'engenheiro' | 'apoio'
+export type Role = 'god' | 'adm' | 'engenheiro' | 'apoio' | 'cliente'
 
 export interface AuthProfile {
   id: string

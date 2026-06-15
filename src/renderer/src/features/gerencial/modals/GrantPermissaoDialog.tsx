@@ -11,7 +11,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { useEngenheiros, useGrantPermissao } from '../hooks'
+import { useClientes, useEngenheiros, useGrantPermissao } from '../hooks'
 
 interface Props {
   open: boolean
@@ -19,7 +19,7 @@ interface Props {
   obraId: string
   obraEmpresaId: string
   obraCodigo: string
-  /** IDs de engenheiros que já têm permissão — pra esconder duplicatas. */
+  /** IDs de usuários que já têm permissão — pra esconder duplicatas. */
   existingUserIds: string[]
 }
 
@@ -32,11 +32,13 @@ export function GrantPermissaoDialog({
   existingUserIds
 }: Props): ReactNode {
   const { data: engenheiros = [] } = useEngenheiros(obraEmpresaId)
+  const { data: clientes = [] } = useClientes(obraEmpresaId)
   const grant = useGrantPermissao()
   const [userId, setUserId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const disponiveis = engenheiros.filter((e) => !existingUserIds.includes(e.id))
+  // Engenheiros e Clientes recebem permissão direta (Apoio herda do engenheiro).
+  const disponiveis = [...engenheiros, ...clientes].filter((e) => !existingUserIds.includes(e.id))
 
   useEffect(() => {
     if (!open) {
@@ -49,7 +51,7 @@ export function GrantPermissaoDialog({
     e.preventDefault()
     setError(null)
     if (!userId) {
-      setError('Selecione um engenheiro.')
+      setError('Selecione um usuário.')
       return
     }
     try {
@@ -70,7 +72,7 @@ export function GrantPermissaoDialog({
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
           <div>
-            <Label htmlFor="grant-user">Engenheiro</Label>
+            <Label htmlFor="grant-user">Engenheiro ou Cliente</Label>
             <Select
               id="grant-user"
               value={userId}
@@ -80,19 +82,20 @@ export function GrantPermissaoDialog({
             >
               <option value="">
                 {disponiveis.length === 0
-                  ? 'Todos os engenheiros desta empresa já têm acesso'
+                  ? 'Todos os engenheiros e clientes desta empresa já têm acesso'
                   : 'Selecione…'}
               </option>
               {disponiveis.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.nome} · {e.email}
+                  {e.role === 'cliente' ? '[Cliente] ' : '[Eng] '}{e.nome} · {e.email}
                 </option>
               ))}
             </Select>
           </div>
 
           <div className="text-2xs font-mono text-text-dim bg-bg-elevated rounded border border-border px-2 py-1.5">
-            Apoios vinculados a este engenheiro herdam o acesso automaticamente.
+            Engenheiros e Clientes recebem acesso direto. Apoios vinculados a um
+            engenheiro herdam o acesso automaticamente.
           </div>
 
         </DialogBody>

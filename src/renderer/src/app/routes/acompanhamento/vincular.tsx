@@ -5,6 +5,7 @@ import { Link2, Search, Check, AlertTriangle, RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -20,9 +21,11 @@ import type { SigaProjeto } from '@/types/acompanhamento'
 
 export function AcompanhamentoVincularPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Vínculo SIGA">
-      <VincularInner />
-    </RequireObra>
+    <RequireRole allow={['god', 'adm']} pageTitle="Vínculo SIGA">
+      <RequireObra pageTitle="Vínculo SIGA">
+        <VincularInner />
+      </RequireObra>
+    </RequireRole>
   )
 }
 

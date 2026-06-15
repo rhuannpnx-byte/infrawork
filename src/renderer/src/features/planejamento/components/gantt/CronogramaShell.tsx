@@ -59,6 +59,9 @@ import { parseISO } from '@/features/planejamento/lib/dates'
 import { NewPlanejamentoDialog } from '@/features/planejamento/modals/NewPlanejamentoDialog'
 import { PromoverBaselineDialog } from '@/features/planejamento/modals/PromoverBaselineDialog'
 import { NewTarefaDialog } from '@/features/planejamento/modals/NewTarefaDialog'
+import { ImportMsProjectDialog } from '@/features/planejamento/modals/ImportMsProjectDialog'
+import { exportarCronogramaXml } from '@/features/planejamento/hooks/msproject'
+import type { PlanejamentoDependencia } from '@/types/planejamento'
 import { AddDependenciaDialog } from '@/features/planejamento/modals/AddDependenciaDialog'
 import { NotasModal } from '@/features/planejamento/modals/NotasModal'
 import { CronogramaHeader } from './CronogramaHeader'
@@ -131,6 +134,8 @@ export function CronogramaShell({
   const [novoPlanOpen, setNovoPlanOpen] = useState(false)
   const [promoverOpen, setPromoverOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [importMspOpen, setImportMspOpen] = useState(false)
+  const [exportandoMsp, setExportandoMsp] = useState(false)
   const [cols] = useState<GridColumnConfig[]>(() => loadGridColumns())
 
   // Popovers — anchorRect + tarefaId
@@ -193,6 +198,42 @@ export function CronogramaShell({
   const addDep = useAddDependencia()
   const updDep = useUpdateDependencia()
   const confirm = useConfirm()
+
+  // Exporta o cronograma atual para MS Project XML. Dependências derivadas das
+  // predecessoras já presentes em cada tarefa (view v10).
+  const handleExportarMsProject = async (): Promise<void> => {
+    if (!planSelecionado || tarefas.length === 0) {
+      toast.error('Nada para exportar neste plano.')
+      return
+    }
+    setExportandoMsp(true)
+    try {
+      const dependencias: PlanejamentoDependencia[] = tarefas.flatMap((t) =>
+        (t.predecessoras ?? []).map((p) => ({
+          id: p.id,
+          planejamento_id: planSelecionado.id,
+          predecessora_id: p.predecessora_id,
+          sucessora_id: t.id,
+          tipo: p.tipo,
+          lag_dias: p.lag_dias,
+          created_at: ''
+        }))
+      )
+      const res = await exportarCronogramaXml({
+        projectName: `${obraNome} — ${planSelecionado.nome}`,
+        filenameBase: `Cronograma ${obraNome} ${planSelecionado.nome}`,
+        tarefas,
+        dependencias,
+        bitmask: calendario?.dias_uteis_bitmask
+      })
+      if (res.ok) toast.success('Cronograma exportado para MS Project.')
+      else if (!res.canceled) toast.error(res.error ?? 'Falha ao exportar.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Falha ao exportar.')
+    } finally {
+      setExportandoMsp(false)
+    }
+  }
 
   // Context menu específico de barra (right-click no GanttPane)
   const [barCtxMenu, setBarCtxMenu] = useState<{ tarefaId: string; x: number; y: number } | null>(
@@ -1137,6 +1178,9 @@ export function CronogramaShell({
         onBaseline={() => setPromoverOpen(true)}
         podeEditar={!readOnly}
         isBaseline={planSelecionado?.is_baseline ?? false}
+        onExportarMsProject={() => void handleExportarMsProject()}
+        exportandoMsProject={exportandoMsp}
+        onImportarMsProject={() => setImportMspOpen(true)}
       />
       <CronogramaToolbar
         nTarefas={stats.tarefasCount}
@@ -1438,6 +1482,12 @@ export function CronogramaShell({
         )}
 
       {/* Dialogs existentes do app */}
+      <ImportMsProjectDialog
+        open={importMspOpen}
+        onOpenChange={setImportMspOpen}
+        obraId={obraId}
+        onImported={(id) => setPlanId(id)}
+      />
       <NewPlanejamentoDialog
         open={novoPlanOpen}
         onOpenChange={setNovoPlanOpen}

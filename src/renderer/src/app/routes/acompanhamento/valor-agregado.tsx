@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { ChevronDown, Search, Check, X, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { RequireRole } from '@/components/layout/RequireRole'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { KPICard } from '@/components/charts/KPICard'
@@ -28,9 +29,11 @@ import { fmtDataBR } from '@/features/planejamento/lib/dates'
 
 export function AcompanhamentoValorAgregadoPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Valor Agregado">
-      <ValorAgregadoInner />
-    </RequireObra>
+    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Valor Agregado">
+      <RequireObra pageTitle="Valor Agregado">
+        <ValorAgregadoInner />
+      </RequireObra>
+    </RequireRole>
   )
 }
 
