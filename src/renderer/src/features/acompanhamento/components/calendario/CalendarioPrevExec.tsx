@@ -1,8 +1,7 @@
 import { type ReactNode, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
-import { toast } from 'sonner'
 import type { CurvaSPonto } from '@/types/acompanhamento'
-import { gerarProgramacaoMensalXlsx } from '@/features/acompanhamento/lib/programacao-mensal-xlsx'
+import { ExportProgramacaoDialog, type MesOpcao } from './ExportProgramacaoDialog'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -98,35 +97,41 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
   }, [servicos, aggByItem, dias])
 
   const hojeIso = isoDia(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
-  const [exporting, setExporting] = useState(false)
 
-  const exportar = async (): Promise<void> => {
-    setExporting(true)
-    try {
-      const blob = await gerarProgramacaoMensalXlsx({
-        obraNome,
-        mesLabel: `${MESES[mes]} ${ano}`,
-        dias: dias.map((d) => ({ dia: d.dia, weekday: d.weekday, iso: d.iso })),
-        servicos: linhas.map((l) => ({
-          nome: l.servico.descricao,
-          unidade: l.servico.unidade ?? '',
-          prev: l.prev.map(trunc2),
-          real: l.real.map(trunc2)
-        }))
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Programação Mensal - ${obraNome} - ${MESES[mes]} ${ano}.xlsx`
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success('Programação Mensal exportada.')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao exportar.')
-    } finally {
-      setExporting(false)
+  // Meses disponíveis (do menor ao maior com dados na curva-S) p/ o filtro de export.
+  const meses = useMemo<MesOpcao[]>(() => {
+    let min = ''
+    let max = ''
+    for (const p of pontos) {
+      if (!min || p.data < min) min = p.data
+      if (!max || p.data > max) max = p.data
     }
-  }
+    if (!min) {
+      // Sem dados → oferece ao menos o mês exibido.
+      return [{ ano, mes, key: `${ano}-${String(mes + 1).padStart(2, '0')}` }]
+    }
+    const ini = new Date(Number(min.slice(0, 4)), Number(min.slice(5, 7)) - 1, 1)
+    const fim = new Date(Number(max.slice(0, 4)), Number(max.slice(5, 7)) - 1, 1)
+    const out: MesOpcao[] = []
+    const cur = new Date(ini)
+    while (cur <= fim) {
+      out.push({
+        ano: cur.getFullYear(),
+        mes: cur.getMonth(),
+        key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`
+      })
+      cur.setMonth(cur.getMonth() + 1)
+    }
+    return out
+  }, [pontos, ano, mes])
+
+  const mesAtualIdx = useMemo(() => {
+    const k = `${ano}-${String(mes + 1).padStart(2, '0')}`
+    const i = meses.findIndex((m) => m.key === k)
+    return i >= 0 ? i : meses.length - 1
+  }, [meses, ano, mes])
+
+  const [exportOpen, setExportOpen] = useState(false)
 
   return (
     <div className="rounded border border-border bg-bg-panel flex flex-col min-h-0">
@@ -152,11 +157,11 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
           </button>
         </div>
         <button
-          onClick={exportar}
-          disabled={exporting || linhas.length === 0}
+          onClick={() => setExportOpen(true)}
+          disabled={servicos.length === 0}
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-2xs font-mono text-text-muted hover:text-text hover:bg-bg-hover disabled:opacity-50"
         >
-          <FileSpreadsheet size={12} /> {exporting ? 'Exportando…' : 'Exportar Excel'}
+          <FileSpreadsheet size={12} /> Exportar Excel
         </button>
       </div>
 
@@ -202,6 +207,16 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
         <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-sky-400/40 border border-sky-400/60" /> Prev (planejado)</span>
         <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-emerald-400/40 border border-emerald-400/60" /> Real (executado)</span>
       </div>
+
+      <ExportProgramacaoDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        meses={meses}
+        mesAtualIdx={mesAtualIdx}
+        servicos={servicos}
+        aggByItem={aggByItem}
+        obraNome={obraNome}
+      />
     </div>
   )
 }

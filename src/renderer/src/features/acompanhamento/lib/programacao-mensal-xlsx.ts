@@ -26,9 +26,21 @@ export interface ProgMensalServico {
 
 export interface ProgramacaoMensalInput {
   obraNome: string
-  mesLabel: string
+  /** Rótulo do período exportado, ex.: "Junho 2026" ou "Jun 2026 – Ago 2026". */
+  periodoLabel: string
   dias: ProgMensalDia[]
   servicos: ProgMensalServico[]
+}
+
+const MESES_NOME = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+]
+
+/** "Junho 2026" a partir de um ISO 'YYYY-MM-DD'. */
+function mesLabelDeIso(iso: string): string {
+  const [a, m] = iso.split('-')
+  return `${MESES_NOME[Number(m) - 1]} ${a}`
 }
 
 // Paleta InfraWork
@@ -70,7 +82,7 @@ export async function gerarProgramacaoMensalXlsx(input: ProgramacaoMensalInput):
   const totalCols = COL_TOTAL
 
   const ws = wb.addWorksheet('Programação Mensal', {
-    views: [{ state: 'frozen', xSplit: 3, ySplit: 6 }],
+    views: [{ state: 'frozen', xSplit: 3, ySplit: 7 }],
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
   })
 
@@ -109,13 +121,14 @@ export async function gerarProgramacaoMensalXlsx(input: ProgramacaoMensalInput):
   ws.getCell(2, COL_DIA0).font = { bold: true, size: 11, color: { argb: TEXTO } }
 
   ws.mergeCells(3, COL_DIA0, 4, totalCols)
-  ws.getCell(3, COL_DIA0).value = `Período: ${input.mesLabel}    •    Gerado em: ${brDataHora()}`
+  ws.getCell(3, COL_DIA0).value = `Período: ${input.periodoLabel}    •    Gerado em: ${brDataHora()}`
   ws.getCell(3, COL_DIA0).font = { italic: true, size: 10, color: { argb: TEXTO_DIM } }
   ws.getCell(3, COL_DIA0).alignment = { vertical: 'top' }
 
-  // ── Cabeçalho de colunas (linhas 5 = nº do dia / 6 = dia da semana) ───────
-  const H1 = 5
-  const H2 = 6
+  // ── Cabeçalho de colunas: 5 = faixa de mês / 6 = nº do dia / 7 = dia semana ─
+  const H_BAND = 5
+  const H_DAY = 6
+  const H_WD = 7
   const fixos: Array<{ col: number; label: string }> = [
     { col: COL_ATIV, label: 'Atividade' },
     { col: COL_UNID, label: 'Unid.' },
@@ -123,28 +136,45 @@ export async function gerarProgramacaoMensalXlsx(input: ProgramacaoMensalInput):
     { col: COL_TOTAL, label: 'Total' }
   ]
   for (const f of fixos) {
-    ws.mergeCells(H1, f.col, H2, f.col)
-    const c = ws.getCell(H1, f.col)
+    ws.mergeCells(H_BAND, f.col, H_WD, f.col)
+    const c = ws.getCell(H_BAND, f.col)
     c.value = f.label
     c.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
     c.alignment = { vertical: 'middle', horizontal: f.col === COL_ATIV ? 'left' : 'center', wrapText: true }
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AZUL } }
   }
+  // Faixa de mês (agrupa dias consecutivos do mesmo mês) + nº do dia + semana.
+  let bandStart = 0
   input.dias.forEach((d, i) => {
-    const cNum = ws.getCell(H1, COL_DIA0 + i)
+    const cNum = ws.getCell(H_DAY, COL_DIA0 + i)
     cNum.value = d.dia
     cNum.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
     cNum.alignment = { vertical: 'middle', horizontal: 'center' }
     cNum.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AZUL } }
-    const cWd = ws.getCell(H2, COL_DIA0 + i)
+    const cWd = ws.getCell(H_WD, COL_DIA0 + i)
     cWd.value = d.weekday
     cWd.font = { size: 8, color: { argb: 'FFD1D5DB' } }
     cWd.alignment = { vertical: 'middle', horizontal: 'center' }
     cWd.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AZUL_2 } }
+
+    const mesAtual = d.iso.slice(0, 7)
+    const ultimo = i === input.dias.length - 1
+    const proxMudou = ultimo || input.dias[i + 1].iso.slice(0, 7) !== mesAtual
+    if (proxMudou) {
+      const c0 = COL_DIA0 + bandStart
+      const c1 = COL_DIA0 + i
+      if (c1 > c0) ws.mergeCells(H_BAND, c0, H_BAND, c1)
+      const band = ws.getCell(H_BAND, c0)
+      band.value = mesLabelDeIso(d.iso)
+      band.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
+      band.alignment = { vertical: 'middle', horizontal: 'center' }
+      band.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AZUL_2 } }
+      bandStart = i + 1
+    }
   })
 
   // ── Dados: 2 linhas por serviço (Previsto / Realizado) ────────────────────
-  let r = H2 + 1
+  let r = H_WD + 1
   input.servicos.forEach((s, idx) => {
     const rPrev = r
     const rReal = r + 1
@@ -207,7 +237,7 @@ export async function gerarProgramacaoMensalXlsx(input: ProgramacaoMensalInput):
 
   // ── Bordas finas em toda a grade ──────────────────────────────────────────
   const lastRow = r - 1
-  for (let rr = H1; rr <= lastRow; rr++) {
+  for (let rr = H_BAND; rr <= lastRow; rr++) {
     for (let cc = 1; cc <= totalCols; cc++) {
       ws.getCell(rr, cc).border = { top: thin(BORDA), left: thin(BORDA), bottom: thin(BORDA), right: thin(BORDA) }
     }
