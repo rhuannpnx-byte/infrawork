@@ -39,6 +39,12 @@ export interface HistogramaOpts {
   unidadeTempo?: UnidadeTempo
   /** dias_uteis_bitmask da obra (bit0=Seg…bit6=Dom). Default 63 (Seg–Sáb). */
   bitmask?: number
+  /**
+   * Resolve a composição AO VIVO (CPU vigente) de uma tarefa. Quando fornecido,
+   * tem prioridade sobre o cpu_snapshot congelado — faz o histograma acompanhar
+   * edições recentes nas CPUs. Retorna null/[] para pular a tarefa.
+   */
+  resolver?: (t: PlanejamentoTarefaCompleta) => UnidadeCpu[] | null
 }
 
 export type HistogramaMetrica = 'tempo' | 'quantidade'
@@ -65,7 +71,7 @@ export interface HistogramaResult {
   tarefasIgnoradas: number
 }
 
-interface UnidadeCpu {
+export interface UnidadeCpu {
   fator: number
   operacao: ServicoCpuOperacao
   /** Produção diária da CPU (unidade da CPU) — fallback p/ material por dia. */
@@ -178,12 +184,24 @@ export function calcularHistogramaRecursos(
     const semanas = t.perfil_semanas ?? []
     if (semanas.length === 0) continue
 
-    const snap = t.cpu_snapshot_id ? snapshotsById.get(t.cpu_snapshot_id) : undefined
-    if (!snap) {
-      tarefasIgnoradas++
-      continue
+    // Fonte da composição: AO VIVO (resolver/CPU vigente) tem prioridade sobre
+    // o snapshot congelado.
+    let unidades: UnidadeCpu[]
+    if (opts.resolver) {
+      const u = opts.resolver(t)
+      if (!u || u.length === 0) {
+        tarefasIgnoradas++
+        continue
+      }
+      unidades = u
+    } else {
+      const snap = t.cpu_snapshot_id ? snapshotsById.get(t.cpu_snapshot_id) : undefined
+      if (!snap) {
+        tarefasIgnoradas++
+        continue
+      }
+      unidades = unidadesCpuDoSnapshot(snap).unidades
     }
-    const { unidades } = unidadesCpuDoSnapshot(snap)
     if (!unidades.some((u) => u.itens.length > 0)) {
       tarefasIgnoradas++
       continue

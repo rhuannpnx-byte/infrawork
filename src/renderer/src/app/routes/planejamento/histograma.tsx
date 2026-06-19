@@ -9,7 +9,7 @@ import {
   usePlanejamentos,
   usePlanejamentoAtivo,
   useTarefas,
-  useCpuSnapshots,
+  useComposicoesVigentes,
   useCalendario
 } from '@/features/planejamento/hooks'
 import { calcularHistogramaRecursos } from '@/features/planejamento/lib/histograma-recursos'
@@ -37,18 +37,20 @@ function HistogramaInner(): ReactNode {
 
   const { data: tarefas = [] } = useTarefas(planSel?.id)
 
-  const snapshotIds = useMemo(
+  // O histograma SEMPRE usa a composição da CPU vigente (atual) — acompanha
+  // qualquer edição. O snapshot por revisão fica como histórico (não é a fonte).
+  const servicoIds = useMemo(
     () =>
       Array.from(
         new Set(
           tarefas
-            .filter((t) => t.tipo_no === 'tarefa' && !t.is_indireto && t.cpu_snapshot_id)
-            .map((t) => t.cpu_snapshot_id as string)
+            .filter((t) => t.tipo_no === 'tarefa' && !t.is_indireto && t.servico_id)
+            .map((t) => t.servico_id as string)
         )
       ),
     [tarefas]
   )
-  const { data: snapshots } = useCpuSnapshots(snapshotIds)
+  const { data: vigentes } = useComposicoesVigentes(obraId, servicoIds)
   const { data: calendario } = useCalendario(obraId)
   const bitmask = calendario?.dias_uteis_bitmask ?? 63
 
@@ -56,8 +58,12 @@ function HistogramaInner(): ReactNode {
 
   const result = useMemo(
     () =>
-      calcularHistogramaRecursos(tarefas, snapshots ?? new Map(), { unidadeTempo, bitmask }),
-    [tarefas, snapshots, unidadeTempo, bitmask]
+      calcularHistogramaRecursos(tarefas, new Map(), {
+        unidadeTempo,
+        bitmask,
+        resolver: (t) => (t.servico_id ? vigentes?.get(t.servico_id) ?? null : null)
+      }),
+    [tarefas, vigentes, unidadeTempo, bitmask]
   )
 
   const [exporting, setExporting] = useState(false)
