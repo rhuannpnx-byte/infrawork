@@ -95,10 +95,13 @@ export async function atenderDM(
   msgKey?: WAMessageKey
 ): Promise<void> {
   // Identidade pelo TELEFONE real (senderPn). O remoteJid pode ser um @lid (novo
-  // endereçamento do WhatsApp), que não contém o número. As respostas continuam
-  // indo para `jid` (o Baileys resolve o @lid no envio).
+  // endereçamento do WhatsApp), que não contém o número.
   const profile = await identificarRemetente(senderPn || jid)
   if (!profile) return // número não habilitado → ignora em silêncio (sem vazamento)
+
+  // Responde no JID de TELEFONE (senderPn) quando disponível — mais confiável que
+  // enviar para @lid (evita "error in ack"). A conversa segue indexada por `jid`.
+  const replyJid = senderPn || jid
 
   // marca como lida (comportamento humano) só para quem atendemos
   if (msgKey) await marcarLido(sock, msgKey)
@@ -109,7 +112,7 @@ export async function atenderDM(
     'oráculo: remetente identificado'
   )
   if (obras.length === 0) {
-    await enviarTexto(sock, jid, 'Você ainda não tem obras liberadas para consulta.')
+    await enviarTexto(sock, replyJid, 'Você ainda não tem obras liberadas para consulta.')
     return
   }
 
@@ -131,7 +134,7 @@ export async function atenderDM(
       estado: 'triagem',
       opcoes_obra: mapa
     })
-    await enviarTexto(sock, jid, lista)
+    await enviarTexto(sock, replyJid, lista)
     return
   }
 
@@ -149,14 +152,14 @@ export async function atenderDM(
         })
         await enviarTexto(
           sock,
-          jid,
+          replyJid,
           `✅ Obra *${obra.codigo} - ${obra.nome}* selecionada. Pode mandar sua pergunta (orçamento, planejamento, produção ou fotos).`
         )
         return
       }
       // escolha inválida → reapresenta
       const { texto: lista } = montarTriagem(obras)
-      await enviarTexto(sock, jid, `Não entendi a escolha. ${lista}`)
+      await enviarTexto(sock, replyJid, `Não entendi a escolha. ${lista}`)
       return
     }
 
@@ -178,7 +181,7 @@ export async function atenderDM(
       const prefixo = sessaoExpirou
         ? `Sua sessão expirou (${config.oraculoSessaoTtlMin} min sem atividade). `
         : ''
-      await enviarTexto(sock, jid, prefixo + lista)
+      await enviarTexto(sock, replyJid, prefixo + lista)
       return
     }
   }
@@ -190,7 +193,7 @@ export async function atenderDM(
     obras,
     obrasPermitidasIds: new Set(obras.map((o) => o.id)),
     sock,
-    jid,
+    jid: replyJid,
     hoje: hojeBR(),
     trocou: false
   }
@@ -216,7 +219,7 @@ export async function atenderDM(
     resposta = 'Tive um problema ao consultar os dados agora. Tente novamente em instantes.'
   }
 
-  await enviarTexto(sock, jid, resposta)
+  await enviarTexto(sock, replyJid, resposta)
 
   // a obra ativa pode ter mudado durante a resposta (tool mudar_obra)
   const obraFinal = ctx.obra

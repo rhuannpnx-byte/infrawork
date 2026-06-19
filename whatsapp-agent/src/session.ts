@@ -62,14 +62,29 @@ export class Session {
       if (connection === 'open') {
         this.tentativasReconexao = 0 // conexão estável → zera o backoff
         const phone = sock.user?.id?.split(':')[0]?.split('@')[0] ?? null
-        void this.setStatus({
-          status: 'conectado',
-          qr_code: null,
-          phone,
-          last_seen: new Date().toISOString(),
-          ultimo_erro: null
-        })
-        logger.info({ phone }, 'sessão conectada')
+        void (async () => {
+          // Troca de conta: se o número conectado mudou, os grupos (e vínculos)
+          // da conta anterior não valem mais — limpa para não exibir grupos antigos.
+          if (phone) {
+            const { data: prev } = await supabase
+              .from('whatsapp_sessao')
+              .select('phone')
+              .eq('id', this.sessaoId)
+              .maybeSingle()
+            if (prev?.phone && prev.phone !== phone) {
+              await supabase.from('whatsapp_grupo').delete().eq('sessao_id', this.sessaoId)
+              logger.info({ de: prev.phone, para: phone }, 'conta trocada — grupos antigos removidos')
+            }
+          }
+          await this.setStatus({
+            status: 'conectado',
+            qr_code: null,
+            phone,
+            last_seen: new Date().toISOString(),
+            ultimo_erro: null
+          })
+          logger.info({ phone }, 'sessão conectada')
+        })()
       }
       if (connection === 'close') {
         const code = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode

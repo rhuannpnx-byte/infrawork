@@ -107,3 +107,25 @@ export interface WhatsAppOraculoLog {
   erro: string | null
   criado_em: string
 }
+
+export type WhatsAppOraculoSaidaStatus = 'pendente' | 'enviado' | 'erro'
+
+export interface WhatsAppOraculoSaida {
+  id: string
+  user_id: string
+  texto: string
+  status: WhatsAppOraculoSaidaStatus
+  criado_por: string | null
+  erro: string | null
+  criado_em: string
+  enviado_em: string | null
+}
+
+/** Item unificado do chat do operador com um usuário do Oráculo. */
+export interface OraculoChatItem {
+  id: string
+  tipo: 'usuario' | 'oraculo' | 'operador'
+  texto: string
+  ts: string
+  status?: WhatsAppOraculoSaidaStatus
+}

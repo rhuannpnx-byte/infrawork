@@ -10,6 +10,7 @@ import { descobrirGrupos, getMonitorados, type GrupoMonitorado } from './groups.
 import { processarMensagem } from './listener.js'
 import { BackfillManager, type Anchor } from './backfill.js'
 import { atenderDM, extrairTexto } from './oraculo/index.js'
+import { processarSaidas } from './oraculo/saida.js'
 
 let current: Session | null = null
 let backfill: BackfillManager | null = null
@@ -185,6 +186,12 @@ async function tickBackfill(): Promise<void> {
   }
 }
 
+async function tickSaidas(): Promise<void> {
+  const sock = getSock()
+  if (!sock || !conectado) return
+  await processarSaidas(sock)
+}
+
 async function loopSeguro(fn: () => Promise<void>, label: string): Promise<void> {
   try {
     await fn()
@@ -200,6 +207,7 @@ async function main(): Promise<void> {
 
   setInterval(() => void loopSeguro(reconcile, 'reconcile'), config.pollConfigMs)
   setInterval(() => void loopSeguro(tickBackfill, 'backfill'), 5000)
+  setInterval(() => void loopSeguro(tickSaidas, 'saidas'), 4000)
 
   const encerrar = (): void => {
     logger.info('encerrando… (status preservado para reconexão)')

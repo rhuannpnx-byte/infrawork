@@ -8,7 +8,8 @@ import type {
   WhatsAppMensagemLog,
   WhatsAppOraculoAcesso,
   WhatsAppOraculoConversa,
-  WhatsAppOraculoLog
+  WhatsAppOraculoLog,
+  OraculoChatItem
 } from '@/types/whatsapp'
 
 function notReady(): never {
@@ -319,5 +320,76 @@ export function useOraculoLog(): ReturnType<typeof useQuery<WhatsAppOraculoLog[]
       return (data ?? []) as unknown as WhatsAppOraculoLog[]
     },
     refetchInterval: 15000
+  })
+}
+
+/** Histórico de chat de UM usuário: perguntas/respostas do Oráculo + mensagens
+ *  enviadas pelo operador, unificadas em ordem cronológica. */
+export function useOraculoHistorico(
+  userId: string | null | undefined
+): ReturnType<typeof useQuery<OraculoChatItem[]>> {
+  return useQuery({
+    queryKey: ['whatsapp', 'oraculo-historico', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<OraculoChatItem[]> => {
+      if (!SUPABASE_ENABLED || !supabase) notReady()
+      const [logRes, saidaRes] = await Promise.all([
+        supabase
+          .from('whatsapp_oraculo_log')
+          .select('id, pergunta, resposta, criado_em')
+          .eq('user_id', userId!)
+          .order('criado_em', { ascending: true })
+          .limit(200),
+        supabase
+          .from('whatsapp_oraculo_saida')
+          .select('id, texto, status, criado_em, enviado_em')
+          .eq('user_id', userId!)
+          .order('criado_em', { ascending: true })
+          .limit(200)
+      ])
+      if (logRes.error) throw logRes.error
+      if (saidaRes.error) throw saidaRes.error
+
+      const itens: OraculoChatItem[] = []
+      for (const l of logRes.data ?? []) {
+        const ts = l.criado_em as string
+        if (l.pergunta) itens.push({ id: `${l.id}-q`, tipo: 'usuario', texto: l.pergunta as string, ts })
+        if (l.resposta) itens.push({ id: `${l.id}-r`, tipo: 'oraculo', texto: l.resposta as string, ts })
+      }
+      for (const s of saidaRes.data ?? []) {
+        itens.push({
+          id: s.id as string,
+          tipo: 'operador',
+          texto: s.texto as string,
+          ts: (s.enviado_em as string) ?? (s.criado_em as string),
+          status: s.status as OraculoChatItem['status']
+        })
+      }
+      itens.sort((a, b) => a.ts.localeCompare(b.ts))
+      return itens
+    },
+    refetchInterval: 5000
+  })
+}
+
+/** Enfileira uma mensagem do operador para um usuário (o agente envia). */
+export function useEnviarOraculoMensagem(): ReturnType<
+  typeof useMutation<void, Error, { user_id: string; texto: string }>
+> {
+  const qc = useQueryClient()
+  const profileId = useAuthStore((s) => s.profile?.id ?? null)
+  return useMutation({
+    mutationFn: async ({ user_id, texto }) => {
+      if (!SUPABASE_ENABLED || !supabase) notReady()
+      const { error } = await supabase.from('whatsapp_oraculo_saida').insert({
+        user_id,
+        texto,
+        status: 'pendente',
+        criado_por: profileId
+      })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) =>
+      void qc.invalidateQueries({ queryKey: ['whatsapp', 'oraculo-historico', vars.user_id] })
   })
 }

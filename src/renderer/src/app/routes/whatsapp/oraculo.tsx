@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Plus, Power, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
+import { Plus, Power, Trash2, AlertTriangle, MessageCircle } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -11,11 +11,11 @@ import { DataTable } from '@/components/data-table/DataTable'
 import {
   useOraculoAcessos,
   useAtualizarOraculoAcesso,
-  useRemoverOraculoAcesso,
-  useOraculoLog
+  useRemoverOraculoAcesso
 } from '@/features/whatsapp/hooks'
 import { HabilitarOraculoDialog } from '@/features/whatsapp/components/HabilitarOraculoDialog'
-import { maskWhatsappBR, formatDateTimeShort } from '@/lib/format'
+import { ChatOraculoDialog } from '@/features/whatsapp/components/ChatOraculoDialog'
+import { maskWhatsappBR } from '@/lib/format'
 import type { WhatsAppOraculoAcesso } from '@/types/whatsapp'
 
 export function WhatsAppOraculoPage(): ReactNode {
@@ -28,10 +28,10 @@ export function WhatsAppOraculoPage(): ReactNode {
 
 function OraculoInner(): ReactNode {
   const { data: acessos = [], isLoading } = useOraculoAcessos()
-  const { data: log = [] } = useOraculoLog()
   const atualizar = useAtualizarOraculoAcesso()
   const remover = useRemoverOraculoAcesso()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [chatTarget, setChatTarget] = useState<WhatsAppOraculoAcesso | null>(null)
 
   const jaHabilitados = useMemo(() => new Set(acessos.map((a) => a.user_id)), [acessos])
 
@@ -109,11 +109,22 @@ function OraculoInner(): ReactNode {
       {
         id: 'acoes',
         header: '',
-        size: 170,
+        size: 220,
         cell: ({ row }) => {
           const a = row.original
           return (
             <div className="flex items-center justify-end gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setChatTarget(a)
+                }}
+                title="Abrir conversa"
+              >
+                <MessageCircle size={12} /> Chat
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -174,43 +185,18 @@ function OraculoInner(): ReactNode {
           />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="flex-1 min-h-0">
-            <DataTable
-              data={acessos}
-              columns={columns}
-              loading={isLoading}
-              globalSearchPlaceholder="Buscar usuário…"
-              emptyMessage="Nenhum usuário habilitado"
-              enableColumnVisibility={false}
-              enableDensity={false}
-              enableFilters={false}
-              enableExport={false}
-            />
-          </div>
-
-          {log.length > 0 ? (
-            <div className="border-t border-border mt-2 pt-2">
-              <div className="flex items-center gap-1.5 px-1 pb-1.5 text-2xs font-mono uppercase text-text-dim">
-                <Sparkles size={11} /> Últimas perguntas
-              </div>
-              <div className="max-h-40 overflow-auto rounded border border-border bg-bg-panel divide-y divide-border/40">
-                {log.map((l) => (
-                  <div key={l.id} className="px-3 py-1.5 flex items-start gap-2 text-xs">
-                    <span className="text-text-dim font-mono text-2xs shrink-0 w-28">
-                      {formatDateTimeShort(l.criado_em)}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block truncate text-text">{l.pergunta ?? '—'}</span>
-                      <span className="block truncate text-2xs text-text-dim">
-                        {l.erro ? `⚠ ${l.erro}` : l.resposta ?? ''}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+        <div className="flex-1 min-h-0">
+          <DataTable
+            data={acessos}
+            columns={columns}
+            loading={isLoading}
+            globalSearchPlaceholder="Buscar usuário…"
+            emptyMessage="Nenhum usuário habilitado"
+            enableColumnVisibility={false}
+            enableDensity={false}
+            enableFilters={false}
+            enableExport={false}
+          />
         </div>
       )}
 
@@ -218,6 +204,11 @@ function OraculoInner(): ReactNode {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         jaHabilitados={jaHabilitados}
+      />
+      <ChatOraculoDialog
+        open={!!chatTarget}
+        onOpenChange={(o) => !o && setChatTarget(null)}
+        acesso={chatTarget}
       />
     </div>
   )
