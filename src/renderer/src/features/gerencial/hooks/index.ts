@@ -62,7 +62,7 @@ export function useUsuarios(
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at, acessos_count, last_access_at, last_seen_at, empresa:empresa_id(id, nome), engenheiro:engenheiro_id(id, nome)'
+          'id, email, nome, role, empresa_id, engenheiro_id, ativo, whatsapp, created_at, acessos_count, last_access_at, last_seen_at, empresa:empresa_id(id, nome), engenheiro:engenheiro_id(id, nome)'
         )
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -84,7 +84,7 @@ export function useEngenheiros(empresaId: string | null | undefined): ReturnType
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at')
+        .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, whatsapp, created_at')
         .eq('role', 'engenheiro')
         .eq('empresa_id', empresaId!)
         .eq('ativo', true)
@@ -107,7 +107,7 @@ export function useClientes(empresaId: string | null | undefined): ReturnType<ty
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at')
+        .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, whatsapp, created_at')
         .eq('role', 'cliente')
         .eq('empresa_id', empresaId!)
         .eq('ativo', true)
@@ -128,6 +128,44 @@ export function useCreateUsuario(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.createUsuario(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'clientes'] })
+    }
+  })
+}
+
+/** Edição de usuário (God/Adm). Atualiza nome, whatsapp, papel, vínculos, ativo. */
+export function useUpdateUsuario(): ReturnType<
+  typeof useMutation<
+    Awaited<ReturnType<typeof adminApi.updateUsuario>>,
+    Error,
+    Parameters<typeof adminApi.updateUsuario>[0]
+  >
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body) => adminApi.updateUsuario(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'clientes'] })
+    }
+  })
+}
+
+/** Exclusão definitiva de usuário (God/Adm). */
+export function useDeleteUsuario(): ReturnType<
+  typeof useMutation<
+    Awaited<ReturnType<typeof adminApi.deleteUsuario>>,
+    Error,
+    { id: string }
+  >
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body) => adminApi.deleteUsuario(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
       void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })

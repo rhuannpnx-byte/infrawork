@@ -52,6 +52,11 @@ interface DataTableProps<T> {
   /** Habilita exportação real (CSV/Excel/PDF). Recebe as linhas visíveis
    *  (filtro + ordenação atuais) e devolve a config de exportação. */
   getExportConfig?: (visibleRows: T[]) => TableExportConfig
+  /** Controles do toolbar à direita (default: todos visíveis). */
+  enableColumnVisibility?: boolean
+  enableDensity?: boolean
+  enableFilters?: boolean
+  enableExport?: boolean
 }
 
 export function DataTable<T>({
@@ -67,7 +72,11 @@ export function DataTable<T>({
   initialPageSize = 50,
   enableRowSelection = false,
   selectionActions,
-  getExportConfig
+  getExportConfig,
+  enableColumnVisibility = true,
+  enableDensity = true,
+  enableFilters = true,
+  enableExport = true
 }: DataTableProps<T>): ReactNode {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -163,7 +172,10 @@ export function DataTable<T>({
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-bg-panel">
         <div className="relative">
-          <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim pointer-events-none" />
+          <Search
+            size={11}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim pointer-events-none"
+          />
           <Input
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
@@ -190,57 +202,70 @@ export function DataTable<T>({
 
         {toolbarRight}
 
-        <Dropdown
-          align="end"
-          trigger={
-            <Button variant="ghost" size="sm">
-              <Settings2 size={11} /> Colunas
-            </Button>
-          }
-        >
-          <DropdownLabel>Visibilidade</DropdownLabel>
-          {table
-            .getAllLeafColumns()
-            .filter((c) => c.getCanHide())
-            .map((c) => (
-              <DropdownItem key={c.id} onClick={() => c.toggleVisibility()}>
-                <span className={cn('w-3 h-3 mr-1 rounded-sm border', c.getIsVisible() ? 'bg-accent border-accent' : 'border-border-strong')} />
-                {(c.columnDef.meta as { label?: string } | undefined)?.label ?? c.id}
-              </DropdownItem>
-            ))}
-        </Dropdown>
-
-        <Dropdown
-          align="end"
-          trigger={
-            <Button variant="ghost" size="sm">
-              Densidade
-            </Button>
-          }
-        >
-          <DropdownItem onClick={() => setDensity('compact')}>Compacta</DropdownItem>
-          <DropdownItem onClick={() => setDensity('normal')}>Normal</DropdownItem>
-        </Dropdown>
-
-        <Button variant="ghost" size="sm" onClick={() => openModal('filters')}>
-          Filtros
-        </Button>
-
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            if (getExportConfig) {
-              const visibleRows = table.getSortedRowModel().rows.map((r) => r.original)
-              openModal('export', getExportConfig(visibleRows))
-            } else {
-              // limpa payload anterior p/ não vazar config de outra tabela
-              openModal('export', null)
+        {enableColumnVisibility ? (
+          <Dropdown
+            align="end"
+            trigger={
+              <Button variant="ghost" size="sm">
+                <Settings2 size={11} /> Colunas
+              </Button>
             }
-          }}
-        >
-          <Download size={11} /> Exportar
-        </Button>
+          >
+            <DropdownLabel>Visibilidade</DropdownLabel>
+            {table
+              .getAllLeafColumns()
+              .filter((c) => c.getCanHide())
+              .map((c) => (
+                <DropdownItem key={c.id} onClick={() => c.toggleVisibility()}>
+                  <span
+                    className={cn(
+                      'w-3 h-3 mr-1 rounded-sm border',
+                      c.getIsVisible() ? 'bg-accent border-accent' : 'border-border-strong'
+                    )}
+                  />
+                  {(c.columnDef.meta as { label?: string } | undefined)?.label ?? c.id}
+                </DropdownItem>
+              ))}
+          </Dropdown>
+        ) : null}
+
+        {enableDensity ? (
+          <Dropdown
+            align="end"
+            trigger={
+              <Button variant="ghost" size="sm">
+                Densidade
+              </Button>
+            }
+          >
+            <DropdownItem onClick={() => setDensity('compact')}>Compacta</DropdownItem>
+            <DropdownItem onClick={() => setDensity('normal')}>Normal</DropdownItem>
+          </Dropdown>
+        ) : null}
+
+        {enableFilters ? (
+          <Button variant="ghost" size="sm" onClick={() => openModal('filters')}>
+            Filtros
+          </Button>
+        ) : null}
+
+        {enableExport ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (getExportConfig) {
+                const visibleRows = table.getSortedRowModel().rows.map((r) => r.original)
+                openModal('export', getExportConfig(visibleRows))
+              } else {
+                // limpa payload anterior p/ não vazar config de outra tabela
+                openModal('export', null)
+              }
+            }}
+          >
+            <Download size={11} /> Exportar
+          </Button>
+        ) : null}
       </div>
 
       {/* Table */}
@@ -338,7 +363,8 @@ export function DataTable<T>({
       {/* Pagination */}
       <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-bg-panel">
         <div className="text-2xs font-mono text-text-dim">
-          {table.getFilteredRowModel().rows.length} {table.getFilteredRowModel().rows.length === 1 ? 'item' : 'itens'}
+          {table.getFilteredRowModel().rows.length}{' '}
+          {table.getFilteredRowModel().rows.length === 1 ? 'item' : 'itens'}
           {table.getFilteredRowModel().rows.length !== data.length ? ` · ${data.length} total` : ''}
         </div>
         <div className="flex items-center gap-2">

@@ -32,6 +32,7 @@ import { PlanejamentoCalendarioPage } from '@/app/routes/planejamento/calendario
 import { PlanejamentoTrechosPage } from '@/app/routes/planejamento/trechos'
 import { PlanejamentoEquipesPage } from '@/app/routes/planejamento/equipes'
 import { PlanejamentoCurvaSPage } from '@/app/routes/planejamento/curva-s'
+import { PlanejamentoHistogramaPage } from '@/app/routes/planejamento/histograma'
 import { PlanejamentoCompararPage } from '@/app/routes/planejamento/comparar'
 import { PlanejamentoMarchaTempoPage } from '@/app/routes/planejamento/marcha-tempo'
 import { PlanejamentoRevisoesPage } from '@/app/routes/planejamento/revisoes'
@@ -45,6 +46,11 @@ import { AcompanhamentoFotosPage } from '@/app/routes/acompanhamento/fotos'
 import { AcompanhamentoEquipesPage } from '@/app/routes/acompanhamento/equipes'
 import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/comparativo'
 import { AcompanhamentoAlertasPage } from '@/app/routes/acompanhamento/alertas'
+import { WhatsAppSessaoPage } from '@/app/routes/whatsapp'
+import { WhatsAppGruposPage } from '@/app/routes/whatsapp/grupos'
+import { WhatsAppBackfillPage } from '@/app/routes/whatsapp/backfill'
+import { WhatsAppLogPage } from '@/app/routes/whatsapp/log'
+import { WhatsAppOraculoPage } from '@/app/routes/whatsapp/oraculo'
 
 /**
  * Router por aba (keep-alive). Cada aba aberta tem sua própria instância de
@@ -197,6 +203,11 @@ function buildRouteTree() {
     }),
     createRoute({
       getParentRoute: () => planejamentoLayout,
+      path: 'histograma',
+      component: PlanejamentoHistogramaPage
+    }),
+    createRoute({
+      getParentRoute: () => planejamentoLayout,
       path: 'comparar',
       component: PlanejamentoCompararPage
     }),
@@ -271,12 +282,39 @@ function buildRouteTree() {
     })
   ])
 
+  // ─── WhatsApp (god/adm) ──────────────────────────────────────────────────
+  const whatsappLayout = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'whatsapp',
+    component: () => <Outlet />
+  })
+  const whatsappTree = whatsappLayout.addChildren([
+    createRoute({ getParentRoute: () => whatsappLayout, path: '/', component: WhatsAppSessaoPage }),
+    createRoute({
+      getParentRoute: () => whatsappLayout,
+      path: 'grupos',
+      component: WhatsAppGruposPage
+    }),
+    createRoute({
+      getParentRoute: () => whatsappLayout,
+      path: 'backfill',
+      component: WhatsAppBackfillPage
+    }),
+    createRoute({ getParentRoute: () => whatsappLayout, path: 'log', component: WhatsAppLogPage }),
+    createRoute({
+      getParentRoute: () => whatsappLayout,
+      path: 'oraculo',
+      component: WhatsAppOraculoPage
+    })
+  ])
+
   return rootRoute.addChildren([
     indexRoute,
     gerencialTree,
     orcamentoTree,
     planejamentoTree,
-    acompanhamentoTree
+    acompanhamentoTree,
+    whatsappTree
   ])
 }
 

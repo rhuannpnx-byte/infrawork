@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCreateUsuario, useEmpresas, useEngenheiros } from '../hooks'
+import { maskWhatsappBR } from '@/lib/format'
 import type { Role } from '@/types/auth'
 
 interface Props {
@@ -56,6 +57,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
   const [role, setRole] = useState<Role>(allowedRoles[0] ?? 'apoio')
   const [empresaId, setEmpresaId] = useState<string>('')
   const [engenheiroId, setEngenheiroId] = useState<string>('')
+  const [whatsapp, setWhatsapp] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -84,6 +86,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
     setRole(allowedRoles[0] ?? 'apoio')
     setPassword('')
     setEngenheiroId('')
+    setWhatsapp('')
     setError(null)
     if (callerRole !== 'god') setEmpresaId(callerEmpresaId ?? '')
     else setEmpresaId('')
@@ -119,6 +122,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
           body.engenheiro_id = engenheiroId
         }
       }
+      if (whatsapp.trim()) body.whatsapp = whatsapp.trim()
       if (password.trim()) body.password = password.trim()
 
       const res = await create.mutateAsync(body)
@@ -221,6 +225,21 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
               </Select>
             </div>
           ) : null}
+
+          <div>
+            <Label htmlFor="u-wpp">WhatsApp (opcional)</Label>
+            <Input
+              id="u-wpp"
+              type="tel"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(maskWhatsappBR(e.target.value))}
+              placeholder="+55 (64) 99999-9999"
+              inputMode="tel"
+            />
+            <div className="text-2xs text-text-dim font-mono mt-1">
+              Com DDI e DDD. Usado para casar mensagens do WhatsApp ao usuário.
+            </div>
+          </div>
 
           <div>
             <Label htmlFor="u-pwd">Senha inicial (opcional)</Label>

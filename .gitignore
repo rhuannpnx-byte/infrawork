@@ -35,3 +35,6 @@ tmp-*.json
 tmp-*.mjs
 tmp-*.ts
 /Grafico de gantt interativo_ profissional/
+
+# artefato de build do agente (pode conter segredos)
+whatsapp-agent.tar.gz

@@ -198,6 +198,12 @@ export const MODULES: ModuleConfig[] = [
             requiresObra: true
           },
           {
+            icon: 'bar-chart-3',
+            label: 'Histograma planejado',
+            route: '/planejamento/histograma',
+            requiresObra: true
+          },
+          {
             icon: 'git-compare',
             label: 'Comparar baseline',
             route: '/planejamento/comparar',
@@ -306,6 +312,30 @@ export const MODULES: ModuleConfig[] = [
             requiresObra: true,
             requiredRoles: ['god', 'adm']
           }
+        ]
+      }
+    ]
+  },
+  {
+    key: 'whatsapp',
+    title: 'WhatsApp',
+    icon: 'message-circle',
+    shortcut: 'g w',
+    routePrefix: '/whatsapp',
+    color: 'var(--accent)',
+    category: 'system',
+    requiredRoles: ['god', 'adm'],
+    pills: [],
+    sections: [
+      {
+        title: 'MONITORAMENTO',
+        requiredRoles: ['god', 'adm'],
+        items: [
+          { icon: 'qr-code', label: 'Sessão', route: '/whatsapp' },
+          { icon: 'users', label: 'Grupos', route: '/whatsapp/grupos' },
+          { icon: 'sparkles', label: 'Oráculo', route: '/whatsapp/oraculo' },
+          { icon: 'history', label: 'Backfill', route: '/whatsapp/backfill' },
+          { icon: 'list-checks', label: 'Log de fotos', route: '/whatsapp/log' }
         ]
       }
     ]

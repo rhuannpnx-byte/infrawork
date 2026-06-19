@@ -56,9 +56,37 @@ export const adminApi = {
     role: 'god' | 'adm' | 'engenheiro' | 'apoio' | 'cliente'
     empresa_id?: string | null
     engenheiro_id?: string | null
+    whatsapp?: string | null
     password?: string
   }) =>
     call<{ id: string; email: string; role: string }>('create-usuario', { method: 'POST', body }),
+
+  updateUsuario: (body: {
+    id: string
+    nome?: string
+    whatsapp?: string | null
+    role?: 'god' | 'adm' | 'engenheiro' | 'apoio' | 'cliente'
+    empresa_id?: string | null
+    engenheiro_id?: string | null
+    ativo?: boolean
+  }) =>
+    call<{
+      id: string
+      email: string
+      nome: string
+      role: string
+      empresa_id: string | null
+      engenheiro_id: string | null
+      ativo: boolean
+      whatsapp: string | null
+      created_at: string
+    }>('update-usuario', { method: 'POST', body }),
+
+  deleteUsuario: (body: { id: string }) =>
+    call<{ ok: boolean; deleted: { id: string; nome: string } }>('delete-usuario', {
+      method: 'POST',
+      body
+    }),
 
   createObra: (body: {
     nome: string

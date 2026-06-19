@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -9,6 +9,8 @@ import { DataTable } from '@/components/data-table/DataTable'
 import { useUsuarios } from '@/features/gerencial/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import { NewUsuarioDialog } from '@/features/gerencial/modals/NewUsuarioDialog'
+import { EditUsuarioDialog } from '@/features/gerencial/modals/EditUsuarioDialog'
+import { DeleteUsuarioDialog } from '@/features/gerencial/modals/DeleteUsuarioDialog'
 import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Role } from '@/types/auth'
@@ -33,14 +35,25 @@ function estaOnline(lastSeen: string | null | undefined): boolean {
 
 export function UsuariosPage(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
+  const callerId = useAuthStore((s) => s.profile?.id ?? null)
   const ehGod = role === 'god'
   // Só God vê acesso/presença; refetch periódico mantém "Online" atualizado.
   const { data: usuarios = [], isLoading, error } = useUsuarios(
     ehGod ? { refetchInterval: 45_000 } : undefined
   )
   const [openNew, setOpenNew] = useState(false)
+  const [editTarget, setEditTarget] = useState<UsuarioComEmpresa | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<UsuarioComEmpresa | null>(null)
 
   const podeAcessar = role === 'god' || role === 'adm' || role === 'engenheiro'
+  // Edição/exclusão: só God e Adm.
+  const podeGerenciar = role === 'god' || role === 'adm'
+
+  /** Adm não mexe em God; ninguém se exclui. */
+  const podeEditarLinha = (u: UsuarioComEmpresa): boolean =>
+    podeGerenciar && !(role === 'adm' && u.role === 'god')
+  const podeExcluirLinha = (u: UsuarioComEmpresa): boolean =>
+    podeEditarLinha(u) && u.id !== callerId
 
   const columns = useMemo<ColumnDef<UsuarioComEmpresa, unknown>[]>(
     () => [
@@ -49,12 +62,6 @@ export function UsuariosPage(): ReactNode {
         header: 'Nome',
         cell: (info) => <span className="text-text font-medium">{String(info.getValue())}</span>,
         meta: { label: 'Nome' }
-      },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: (info) => <span className="font-mono text-text-muted">{String(info.getValue())}</span>,
-        meta: { label: 'Email' }
       },
       {
         accessorKey: 'role',
@@ -155,9 +162,54 @@ export function UsuariosPage(): ReactNode {
         ),
         meta: { label: 'Criado em' },
         size: 110
-      }
+      },
+      ...(podeGerenciar
+        ? ([
+            {
+              id: 'acoes',
+              header: '',
+              size: 90,
+              enableSorting: false,
+              cell: ({ row }) => {
+                const u = row.original
+                return (
+                  <div className="flex items-center justify-end gap-1">
+                    {podeEditarLinha(u) ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Editar"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditTarget(u)
+                        }}
+                      >
+                        <Pencil size={13} />
+                      </Button>
+                    ) : null}
+                    {podeExcluirLinha(u) ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Excluir"
+                        className="text-danger hover:text-danger hover:bg-danger/10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeleteTarget(u)
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </Button>
+                    ) : null}
+                  </div>
+                )
+              },
+              meta: { label: '' }
+            }
+          ] as ColumnDef<UsuarioComEmpresa, unknown>[])
+        : [])
     ],
-    [ehGod]
+    [ehGod, podeGerenciar, role, callerId]
   )
 
   if (!podeAcessar) {
@@ -219,12 +271,22 @@ export function UsuariosPage(): ReactNode {
           data={usuarios}
           columns={columns}
           loading={isLoading}
-          globalSearchPlaceholder="Buscar por nome ou email…"
+          globalSearchPlaceholder="Buscar por nome…"
           emptyMessage="Nenhum usuário encontrado"
         />
       )}
 
       <NewUsuarioDialog open={openNew} onOpenChange={setOpenNew} />
+      <EditUsuarioDialog
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        usuario={editTarget}
+      />
+      <DeleteUsuarioDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        usuario={deleteTarget}
+      />
     </div>
   )
 }

@@ -26,11 +26,13 @@ import { createPortal } from 'react-dom'
 import { Trash2 } from 'lucide-react'
 import {
   useCalcularCronograma,
+  useCpuSnapshots,
   useEquipes,
   usePlanejamentoAtivo,
   usePlanejamentos,
   useTarefas
 } from '@/features/planejamento/hooks'
+import { expandirRecursosPorTarefa } from '@/features/planejamento/lib/histograma-recursos'
 import { useCalendario, useExcecoes, useFatoresMes } from '@/features/planejamento/hooks/calendario'
 import { useCpmEngine } from '@/features/planejamento/hooks/cpm-reactive'
 import {
@@ -60,6 +62,7 @@ import { NewPlanejamentoDialog } from '@/features/planejamento/modals/NewPlaneja
 import { PromoverBaselineDialog } from '@/features/planejamento/modals/PromoverBaselineDialog'
 import { NewTarefaDialog } from '@/features/planejamento/modals/NewTarefaDialog'
 import { ImportMsProjectDialog } from '@/features/planejamento/modals/ImportMsProjectDialog'
+import { ExportarMsProjectDialog } from './ExportarMsProjectDialog'
 import { exportarCronogramaXml } from '@/features/planejamento/hooks/msproject'
 import type { PlanejamentoDependencia } from '@/types/planejamento'
 import { AddDependenciaDialog } from '@/features/planejamento/modals/AddDependenciaDialog'
@@ -135,6 +138,7 @@ export function CronogramaShell({
   const [promoverOpen, setPromoverOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [importMspOpen, setImportMspOpen] = useState(false)
+  const [exportMspOpen, setExportMspOpen] = useState(false)
   const [exportandoMsp, setExportandoMsp] = useState(false)
   const [cols] = useState<GridColumnConfig[]>(() => loadGridColumns())
 
@@ -199,9 +203,29 @@ export function CronogramaShell({
   const updDep = useUpdateDependencia()
   const confirm = useConfirm()
 
+  // Snapshots das composições das tarefas-folha — alimentam a exportação com
+  // recursos (mesmo caminho do Histograma planejado).
+  const snapshotIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          tarefas
+            .filter((t) => t.tipo_no === 'tarefa' && !t.is_indireto && t.cpu_snapshot_id)
+            .map((t) => t.cpu_snapshot_id as string)
+        )
+      ),
+    [tarefas]
+  )
+  const { data: snapshots } = useCpuSnapshots(snapshotIds)
+  const recursosInfo = useMemo(
+    () => expandirRecursosPorTarefa(tarefas, snapshots ?? new Map()),
+    [tarefas, snapshots]
+  )
+
   // Exporta o cronograma atual para MS Project XML. Dependências derivadas das
-  // predecessoras já presentes em cada tarefa (view v10).
-  const handleExportarMsProject = async (): Promise<void> => {
+  // predecessoras já presentes em cada tarefa (view v10). `incluirRecursos`
+  // embute Recursos/Atribuições p/ reproduzir o histograma no Project.
+  const handleExportarMsProject = async (incluirRecursos: boolean): Promise<void> => {
     if (!planSelecionado || tarefas.length === 0) {
       toast.error('Nada para exportar neste plano.')
       return
@@ -224,10 +248,13 @@ export function CronogramaShell({
         filenameBase: `Cronograma ${obraNome} ${planSelecionado.nome}`,
         tarefas,
         dependencias,
-        bitmask: calendario?.dias_uteis_bitmask
+        bitmask: calendario?.dias_uteis_bitmask,
+        snapshotsById: incluirRecursos ? snapshots : undefined
       })
-      if (res.ok) toast.success('Cronograma exportado para MS Project.')
-      else if (!res.canceled) toast.error(res.error ?? 'Falha ao exportar.')
+      if (res.ok) {
+        toast.success('Cronograma exportado para MS Project.')
+        setExportMspOpen(false)
+      } else if (!res.canceled) toast.error(res.error ?? 'Falha ao exportar.')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Falha ao exportar.')
     } finally {
@@ -1178,7 +1205,7 @@ export function CronogramaShell({
         onBaseline={() => setPromoverOpen(true)}
         podeEditar={!readOnly}
         isBaseline={planSelecionado?.is_baseline ?? false}
-        onExportarMsProject={() => void handleExportarMsProject()}
+        onExportarMsProject={() => setExportMspOpen(true)}
         exportandoMsProject={exportandoMsp}
         onImportarMsProject={() => setImportMspOpen(true)}
       />
@@ -1482,6 +1509,14 @@ export function CronogramaShell({
         )}
 
       {/* Dialogs existentes do app */}
+      <ExportarMsProjectDialog
+        open={exportMspOpen}
+        onOpenChange={setExportMspOpen}
+        onConfirm={(incluirRecursos) => void handleExportarMsProject(incluirRecursos)}
+        exportando={exportandoMsp}
+        recursosCount={recursosInfo.recursos.length}
+        tarefasSemComposicao={recursosInfo.tarefasIgnoradas}
+      />
       <ImportMsProjectDialog
         open={importMspOpen}
         onOpenChange={setImportMspOpen}

@@ -30,7 +30,15 @@ type Body = {
   role?: Role
   empresa_id?: string | null
   engenheiro_id?: string | null
+  whatsapp?: string | null
   password?: string
+}
+
+/** Mantém só dígitos; string vazia vira null. */
+function normWhatsapp(v: string | null | undefined): string | null {
+  if (v == null) return null
+  const d = v.replace(/\D/g, '')
+  return d.length === 0 ? null : d
 }
 
 Deno.serve(async (req) => {
@@ -144,9 +152,10 @@ Deno.serve(async (req) => {
       role,
       empresa_id: empresaId,
       engenheiro_id: role === 'apoio' ? engenheiroId : null,
+      whatsapp: normWhatsapp(body.whatsapp),
       ativo: true
     })
-    .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, created_at')
+    .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, whatsapp, created_at')
     .single()
 
   if (profileErr) {

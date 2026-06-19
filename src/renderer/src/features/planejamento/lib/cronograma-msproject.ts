@@ -18,7 +18,9 @@ import type {
   PlanejamentoDependencia,
   PlanejamentoTarefaCompleta
 } from '@/types/planejamento'
+import type { CpuSnapshot } from '@/types/orcamento'
 import { buildTaskTree } from './eap'
+import { expandirRecursosPorTarefa } from './histograma-recursos'
 
 const HORAS_DIA = 8
 
@@ -82,6 +84,11 @@ export interface BuildMsProjectInput {
   dependencias: PlanejamentoDependencia[]
   /** bitmask de dias úteis (bit0=seg..bit6=dom). Default 31 (seg-sex). */
   bitmask?: number
+  /**
+   * cpu_snapshot por id. Quando presente, emite <Resources>/<Assignments> p/ que
+   * o gráfico de recursos do Project reproduza o Histograma planejado.
+   */
+  snapshotsById?: Map<string, CpuSnapshot>
 }
 
 function calendarioXml(bitmask: number): string {
@@ -214,27 +221,123 @@ export function buildMsProjectXml(input: BuildMsProjectInput): string {
             })
             .join('')
 
+      // Ordem dos elementos conforme o esquema MSPDI (mspdi_pj12.xsd). Manter a
+      // sequência canônica é essencial p/ que campos como ConstraintType sejam
+      // aceitos (fora de ordem, o Project os descarta).
+      //
+      // Datas: tarefas-folha/marco saem como DURAÇÃO FIXA (Type=1) e NÃO
+      // effort-driven, p/ que o Project não recalcule a duração a partir do
+      // Trabalho dos recursos; e com restrição "Não iniciar antes de" (SNET=4) na
+      // data planejada, p/ ancorar o início (sem isso o Project agenda ASAP e puxa
+      // tudo p/ o começo do projeto). SNET é flexível → sem diálogo de conflito.
+      const isLeaf = !isSummary
       return [
         '<Task>',
         `<UID>${uid}</UID>`,
         `<ID>${uid}</ID>`,
         `<Name>${xmlEsc(nomeTarefa(t))}</Name>`,
-        `<OutlineLevel>${outlineLevel}</OutlineLevel>`,
+        isLeaf ? '<Type>1</Type>' : '', // 1 = Duração Fixa
         `<WBS>${xmlEsc(t.codigo_eap ?? String(uid))}</WBS>`,
         `<OutlineNumber>${xmlEsc(t.codigo_eap ?? String(uid))}</OutlineNumber>`,
-        `<Summary>${isSummary ? 1 : 0}</Summary>`,
-        `<Milestone>${isMarco ? 1 : 0}</Milestone>`,
-        '<PercentComplete>0</PercentComplete>',
+        `<OutlineLevel>${outlineLevel}</OutlineLevel>`,
         start ? `<Start>${start}</Start>` : '',
         finish ? `<Finish>${finish}</Finish>` : '',
-        isSummary ? '' : `<Duration>${durIso(isMarco ? 0 : t.duracao_dias_uteis_calc)}</Duration>`,
-        isSummary ? '' : '<DurationFormat>7</DurationFormat>',
+        isLeaf ? `<Duration>${durIso(isMarco ? 0 : t.duracao_dias_uteis_calc)}</Duration>` : '',
+        isLeaf ? '<DurationFormat>7</DurationFormat>' : '',
+        isLeaf ? '<EffortDriven>0</EffortDriven>' : '',
+        `<Milestone>${isMarco ? 1 : 0}</Milestone>`,
+        `<Summary>${isSummary ? 1 : 0}</Summary>`,
+        '<PercentComplete>0</PercentComplete>',
+        isLeaf && start ? `<ConstraintType>4</ConstraintType>` : '', // 4 = Não iniciar antes de
+        isLeaf && start ? `<ConstraintDate>${start}</ConstraintDate>` : '',
         preds,
         ext.join(''),
         '</Task>'
       ].join('')
     })
     .join('')
+
+  // ─── Recursos e atribuições (opcional) ──────────────────────────────────
+  // Quando há snapshots, expandimos as composições em recursos individuais e
+  // atribuições por tarefa-folha. O MS Project espalha cada total (Work em horas
+  // p/ Trabalho; quantidade p/ Material) pela duração da tarefa, reproduzindo o
+  // Histograma planejado. A ordem dos elementos no MSPDI é rígida (fora de ordem
+  // = descartado): Resource = UID,ID,Name,Type,IsNull,MaterialLabel,MaxUnits;
+  // Assignment = UID,TaskUID,ResourceUID,FixedMaterial,Units,Work.
+  let resourcesXml = ''
+  let assignmentsXml = ''
+  if (input.snapshotsById && input.snapshotsById.size > 0) {
+    const { recursos, assignments } = expandirRecursosPorTarefa(input.tarefas, input.snapshotsById)
+
+    const resUidById = new Map<string, number>()
+    recursos.forEach((r, i) => resUidById.set(r.recurso_id, i + 1))
+
+    // MaxUnits folgado = pico de unidades em paralelo do recurso (mín. 1), p/
+    // evitar superalocação em vermelho no Project.
+    const maxUnitsById = new Map<string, number>()
+    for (const a of assignments) {
+      if (a.type !== 1) continue
+      maxUnitsById.set(a.recurso_id, Math.max(maxUnitsById.get(a.recurso_id) ?? 0, a.units))
+    }
+
+    if (recursos.length > 0) {
+      const recXml = recursos
+        .map((r, i) => {
+          const uid = i + 1
+          const parts = [
+            '<Resource>',
+            `<UID>${uid}</UID>`,
+            `<ID>${uid}</ID>`,
+            `<Name>${xmlEsc(r.nome)}</Name>`,
+            `<Type>${r.type}</Type>`,
+            '<IsNull>0</IsNull>'
+          ]
+          if (r.type === 0) {
+            parts.push(`<MaterialLabel>${xmlEsc(materialLabel(r.materialLabel))}</MaterialLabel>`)
+          } else {
+            const max = Math.max(1, Math.ceil(maxUnitsById.get(r.recurso_id) ?? 1))
+            parts.push(`<MaxUnits>${max}</MaxUnits>`)
+          }
+          parts.push('</Resource>')
+          return parts.join('')
+        })
+        .join('')
+      resourcesXml = `<Resources>${recXml}</Resources>`
+
+      let aUid = 0
+      const assXml = assignments
+        .map((a) => {
+          const taskUid = uidById.get(a.tarefaId)
+          const resUid = resUidById.get(a.recurso_id)
+          if (!taskUid || !resUid) return ''
+          if (isSummaryId.has(a.tarefaId)) return '' // defensivo: só folhas
+          aUid++
+          const parts = [
+            '<Assignment>',
+            `<UID>${aUid}</UID>`,
+            `<TaskUID>${taskUid}</TaskUID>`,
+            `<ResourceUID>${resUid}</ResourceUID>`
+          ]
+          if (a.type === 0) {
+            // Material: consumo rateado pela duração (FixedMaterial=0) → barras
+            // semanais. No MSPDI o "Work" de material é o nº de unidades consumidas
+            // codificado no formato de duração (a unidade vem do MaterialLabel).
+            const qtd = Math.max(0, Math.round(a.quantidade ?? 0))
+            parts.push('<FixedMaterial>0</FixedMaterial>')
+            parts.push(`<Units>${roundNum(a.units)}</Units>`)
+            parts.push(`<Work>PT${qtd}H0M0S</Work>`)
+          } else {
+            // Trabalho: tripulação em paralelo (Units) e esforço total em horas.
+            parts.push(`<Units>${roundNum(a.units)}</Units>`)
+            parts.push(`<Work>PT${Math.max(0, Math.round(a.workHoras ?? 0))}H0M0S</Work>`)
+          }
+          parts.push('</Assignment>')
+          return parts.join('')
+        })
+        .join('')
+      assignmentsXml = `<Assignments>${assXml}</Assignments>`
+    }
+  }
 
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -245,11 +348,64 @@ export function buildMsProjectXml(input: BuildMsProjectInput): string {
     (projStart ? `<StartDate>${projStart}</StartDate>` : '') +
     (projStart ? `<CurrentDate>${projStart}</CurrentDate>` : '') +
     '<CalendarUID>1</CalendarUID>' +
-    '<DefaultTaskType>0</DefaultTaskType>' +
+    // Com recursos, fixamos a DURAÇÃO (tipo 1) p/ que o Project não recalcule as
+    // datas a partir de Trabalho/Unidades ao abrir — o cronograma do app manda.
+    `<DefaultTaskType>${assignmentsXml ? 1 : 0}</DefaultTaskType>` +
     '<DurationFormat>7</DurationFormat>' +
     extAttrDefsXml() +
     calendarioXml(bitmask) +
     `<Tasks>${tasksXml}</Tasks>` +
+    resourcesXml +
+    assignmentsXml +
     '</Project>'
   )
+}
+
+/** Número com até 4 casas (units fracionários de material/trabalho). */
+function roundNum(v: number): number {
+  return Math.round(v * 10000) / 10000
+}
+
+// Unidades de tempo/duração reservadas do MS Project — não podem ser usadas como
+// rótulo de material. Inclui os tokens pt-BR (min/h/d/sem/mês/ano) E os de inglês
+// (m=min, w=week, mo=month, y=year), pois o Project reconhece ambos: "M"/"m"
+// (metro) colide com "minuto". O próprio Project sugere acrescentar um ponto
+// (ex.: "min." em vez de "min").
+const UNIDADES_RESERVADAS = new Set([
+  'min',
+  'minuto',
+  'minutos',
+  'm',
+  'h',
+  'hr',
+  'hrs',
+  'hora',
+  'horas',
+  'd',
+  'dia',
+  'dias',
+  'w',
+  'sem',
+  'semana',
+  'semanas',
+  'mo',
+  'mes',
+  'mês',
+  'meses',
+  'y',
+  'ano',
+  'anos'
+])
+
+/**
+ * Saneia o rótulo de material para o MS Project: remove colchetes e separadores
+ * de lista, evita unidades de tempo reservadas (acrescenta ponto), limita a 32
+ * caracteres e cai em "un" se vazio.
+ */
+function materialLabel(unidade: string | undefined): string {
+  let s = (unidade ?? '').replace(/[[\],;]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (UNIDADES_RESERVADAS.has(s.toLowerCase())) s = `${s}.`
+  if (!s) s = 'un'
+  if (s.length > 32) s = s.slice(0, 32)
+  return s
 }

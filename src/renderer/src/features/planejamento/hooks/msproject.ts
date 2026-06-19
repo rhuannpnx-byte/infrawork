@@ -14,6 +14,7 @@ import type {
   PlanejamentoDependencia,
   PlanejamentoTarefaCompleta
 } from '@/types/planejamento'
+import type { CpuSnapshot } from '@/types/orcamento'
 import { buildMsProjectXml } from '../lib/cronograma-msproject'
 
 function notReady(): never {
@@ -27,6 +28,8 @@ export interface ExportarCronogramaInput {
   tarefas: PlanejamentoTarefaCompleta[]
   dependencias: PlanejamentoDependencia[]
   bitmask?: number
+  /** Quando presente, embute recursos/atribuições (histograma) no XML. */
+  snapshotsById?: Map<string, CpuSnapshot>
 }
 
 export async function exportarCronogramaXml(
@@ -36,7 +39,8 @@ export async function exportarCronogramaXml(
     projectName: input.projectName,
     tarefas: input.tarefas,
     dependencias: input.dependencias,
-    bitmask: input.bitmask
+    bitmask: input.bitmask,
+    snapshotsById: input.snapshotsById
   })
   return window.infrawork.cronograma.exportXml({ xml, filenameBase: input.filenameBase })
 }

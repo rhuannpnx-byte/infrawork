@@ -290,15 +290,56 @@ export interface CpuSnapshotPayloadCpuItem {
   preco_vigente: number | null
 }
 
-export interface CpuSnapshotPayload {
+/**
+ * Uma CPU dentro de um snapshot AGREGADOR: cpu_items crus + o fator/operacao do
+ * vínculo servico_cpu_link. O `fator` NÃO está embutido nos `itens` — é aplicado
+ * só ao custo agregado (e, no histograma físico, só ao MATERIAL).
+ */
+export interface CpuSnapshotPayloadCpuUnidade {
   cpu: {
+    id: string
+    servico_id: string
+    versao: number
+    custo_unit_calc?: number
+    producao_diaria_qtde: number
+    producao_diaria_unidade: string
+    servico?: { codigo: string; nome: string; unidade: string | null } | null
+  }
+  fator: number
+  operacao: ServicoCpuOperacao
+  ordem: number
+  observacao: string | null
+  contribuicao_custo?: number
+  itens: CpuSnapshotPayloadCpuItem[]
+}
+
+/**
+ * Payload do cpu_snapshot. Dois formatos discriminados por `modo`:
+ *  - 'legado' (ou ausente): 1 CPU única → usa `cpu` + `itens`.
+ *  - 'agregador': N CPUs com fator → usa `servico` + `cpus[]` (itens crus por CPU).
+ * Campos de ambos os formatos ficam opcionais para conviverem no mesmo tipo.
+ */
+export interface CpuSnapshotPayload {
+  modo?: 'legado' | 'agregador'
+  // ── Formato legado ──
+  cpu?: {
     id: string
     servico_id: string
     versao: number
     producao_diaria_qtde: number
     producao_diaria_unidade: string
   }
-  itens: CpuSnapshotPayloadCpuItem[]
+  itens?: CpuSnapshotPayloadCpuItem[]
+  // ── Formato agregador ──
+  servico?: {
+    id: string
+    codigo: string
+    nome: string
+    unidade: string | null
+    producao_diaria_qtde: number | null
+    producao_diaria_unidade: string | null
+  }
+  cpus?: CpuSnapshotPayloadCpuUnidade[]
   snapshot_em: string
 }
 
