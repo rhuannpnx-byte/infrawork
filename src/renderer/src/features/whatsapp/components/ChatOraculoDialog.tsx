@@ -13,6 +13,8 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   acesso: WhatsAppOraculoAcesso | null
+  /** false quando a sessão do WhatsApp não está conectada (envio indisponível). */
+  podeEnviar?: boolean
 }
 
 function StatusIcon({ status }: { status: OraculoChatItem['status'] }): ReactNode {
@@ -21,7 +23,7 @@ function StatusIcon({ status }: { status: OraculoChatItem['status'] }): ReactNod
   return <Clock size={11} className="text-text-dim" />
 }
 
-export function ChatOraculoDialog({ open, onOpenChange, acesso }: Props): ReactNode {
+export function ChatOraculoDialog({ open, onOpenChange, acesso, podeEnviar = true }: Props): ReactNode {
   const userId = acesso?.user_id ?? null
   const { data: itens = [], isLoading } = useOraculoHistorico(open ? userId : null)
   const enviar = useEnviarOraculoMensagem()
@@ -37,7 +39,7 @@ export function ChatOraculoDialog({ open, onOpenChange, acesso }: Props): ReactN
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     const t = texto.trim()
-    if (!t || !userId) return
+    if (!t || !userId || !podeEnviar) return
     setTexto('')
     try {
       await enviar.mutateAsync({ user_id: userId, texto: t })
@@ -48,6 +50,12 @@ export function ChatOraculoDialog({ open, onOpenChange, acesso }: Props): ReactN
   }
 
   const semWpp = !acesso?.usuario?.whatsapp
+  const bloqueado = semWpp || !podeEnviar
+  const placeholder = semWpp
+    ? 'Usuário sem WhatsApp cadastrado'
+    : !podeEnviar
+      ? 'Sessão do WhatsApp desconectada'
+      : 'Escreva uma mensagem…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="md">
@@ -111,11 +119,16 @@ export function ChatOraculoDialog({ open, onOpenChange, acesso }: Props): ReactN
         <Input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder={semWpp ? 'Usuário sem WhatsApp cadastrado' : 'Escreva uma mensagem…'}
-          disabled={semWpp || enviar.isPending}
+          placeholder={placeholder}
+          disabled={bloqueado || enviar.isPending}
           autoFocus
         />
-        <Button type="submit" variant="default" size="icon" disabled={semWpp || !texto.trim() || enviar.isPending}>
+        <Button
+          type="submit"
+          variant="default"
+          size="icon"
+          disabled={bloqueado || !texto.trim() || enviar.isPending}
+        >
           <Send size={14} />
         </Button>
       </form>

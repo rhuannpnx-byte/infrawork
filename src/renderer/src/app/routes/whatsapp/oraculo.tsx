@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/data-table/DataTable'
 import {
+  useSessao,
   useOraculoAcessos,
   useAtualizarOraculoAcesso,
   useRemoverOraculoAcesso
@@ -27,11 +28,15 @@ export function WhatsAppOraculoPage(): ReactNode {
 }
 
 function OraculoInner(): ReactNode {
+  const { data: sessao } = useSessao()
   const { data: acessos = [], isLoading } = useOraculoAcessos()
   const atualizar = useAtualizarOraculoAcesso()
   const remover = useRemoverOraculoAcesso()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [chatTarget, setChatTarget] = useState<WhatsAppOraculoAcesso | null>(null)
+
+  // Sem sessão conectada, mensagens enviadas pela UI nunca chegam — bloqueia o chat.
+  const sessaoConectada = sessao?.status === 'conectado'
 
   const jaHabilitados = useMemo(() => new Set(acessos.map((a) => a.user_id)), [acessos])
 
@@ -117,11 +122,16 @@ function OraculoInner(): ReactNode {
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={!sessaoConectada}
                 onClick={(e) => {
                   e.stopPropagation()
                   setChatTarget(a)
                 }}
-                title="Abrir conversa"
+                title={
+                  sessaoConectada
+                    ? 'Abrir conversa'
+                    : 'Sessão do WhatsApp desconectada — conecte para conversar'
+                }
               >
                 <MessageCircle size={12} /> Chat
               </Button>
@@ -156,7 +166,7 @@ function OraculoInner(): ReactNode {
         meta: { label: '' }
       }
     ],
-    [atualizar.isPending, remover.isPending, onToggle, onRemover]
+    [atualizar.isPending, remover.isPending, onToggle, onRemover, sessaoConectada]
   )
 
   return (
@@ -209,6 +219,7 @@ function OraculoInner(): ReactNode {
         open={!!chatTarget}
         onOpenChange={(o) => !o && setChatTarget(null)}
         acesso={chatTarget}
+        podeEnviar={sessaoConectada}
       />
     </div>
   )
