@@ -99,9 +99,14 @@ export async function atenderDM(
   const profile = await identificarRemetente(senderPn || jid)
   if (!profile) return // número não habilitado → ignora em silêncio (sem vazamento)
 
-  // Responde no JID de TELEFONE (senderPn) quando disponível — mais confiável que
-  // enviar para @lid (evita "error in ack"). A conversa segue indexada por `jid`.
-  const replyJid = senderPn || jid
+  // Responde SEMPRE no mesmo JID em que a mensagem chegou (`jid`). Para DMs com o
+  // novo endereçamento do WhatsApp esse é o @lid — e é nessa identidade que o
+  // aparelho do usuário estabeleceu a sessão Signal. Responder no PN
+  // (senderPn, @s.whatsapp.net) usa OUTRA sessão libsignal: a 1ª mensagem até
+  // passa, mas os ratchets das duas sessões divergem e as seguintes chegam como
+  // "mensagem de versão anterior" indecifrável (o aparelho reinicia a sessão a
+  // cada msg). `senderPn` serve apenas para identificar o usuário, nunca para enviar.
+  const replyJid = jid
 
   // marca como lida (comportamento humano) só para quem atendemos
   if (msgKey) await marcarLido(sock, msgKey)

@@ -86,8 +86,8 @@ function SessaoInner(): ReactNode {
             <Loader2 size={14} className="animate-spin" /> Carregando…
           </div>
         ) : (
-          <div className="max-w-xl space-y-4">
-            <div className="rounded border border-border bg-bg-panel px-4 py-3 flex items-center gap-3">
+          <div className="w-full space-y-4">
+            <div className="w-full rounded border border-border bg-bg-panel px-4 py-3 flex items-center gap-3">
               <Smartphone size={18} className="text-accent shrink-0" />
               <div className="flex-1">
                 <div className="text-xs text-text font-medium">
@@ -104,7 +104,7 @@ function SessaoInner(): ReactNode {
             </div>
 
             {status === 'erro' && sessao?.ultimo_erro ? (
-              <div className="rounded border border-danger/40 bg-danger/10 px-4 py-3 text-xs font-mono text-danger whitespace-pre-wrap">
+              <div className="w-full rounded border border-danger/40 bg-danger/10 px-4 py-3 text-xs font-mono text-danger whitespace-pre-wrap">
                 {sessao.ultimo_erro}
               </div>
             ) : null}

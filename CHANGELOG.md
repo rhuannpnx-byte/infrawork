@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.20] - 2026-06-20
+
+### Corrigido
+
+- **WhatsApp / Oráculo** — respostas paravam de chegar após a primeira mensagem (apareciam como "mensagem de versão anterior do WhatsApp"). O agente respondia no número (PN) enquanto o aparelho do usuário mantinha a sessão Signal no endereço `@lid`, abrindo uma segunda sessão cujo ratchet divergia. Agora o Oráculo responde sempre no mesmo endereço de origem e o chat operador→usuário envia pelo `remetente_jid` da conversa.
+- **WhatsApp / agente** — endurecimento da persistência da sessão Baileys: chaves Signal gravadas de forma imediata e serializada (sem debounce) e o estado de autenticação reusado entre reconexões, evitando rebobinar o ratchet e quebrar a decriptação.
+
+### Alterado
+
+- **WhatsApp / UI** — subpages **Sessão** e **Backfill** deixam de ficar num filete à esquerda: agora alinhadas ao topo e ocupando toda a largura, no mesmo padrão de Grupos e Oráculo.
+
 ## [0.1.0] - 2026-05-24
 
 Primeira release beta distribuída. Pipeline de auto-update via GitHub Releases ativo.

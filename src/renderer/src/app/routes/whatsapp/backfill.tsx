@@ -62,15 +62,16 @@ function BackfillInner(): ReactNode {
         title="WhatsApp — Backfill"
         subtitle="Processa o histórico de um grupo monitorado."
       />
-      <div className="flex-1 overflow-auto p-5 space-y-4 max-w-3xl">
-        {monitorados.length === 0 ? (
+      {monitorados.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="history"
             title="Nenhum grupo monitorado"
             description="Marque grupos para monitorar e vincule a uma obra na aba Grupos antes de rodar o backfill."
           />
-        ) : (
-          <>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-auto p-5 space-y-4">
             <div className="rounded border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-2xs flex items-start gap-2 font-mono text-text-muted">
               <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
               <span>
@@ -149,9 +150,8 @@ function BackfillInner(): ReactNode {
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
-      </div>
     </div>
   )
 }

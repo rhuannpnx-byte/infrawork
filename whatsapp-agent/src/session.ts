@@ -8,7 +8,7 @@ import makeWASocket, {
   type WASocket
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
-import { useSupabaseAuthState } from './authState.js'
+import { useSupabaseAuthState, type SupabaseAuthState } from './authState.js'
 import { supabase } from './supabase.js'
 import { logger } from './logger.js'
 import { config } from './config.js'
@@ -23,6 +23,11 @@ export class Session {
   private parar = false
   private attach: AttachHandlers
   private tentativasReconexao = 0
+  // Auth state carregado UMA vez e reusado entre reconexões. A memória é sempre
+  // a fonte mais avançada do ratchet Signal; recarregar do banco a cada
+  // reconexão rebobinaria a sessão e quebraria a decriptação (mensagens "de
+  // versão anterior"). Só é descartado em logout (creds invalidadas).
+  private auth: SupabaseAuthState | null = null
 
   constructor(sessaoId: string, attach: AttachHandlers) {
     this.sessaoId = sessaoId
@@ -39,7 +44,8 @@ export class Session {
 
   async start(): Promise<void> {
     this.parar = false
-    const { state, saveCreds } = await useSupabaseAuthState(this.sessaoId)
+    if (!this.auth) this.auth = await useSupabaseAuthState(this.sessaoId)
+    const { state, saveCreds } = this.auth
     const { version } = await fetchLatestBaileysVersion()
 
     const sock = makeWASocket({
@@ -91,9 +97,11 @@ export class Session {
         const deslogado = code === DisconnectReason.loggedOut
         logger.warn({ code, deslogado }, 'conexão fechada')
         if (deslogado) {
-          // sessão invalidada: limpa creds e marca desconectado (exige novo QR)
+          // sessão invalidada: limpa creds e marca desconectado (exige novo QR).
+          // Descarta o auth em memória para o próximo start recarregar do zero.
           void this.setStatus({ status: 'desconectado', creds: null, qr_code: null })
           this.sock = null
+          this.auth = null
         } else if (!this.parar) {
           // Backoff exponencial (5s → 60s) para não martelar a reconexão, o que
           // o WhatsApp interpreta como comportamento de bot.
@@ -119,6 +127,7 @@ export class Session {
       logger.warn({ err: e }, 'erro ao fazer logout')
     }
     this.sock = null
+    this.auth = null
     await this.setStatus({ status: 'desconectado', creds: null, qr_code: null })
   }
 

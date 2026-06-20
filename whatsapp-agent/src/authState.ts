@@ -1,7 +1,14 @@
 // Estado de autenticação do Baileys persistido na coluna
 // `whatsapp_sessao.creds` (jsonb). Mantém creds + keys em memória e grava o
-// blob completo (serializado via BufferJSON) de forma debounced. Assim a sessão
-// sobrevive a reinícios do container e troca de host.
+// blob completo (serializado via BufferJSON). Assim a sessão sobrevive a
+// reinícios do container e troca de host.
+//
+// IMPORTANTE (Signal/libsignal): a persistência das chaves NÃO pode ser
+// debounced. Cada `keys.set` avança o ratchet da sessão; se a escrita atrasar e
+// houver uma reconexão (que recarrega o estado do banco), o ratchet rebobina e
+// o destinatário passa a receber mensagens "de versão anterior" que não
+// decifram. Por isso `set` aguarda a gravação, com as escritas serializadas em
+// fila para não se sobreporem nem se perderem.
 
 import { initAuthCreds, BufferJSON, proto } from '@whiskeysockets/baileys'
 import type { AuthenticationCreds, AuthenticationState } from '@whiskeysockets/baileys'
@@ -34,7 +41,8 @@ export async function useSupabaseAuthState(sessaoId: string): Promise<SupabaseAu
   const creds: AuthenticationCreds = stored?.creds ?? initAuthCreds()
   const keys: KeyStore = stored?.keys ?? {}
 
-  let timer: ReturnType<typeof setTimeout> | null = null
+  // Grava o estado atual completo. Captura `creds`/`keys` no momento da execução,
+  // então uma gravação enfileirada já inclui todas as mudanças acumuladas.
   const persist = async (): Promise<void> => {
     const serialized = JSON.parse(JSON.stringify({ creds, keys }, BufferJSON.replacer))
     const { error } = await supabase
@@ -43,11 +51,13 @@ export async function useSupabaseAuthState(sessaoId: string): Promise<SupabaseAu
       .eq('id', sessaoId)
     if (error) logger.error({ error }, 'falha ao persistir creds')
   }
-  const persistDebounced = (): void => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => {
-      void persist()
-    }, 400)
+
+  // Serializa as gravações: nunca há duas escritas concorrentes na mesma linha,
+  // e quem chama aguarda até sua escrita (e as anteriores) concluírem.
+  let chain: Promise<void> = Promise.resolve()
+  const persistQueued = (): Promise<void> => {
+    chain = chain.then(persist, persist)
+    return chain
   }
 
   const state: AuthenticationState = {
@@ -77,10 +87,12 @@ export async function useSupabaseAuthState(sessaoId: string): Promise<SupabaseAu
             else keys[type][id] = value
           }
         }
-        persistDebounced()
+        // Aguarda a gravação: o ratchet precisa estar durável antes de o Baileys
+        // seguir para a próxima mensagem.
+        await persistQueued()
       }
     }
   }
 
-  return { state, saveCreds: persist }
+  return { state, saveCreds: persistQueued }
 }
