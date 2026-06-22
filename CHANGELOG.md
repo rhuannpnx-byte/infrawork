@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.21] - 2026-06-22
+
+### Corrigido
+
+- **Orçamento / Serviços** — o modal "Promover CPUs órfãs em serviços" estourava a tela quando havia muitas CPUs. Agora a tabela tem altura fixa com rolagem interna e cabeçalho fixo, mantendo header e ações sempre visíveis (padrão dos demais modais).
+
 ## [0.3.20] - 2026-06-20
 
 ### Corrigido

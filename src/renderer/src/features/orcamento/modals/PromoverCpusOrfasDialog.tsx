@@ -121,9 +121,9 @@ export function PromoverCpusOrfasDialog({ open, onOpenChange, obraId }: Props): 
               com vínculo <code>fator = 1</code>. Você pode ajustar fator/agregar mais CPUs depois
               pela página Serviços.
             </p>
-            <div className="rounded border border-border overflow-hidden">
+            <div className="rounded border border-border overflow-auto max-h-[55vh]">
               <table className="w-full text-xs font-mono">
-                <thead className="bg-bg-elevated text-text-dim text-2xs uppercase">
+                <thead className="bg-bg-elevated text-text-dim text-2xs uppercase sticky top-0 z-10">
                   <tr>
                     <th className="w-8 px-2 py-1.5 text-center">
                       <button
