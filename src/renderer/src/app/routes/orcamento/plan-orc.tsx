@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus, RefreshCw, Package, RefreshCcw, FileUp, Trash2, X } from 'lucide-react'
+import { Plus, RefreshCw, Package, RefreshCcw, FileUp, Trash2, X, Sparkles } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +21,7 @@ import { PlanOrcTree } from '@/features/orcamento/components/PlanOrcTree'
 import { ItemDetailPanel } from '@/features/orcamento/components/ItemDetailPanel'
 import { NewItemOrcamentarioDialog } from '@/features/orcamento/modals/NewItemOrcamentarioDialog'
 import { AgruparComoServicoDialog } from '@/features/orcamento/modals/AgruparComoServicoDialog'
+import { AgenteAgrupamentoDialog } from '@/features/orcamento/modals/AgenteAgrupamentoDialog'
 import { MoveItemDialog } from '@/features/orcamento/modals/MoveItemDialog'
 import { ImportPlanOrcDialog } from '@/features/orcamento/modals/ImportPlanOrcDialog'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
@@ -52,6 +53,7 @@ function PlanilhaOrcamentaria(): ReactNode {
   const [newParent, setNewParent] = useState<string | null>(null)
   const [newTipoInicial, setNewTipoInicial] = useState<'etapa' | 'receita'>('receita')
   const [agruparOpen, setAgruparOpen] = useState(false)
+  const [agenteOpen, setAgenteOpen] = useState(false)
   const [moverItem, setMoverItem] = useState<ItemTreeNode | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   /** IDs de receitas selecionadas (para agrupar). */
@@ -59,9 +61,10 @@ function PlanilhaOrcamentaria(): ReactNode {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [hidratado, setHidratado] = useState(false)
 
-  if (!hidratado && plan?.tree && plan.tree.length > 0) {
+  // Planilha vem TOTALMENTE expandida por default (todos os níveis, não só as raízes).
+  if (!hidratado && plan?.flat && plan.flat.length > 0) {
     setHidratado(true)
-    setExpandedIds(new Set(plan.tree.map((n) => n.id)))
+    setExpandedIds(new Set(plan.flat.map((n) => n.id)))
   }
 
   const podeEditar = role === 'god' || role === 'adm' || role === 'engenheiro'
@@ -281,6 +284,11 @@ function PlanilhaOrcamentaria(): ReactNode {
               >
                 <RefreshCw size={11} /> {recalc.isPending ? 'Recalculando…' : 'Recalcular'}
               </Button>
+              {role === 'god' ? (
+                <Button variant="secondary" size="sm" onClick={() => setAgenteOpen(true)}>
+                  <Sparkles size={11} /> Agente de agrupamento
+                </Button>
+              ) : null}
               <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
                 <FileUp size={11} /> Importar planilha
               </Button>
@@ -390,6 +398,7 @@ function PlanilhaOrcamentaria(): ReactNode {
         obraId={obraId}
         receitas={receitasSelecionadas}
       />
+      <AgenteAgrupamentoDialog open={agenteOpen} onOpenChange={setAgenteOpen} obraId={obraId} />
       <MoveItemDialog
         open={moverItem !== null}
         onOpenChange={(o) => {

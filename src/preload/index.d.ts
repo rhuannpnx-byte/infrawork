@@ -172,6 +172,20 @@ export interface TabelaXlsxPayload {
   servicos: TabelaExportServico[]
 }
 
+export interface DocumentacaoArquivoVarrido {
+  path: string
+  nome: string
+  tamanho: number
+  mtime: number
+  online_only: boolean
+}
+
+export interface DocumentacaoVarreduraResult {
+  arquivos: DocumentacaoArquivoVarrido[]
+  total: number
+  online_only: number
+}
+
 interface InfraworkAPI {
   platform: NodeJS.Platform
   window: {
@@ -200,6 +214,16 @@ interface InfraworkAPI {
     parseCpuExcel: (params: {
       path: string
     }) => Promise<{ ok: true; result: OrcamentoParseCpuResult } | { ok: false; error: string }>
+    lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
+  }
+  documentacao: {
+    escolherPasta: () => Promise<{ canceled: boolean; path?: string }>
+    varrerPasta: (
+      path: string
+    ) => Promise<
+      | { ok: true; result: DocumentacaoVarreduraResult }
+      | { ok: false; error: string }
+    >
     lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
   }
   medicao: {

@@ -8,7 +8,7 @@ interface DialogProps {
   onOpenChange: (open: boolean) => void
   children: ReactNode
   className?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   /**
    * Quando true, bloqueia ESC e click-outside. Use durante operações em andamento
    * pra não perder o form preenchido por engano.
@@ -22,10 +22,12 @@ interface DialogProps {
 }
 
 const SIZES = {
-  sm: 'max-w-md',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl'
+  sm: 'w-full max-w-md',
+  md: 'w-full max-w-lg',
+  lg: 'w-full max-w-2xl',
+  xl: 'w-full max-w-4xl',
+  // Quase tela cheia, em coluna — para layouts ricos (workbench de painéis).
+  full: 'w-[96vw] max-w-none h-[92vh] flex flex-col overflow-hidden'
 }
 
 export function Dialog({
@@ -75,7 +77,7 @@ export function Dialog({
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative w-full mx-4 rounded-md border border-border-strong bg-bg-panel shadow-2xl animate-slide-up',
+          'relative mx-4 rounded-md border border-border-strong bg-bg-panel shadow-2xl animate-slide-up',
           SIZES[size],
           className
         )}
@@ -98,16 +100,20 @@ export function Dialog({
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>): ReactNode {
-  return (
-    <div className={cn('px-4 py-3 border-b border-border', className)} {...props} />
-  )
+  return <div className={cn('px-4 py-3 border-b border-border', className)} {...props} />
 }
 
-export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>): ReactNode {
+export function DialogTitle({
+  className,
+  ...props
+}: HTMLAttributes<HTMLHeadingElement>): ReactNode {
   return <h2 className={cn('text-md font-semibold text-text', className)} {...props} />
 }
 
-export function DialogDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>): ReactNode {
+export function DialogDescription({
+  className,
+  ...props
+}: HTMLAttributes<HTMLParagraphElement>): ReactNode {
   return <p className={cn('text-xs text-text-muted mt-0.5', className)} {...props} />
 }
 
@@ -118,7 +124,10 @@ export function DialogBody({ className, ...props }: HTMLAttributes<HTMLDivElemen
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>): ReactNode {
   return (
     <div
-      className={cn('flex items-center justify-end gap-2 px-4 py-3 border-t border-border', className)}
+      className={cn(
+        'flex items-center justify-end gap-2 px-4 py-3 border-t border-border',
+        className
+      )}
       {...props}
     />
   )

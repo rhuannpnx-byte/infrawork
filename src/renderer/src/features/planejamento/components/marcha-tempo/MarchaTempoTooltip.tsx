@@ -3,11 +3,7 @@
 // frente. Port do design Claude Design.
 
 import type { ReactNode } from 'react'
-import {
-  fmtDataBR,
-  fmtQtdCompact,
-  formatMarcadorCurto
-} from '@/features/planejamento/lib/marcha-tempo-pure'
+import { fmtDataBR, fmtQtdCompact } from '@/features/planejamento/lib/marcha-tempo-pure'
 import { formatMarcador } from '@/lib/format/posicao'
 import type { ObraTrecho } from '@/types/gerencial'
 import type { TracoTarefa } from '@/types/planejamento'
@@ -102,7 +98,7 @@ export function MarchaTempoTooltip({
         />
         <Row
           k="Trecho"
-          v={`${formatMarcadorCurto(traco.posIniM)} → ${formatMarcadorCurto(traco.posFimM)}`}
+          v={`${formatMarcador(traco.posIniM, trecho)} → ${formatMarcador(traco.posFimM, trecho)}`}
         />
         <Row
           k="Extensão"

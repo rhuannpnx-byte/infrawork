@@ -140,7 +140,18 @@ export function CronogramaShell({
   const [importMspOpen, setImportMspOpen] = useState(false)
   const [exportMspOpen, setExportMspOpen] = useState(false)
   const [exportandoMsp, setExportandoMsp] = useState(false)
-  const [cols] = useState<GridColumnConfig[]>(() => loadGridColumns())
+  const [cols, setCols] = useState<GridColumnConfig[]>(() => loadGridColumns())
+  // Resize de coluna: clampa em [minWidth, maxWidth]; a persistência é o effect
+  // que observa `cols` (saveGridColumns). Atualiza ao vivo durante o arraste.
+  const onColResize = useCallback((key: GridColumnConfig['key'], width: number) => {
+    setCols((prev) =>
+      prev.map((c) =>
+        c.key === key
+          ? { ...c, width: Math.max(c.minWidth, Math.min(c.maxWidth, Math.round(width))) }
+          : c
+      )
+    )
+  }, [])
 
   // Popovers — anchorRect + tarefaId
   const [trechoPopover, setTrechoPopover] = useState<{ tarefaId: string; rect: DOMRect } | null>(
@@ -676,29 +687,32 @@ export function CronogramaShell({
   const gridScrollRef = useRef<HTMLDivElement>(null)
   const ganttScrollRef = useRef<HTMLDivElement>(null)
 
-  // ─── Sync vertical Grid ↔ GanttPane (imperativo, sem state) ─────────────
+  // ─── Sync vertical: GanttPane é a ÚNICA barra vertical (master) ──────────
+  // O Grid não tem scroll vertical próprio (overflow-y-hidden) e apenas SEGUE o
+  // gantt via scrollTop programático. Fluxo one-way = sem feedback loop = sem
+  // drift (o sync bidirecional por eventos ocasionalmente dropava um delta e
+  // dessincronizava). A roda do mouse sobre o Grid é encaminhada ao gantt
+  // (onWheel no wrapper do Grid, abaixo).
   useEffect(() => {
     const grid = gridScrollRef.current
     const gantt = ganttScrollRef.current
     if (!grid || !gantt) return
-    let lock = false
-    const sync = (from: HTMLElement, to: HTMLElement) => (): void => {
-      if (lock) {
-        lock = false
-        return
-      }
-      if (from.scrollTop === to.scrollTop) return
-      lock = true
-      to.scrollTop = from.scrollTop
+    const follow = (): void => {
+      if (Math.abs(grid.scrollTop - gantt.scrollTop) >= 1) grid.scrollTop = gantt.scrollTop
     }
-    const onGrid = sync(grid, gantt)
-    const onGantt = sync(gantt, grid)
-    grid.addEventListener('scroll', onGrid, { passive: true })
-    gantt.addEventListener('scroll', onGantt, { passive: true })
-    return () => {
-      grid.removeEventListener('scroll', onGrid)
-      gantt.removeEventListener('scroll', onGantt)
-    }
+    gantt.addEventListener('scroll', follow, { passive: true })
+    follow() // posição inicial
+    return () => gantt.removeEventListener('scroll', follow)
+  }, [])
+
+  // Encaminha a rolagem vertical feita sobre o Grid para o gantt (master).
+  // deltaX (scroll horizontal) continua no scroll-x próprio do Grid. Sem
+  // preventDefault (o wrapper é passivo e o container externo é overflow-hidden,
+  // então não há scroll-ancestral pra "vazar").
+  const onGridWheel = useCallback((e: React.WheelEvent): void => {
+    const gantt = ganttScrollRef.current
+    if (!gantt || e.deltaY === 0) return
+    gantt.scrollTop += e.deltaY
   }, [])
 
   // ─── Bounds da timeline ────────────────────────────────────────────────
@@ -1225,8 +1239,13 @@ export function CronogramaShell({
       />
 
       <div className="flex-1 overflow-hidden relative flex min-h-0">
-        {/* Painel esquerdo: Grid de 15 colunas */}
-        <div className="shrink-0 flex flex-col bg-bg-panel" style={{ width: splitWidth }}>
+        {/* Painel esquerdo: Grid de 15 colunas. Sem barra vertical própria —
+            a roda do mouse é encaminhada ao gantt (única barra vertical). */}
+        <div
+          className="shrink-0 flex flex-col bg-bg-panel"
+          style={{ width: splitWidth }}
+          onWheel={onGridWheel}
+        >
           <Grid
             flat={flat}
             cols={cols}
@@ -1243,6 +1262,7 @@ export function CronogramaShell({
             onToggleExpand={onToggleExpand}
             onDragRowStart={onDragRowStart}
             onContextMenu={onContextMenu}
+            onColResize={onColResize}
             scrollRef={gridScrollRef}
           />
         </div>

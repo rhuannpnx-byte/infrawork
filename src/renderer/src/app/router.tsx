@@ -46,6 +46,12 @@ import { AcompanhamentoFotosPage } from '@/app/routes/acompanhamento/fotos'
 import { AcompanhamentoEquipesPage } from '@/app/routes/acompanhamento/equipes'
 import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/comparativo'
 import { AcompanhamentoAlertasPage } from '@/app/routes/acompanhamento/alertas'
+import { DocumentacaoIndex } from '@/app/routes/documentacao'
+import { DocumentacaoContratosPage } from '@/app/routes/documentacao/contratos'
+import { DocumentacaoContratoDetailPage } from '@/app/routes/documentacao/contrato-detail'
+import { DocumentacaoRepositorioPage } from '@/app/routes/documentacao/repositorio'
+import { DocumentacaoIngestaoPage } from '@/app/routes/documentacao/ingestao'
+import { DocumentacaoBuscaPage } from '@/app/routes/documentacao/busca'
 import { WhatsAppSessaoPage } from '@/app/routes/whatsapp'
 import { WhatsAppGruposPage } from '@/app/routes/whatsapp/grupos'
 import { WhatsAppBackfillPage } from '@/app/routes/whatsapp/backfill'
@@ -282,6 +288,45 @@ function buildRouteTree() {
     })
   ])
 
+  // ─── Documentação Oficial ────────────────────────────────────────────────
+  const documentacaoLayout = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'documentacao',
+    component: () => <Outlet />
+  })
+  const documentacaoTree = documentacaoLayout.addChildren([
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: '/',
+      component: DocumentacaoIndex
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'contratos',
+      component: DocumentacaoContratosPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'contratos/$id',
+      component: DocumentacaoContratoDetailPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'repositorio',
+      component: DocumentacaoRepositorioPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'ingestao',
+      component: DocumentacaoIngestaoPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'busca',
+      component: DocumentacaoBuscaPage
+    })
+  ])
+
   // ─── WhatsApp (god/adm) ──────────────────────────────────────────────────
   const whatsappLayout = createRoute({
     getParentRoute: () => rootRoute,
@@ -314,6 +359,7 @@ function buildRouteTree() {
     orcamentoTree,
     planejamentoTree,
     acompanhamentoTree,
+    documentacaoTree,
     whatsappTree
   ])
 }

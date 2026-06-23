@@ -95,8 +95,7 @@ export const adminApi = {
     empresa_id?: string
     /** Unidade do primeiro trecho 'Principal' criado junto com a obra. Default 'km'. */
     unidade_espaco_padrao?: 'km' | 'm' | 'estaca'
-  }) =>
-    call<{ id: string; nome: string; codigo: string }>('create-obra', { method: 'POST', body }),
+  }) => call<{ id: string; nome: string; codigo: string }>('create-obra', { method: 'POST', body }),
 
   grantObraPermissao: (body: { obra_id: string; user_id: string }) =>
     call<{ id: string; obra_id: string; user_id: string }>('grant-obra-permissao', {
@@ -134,6 +133,14 @@ export const adminApi = {
       custo_total_novo: number
       diff_perc: number
     }>('atualizar-itens-para-cpu-vigente', { method: 'POST', body }),
+
+  // ─── Agente de Agrupamento (IA) — assíncrono: devolve job_id ──────────
+  sugerirAgrupamento: (body: {
+    obra_id: string
+    instrucoes?: string
+    plano_atual?: import('@renderer/types/agrupamento').GrupoSugerido[]
+    historico_chat?: import('@renderer/types/agrupamento').MensagemChat[]
+  }) => call<{ job_id: string }>('sugerir-agrupamento', { method: 'POST', body }),
 
   // ─── Orçamento Fase 3 ─────────────────────────────────────────────────
   criarRevisaoOrcamento: (body: { obra_id: string; rotulo?: string; observacao?: string }) =>
@@ -384,7 +391,12 @@ export const adminApi = {
     page?: number
     page_size?: number
     with_urls?: boolean
-    url_transform?: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' }
+    url_transform?: {
+      width?: number
+      height?: number
+      quality?: number
+      resize?: 'cover' | 'contain' | 'fill'
+    }
   }) =>
     call<import('@renderer/types/acompanhamento').FotosListarResposta>(
       'acompanhamento-fotos-listar',
@@ -393,7 +405,12 @@ export const adminApi = {
 
   acompanhamentoFotoSignedUrlsBatch: (body: {
     foto_ids: string[]
-    transform?: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' }
+    transform?: {
+      width?: number
+      height?: number
+      quality?: number
+      resize?: 'cover' | 'contain' | 'fill'
+    }
   }) =>
     call<{
       ok: boolean
@@ -413,5 +430,34 @@ export const adminApi = {
     call<import('@renderer/types/acompanhamento').DashboardResumoResposta>(
       'acompanhamento-dashboard-resumo',
       { method: 'POST', body }
-    )
+    ),
+
+  // ─── Documentação Oficial (IA — extração de entidades do contrato) ────────
+  extrairContrato: (body: { obra_id: string; arquivo_url: string; mime: string; nome: string }) =>
+    call<import('@renderer/types/documentacao').ExtrairContratoResposta>(
+      'documentacao-extrair-contrato',
+      { method: 'POST', body }
+    ),
+
+  // ─── Documentação Oficial (IA — classificação, embeddings, agente) ────────
+  classificarDocumento: (body: {
+    obra_id: string
+    arquivo_url: string
+    mime: string
+    nome: string
+    pasta?: string
+  }) =>
+    call<import('@renderer/types/documentacao').ClassificarResposta>('documentacao-classificar', {
+      method: 'POST',
+      body
+    }),
+
+  gerarEmbeddings: (body: { documento_id: string; texto?: string }) =>
+    call<{ ok: boolean; chunks: number }>('documentacao-embeddings', { method: 'POST', body }),
+
+  perguntarDocumento: (body: { obra_id: string; pergunta: string; match_count?: number }) =>
+    call<import('@renderer/types/documentacao').PerguntarResposta>('documentacao-perguntar', {
+      method: 'POST',
+      body
+    })
 }

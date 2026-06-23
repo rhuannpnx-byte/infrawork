@@ -284,7 +284,9 @@ function filtrarPorZoom<T extends { posicaoM: number }>(
   if (todos.length <= 2) return todos
 
   // Distancia em metros entre dois marcadores consecutivos (assumindo grid uniforme).
-  const passoMetros = todos.length > 1 ? todos[1].posicaoM - todos[0].posicaoM : 0
+  // |abs|: trechos invertidos geram posicaoM decrescente (passo negativo) — sem o
+  // abs a decimação seria pulada e TODOS os rótulos apareceriam empilhados.
+  const passoMetros = todos.length > 1 ? Math.abs(todos[1].posicaoM - todos[0].posicaoM) : 0
   if (passoMetros <= 0) return todos
 
   const metrosPorPixel =

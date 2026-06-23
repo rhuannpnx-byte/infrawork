@@ -45,14 +45,20 @@ Data de hoje: ${hoje} (use para interpretar "ontem", "esta semana", etc.).
 Troca de obra: o usuário PODE pedir dados de outra obra a qualquer momento (por nome ou código, ex.: "e na Anel Viário?", "muda pra 6.502"). Quando isso acontecer, chame a ferramenta *mudar_obra* ANTES de responder e então responda sobre a nova obra. NUNCA responda com dados de uma obra diferente da ativa sem antes trocar. Para reabrir a lista de obras, oriente a digitar *obras*.
 Outras obras que este usuário pode acessar: ${listaOutras}.
 
-Responda em pt-BR, curto e objetivo (é uma mensagem de WhatsApp). Use *asteriscos* para negrito e "• " para listas.
+Responda em pt-BR, curto e objetivo (é uma mensagem de WhatsApp). Para negrito use UM ÚNICO asterisco de cada lado (*assim*) — NUNCA use dois (**assim** não funciona no WhatsApp). Use "• " para listas.
 Baseie-se SOMENTE no contexto/dados retornados pelas ferramentas. NUNCA invente números. Se não houver registro, diga que não há.
 
 Ferramentas:
 • mudar_obra — troca a obra ativa (use quando o usuário citar outra obra).
 • producao_periodo — produção apontada num período (já convertida para a unidade do InfraWork).
 • composicao_servico — composição/CPU de um serviço (produção diária, custo unitário, insumos por grupo).
-• previsto_x_realizado — andamento por serviço (avanço, atraso, risco).
+• previsto_x_realizado — planejamento da SEMANA por serviço (linha de base) + andamento/atraso/risco.
+
+Ao responder "o que está previsto para a semana" (ou quanto produzir de um serviço na semana), use SEMPRE a tool previsto_x_realizado e responda com NÚMEROS da linha de base, por serviço. NÃO decida sozinho se está atrasado ou adiantado — use SEMPRE o campo "atrasado" que a tool retorna:
+1) Sempre diga o previsto da semana pela linha de base: "segundo o cronograma, devem ser feitos *X unidade* de <serviço> nesta semana" (previsto_semana_baseline + unidade).
+2) Se atrasado=true: acrescente que, por estar atrasado, para manter o término planejado é preciso entregar *necessario_semana unidade* na semana (sempre ≥ previsto da base).
+3) Se atrasado=false: diga que está no ritmo/adiantado e que o ritmo atual sustenta o prazo; NÃO peça mais que a base. Nunca proponha número acima de qtd_restante nem de qtd_plan_total.
+4) Se atrasado=null ou previsto_semana_baseline=0: trate como não iniciado/sem previsão de base na semana (não invente números).
 • buscar_fotos — envia fotos do serviço/período pedido (as imagens vão automaticamente; só confirme o que foi enviado).
 
 Contexto atual da obra (orçamento, produção e planejamento), em JSON:
@@ -125,7 +131,6 @@ export async function atenderDM(
   const obrasById = new Map(obras.map((o) => [o.id, o]))
 
   // obra da sessão — válida só dentro da janela deslizante (expira por inatividade)
-  const sessaoExpirou = !!(conversa && conversa.estado === 'ativa' && conversa.obra_id && expirada(conversa))
   let obraSel: ObraRef | null = null
   if (conversa && conversa.estado === 'ativa' && conversa.obra_id && !expirada(conversa)) {
     obraSel = obrasById.get(conversa.obra_id) ?? null
@@ -145,8 +150,9 @@ export async function atenderDM(
 
   // ainda sem obra fixada → triagem
   if (!obraSel) {
-    // resposta a uma triagem pendente?
-    if (conversa && conversa.estado === 'triagem' && conversa.opcoes_obra) {
+    // resposta a uma triagem pendente? (só dentro da janela — uma triagem
+    // antiga já não vale: a mensagem inicia uma triagem NOVA, não é "escolha".)
+    if (conversa && conversa.estado === 'triagem' && conversa.opcoes_obra && !expirada(conversa)) {
       const escolhido = parseEscolha(texto, conversa.opcoes_obra)
       const obra = escolhido ? obrasById.get(escolhido) : undefined
       if (obra) {
@@ -162,9 +168,10 @@ export async function atenderDM(
         )
         return
       }
-      // escolha inválida → reapresenta
+      // escolha não reconhecida (ex.: saudação) → só reapresenta a triagem,
+      // sem expor "não entendi" (pode soar como erro para o usuário).
       const { texto: lista } = montarTriagem(obras)
-      await enviarTexto(sock, replyJid, `Não entendi a escolha. ${lista}`)
+      await enviarTexto(sock, replyJid, lista)
       return
     }
 
@@ -183,10 +190,8 @@ export async function atenderDM(
         estado: 'triagem',
         opcoes_obra: mapa
       })
-      const prefixo = sessaoExpirou
-        ? `Sua sessão expirou (${config.oraculoSessaoTtlMin} min sem atividade). `
-        : ''
-      await enviarTexto(sock, replyJid, prefixo + lista)
+      // Triagem direta, sem expor o conceito interno de "sessão expirou".
+      await enviarTexto(sock, replyJid, lista)
       return
     }
   }

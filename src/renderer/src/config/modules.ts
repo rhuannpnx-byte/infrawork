@@ -317,6 +317,58 @@ export const MODULES: ModuleConfig[] = [
     ]
   },
   {
+    key: 'documentacao',
+    title: 'Documentação Oficial',
+    icon: 'book-open',
+    shortcut: 'g d',
+    routePrefix: '/documentacao',
+    color: 'var(--accent)',
+    category: 'engineering',
+    // POR ENQUANTO restrito a GOD (em validação). Depois reabrir para os demais
+    // perfis internos exceto cliente: ['god','adm','engenheiro','apoio'].
+    requiredRoles: ['god'],
+    pills: [],
+    sections: [
+      {
+        title: 'OBRA',
+        items: [
+          {
+            icon: 'layout-dashboard',
+            label: 'Visão geral',
+            route: '/documentacao',
+            requiresObra: true
+          },
+          {
+            icon: 'file-text',
+            label: 'Contratos',
+            route: '/documentacao/contratos',
+            requiresObra: true
+          },
+          {
+            icon: 'folder-archive',
+            label: 'Repositório',
+            route: '/documentacao/repositorio',
+            requiresObra: true
+          },
+          {
+            icon: 'sparkles',
+            label: 'Agente (busca IA)',
+            route: '/documentacao/busca',
+            requiresObra: true
+          },
+          {
+            icon: 'upload-cloud',
+            label: 'Ingestão',
+            route: '/documentacao/ingestao',
+            requiresObra: true,
+            // Apoio é somente leitura — não ingere.
+            requiredRoles: ['god', 'adm', 'engenheiro']
+          }
+        ]
+      }
+    ]
+  },
+  {
     key: 'whatsapp',
     title: 'WhatsApp',
     icon: 'message-circle',

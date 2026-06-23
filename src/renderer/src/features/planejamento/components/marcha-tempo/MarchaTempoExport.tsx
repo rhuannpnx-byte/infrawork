@@ -23,12 +23,12 @@ import {
   detectarConflitos,
   fmtDataBR,
   fmtQtdCompact,
-  formatMarcadorCurto,
   gerarMesesGrid,
   meiaNoite,
   pathReto,
   resolverCoresColunas
 } from '@/features/planejamento/lib/marcha-tempo-pure'
+import { formatMarcadorCompacto } from '@/lib/format/posicao'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import type { EstiloSerie, MarchaTempoOpcoes, TracoTarefa } from '@/types/planejamento'
@@ -513,7 +513,7 @@ function SheetPagina({
       }
     }
     const intervalo = Number.isFinite(posLo)
-      ? `${formatMarcadorCurto(posLo)} → ${formatMarcadorCurto(posHi)}`
+      ? `${formatMarcadorCompacto(posLo, trecho)} → ${formatMarcadorCompacto(posHi, trecho)}`
       : carimboBase.intervalo
     const periodo = Number.isFinite(dataLo)
       ? `${fmtMesAno(dataLo)} → ${fmtMesAno(dataHi)}`
@@ -1237,10 +1237,10 @@ function DiagramaExport({
           return (
             <g key={`xt${i}`}>
               <text x={x} y={-9} textAnchor="middle" fontSize={8.5} fill="#374151" fontFamily="ui-monospace, monospace">
-                {formatMarcadorCurto(m)}
+                {formatMarcadorCompacto(m, trecho)}
               </text>
               <text x={x} y={innerH + 14} textAnchor="middle" fontSize={8.5} fill="#374151" fontFamily="ui-monospace, monospace">
-                {formatMarcadorCurto(m)}
+                {formatMarcadorCompacto(m, trecho)}
               </text>
             </g>
           )

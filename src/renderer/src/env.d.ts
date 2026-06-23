@@ -177,6 +177,27 @@ interface InfraworkBridge {
     }) => Promise<{ ok: true; result: OrcamentoParseCpuResult } | { ok: false; error: string }>
     lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
   }
+  documentacao: {
+    escolherPasta: () => Promise<{ canceled: boolean; path?: string }>
+    varrerPasta: (path: string) => Promise<
+      | {
+          ok: true
+          result: {
+            arquivos: Array<{
+              path: string
+              nome: string
+              tamanho: number
+              mtime: number
+              online_only: boolean
+            }>
+            total: number
+            online_only: number
+          }
+        }
+      | { ok: false; error: string }
+    >
+    lerArquivoBytes: (path: string) => Promise<{ bytes: number[]; name: string; size: number }>
+  }
   medicao: {
     exportXlsx: (payload: {
       obraNome: string

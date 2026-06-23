@@ -48,11 +48,14 @@ Regras para a GEOLOCALIZAÇÃO (muito importante):
 - Se encontrar o par lat/long, defina tem_geo_overlay=true e preencha lat e lng. Só deixe null se realmente NÃO houver números de coordenadas no carimbo (endereço/rodovia/Km sozinhos NÃO são coordenadas).
 - Se a imagem não for foto de serviço, ainda preencha os demais campos com null/false.
 
-Regra para o SERVIÇO (qualidade > quantidade — queremos só as melhores fotos):
-- Marque is_foto_servico=false para documentos, prints, recibos, fotos borradas/escuras/ruins, selfies ou qualquer coisa que não seja a execução de um serviço de obra.
-- Escolha "servico_codigo" da lista SOMENTE se a foto claramente mostra aquele serviço. Não invente códigos fora da lista.
-- Se nenhum serviço da lista corresponder com clareza, retorne servico_codigo=null.
-- A "confianca" deve ser honesta: use valores baixos quando a foto for ambígua ou a correspondência for fraca.`
+Regra para o SERVIÇO (queremos só fotos com EVIDÊNCIA REAL do serviço — na dúvida, NÃO classifique):
+- Marque is_foto_servico=false para documentos, prints, recibos, fotos borradas/escuras/ruins, selfies ou qualquer coisa que não seja contexto de obra.
+- Escolha "servico_codigo" da lista SOMENTE quando a foto mostrar EVIDÊNCIA DIRETA daquele serviço: o equipamento operando, o material sendo aplicado, ou a atividade claramente em execução. Exemplos: vibroacabadora espalhando massa asfáltica → capa/CBUQ; caminhão espargindo emulsão → pintura de ligação/imprimação; motoniveladora ou rolo sobre camada granular → base/sub-base; equipe pintando faixas → sinalização horizontal. Não invente códigos fora da lista.
+- ATENÇÃO — pista já pavimentada NÃO é evidência: uma pista/asfalto já pronto, POR SI SÓ, não comprova nenhum serviço de pavimentação. NÃO deduza CBUQ, Micro Revestimento, TSD, Capa, Recapeamento etc. apenas pela aparência do asfalto. Sem equipamento, material ou atividade visível que identifique o serviço, retorne servico_codigo=null.
+- Caminhões/veículos de apoio parados, cones, placas ou pessoas apenas em pé na pista NÃO são evidência suficiente de um serviço específico → servico_codigo=null.
+- EXCEÇÃO (sinalização horizontal): se a foto mostra SOMENTE a pista, SEM qualquer equipamento/material que permita inferir outro serviço, E há sinalização horizontal (faixas/linhas pintadas) APARENTEMENTE NOVA/recém-aplicada (tinta nítida, bordas limpas, contraste forte), então classifique como o serviço de Sinalização Horizontal da lista (se existir). Se a sinalização não parecer nova, ou não houver serviço de sinalização horizontal na lista, retorne servico_codigo=null.
+- Em qualquer outro caso sem evidência clara, retorne servico_codigo=null. É MELHOR descartar (null) do que atribuir um serviço sem evidência.
+- A "confianca" deve ser honesta e BAIXA quando a evidência for indireta ou ambígua.`
 
 function extrairJson(texto: string): unknown {
   const limpo = texto.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()

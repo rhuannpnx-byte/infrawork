@@ -44,6 +44,8 @@ interface GridProps {
   onToggleExpand: (id: string) => void
   onDragRowStart: (id: string, e: React.MouseEvent) => void
   onContextMenu: (id: string, x: number, y: number) => void
+  /** Ajusta a largura de uma coluna (arrastar a borda do header). */
+  onColResize?: (key: GridColumnConfig['key'], width: number) => void
   /** Ref do scroll container (compartilhado com sync vertical do GanttPane). */
   scrollRef: React.RefObject<HTMLDivElement | null>
 }
@@ -96,10 +98,32 @@ export function Grid({
   onToggleExpand,
   onDragRowStart,
   onContextMenu,
+  onColResize,
   scrollRef
 }: GridProps): ReactNode {
   const totalWidth = totalVisibleWidth(cols)
   const spans = useMemo(() => computeSpans(cols), [cols])
+
+  // Drag da borda do header pra redimensionar a coluna. Listeners no document
+  // pra continuar o arraste mesmo se o cursor sair da célula.
+  function startColResize(e: React.MouseEvent, c: GridColumnConfig): void {
+    if (!onColResize) return
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startW = c.width
+    const move = (ev: MouseEvent): void => onColResize(c.key, startW + (ev.clientX - startX))
+    const up = (): void => {
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   const virtualizer = useVirtualizer({
     count: flat.length,
@@ -118,7 +142,11 @@ export function Grid({
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-auto bg-bg-panel relative"
+      // overflow-y-hidden: o Grid NÃO tem barra vertical própria — ele segue o
+      // gantt (única barra vertical) via scrollTop programático. overflow-x-auto
+      // mantém o scroll horizontal das colunas. scrollTop continua settável
+      // mesmo com y-hidden (sem scrollbar, sem gesto do usuário = sem drift).
+      className="h-full overflow-x-auto overflow-y-hidden bg-bg-panel relative"
       style={{ contain: 'strict' }}
     >
       {/* Conteúdo total */}
@@ -201,7 +229,7 @@ export function Grid({
                   <div
                     key={c.key}
                     className={cn(
-                      'shrink-0 flex items-end pb-1 px-2',
+                      'group/col relative shrink-0 flex items-end pb-1 px-2',
                       !c.frozen && 'border-r border-border',
                       'text-2xs font-mono uppercase tracking-wider text-text-muted',
                       'bg-bg-panel',
@@ -211,6 +239,19 @@ export function Grid({
                     style={{ width: c.width, ...sticky }}
                   >
                     {c.label}
+                    {onColResize && (
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        onMouseDown={(e) => startColResize(e, c)}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Arraste para ajustar a largura"
+                        className={cn(
+                          'absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize z-10',
+                          'bg-transparent hover:bg-accent/40 group-hover/col:bg-border-strong/50'
+                        )}
+                      />
+                    )}
                   </div>
                 )
               })

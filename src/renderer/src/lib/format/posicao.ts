@@ -207,6 +207,34 @@ export function formatMarcador(
 }
 
 /**
+ * Versão COMPACTA do marcador real — mostra só o valor da unidade, sem offset
+ * (`km 5`, `EST 1050`, `1500 m`, `ref 12`). Sentido-aware (usa metrosToMarcador).
+ * Ideal pra rótulos de marcador no mapa e ticks do eixo do marcha-tempo, onde
+ * o offset (`+0,00`) só polui. Marcador negativo (config inválida) → ''.
+ */
+export function formatMarcadorCompacto(
+  metrosInternos: number | null | undefined,
+  trecho: TrechoCtx
+): string {
+  if (metrosInternos == null || !Number.isFinite(metrosInternos) || metrosInternos < 0) return ''
+  const marcador = metrosToMarcador(metrosInternos, trecho)
+  if (!Number.isFinite(marcador) || marcador < 0) return ''
+  const n = Number.isInteger(marcador)
+    ? String(marcador)
+    : marcador.toFixed(2).replace(/\.?0+$/, '')
+  switch (trecho.unidade_espaco_padrao) {
+    case 'km':
+      return `km ${n}`
+    case 'estaca':
+      return `EST ${n}`
+    case 'm':
+      return `${n} m`
+    case 'custom':
+      return `${trecho.unidade_custom_label?.trim() || 'ref'} ${n}`
+  }
+}
+
+/**
  * Parsea string do usuário (em marcador real) → metros internos. Considera
  * sentido + offset, e valida limites contra `geometry_comprimento_m` se
  * preenchido. Sem geometria: validação só de não-negativo.

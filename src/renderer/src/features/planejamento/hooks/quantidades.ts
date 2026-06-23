@@ -281,6 +281,7 @@ export function useCriarTemplateQuantidade(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['quantidades', 'templates', vars.trecho_id] })
+      void qc.invalidateQueries({ queryKey: ['quantidades', 'template-atual', vars.trecho_id] })
     }
   })
 }
@@ -300,6 +301,7 @@ export function useDeletarTemplateQuantidade(): ReturnType<
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['quantidades', 'templates', vars.trecho_id] })
+      void qc.invalidateQueries({ queryKey: ['quantidades', 'template-atual', vars.trecho_id] })
     }
   })
 }
@@ -442,6 +444,7 @@ export function useNovaVersao(): ReturnType<
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['quantidades', 'versoes', vars.template_id] })
       void qc.invalidateQueries({ queryKey: ['quantidades', 'templates'] })
+      void qc.invalidateQueries({ queryKey: ['quantidades', 'template-atual'] })
     }
   })
 }
@@ -470,6 +473,7 @@ export function useEditarComentarioVersaoAtual(): ReturnType<
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['quantidades', 'versoes', vars.template_id] })
       void qc.invalidateQueries({ queryKey: ['quantidades', 'versao', vars.versao_id] })
+      void qc.invalidateQueries({ queryKey: ['quantidades', 'template-atual'] })
     }
   })
 }
@@ -829,6 +833,7 @@ export function useImportarExcelQuantidades(): ReturnType<
       void qc.invalidateQueries({ queryKey: ['quantidades', 'templates'] })
       void qc.invalidateQueries({ queryKey: ['quantidades', 'versoes', vars.template_id] })
       void qc.invalidateQueries({ queryKey: ['quantidades', 'versao'] })
+      void qc.invalidateQueries({ queryKey: ['quantidades', 'template-atual'] })
     }
   })
 }
@@ -918,6 +923,7 @@ export function useEditarColunasVersaoAtual(): ReturnType<
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['quantidades', 'versao', vars.versao_id] })
       void qc.invalidateQueries({ queryKey: ['quantidades', 'templates'] })
+      void qc.invalidateQueries({ queryKey: ['quantidades', 'template-atual'] })
     }
   })
 }

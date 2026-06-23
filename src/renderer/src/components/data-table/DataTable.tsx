@@ -168,7 +168,11 @@ export function DataTable<T>({
   const cellPad = density === 'compact' ? 'px-2 py-1' : 'px-3 py-1.5'
 
   return (
-    <div className="flex flex-col h-full">
+    // `min-h-0` é essencial: sem ele o min-height:auto padrão de item flex impede
+    // a tabela de encolher abaixo da altura do conteúdo, estourando a página e
+    // empurrando o footer de paginação para fora (rolagem externa). Com min-h-0 o
+    // overflow fica contido aqui → tabela rola internamente, footer fixo.
+    <div className="flex flex-col h-full min-h-0">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-bg-panel">
         <div className="relative">

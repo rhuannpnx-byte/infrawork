@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { parseKmzOrKml, type ParsedKmlResult } from '@/lib/kml/parse'
+import { formatMarcadorCompacto, type TrechoCtx } from '@/lib/format/posicao'
 import { MapaTrecho, type MapaTrechoMarcador } from '@/features/planejamento/components/MapaTrecho'
 import { useSalvarGeometriaTrecho } from '@/features/planejamento/hooks/trechos'
 import {
@@ -86,7 +87,12 @@ export function ImportarKmlTrechoDialog({
   // ─── Estado do wizard ──────────────────────────────────────────────────
   const [step, setStep] = useState<Step>(1)
   const [parsed, setParsed] = useState<ParsedKmlResult | null>(null)
-  const [sentido, setSentido] = useState<'natural' | 'invertido'>('natural')
+  // Desacoplado: orientação GEOMÉTRICA (reverte as coords / seta do mapa) é
+  // independente da NUMERAÇÃO do estaqueamento (crescente/decrescente). A
+  // numeração vira geometry_sentido ('natural'/'invertido'); a orientação é
+  // aplicada nas coordenadas salvas.
+  const [coordsInvertidas, setCoordsInvertidas] = useState(false)
+  const [numeracao, setNumeracao] = useState<'crescente' | 'decrescente'>('crescente')
   const [unidade, setUnidade] = useState<Unidade>('km')
   const [customLabel, setCustomLabel] = useState('')
   const [customDivisor, setCustomDivisor] = useState<number>(25)
@@ -108,13 +114,15 @@ export function ImportarKmlTrechoDialog({
         comprimentoM: Number(trecho.geometry_comprimento_m),
         totalLineStrings: 1
       })
-      setSentido(trecho.geometry_sentido)
+      setNumeracao(trecho.geometry_sentido === 'invertido' ? 'decrescente' : 'crescente')
+      // Coords já estão salvas com a orientação atual; não re-reverter no edit.
+      setCoordsInvertidas(false)
       setUnidade(trecho.unidade_espaco_padrao as Unidade)
       setCustomLabel(trecho.unidade_custom_label ?? '')
       setCustomDivisor(trecho.unidade_custom_divisor_m ?? 25)
       setValorInicial(Number(trecho.marcador_valor_inicial))
       setCor(trecho.cor)
-      // Modo edicao da config: pula upload/sentido (preserva geometria intacta).
+      // Modo edicao da config: pula upload/orientação (preserva geometria intacta).
       setStep(3)
     } else if (trecho) {
       // Modo 'novo' ou 'trocar' — comeca no upload. Preserva cor/unidade atuais
@@ -124,8 +132,9 @@ export function ImportarKmlTrechoDialog({
       setCustomLabel(trecho.unidade_custom_label ?? '')
       setCustomDivisor(trecho.unidade_custom_divisor_m ?? 25)
       setValorInicial(Number(trecho.marcador_valor_inicial))
+      setNumeracao(trecho.geometry_sentido === 'invertido' ? 'decrescente' : 'crescente')
       setParsed(null)
-      setSentido('natural')
+      setCoordsInvertidas(false)
       setStep(1)
     } else {
       setStep(1)
@@ -137,34 +146,51 @@ export function ImportarKmlTrechoDialog({
   function reset(): void {
     setStep(1)
     setParsed(null)
-    setSentido('natural')
+    setCoordsInvertidas(false)
+    setNumeracao('crescente')
     setError(null)
   }
 
-  // ─── Geometria com sentido aplicado ────────────────────────────────────
+  // geometry_sentido derivado da numeração (independente da orientação geométrica).
+  const sentidoNumeracao: 'natural' | 'invertido' =
+    numeracao === 'decrescente' ? 'invertido' : 'natural'
+
+  // ─── Geometria com orientação aplicada ──────────────────────────────────
   const geometryDisplay = useMemo<GeoJSON.LineString | null>(() => {
     if (!parsed) return null
-    if (sentido === 'natural') return parsed.geometry
+    if (!coordsInvertidas) return parsed.geometry
     return {
       type: 'LineString',
       coordinates: [...parsed.geometry.coordinates].reverse()
     }
-  }, [parsed, sentido])
+  }, [parsed, coordsInvertidas])
 
   // ─── Marcadores derivados ──────────────────────────────────────────────
   const divisorM = unidade === 'custom' ? customDivisor : UNIDADE_DIVISOR[unidade]
   const labelUnidade = unidade === 'custom' ? customLabel.trim() || 'ref' : UNIDADE_LABEL[unidade]
 
+  const trechoCtx = useMemo<TrechoCtx>(
+    () => ({
+      unidade_espaco_padrao: unidade,
+      unidade_custom_label: customLabel.trim() || null,
+      unidade_custom_divisor_m: unidade === 'custom' ? customDivisor : null,
+      marcador_valor_inicial: valorInicial,
+      geometry_sentido: sentidoNumeracao,
+      geometry_comprimento_m: parsed?.comprimentoM ?? null
+    }),
+    [unidade, customLabel, customDivisor, valorInicial, sentidoNumeracao, parsed]
+  )
+
   const marcadores = useMemo<MapaTrechoMarcador[]>(() => {
     if (!parsed || divisorM <= 0) return []
     const out: MapaTrechoMarcador[] = []
     for (let pos = 0; pos <= parsed.comprimentoM; pos += divisorM) {
-      const valor = valorInicial + pos / divisorM
-      const valorFmt = Number.isInteger(valor) ? String(valor) : valor.toFixed(2)
-      out.push({ posicaoM: pos, label: `${labelUnidade} ${valorFmt}` })
+      // Sentido-aware: 'invertido' decresce a partir do valor inicial — preview
+      // bate com o que a cronograma/marcha-tempo mostram depois de salvar.
+      out.push({ posicaoM: pos, label: formatMarcadorCompacto(pos, trechoCtx) })
     }
     return out
-  }, [parsed, divisorM, valorInicial, labelUnidade])
+  }, [parsed, divisorM, trechoCtx])
 
   // ─── File handling ─────────────────────────────────────────────────────
   async function processarArquivo(file: File): Promise<void> {
@@ -173,7 +199,7 @@ export function ImportarKmlTrechoDialog({
     try {
       const r = await parseKmzOrKml(file)
       setParsed(r)
-      setSentido('natural')
+      setCoordsInvertidas(false)
       setStep(2)
     } catch (e) {
       setError((e as Error).message)
@@ -198,7 +224,7 @@ export function ImportarKmlTrechoDialog({
         geometry_geojson: geometryDisplay,
         geometry_bounds: parsed.bounds,
         geometry_comprimento_m: parsed.comprimentoM,
-        geometry_sentido: sentido,
+        geometry_sentido: sentidoNumeracao,
         geometry_importado_em: new Date().toISOString()
       })
       toast.success('Mapa do trecho salvo.')
@@ -250,10 +276,8 @@ export function ImportarKmlTrechoDialog({
             cor={cor}
             comprimentoM={parsed.comprimentoM}
             totalLineStrings={parsed.totalLineStrings}
-            sentido={sentido}
-            onInverter={() =>
-              setSentido((s) => (s === 'natural' ? 'invertido' : 'natural'))
-            }
+            coordsInvertidas={coordsInvertidas}
+            onInverter={() => setCoordsInvertidas((v) => !v)}
             onTrocarArquivo={() => setStep(1)}
           />
         ) : null}
@@ -277,6 +301,8 @@ export function ImportarKmlTrechoDialog({
             setCor={setCor}
             labelUnidade={labelUnidade}
             divisorM={divisorM}
+            numeracao={numeracao}
+            setNumeracao={setNumeracao}
           />
         ) : null}
 
@@ -286,7 +312,8 @@ export function ImportarKmlTrechoDialog({
             cor={cor}
             marcadores={marcadores}
             comprimentoM={parsed.comprimentoM}
-            sentido={sentido}
+            numeracao={numeracao}
+            coordsInvertidas={coordsInvertidas}
             labelUnidade={labelUnidade}
           />
         ) : null}
@@ -408,13 +435,15 @@ function UploadStep({
   )
 }
 
-// ─── Step 2: Sentido ─────────────────────────────────────────────────────
+// ─── Step 2: Orientação geométrica da polilinha ──────────────────────────
+// Só inverte as COORDENADAS (a seta verde→vermelho / qual ponta é o começo).
+// NÃO mexe na numeração crescente/decrescente — isso é escolhido no Passo 4.
 function SentidoStep({
   geometry,
   cor,
   comprimentoM,
   totalLineStrings,
-  sentido,
+  coordsInvertidas,
   onInverter,
   onTrocarArquivo
 }: {
@@ -422,7 +451,7 @@ function SentidoStep({
   cor: string
   comprimentoM: number
   totalLineStrings: number
-  sentido: 'natural' | 'invertido'
+  coordsInvertidas: boolean
   onInverter: () => void
   onTrocarArquivo: () => void
 }): ReactNode {
@@ -435,16 +464,17 @@ function SentidoStep({
         </div>
       ) : null}
       <div className="text-2xs text-text-dim font-mono leading-relaxed">
-        A seta animada mostra o sentido natural do arquivo (do <strong className="text-success">INÍCIO</strong>{' '}
-        verde até o <strong className="text-danger">FIM</strong> vermelho). Se está invertido em
-        relação ao estaqueamento real do trecho, clique em <em>Inverter sentido</em>.
+        A seta animada mostra a orientação da polilinha (do <strong className="text-success">INÍCIO</strong>{' '}
+        verde até o <strong className="text-danger">FIM</strong> vermelho). Inverta se o começo do
+        traçado deveria ser a outra ponta. Isso afeta só a geometria — se as estacas/km{' '}
+        <em>crescem ou decrescem</em> você define no Passo 4.
       </div>
       <MapaTrecho geometry={geometry} cor={cor} animarSeta interactive altura={400} />
       <div className="flex items-center justify-between text-2xs font-mono">
         <div className="text-text-dim">
-          Sentido atual:{' '}
+          Orientação:{' '}
           <span className="text-text">
-            {sentido === 'natural' ? 'NATURAL (do arquivo)' : 'INVERTIDO'}
+            {coordsInvertidas ? 'INVERTIDA (do arquivo)' : 'NATURAL (do arquivo)'}
           </span>{' '}
           · {geometry.coordinates.length} pontos · {(comprimentoM / 1000).toFixed(2)} km
         </div>
@@ -453,7 +483,7 @@ function SentidoStep({
             Trocar arquivo
           </Button>
           <Button variant="ghost" size="sm" onClick={onInverter}>
-            <ArrowLeftRight size={11} /> Inverter sentido
+            <ArrowLeftRight size={11} /> Inverter orientação
           </Button>
         </div>
       </div>
@@ -543,7 +573,9 @@ function ValorInicialCorStep({
   cor,
   setCor,
   labelUnidade,
-  divisorM
+  divisorM,
+  numeracao,
+  setNumeracao
 }: {
   valorInicial: number
   setValorInicial: (n: number) => void
@@ -551,10 +583,12 @@ function ValorInicialCorStep({
   setCor: (c: string) => void
   labelUnidade: string
   divisorM: number
+  numeracao: 'crescente' | 'decrescente'
+  setNumeracao: (n: 'crescente' | 'decrescente') => void
 }): ReactNode {
-  // Preview dos 4 primeiros marcadores
+  // Preview dos 4 primeiros marcadores. 'decrescente' baixa a partir do inicial.
   const preview = [0, 1, 2, 3].map((i) => {
-    const valor = valorInicial + i
+    const valor = numeracao === 'decrescente' ? valorInicial - i : valorInicial + i
     const fmt = Number.isInteger(valor) ? String(valor) : valor.toFixed(2)
     return `${labelUnidade} ${fmt}`
   })
@@ -574,6 +608,37 @@ function ValorInicialCorStep({
         <div className="text-2xs text-text-dim mt-1 font-mono leading-relaxed">
           Se o trecho começa no &quot;{labelUnidade} 5&quot;, escreva 5. Marcadores subsequentes serão
           gerados a cada {divisorM} m (= 1 unidade).
+        </div>
+      </div>
+
+      <div>
+        <Label>Numeração ao longo do trecho</Label>
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          {(['crescente', 'decrescente'] as const).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setNumeracao(opt)}
+              className={`text-left rounded border p-2.5 transition-colors ${
+                numeracao === opt
+                  ? 'border-accent bg-accent/10'
+                  : 'border-border bg-bg-panel hover:border-border-strong'
+              }`}
+            >
+              <div className="text-xs font-medium text-text">
+                {opt === 'crescente' ? 'Crescente ↑' : 'Decrescente ↓'}
+              </div>
+              <div className="text-2xs font-mono text-text-dim mt-0.5">
+                {opt === 'crescente'
+                  ? `${labelUnidade} ${valorInicial} → maior`
+                  : `${labelUnidade} ${valorInicial} → menor`}
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="text-2xs text-text-dim mt-1 font-mono leading-relaxed">
+          Define se a estaca/km aumenta ou diminui ao avançar no traçado. Independente da
+          orientação da polilinha (Passo 2).
         </div>
       </div>
 
@@ -614,14 +679,16 @@ function PreviewFinalStep({
   cor,
   marcadores,
   comprimentoM,
-  sentido,
+  numeracao,
+  coordsInvertidas,
   labelUnidade
 }: {
   geometry: GeoJSON.LineString
   cor: string
   marcadores: MapaTrechoMarcador[]
   comprimentoM: number
-  sentido: 'natural' | 'invertido'
+  numeracao: 'crescente' | 'decrescente'
+  coordsInvertidas: boolean
   labelUnidade: string
 }): ReactNode {
   return (
@@ -631,7 +698,8 @@ function PreviewFinalStep({
         <span>
           <strong className="text-text">{(comprimentoM / 1000).toFixed(2)} km</strong> ·{' '}
           <strong className="text-text">{marcadores.length}</strong> marcadores ({labelUnidade}) ·
-          sentido <strong className="text-text">{sentido}</strong>
+          numeração <strong className="text-text">{numeracao}</strong> · orientação{' '}
+          <strong className="text-text">{coordsInvertidas ? 'invertida' : 'natural'}</strong>
         </span>
       </div>
       <MapaTrecho

@@ -405,6 +405,69 @@ export function useAgruparComoServico(): ReturnType<
   })
 }
 
+// ─── Editar um servico_grupo já criado ────────────────────────────────────
+
+export interface AtualizarAgrupadorInput {
+  id: string
+  obra_id: string
+  descricao: string
+  /** Serviço de custo vinculado (CPU). Null mantém/zera o vínculo. */
+  servico_id: string | null
+  /** true quando o serviço mudou → regera o snapshot da CPU vigente. */
+  servico_mudou: boolean
+  unidade_referencia: string
+  qtd_ref_modo: QtdRefModo
+  /** Já calculada conforme o modo (manual/herança/soma) e os filhos escolhidos. */
+  quantidade_referencia: number
+  qtd_ref_filhos: string[]
+}
+
+/**
+ * Edita um agrupador (servico_grupo) existente — descrição, serviço de custo,
+ * modo de quantidade (manual/herança/soma) e quais filhos são a referência.
+ * Quando o serviço muda, zera o snapshot antigo e regera da CPU vigente do novo
+ * serviço; ao final recalcula o orçamento.
+ */
+export function useAtualizarAgrupador(): ReturnType<
+  typeof useMutation<{ id: string }, Error, AtualizarAgrupadorInput>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (b) => {
+      if (!SUPABASE_ENABLED || !supabase) notReady()
+      const patch: Record<string, unknown> = {
+        descricao: b.descricao,
+        servico_id: b.servico_id,
+        unidade_referencia: b.unidade_referencia,
+        qtd_ref_modo: b.qtd_ref_modo,
+        quantidade_referencia: b.quantidade_referencia,
+        qtd_ref_filhos: b.qtd_ref_filhos
+      }
+      // Serviço mudou: zera o snapshot antigo (era da CPU do serviço anterior).
+      if (b.servico_mudou) patch.cpu_snapshot_id = null
+      const { error } = await supabase.from('item_orcamentario').update(patch).eq('id', b.id)
+      if (error) throw error
+
+      // Regera o snapshot da CPU vigente do NOVO serviço (se houver). Erros aqui
+      // não bloqueiam — serviço sem CPU vigente fica sem custo até cadastrar.
+      if (b.servico_mudou && b.servico_id) {
+        try {
+          await adminApi.snapshotCpuNoItem({ item_id: b.id, force: true })
+        } catch {
+          /* novo serviço sem CPU vigente */
+        }
+      }
+
+      await adminApi.recalcularOrcamento({ obra_id: b.obra_id })
+      return { id: b.id }
+    },
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'plan-orc', vars.obra_id] })
+      void qc.invalidateQueries({ queryKey: ['orcamento', 'item-detalhe', vars.id] })
+    }
+  })
+}
+
 // ─── Edge Function wrappers ───────────────────────────────────────────────
 
 export function useRecalcularOrcamento(): ReturnType<

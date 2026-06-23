@@ -26,13 +26,12 @@ import type {
 } from '@/types/planejamento'
 import type { ObraTrecho } from '@/types/gerencial'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
-import { formatMarcador } from '@/lib/format/posicao'
+import { formatMarcador, formatMarcadorCompacto } from '@/lib/format/posicao'
 import {
   bandasNaoTrabalhadas,
   detectarConflitos,
   fmtDataBR,
   fmtDataLonga,
-  formatMarcadorCurto,
   gerarMesesGrid,
   meiaNoite,
   pathReto,
@@ -975,7 +974,7 @@ export function MarchaTempoPainel({
                   fontFamily="ui-monospace, monospace"
                   fill="var(--text-muted)"
                 >
-                  {formatMarcadorCurto(m)}
+                  {formatMarcadorCompacto(m, trecho)}
                 </text>
                 <line
                   x1={x}
@@ -995,7 +994,7 @@ export function MarchaTempoPainel({
                       fontFamily="ui-monospace, monospace"
                       fill="var(--text-muted)"
                     >
-                      {formatMarcadorCurto(m)}
+                      {formatMarcadorCompacto(m, trecho)}
                     </text>
                     <line
                       x1={x}
@@ -1212,7 +1211,7 @@ export function MarchaTempoPainel({
       )}
 
       {/* BandTip */}
-      {bandTip && <BandTip bandTip={bandTip} />}
+      {bandTip && <BandTip bandTip={bandTip} trecho={trecho} />}
     </div>
   )
 }
@@ -1367,9 +1366,10 @@ function Minimap({
 
 interface BandTipProps {
   bandTip: BandTipState
+  trecho: ObraTrecho
 }
 
-function BandTip({ bandTip }: BandTipProps): ReactNode {
+function BandTip({ bandTip, trecho }: BandTipProps): ReactNode {
   const pct = bandTip.colunaTotal ? Math.round((bandTip.segValor / bandTip.colunaTotal) * 100) : 0
   const style: CSSProperties = {
     position: 'fixed',
@@ -1397,7 +1397,7 @@ function BandTip({ bandTip }: BandTipProps): ReactNode {
         </span>
       </div>
       <div className="text-2xs text-text-muted mt-0.5">
-        {formatMarcadorCurto(bandTip.segIni)} → {formatMarcadorCurto(bandTip.segFim)}
+        {formatMarcadorCompacto(bandTip.segIni, trecho)} → {formatMarcadorCompacto(bandTip.segFim, trecho)}
       </div>
       <div className="text-2xs text-text-dim mt-0.5">{pct}% do total da faixa</div>
     </div>

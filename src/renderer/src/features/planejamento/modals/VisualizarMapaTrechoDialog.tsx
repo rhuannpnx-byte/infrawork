@@ -20,6 +20,11 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { MapaTrecho, type MapaTrechoMarcador } from '@/features/planejamento/components/MapaTrecho'
+import {
+  formatMarcadorCompacto,
+  divisorMetrosPorUnidade,
+  type TrechoCtx
+} from '@/lib/format/posicao'
 import { useSalvarGeometriaTrecho } from '@/features/planejamento/hooks/trechos'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import type { ObraTrecho } from '@/types/gerencial'
@@ -46,29 +51,20 @@ export function VisualizarMapaTrechoDialog({
 
   const marcadores = useMemo<MapaTrechoMarcador[]>(() => {
     if (!trecho?.geometry_geojson || !trecho.geometry_comprimento_m) return []
-    const divisorM =
-      trecho.unidade_espaco_padrao === 'km'
-        ? 1000
-        : trecho.unidade_espaco_padrao === 'estaca'
-          ? 20
-          : trecho.unidade_espaco_padrao === 'custom'
-            ? trecho.unidade_custom_divisor_m ?? 1
-            : 1
-    const label =
-      trecho.unidade_espaco_padrao === 'km'
-        ? 'km'
-        : trecho.unidade_espaco_padrao === 'estaca'
-          ? 'EST'
-          : trecho.unidade_espaco_padrao === 'custom'
-            ? trecho.unidade_custom_label || 'ref'
-            : 'm'
-    const valorInicial = Number(trecho.marcador_valor_inicial)
+    const ctx: TrechoCtx = {
+      unidade_espaco_padrao: trecho.unidade_espaco_padrao,
+      unidade_custom_label: trecho.unidade_custom_label,
+      unidade_custom_divisor_m: trecho.unidade_custom_divisor_m,
+      marcador_valor_inicial: trecho.marcador_valor_inicial,
+      geometry_sentido: trecho.geometry_sentido,
+      geometry_comprimento_m: trecho.geometry_comprimento_m
+    }
+    const divisorM = divisorMetrosPorUnidade(ctx)
     const comprimentoM = Number(trecho.geometry_comprimento_m)
     const out: MapaTrechoMarcador[] = []
     for (let pos = 0; pos <= comprimentoM; pos += divisorM) {
-      const valor = valorInicial + pos / divisorM
-      const fmt = Number.isInteger(valor) ? String(valor) : valor.toFixed(2)
-      out.push({ posicaoM: pos, label: `${label} ${fmt}` })
+      // Sentido-aware: trecho 'invertido' decresce a partir do valor inicial.
+      out.push({ posicaoM: pos, label: formatMarcadorCompacto(pos, ctx) })
     }
     return out
   }, [trecho])

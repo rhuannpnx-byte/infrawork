@@ -264,7 +264,11 @@ function parsearCpu(aba_nome: string, ws: Worksheet): ParsedCpu | null {
     servico_nome,
     servico_unidade,
     producao_diaria_qtde,
-    producao_diaria_unidade: 'DIA',
+    // A produção/dia (B6) é expressa na unidade dimensional do serviço (J3),
+    // ex.: "100 m³/dia". O campo NÃO é "DIA": o sistema (NewCpuVersionDialog)
+    // rejeita "DIA" e a promoção em serviço usa esta unidade. Fallback "DIA"
+    // só quando J3 vem vazio (CPU incompleta, a ser ajustada manualmente).
+    producao_diaria_unidade: servico_unidade ?? 'DIA',
     itens,
     incompleta,
     warnings

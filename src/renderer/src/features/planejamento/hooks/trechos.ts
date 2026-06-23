@@ -202,17 +202,24 @@ async function fetchTemplateAtual(
   if (segRes.error) throw segRes.error
 
   const segmentoIds = (segRes.data ?? []).map((s) => s.id)
-  const celRes =
-    segmentoIds.length === 0
-      ? { data: [] as Array<{ segmento_id: string; coluna_id: string; valor: number }> }
-      : await supabase
-          .from('trecho_quantidade_celula')
-          .select('segmento_id, coluna_id, valor')
-          .in('segmento_id', segmentoIds)
-  if ('error' in celRes && celRes.error) throw celRes.error
+  // Busca células em LOTES: um `.in('segmento_id', [...])` com todos os ids vira
+  // querystring gigante (trecho longo em estaca = centenas de segmentos) e a
+  // requisição estoura o limite de URL do PostgREST/gateway, derrubando o fetch
+  // inteiro (sintoma: "trecho sem template" em trechos longos). Chunk evita isso.
+  const CHUNK_SEG = 100
+  const celData: Array<{ segmento_id: string; coluna_id: string; valor: number }> = []
+  for (let i = 0; i < segmentoIds.length; i += CHUNK_SEG) {
+    const ids = segmentoIds.slice(i, i + CHUNK_SEG)
+    const { data, error } = await supabase
+      .from('trecho_quantidade_celula')
+      .select('segmento_id, coluna_id, valor')
+      .in('segmento_id', ids)
+    if (error) throw error
+    if (data) celData.push(...data)
+  }
 
   const valoresPorSeg = new Map<string, Record<string, number>>()
-  for (const c of celRes.data ?? []) {
+  for (const c of celData) {
     const r = valoresPorSeg.get(c.segmento_id) ?? {}
     r[c.coluna_id] = Number(c.valor)
     valoresPorSeg.set(c.segmento_id, r)

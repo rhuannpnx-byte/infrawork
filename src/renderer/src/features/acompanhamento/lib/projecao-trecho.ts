@@ -174,7 +174,10 @@ export function decimarPorZoom(
   centerLat: number
 ): MarcadorControle[] {
   if (todos.length <= 2) return todos
-  const passoMetros = todos[1].posicaoM - todos[0].posicaoM
+  // |passo|: trechos com sentido 'invertido' geram posicaoM decrescente, então o
+  // passo seria negativo. A decimação é por índice (funciona em qualquer ordem),
+  // só precisamos do espaçamento absoluto entre marcadores consecutivos.
+  const passoMetros = Math.abs(todos[1].posicaoM - todos[0].posicaoM)
   if (passoMetros <= 0) return todos
   const metrosPorPixel = (156543.03 * Math.cos((centerLat * Math.PI) / 180)) / Math.pow(2, zoom)
   const passoPixels = passoMetros / metrosPorPixel

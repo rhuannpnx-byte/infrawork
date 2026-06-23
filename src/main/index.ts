@@ -11,6 +11,7 @@ import { gerarMedicaoXlsx, type MedicaoExportPayload } from './export/medicao-xl
 import { gerarTabelaXlsx, type TabelaXlsxPayload } from './export/tabela-xlsx'
 import { gerarRelatorioPdf } from './export/relatorio-pdf'
 import { parseMsProjectXml } from './import/parse-msproject'
+import { scanFolder } from './ingest/scan-folder'
 
 interface WindowState {
   width: number
@@ -280,6 +281,44 @@ app.whenReady().then(() => {
         bytes: Array.from(buf),
         name: path.split(/[\\/]/).pop() ?? path,
         size: st.size
+      }
+    }
+  )
+
+  // IPC channels — Documentação Oficial / ingestão
+  ipcMain.handle(
+    'documentacao:escolher-pasta',
+    async (e): Promise<{ canceled: boolean; path?: string }> => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win) return { canceled: true }
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Selecione a pasta de documentos (local, rede ou OneDrive sincronizado)',
+        properties: ['openDirectory']
+      })
+      if (res.canceled || res.filePaths.length === 0) return { canceled: true }
+      return { canceled: false, path: res.filePaths[0] }
+    }
+  )
+
+  ipcMain.handle('documentacao:varrer-pasta', async (_e, path: string) => {
+    try {
+      const result = await scanFolder(path)
+      return { ok: true as const, result }
+    } catch (err) {
+      return { ok: false as const, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Lê os bytes do arquivo. Para placeholders OneDrive "apenas online", a própria
+  // leitura força a HIDRATAÇÃO (o OneDrive baixa o arquivo) antes de devolver.
+  ipcMain.handle(
+    'documentacao:ler-arquivo-bytes',
+    async (_e, path: string): Promise<{ bytes: number[]; name: string; size: number }> => {
+      const buf = await readFile(path)
+      return {
+        bytes: Array.from(buf),
+        name: path.split(/[\\/]/).pop() ?? path,
+        size: buf.length
       }
     }
   )
