@@ -266,16 +266,20 @@ Deno.serve(async (req) => {
     for (const row of (qtdsRpc ?? []) as Array<{ tarefa_id: string; qtd_calc: string | number }>) {
       qtdById.set(row.tarefa_id, Number(row.qtd_calc))
     }
-    // Aplica in-memory pro forward pass usar imediatamente
-    const updates: Array<{ id: string; quantidade_alocada: number }> = []
+    // Aplica in-memory pro forward pass usar imediatamente.
+    // O RPC só retorna linha pra tarefa cujo range cruza algum segmento com
+    // célula. Quando NÃO retorna (range degenerado tipo [0,0], fora do trecho,
+    // ou coluna sem quantidade naquele trecho), a qtd vinculada é genuinamente
+    // 0 → grava NULL (quantidade_alocada é `null OR > 0` por constraint), o que
+    // torna a tarefa inválida no forward pass → duração 0. ANTES isso "mantinha
+    // a qtd anterior" e uma tarefa sem cobertura ficava com quantidade fantasma
+    // de um cálculo antigo (bug: duração de N dias sem quantidade nenhuma).
+    const updates: Array<{ id: string; quantidade_alocada: number | null }> = []
     for (const t of tarefasComLink) {
       const v = qtdById.get(t.id)
-      if (v == null || !Number.isFinite(v) || v <= 0) {
-        console.warn(`[qtd-link] tarefa ${t.id}: RPC retornou ${v} (nao positivo) — mantendo qtd anterior`)
-        continue
-      }
-      t.quantidade_alocada = v
-      updates.push({ id: t.id, quantidade_alocada: v })
+      const qtd = v != null && Number.isFinite(v) && v > 0 ? v : null
+      t.quantidade_alocada = qtd
+      updates.push({ id: t.id, quantidade_alocada: qtd })
     }
     // Persiste em série pra evitar race entre triggers DEFERRED.
     const errs: string[] = []

@@ -289,10 +289,54 @@ export function CronogramaShell({
     y: number
   } | null>(null)
 
+  // qtd_link: valor ao vivo por tarefa (via template do trecho). Calculado ANTES
+  // do CPM pra alimentar a duração com a quantidade REAL — senão o motor usaria
+  // o `quantidade_alocada` persistido, que pode estar defasado (ex.: tarefa
+  // movida pra range [0,0] mantinha qtd fantasma → duração sem quantidade).
+  const trechosComLink = useMemo<string[]>(() => {
+    const s = new Set<string>()
+    for (const t of tarefas) {
+      if (t.qtd_link && t.trecho_id) s.add(t.trecho_id)
+    }
+    return Array.from(s)
+  }, [tarefas])
+  const templatesPorTrecho = useTrechosQuantidadeTemplatesAtuais(trechosComLink)
+  const qtdLinkValueById = useMemo(() => {
+    const m = new Map<string, number | null>()
+    for (const t of tarefas) {
+      if (!t.qtd_link || !t.trecho_id) continue
+      const template = templatesPorTrecho.get(t.trecho_id)
+      if (!template) continue // template ainda carregando ou trecho sem template
+      const v = computeLinkedQtd(
+        {
+          qtd_link: t.qtd_link,
+          posicao_inicio_m: t.posicao_inicio_m,
+          posicao_fim_m: t.posicao_fim_m
+        },
+        template
+      )
+      m.set(t.id, v)
+    }
+    return m
+  }, [tarefas, templatesPorTrecho])
+
+  // Tarefas com a qtd_link aplicada em quantidade_alocada (0/null = sem cobertura
+  // → tarefa inválida → duração 0). Mantém o persistido só enquanto o template
+  // ainda está carregando (valor undefined no mapa).
+  const tarefasParaCpm = useMemo<PlanejamentoTarefaCompleta[]>(() => {
+    if (qtdLinkValueById.size === 0) return tarefas
+    return tarefas.map((t) => {
+      if (!t.qtd_link) return t
+      const v = qtdLinkValueById.get(t.id)
+      if (v === undefined) return t
+      return { ...t, quantidade_alocada: v != null && v > 0 ? v : null }
+    })
+  }, [tarefas, qtdLinkValueById])
+
   // Motor CPM reativo
   const { cicloIds } = useCpmEngine({
     planejamento: planSelecionado,
-    tarefas,
+    tarefas: tarefasParaCpm,
     calendario,
     excecoes,
     fatoresMes,
@@ -393,37 +437,6 @@ export function CronogramaShell({
     flat.forEach((n, i) => m.set(n.id, i + 1))
     return m
   }, [flat])
-
-  // qtd_link: pra cada tarefa com qtd_link setado, calcula valor via template
-  // ativo do trecho. Carrega templates em paralelo (useQueries) pra TODOS os
-  // trechos que têm tarefas vinculadas — antes só carregava 1 trecho ("o mais
-  // comum") e as tarefas dos demais trechos ficavam como "—" silenciosamente.
-  const trechosComLink = useMemo<string[]>(() => {
-    const s = new Set<string>()
-    for (const t of tarefas) {
-      if (t.qtd_link && t.trecho_id) s.add(t.trecho_id)
-    }
-    return Array.from(s)
-  }, [tarefas])
-  const templatesPorTrecho = useTrechosQuantidadeTemplatesAtuais(trechosComLink)
-  const qtdLinkValueById = useMemo(() => {
-    const m = new Map<string, number | null>()
-    for (const t of tarefas) {
-      if (!t.qtd_link || !t.trecho_id) continue
-      const template = templatesPorTrecho.get(t.trecho_id)
-      if (!template) continue // template ainda carregando ou trecho sem template
-      const v = computeLinkedQtd(
-        {
-          qtd_link: t.qtd_link,
-          posicao_inicio_m: t.posicao_inicio_m,
-          posicao_fim_m: t.posicao_fim_m
-        },
-        template
-      )
-      m.set(t.id, v)
-    }
-    return m
-  }, [tarefas, templatesPorTrecho])
 
   // ─── Caminho crítico ────────────────────────────────────────────────────
   const caminhoCriticoIds = useMemo(
