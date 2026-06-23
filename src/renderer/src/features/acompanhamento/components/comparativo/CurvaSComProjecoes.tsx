@@ -159,81 +159,77 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360, ocultarProjecoe
       mediaNecessaria = qtdRestante / diasRestantesPlan
     }
 
-    // ── Monta dados do chart ──
-    const dataRowsRender: RowChart[] = rows.map((r) => ({
-      data: r.data,
-      planejado: r.plan,
-      // Realizado: só pinta até HOJE (não tenta extrapolar com último valor)
-      realizado: r.data <= hojeIso && r.real > 0 ? r.real : null,
-      proj_atual: null,
-      proj_necessaria: null
-    }))
-
-    // Garante que existe ponto exatamente para "hoje" (para projeção começar lá)
-    if (renderProjecoes) {
-      const temHoje = dataRowsRender.find((r) => r.data === hojeIso)
-      if (!temHoje) {
-        dataRowsRender.push({
-          data: hojeIso,
-          planejado: planejadoNoDia(rows, hojeIso, qtdTotal),
-          realizado: qtdRealAteHoje > 0 ? qtdRealAteHoje : null,
-          proj_atual: null,
-          proj_necessaria: null
-        })
-        dataRowsRender.sort((a, b) => a.data.localeCompare(b.data))
-      } else if (temHoje.realizado == null && qtdRealAteHoje > 0) {
-        temHoje.realizado = qtdRealAteHoje
+    // ── Monta dados do chart numa GRADE DIÁRIA uniforme ──
+    // A curva-S vem com datas esparsas (só dias com atividade). No eixo
+    // categórico do recharts cada data é uma categoria igualmente espaçada,
+    // ignorando o intervalo real entre elas. Uma projeção de média constante é
+    // uma reta no TEMPO; amostrada em categorias de espaçamento irregular ela
+    // vira uma poligonal cheia de "pinotes". Reamostrando em passo diário, o
+    // eixo fica uniforme no tempo e a projeção volta a ser uma reta.
+    const planNoDia = (iso: string): number => {
+      let last = 0
+      for (const r of rows) {
+        if (r.data <= iso) last = r.plan
+        else break
       }
+      return last
+    }
+    const realNoDia = (iso: string): number => {
+      let last = 0
+      for (const r of rows) {
+        if (r.data <= iso) { if (r.real > 0) last = r.real }
+        else break
+      }
+      return last
     }
 
-    // Projeções partem de HOJE
+    const ancoraValor = qtdRealAteHoje
+
+    // Fim do horizonte renderizado: cobre o plano e, se projetando, também a
+    // data de conclusão no ritmo atual (quando ela passa do fim do plano).
+    const ultimaPlanData = rows.length ? rows[rows.length - 1].data : hojeIso
+    const limitesData: Date[] = [new Date(ultimaPlanData + 'T00:00:00')]
+    if (renderProjecoes) {
+      if (dataFimPlan) limitesData.push(new Date(dataFimPlan + 'T00:00:00'))
+      if (mediaAtual != null && qtdTotal != null && qtdRestante != null && mediaAtual > 0) {
+        const diasParaCompletar = Math.ceil(qtdRestante / mediaAtual)
+        const dt = new Date(hojeIso + 'T00:00:00')
+        dt.setDate(dt.getDate() + diasParaCompletar)
+        limitesData.push(dt)
+      }
+    }
+    const fimRender = new Date(Math.max(...limitesData.map((d) => d.getTime())))
+
+    const dataRowsRender: RowChart[] = []
+    const cursor = new Date((rows.length ? rows[0].data : hojeIso) + 'T00:00:00')
+    while (cursor <= fimRender) {
+      const iso = cursor.toISOString().slice(0, 10)
+      const realVal = realNoDia(iso)
+      dataRowsRender.push({
+        data: iso,
+        planejado: planNoDia(iso),
+        // Realizado: só pinta até HOJE (não extrapola pra frente)
+        realizado: iso <= hojeIso && realVal > 0 ? realVal : null,
+        proj_atual: null,
+        proj_necessaria: null
+      })
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    // Projeções partem de HOJE e crescem em ritmo constante (reta no tempo).
+    // Cada uma TERMINA ao atingir 100% (último ponto = qtdTotal, depois null) —
+    // sem segmento horizontal "deitado" no topo.
     if (renderProjecoes) {
       const idxHoje = dataRowsRender.findIndex((r) => r.data === hojeIso)
       if (idxHoje >= 0) {
-        const ancoraValor = qtdRealAteHoje
         dataRowsRender[idxHoje].proj_atual = ancoraValor
         dataRowsRender[idxHoje].proj_necessaria = ancoraValor
-
-        // Calcula data até onde estender:
-        //   - sempre estende até dataFimPlan
-        //   - se média atual existir e for menor que necessária, estende até a data em que proj_atual atinge qtdTotal
-        const limitesData: Date[] = []
-        if (dataFimPlan) limitesData.push(new Date(dataFimPlan + 'T00:00:00'))
-        if (mediaAtual != null && qtdTotal != null && qtdRestante != null && mediaAtual > 0) {
-          const diasParaCompletar = Math.ceil(qtdRestante / mediaAtual)
-          const dt = new Date(hojeIso + 'T00:00:00')
-          dt.setDate(dt.getDate() + diasParaCompletar)
-          limitesData.push(dt)
-        }
-        const fimRender = limitesData.length
-          ? new Date(Math.max(...limitesData.map((d) => d.getTime())))
-          : new Date(new Date(hojeIso + 'T00:00:00').getTime() + 90 * 86_400_000)
-
-        // Adiciona linhas até fimRender
-        const ultDataExistente = dataRowsRender[dataRowsRender.length - 1].data
-        let cursor = new Date(ultDataExistente + 'T00:00:00')
-        cursor.setDate(cursor.getDate() + 1)
-        while (cursor <= fimRender) {
-          dataRowsRender.push({
-            data: cursor.toISOString().slice(0, 10),
-            planejado: planejadoNoDia(rows, cursor.toISOString().slice(0, 10), qtdTotal),
-            realizado: null,
-            proj_atual: null,
-            proj_necessaria: null
-          })
-          cursor.setDate(cursor.getDate() + 1)
-        }
-
-        // Pinta proj_atual + proj_necessaria a partir do dia seguinte ao "hoje".
-        // Cada projeção TERMINA ao atingir 100% (último ponto = qtdTotal, depois
-        // null) — sem segmento horizontal "deitado" no topo.
-        const idxHojeFinal = dataRowsRender.findIndex((r) => r.data === hojeIso)
+        const hojeTime = new Date(hojeIso + 'T00:00:00').getTime()
         let doneA = false
         let doneN = false
-        for (let i = idxHojeFinal + 1; i < dataRowsRender.length; i++) {
-          const dataAtual = dataRowsRender[i].data
+        for (let i = idxHoje + 1; i < dataRowsRender.length; i++) {
           const diasFromHoje = Math.round(
-            (new Date(dataAtual + 'T00:00:00').getTime() - new Date(hojeIso + 'T00:00:00').getTime()) / 86_400_000
+            (new Date(dataRowsRender[i].data + 'T00:00:00').getTime() - hojeTime) / 86_400_000
           )
           if (mediaAtual != null && !doneA) {
             const v = ancoraValor + mediaAtual * diasFromHoje
@@ -350,10 +346,10 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360, ocultarProjecoe
             <Area name="Planejado acumulado" type="monotone" dataKey="planejado" stroke={CHART_THEME.series[0]} strokeWidth={1.4} fill="url(#g_plan)" isAnimationActive={false} />
             <Area name="Realizado acumulado" type="monotone" dataKey="realizado" stroke={CHART_THEME.series[2]} strokeWidth={1.8} fill="url(#g_real)" connectNulls isAnimationActive={false} />
             {!ocultarProjecoes && (
-              <Line name="Projeção (média atual)" type="monotone" dataKey="proj_atual" stroke="oklch(74% 0.16 50)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+              <Line name="Projeção (média atual)" type="linear" dataKey="proj_atual" stroke="oklch(74% 0.16 50)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
             )}
             {!ocultarProjecoes && (
-              <Line name="Projeção (média necessária)" type="monotone" dataKey="proj_necessaria" stroke="oklch(74% 0.14 295)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
+              <Line name="Projeção (média necessária)" type="linear" dataKey="proj_necessaria" stroke="oklch(74% 0.14 295)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
             )}
           </ComposedChart>
         </ResponsiveContainer>
@@ -364,18 +360,6 @@ export function CurvaSComProjecoes({ pontos, item, altura = 360, ocultarProjecoe
 
 function fmtBR(s: string): string {
   return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })
-}
-
-/** Última quantidade planejada acumulada conhecida ≤ data, com fallback no total. */
-function planejadoNoDia(
-  rows: Array<{ data: string; plan: number }>,
-  iso: string,
-  qtdTotal: number | null
-): number {
-  let last = 0
-  for (const r of rows) { if (r.data <= iso) last = r.plan; else break }
-  if (last === 0 && qtdTotal != null) return qtdTotal
-  return last
 }
 
 function emptyStats(): ProjecaoStats {
