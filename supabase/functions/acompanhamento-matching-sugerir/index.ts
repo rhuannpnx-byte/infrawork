@@ -311,7 +311,11 @@ Deno.serve(async (req) => {
         if (confDesc > conf) conf = confDesc
       }
       conf = Math.min(1, conf + bonusObra)
-      if (conf >= 0.4) {
+      // Serviços do ORÇAMENTO da obra entram SEMPRE (mesmo 0% de similaridade):
+      // o usuário pode querer vincular manualmente nomes que nunca casam por
+      // similaridade (ex.: SIGA "capa" → orçamento "cbuq"). Catálogo geral (fora
+      // da obra) continua entrando só com similaridade relevante (>= 0.4).
+      if (servicosUsadosObra.has(s.id) || conf >= 0.4) {
         candidatos.push({
           id: s.id,
           nome: ioFull
@@ -328,13 +332,20 @@ Deno.serve(async (req) => {
     for (const s of servicosCad) if (!servicosUsadosObra.has(s.id)) calcMatch(s, 0)
 
     candidatos.sort((a, b) => b.confianca - a.confianca)
+    // TODOS os serviços do orçamento da obra ficam na lista (ordenados desc,
+    // inclusive 0% de similaridade) — não corta nenhum. Só o catálogo geral
+    // (fora da obra) é limitado aos 8 melhores pra não poluir. Reordena o
+    // conjunto final por confiança desc.
+    const obraCand = candidatos.filter((c) => servicosUsadosObra.has(c.id))
+    const catCand = candidatos.filter((c) => !servicosUsadosObra.has(c.id)).slice(0, 8)
+    const candidatosFinais = [...obraCand, ...catCand].sort((a, b) => b.confianca - a.confianca)
     const sigaUnid = sigaUnidadePorServico.get(sigaId) ?? { id: null, nome: null }
     sugestoesServicos.push({
       siga_id: sigaId,
       siga_nome: sigaNome,
       siga_unidade_id: sigaUnid.id,
       siga_unidade_nome: sigaUnid.nome,
-      candidatos: candidatos.slice(0, 8),
+      candidatos: candidatosFinais,
       match_atual: matchesSrvMap.get(sigaId) ?? null
     })
   }
