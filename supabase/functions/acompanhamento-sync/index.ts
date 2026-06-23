@@ -24,6 +24,7 @@ interface VinculoRow {
   siga_projeto_id: number
   ultimo_sync_em: string | null
   sincronizar_fotos: boolean
+  data_corte: string | null
 }
 
 interface SyncStats {
@@ -139,6 +140,11 @@ async function syncOneVinculo(
     if (desde && cAtualiz) {
       where.push(`(p.${cAtualiz} IS NULL OR p.${cAtualiz} >= ?)`)
       params.push(desde)
+    }
+    // Data de corte: ignora produções com data anterior à definida no vínculo.
+    if (vinculo.data_corte && cDt) {
+      where.push(`p.${cDt} >= ?`)
+      params.push(vinculo.data_corte)
     }
 
     const prodRows = await sigaQuery<Record<string, unknown>>(
@@ -257,6 +263,25 @@ async function syncOneVinculo(
         }
       } catch (e) {
         warnings.push(`Cleanup soft-delete produção: ${(e as Error).message}`)
+      }
+    }
+
+    // Cleanup data de corte: remove do cache produções com data anterior ao
+    // corte (torna o corte retroativo em obras que já tinham carga completa).
+    if (vinculo.data_corte) {
+      try {
+        const { error: corteErr, count: corteCnt } = await admin
+          .from('acompanhamento_producao')
+          .delete({ count: 'exact' })
+          .eq('obra_id', vinculo.obra_id)
+          .lt('data', vinculo.data_corte)
+        if (corteErr) {
+          warnings.push(`Cleanup data de corte produção: ${corteErr.message}`)
+        } else if (corteCnt) {
+          stats.producao_removidas += corteCnt
+        }
+      } catch (e) {
+        warnings.push(`Cleanup data de corte produção: ${(e as Error).message}`)
       }
     }
   } catch (e) {
@@ -489,7 +514,7 @@ Deno.serve(async (req) => {
 
   let q = admin
     .from('obra_acompanhamento_link')
-    .select('id, obra_id, siga_projeto_id, ultimo_sync_em, sincronizar_fotos')
+    .select('id, obra_id, siga_projeto_id, ultimo_sync_em, sincronizar_fotos, data_corte')
     .eq('ativo', true)
   if (body.obra_id) q = q.eq('obra_id', body.obra_id)
   const { data: vinculos, error: vErr } = await q

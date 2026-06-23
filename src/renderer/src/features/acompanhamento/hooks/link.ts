@@ -9,7 +9,7 @@ function notReady(): never {
 
 const LINK_COLS =
   'id, obra_id, siga_projeto_id, siga_projeto_codigo, siga_projeto_nome, ativo, ' +
-  'ultimo_sync_em, ultimo_sync_status, ultimo_sync_erro, ultimo_sync_stats, ' +
+  'ultimo_sync_em, ultimo_sync_status, ultimo_sync_erro, ultimo_sync_stats, data_corte, ' +
   'criado_por, criado_em, updated_at'
 
 export function useAcompanhamentoLink(
@@ -53,6 +53,7 @@ export interface CriarVinculoInput {
   siga_projeto_id: number
   siga_projeto_codigo: string
   siga_projeto_nome?: string
+  data_corte: string | null
 }
 
 export function useCriarVinculo(): ReturnType<
@@ -75,6 +76,7 @@ export function useCriarVinculo(): ReturnType<
             siga_projeto_id: body.siga_projeto_id,
             siga_projeto_codigo: body.siga_projeto_codigo,
             siga_projeto_nome: body.siga_projeto_nome ?? null,
+            data_corte: body.data_corte,
             ativo: true,
             ultimo_sync_status: null,
             ultimo_sync_erro: null
@@ -91,6 +93,7 @@ export function useCriarVinculo(): ReturnType<
           siga_projeto_id: body.siga_projeto_id,
           siga_projeto_codigo: body.siga_projeto_codigo,
           siga_projeto_nome: body.siga_projeto_nome ?? null,
+          data_corte: body.data_corte,
           ativo: true
         })
         .select('id')

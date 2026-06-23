@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import {
-  RefreshCw, Link2, Link2Off, AlertTriangle, Activity, Camera,
+  RefreshCw, Link2, AlertTriangle, Activity, Camera,
   Gauge, Users, TrendingUp, BarChart3, X, ChevronDown, Search, Check
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -18,9 +18,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import {
   useAcompanhamentoLink,
-  useSyncManual,
-  useDesvincular,
-  useReativarVinculo
+  useSyncManual
 } from '@/features/acompanhamento/hooks'
 import { useDashboardResumo, useProducoesDashboard } from '@/features/acompanhamento/hooks/dashboard'
 import { useFotosGeo } from '@/features/acompanhamento/hooks/fotos'
@@ -40,7 +38,6 @@ import { PrevistoRealizadoPainel } from '@/features/acompanhamento/components/da
 import { AderenciaServicos } from '@/features/acompanhamento/components/dashboard/AderenciaServicos'
 import { PorEncarregado } from '@/features/acompanhamento/components/dashboard/PorEncarregado'
 import { SYNC_STATUS_LABEL } from '@/types/acompanhamento'
-import { useConfirm } from '@/components/modals/ConfirmDialog'
 
 export function AcompanhamentoIndex(): ReactNode {
   // O Cliente não vê o Dashboard (KPIs + valor agregado). A landing do módulo
@@ -114,9 +111,6 @@ function DashboardAcompanhamento(): ReactNode {
     [mostrarSeqMapa, fotosGeo, prodsDash]
   )
   const sync = useSyncManual()
-  const desvincular = useDesvincular()
-  const reativar = useReativarVinculo()
-  const confirm = useConfirm()
 
   const servicoSelecionado = servicoItemId
     ? (resumo?.previsto_realizado ?? []).find((p) => p.item_orcamentario_id === servicoItemId)
@@ -212,35 +206,14 @@ function DashboardAcompanhamento(): ReactNode {
                 {sincronizando ? 'Sincronizando…' : 'Sincronizar'}
               </Button>
             )}
-            {podeVincular && link.ativo && (
+            {podeVincular && (
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: 'Desvincular obra do SIGA?',
-                    description: 'O histórico de produção e fotos será mantido. Você pode reativar depois sem perder dados.',
-                    confirmLabel: 'Desvincular',
-                    variant: 'warn'
-                  })
-                  if (!ok) return
-                  await desvincular.mutateAsync({ id: link.id, obra_id: obraId })
-                  toast.success('Vínculo desativado.')
-                }}
+                onClick={() => navigate({ to: '/acompanhamento/vincular' })}
+                title="Gerenciar vínculo, data de corte e reativação na página de Vínculo SIGA"
               >
-                <Link2Off size={11} /> Desvincular
-              </Button>
-            )}
-            {podeVincular && !link.ativo && (
-              <Button
-                size="sm"
-                variant="default"
-                onClick={async () => {
-                  await reativar.mutateAsync({ id: link.id, obra_id: obraId })
-                  toast.success('Vínculo reativado.')
-                }}
-              >
-                <Link2 size={11} /> Reativar
+                <Link2 size={11} /> Vínculo SIGA
               </Button>
             )}
           </div>

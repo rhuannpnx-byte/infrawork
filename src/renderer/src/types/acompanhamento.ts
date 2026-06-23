@@ -24,6 +24,7 @@ export interface ObraAcompanhamentoLink {
   ultimo_sync_status: SyncStatus | null
   ultimo_sync_erro: string | null
   ultimo_sync_stats: SyncStats | null
+  data_corte: string | null
   criado_por: string | null
   criado_em: string
   updated_at: string
