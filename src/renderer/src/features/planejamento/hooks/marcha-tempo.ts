@@ -10,6 +10,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { fetchCelulasDaVersao } from '@/lib/quantidades/celulas-fetch'
 import type {
   GranularidadeTempo,
   PlanejamentoTarefaCompleta,
@@ -102,21 +103,9 @@ export function useTemplatesAtuaisPorTrecho(
       if (colRes.error) throw colRes.error
       if (segRes.error) throw segRes.error
 
-      // 4) Células — chunked
-      const segmentoIds = (segRes.data ?? []).map((s) => s.id as string)
-      const CHUNK = 500
-      const celulas: Array<{ segmento_id: string; coluna_id: string; valor: number }> = []
-      for (let i = 0; i < segmentoIds.length; i += CHUNK) {
-        const slice = segmentoIds.slice(i, i + CHUNK)
-        const { data, error } = await supabase
-          .from('trecho_quantidade_celula')
-          .select('segmento_id, coluna_id, valor')
-          .in('segmento_id', slice)
-        if (error) throw error
-        for (const c of data ?? []) {
-          celulas.push(c as { segmento_id: string; coluna_id: string; valor: number })
-        }
-      }
+      // 4) Células — paginadas por linhas por versão (evita o corte de 1000
+      //    linhas da resposta do PostgREST, que subcontava). Ver celulas-fetch.ts.
+      const celulas = (await Promise.all(versoesIds.map((id) => fetchCelulasDaVersao(id)))).flat()
 
       const valoresPorSeg = new Map<string, Record<string, number>>()
       for (const c of celulas) {

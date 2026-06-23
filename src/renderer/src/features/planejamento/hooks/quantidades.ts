@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { fetchCelulasDaVersao } from '@/lib/quantidades/celulas-fetch'
 import type {
   ModoQuantidade,
   TrechoQuantidadeTemplate,
@@ -149,25 +150,9 @@ export function useVersaoTemplate(
       if (colRes.error) throw colRes.error
       if (segRes.error) throw segRes.error
 
-      // Chunked SELECT: .in('id', [...]) estoura limite de URL do PostgREST
-      // (~2000 IDs no Supabase). Pra versões grandes (modo simplificado em
-      // metros: 1 seg por metro) o número de segmentos pode passar de 5k.
-      const segmentoIds = (segRes.data ?? []).map((s) => s.id as string)
-      const CHUNK = 500
-      const celulasData: Array<{ segmento_id: string; coluna_id: string; valor: number }> = []
-      for (let i = 0; i < segmentoIds.length; i += CHUNK) {
-        const idsSlice = segmentoIds.slice(i, i + CHUNK)
-        const { data, error } = await supabase
-          .from('trecho_quantidade_celula')
-          .select('segmento_id, coluna_id, valor')
-          .in('segmento_id', idsSlice)
-        if (error) throw error
-        if (data) {
-          for (const c of data) {
-            celulasData.push(c as { segmento_id: string; coluna_id: string; valor: number })
-          }
-        }
-      }
+      // Paginado por linhas (evita o corte de 1000 linhas do PostgREST que
+      // subcontava os totais em versões grandes). Ver celulas-fetch.ts.
+      const celulasData = await fetchCelulasDaVersao(versaoId!)
 
       const valoresPorSeg = new Map<string, Record<string, number>>()
       for (const c of celulasData) {
@@ -348,19 +333,8 @@ export function useNovaVersao(): ReturnType<
       if (colRes.error) throw colRes.error
       if (segRes.error) throw segRes.error
 
-      const segIdsOrigem = (segRes.data ?? []).map((s) => s.id as string)
-      const CHUNK_SEL = 500
-      type CelulaRow = { segmento_id: string; coluna_id: string; valor: number }
-      const celDataOrigem: CelulaRow[] = []
-      for (let i = 0; i < segIdsOrigem.length; i += CHUNK_SEL) {
-        const idsSlice = segIdsOrigem.slice(i, i + CHUNK_SEL)
-        const { data, error } = await supabase
-          .from('trecho_quantidade_celula')
-          .select('*')
-          .in('segmento_id', idsSlice)
-        if (error) throw error
-        if (data) for (const r of data) celDataOrigem.push(r as CelulaRow)
-      }
+      // Paginado por linhas (ver celulas-fetch.ts) — evita corte de 1000 linhas.
+      const celDataOrigem = await fetchCelulasDaVersao(origemId!)
       const celRes = { data: celDataOrigem, error: null as null }
 
       // 3) Cria nova versão. Trigger promote desmarca a anterior; trigger
@@ -545,21 +519,8 @@ export function useBaixarExcelVersao(): ReturnType<
       if (colRes.error) throw colRes.error
       if (segRes.error) throw segRes.error
 
-      const segmentoIds = (segRes.data ?? []).map((s) => s.id as string)
-      // Chunked SELECT pra evitar estouro de URL no PostgREST.
-      const CHUNK_SEL = 500
-      const celData: Array<{ segmento_id: string; coluna_id: string; valor: number }> = []
-      for (let i = 0; i < segmentoIds.length; i += CHUNK_SEL) {
-        const idsSlice = segmentoIds.slice(i, i + CHUNK_SEL)
-        const { data, error } = await supabase
-          .from('trecho_quantidade_celula')
-          .select('segmento_id, coluna_id, valor')
-          .in('segmento_id', idsSlice)
-        if (error) throw error
-        if (data)
-          for (const r of data)
-            celData.push(r as { segmento_id: string; coluna_id: string; valor: number })
-      }
+      // Paginado por linhas (ver celulas-fetch.ts) — evita corte de 1000 linhas.
+      const celData = await fetchCelulasDaVersao(versao_id)
 
       // Reconstrói map de valores por ordem de segmento + coluna_id
       const segIdToOrdem = new Map<string, number>()

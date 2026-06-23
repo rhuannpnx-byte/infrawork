@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { fetchCelulasDaVersao } from '@/lib/quantidades/celulas-fetch'
 import type { ObraTrecho, UnidadeEspacoPadrao } from '@/types/gerencial'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 
@@ -201,22 +202,10 @@ async function fetchTemplateAtual(
   if (colRes.error) throw colRes.error
   if (segRes.error) throw segRes.error
 
-  const segmentoIds = (segRes.data ?? []).map((s) => s.id)
-  // Busca células em LOTES: um `.in('segmento_id', [...])` com todos os ids vira
-  // querystring gigante (trecho longo em estaca = centenas de segmentos) e a
-  // requisição estoura o limite de URL do PostgREST/gateway, derrubando o fetch
-  // inteiro (sintoma: "trecho sem template" em trechos longos). Chunk evita isso.
-  const CHUNK_SEG = 100
-  const celData: Array<{ segmento_id: string; coluna_id: string; valor: number }> = []
-  for (let i = 0; i < segmentoIds.length; i += CHUNK_SEG) {
-    const ids = segmentoIds.slice(i, i + CHUNK_SEG)
-    const { data, error } = await supabase
-      .from('trecho_quantidade_celula')
-      .select('segmento_id, coluna_id, valor')
-      .in('segmento_id', ids)
-    if (error) throw error
-    if (data) celData.push(...data)
-  }
+  // Células paginadas por linhas (evita tanto o estouro de URL do `.in(...)`
+  // com centenas de segmentos quanto o corte de 1000 linhas da resposta do
+  // PostgREST, que subcontava os totais em trechos longos). Ver celulas-fetch.ts.
+  const celData = await fetchCelulasDaVersao(versao.id)
 
   const valoresPorSeg = new Map<string, Record<string, number>>()
   for (const c of celData) {
