@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.25] - 2026-06-23
+
+### Adicionado
+
+- **Acompanhamento / Vínculo SIGA** — campo **Data de corte** (obrigatório ao vincular): o sync só puxa produções do SIGA com data a partir dela; produções anteriores são ignoradas e removidas do cache. Útil para obras antigas/enormes que se quer planejar só de uma data em diante.
+
+### Corrigido
+
+- **Acompanhamento / Curva-S** — as linhas de projeção (média atual / média necessária) faziam "pinotes" em vez de retas. Eram amostradas na grade de datas esparsas do plano sobre um eixo categórico; agora a curva é reamostrada em grade diária uniforme e a projeção de média constante volta a ser uma reta.
+- **Acompanhamento / Previsto × Realizado** — o **status** e o **esperado até hoje** comparavam o realizado contra uma distribuição **linear** do tempo, não contra a curva real do cronograma. Em cronogramas concentrados no início, um serviço atrasado aparecia como "adiantado". Agora ambos usam a curva real (perfil de semana), consistente com o gráfico.
+
+### Alterado
+
+- **Acompanhamento** — ciclo de vida do vínculo obra↔SIGA centralizado na página **Vínculo SIGA**: vincular, desvincular e reativar só acontecem ali. O dashboard deixa de ter botões de Desvincular/Reativar (passa a ter só um atalho "Vínculo SIGA").
+
 ## [0.3.21] - 2026-06-22
 
 ### Corrigido
