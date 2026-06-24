@@ -95,8 +95,6 @@ export async function classificarFoto(
   const body = {
     model: config.openrouterModel,
     temperature: 0,
-    // Cap explícito de saída (evita reserva de crédito do máximo do modelo → 402).
-    max_tokens: config.visionMaxTokens,
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },

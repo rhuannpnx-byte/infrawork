@@ -28,9 +28,6 @@ async function chamarOpenRouter(messages: ChatMessage[]): Promise<{
   const body = {
     model: config.openrouterModelRag,
     temperature: 0.2,
-    // Cap explícito: sem isto o OpenRouter reserva o máximo do modelo como
-    // caução de crédito e devolve 402 mesmo com saldo para a resposta real.
-    max_tokens: config.oraculoMaxTokens,
     messages,
     tools: TOOL_DEFS,
     tool_choice: 'auto'
