@@ -178,12 +178,21 @@ function svgCurvaS(cs: CurvaSPonto[], pr: PrevistoRealizadoItem, proj: ProjStats
 
   const planPts = rows.map((r) => `${x(r.t).toFixed(1)},${y(r.plan).toFixed(1)}`).join(' ')
   const planFlat = lastDataT < t1 ? ` ${x(t1).toFixed(1)},${y(qtdTotal).toFixed(1)}` : ''
-  const realRows = rows.filter((r) => r.t <= ms(HOJE) && r.real > 0)
-  const realPts = realRows.map((r) => `${x(r.t).toFixed(1)},${y(r.real).toFixed(1)}`).join(' ')
-  const areaPlan = `${x(t0).toFixed(1)},${y(0)} ${planPts}${planFlat} ${x(t1).toFixed(1)},${y(0)}`
-  const areaReal = realPts ? `${x(realRows[0].t).toFixed(1)},${y(0)} ${realPts} ${x(realRows[realRows.length - 1].t).toFixed(1)},${y(0)}` : ''
-
   const hojeT = ms(HOJE)
+  const realRows = rows.filter((r) => r.t <= hojeT && r.real > 0)
+  let realPts = realRows.map((r) => `${x(r.t).toFixed(1)},${y(r.real).toFixed(1)}`).join(' ')
+  // Prolonga o realizado em degrau plano até HOJE, encostando na âncora das
+  // projeções (que partem de HOJE em proj.realHoje). Sem isto, quando a produção
+  // parou antes da data atual, a linha verde fica "solta" antes de hoje e as
+  // projeções aparecem desconexas do realizado.
+  let realEndT = realRows.length ? realRows[realRows.length - 1].t : 0
+  if (realRows.length && realEndT < hojeT) {
+    realPts += ` ${x(hojeT).toFixed(1)},${y(proj.realHoje).toFixed(1)}`
+    realEndT = hojeT
+  }
+  const areaPlan = `${x(t0).toFixed(1)},${y(0)} ${planPts}${planFlat} ${x(t1).toFixed(1)},${y(0)}`
+  const areaReal = realPts ? `${x(realRows[0].t).toFixed(1)},${y(0)} ${realPts} ${x(realEndT).toFixed(1)},${y(0)}` : ''
+
   const projA = proj.crossA != null ? `${x(hojeT).toFixed(1)},${y(proj.realHoje).toFixed(1)} ${x(Math.min(proj.crossA, t1)).toFixed(1)},${y(qtdTotal).toFixed(1)}` : ''
   const projN = proj.crossN != null ? `${x(hojeT).toFixed(1)},${y(proj.realHoje).toFixed(1)} ${x(Math.min(proj.crossN, t1)).toFixed(1)},${y(qtdTotal).toFixed(1)}` : ''
 

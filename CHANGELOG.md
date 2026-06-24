@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.26] - 2026-06-24
+
+### Corrigido
+
+- **Acompanhamento / Relatório PDF (Previsto × Realizado)** — em serviços cuja produção parou antes da data atual, a linha de **Realizado** terminava no último apontamento e não chegava até "Hoje", deixando as projeções (atual/necessária) visualmente desconexas do realizado. Agora o realizado é prolongado em degrau plano até hoje, encostando na âncora das projeções.
+
 ## [0.3.25] - 2026-06-23
 
 ### Adicionado
