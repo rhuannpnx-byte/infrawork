@@ -1,7 +1,7 @@
 {
   "name": "infrawork",
   "productName": "InfraWork",
-  "version": "0.3.25",
+  "version": "0.3.26",
   "description": "InfraWork — gestão integrada de obras rodoviárias",
   "main": "./out/main/index.js",
   "author": "TecPav Engenharia <egp@tecpav.com.br>",
