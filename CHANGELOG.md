@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.27] - 2026-06-24
+
+### Adicionado
+
+- **Gerencial / Obras** — God e Adm podem **desabilitar** e **excluir** obras (na página de detalhe da obra):
+  - **Desabilitar**: a obra some da seleção no app e do contexto do agente do WhatsApp; continua na lista de gestão (com selo "Desabilitada") para reabilitar. Reversível.
+  - **Excluir**: exclusão **definitiva** (apaga a obra e todos os dados vinculados — orçamento, planejamento, acompanhamento, fotos, documentação, permissões). Exige digitar o código da obra para confirmar.
+
 ## [0.3.26] - 2026-06-24
 
 ### Corrigido

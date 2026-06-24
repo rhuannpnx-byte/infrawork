@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { adminApi } from '@/lib/supabase/functions'
+import { useAuthStore } from '@/stores/auth-store'
 import type {
   Empresa,
   ObraComEmpresa,
@@ -183,7 +184,7 @@ export function useObras(): ReturnType<typeof useQuery<ObraComEmpresa[]>> {
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
-        .select('id, empresa_id, nome, codigo, status, created_at, empresa:empresa_id(id, nome)')
+        .select('id, empresa_id, nome, codigo, status, ativa, created_at, empresa:empresa_id(id, nome)')
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as unknown as ObraComEmpresa[]
@@ -199,7 +200,7 @@ export function useObra(id: string | undefined): ReturnType<typeof useQuery<Obra
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
-        .select('id, empresa_id, nome, codigo, status, created_at, empresa:empresa_id(id, nome)')
+        .select('id, empresa_id, nome, codigo, status, ativa, created_at, empresa:empresa_id(id, nome)')
         .eq('id', id!)
         .single()
       if (error) throw error
@@ -216,6 +217,36 @@ export function useCreateObra(): ReturnType<
     mutationFn: (body) => adminApi.createObra(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obras'] })
+    }
+  })
+}
+
+/** Habilita/desabilita uma obra. Desabilitada some da seleção (refreshMe) e do agente. */
+export function useSetObraAtiva(): ReturnType<
+  typeof useMutation<{ ok: boolean; obra_id: string; ativa: boolean; codigo: string }, Error, { obra_id: string; ativa: boolean }>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body) => adminApi.setObraAtiva(body),
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'obras'] })
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'obra', vars.obra_id] })
+      // Atualiza a lista de obras selecionáveis (a desabilitada sai do escopo).
+      void useAuthStore.getState().refreshMe()
+    }
+  })
+}
+
+/** Exclusão DEFINITIVA (hard delete, cascata). Irreversível. */
+export function useDeleteObra(): ReturnType<
+  typeof useMutation<{ ok: boolean; deleted: { id: string; nome: string; codigo: string } }, Error, { obra_id: string }>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body) => adminApi.deleteObra(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['gerencial', 'obras'] })
+      void useAuthStore.getState().refreshMe()
     }
   })
 }

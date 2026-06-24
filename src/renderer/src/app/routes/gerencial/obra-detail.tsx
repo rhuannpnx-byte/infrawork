@@ -1,18 +1,22 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowLeft, Plus, Trash2, KeyRound, Users } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, KeyRound, Users, Power, PowerOff, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import {
   useObra,
   useObraPermissoes,
   useRevokePermissao,
-  useUsuarios
+  useUsuarios,
+  useSetObraAtiva,
+  useDeleteObra
 } from '@/features/gerencial/hooks'
 import { GrantPermissaoDialog } from '@/features/gerencial/modals/GrantPermissaoDialog'
 import { formatDate } from '@/lib/format'
@@ -29,8 +33,12 @@ export function ObraDetailPage(): ReactNode {
   const { data: permissoes = [], isLoading: loadingPerms } = useObraPermissoes(id)
   const { data: usuarios = [] } = useUsuarios()
   const revoke = useRevokePermissao()
+  const setAtiva = useSetObraAtiva()
+  const deleteObra = useDeleteObra()
 
   const [openGrant, setOpenGrant] = useState(false)
+  const [openDelete, setOpenDelete] = useState(false)
+  const [confirmCodigo, setConfirmCodigo] = useState('')
 
   const podeAcessar = role === 'god' || (role === 'adm' && obra && callerEmpresaId === obra.empresa_id)
   const podeGerirPerms = podeAcessar
@@ -87,6 +95,33 @@ export function ObraDetailPage(): ReactNode {
             <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/gerencial/obras' })}>
               <ArrowLeft size={11} /> Voltar
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!podeAcessar || setAtiva.isPending}
+              onClick={() => {
+                void setAtiva
+                  .mutateAsync({ obra_id: obra.id, ativa: !obra.ativa })
+                  .then((r) =>
+                    toast.success(
+                      r.ativa
+                        ? `Obra ${obra.codigo} reabilitada.`
+                        : `Obra ${obra.codigo} desabilitada — não aparece mais para seleção nem no agente do WhatsApp.`
+                    )
+                  )
+                  .catch((e) => toast.error(e instanceof Error ? e.message : 'Falha ao atualizar'))
+              }}
+            >
+              {obra.ativa ? (
+                <>
+                  <PowerOff size={11} /> Desabilitar
+                </>
+              ) : (
+                <>
+                  <Power size={11} /> Reabilitar
+                </>
+              )}
+            </Button>
             <Button variant="default" size="sm" onClick={() => setOpenGrant(true)} disabled={!podeGerirPerms}>
               <Plus size={11} /> Conceder acesso
             </Button>
@@ -95,6 +130,16 @@ export function ObraDetailPage(): ReactNode {
       />
 
       <div className="flex-1 overflow-auto p-5 space-y-4">
+        {!obra.ativa ? (
+          <div className="rounded border border-warn/40 bg-warn/10 px-4 py-2.5 text-xs flex items-center gap-2">
+            <PowerOff size={14} className="text-warn shrink-0" />
+            <span className="text-warn">
+              Obra <strong>desabilitada</strong> — não aparece para seleção no app nem no contexto do
+              agente do WhatsApp. Use <strong>Reabilitar</strong> para voltar a usá-la.
+            </span>
+          </div>
+        ) : null}
+
         {/* Sumário da obra */}
         <div className="grid grid-cols-4 gap-3">
           <Block label="Código" value={obra.codigo} mono />
@@ -207,6 +252,35 @@ export function ObraDetailPage(): ReactNode {
             </table>
           )}
         </section>
+
+        {/* Zona de perigo — exclusão definitiva */}
+        <section className="rounded border border-danger/40 bg-danger/5">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-danger/30">
+            <AlertTriangle size={12} className="text-danger" />
+            <h2 className="text-sm font-semibold text-danger">Zona de perigo</h2>
+          </div>
+          <div className="px-3 py-3 flex items-center justify-between gap-4">
+            <div className="text-xs text-text-muted max-w-[640px]">
+              <div className="text-text font-medium mb-0.5">Excluir esta obra permanentemente</div>
+              Apaga a obra e <strong>todos os dados vinculados</strong> — orçamento, CPUs,
+              planejamento/cronograma, trechos, produção e fotos do acompanhamento, documentação e
+              permissões. <strong>Esta ação não pode ser desfeita.</strong> Se a intenção for apenas
+              tirá-la de uso, prefira <strong>Desabilitar</strong>.
+            </div>
+            <Button
+              variant="danger"
+              size="sm"
+              className="shrink-0"
+              disabled={!podeAcessar}
+              onClick={() => {
+                setConfirmCodigo('')
+                setOpenDelete(true)
+              }}
+            >
+              <Trash2 size={11} /> Excluir obra
+            </Button>
+          </div>
+        </section>
       </div>
 
       <GrantPermissaoDialog
@@ -217,6 +291,54 @@ export function ObraDetailPage(): ReactNode {
         obraCodigo={obra.codigo}
         existingUserIds={existingUserIds}
       />
+
+      <Dialog open={openDelete} onOpenChange={(o) => !o && !deleteObra.isPending && setOpenDelete(false)} size="sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle size={14} className="text-danger" />
+            Excluir obra permanentemente
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <p className="text-sm text-text">
+            Isto apaga <strong>{obra.nome}</strong> e <strong>todos os dados vinculados</strong>{' '}
+            (orçamento, planejamento, acompanhamento, fotos, documentação). Operação{' '}
+            <strong className="text-danger">irreversível</strong>.
+          </p>
+          <p className="mt-3 text-xs text-text-muted">
+            Para confirmar, digite o código da obra{' '}
+            <span className="font-mono text-accent">{obra.codigo}</span>:
+          </p>
+          <Input
+            autoFocus
+            value={confirmCodigo}
+            onChange={(e) => setConfirmCodigo(e.target.value)}
+            placeholder={obra.codigo}
+            className="mt-1.5 font-mono"
+          />
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpenDelete(false)} disabled={deleteObra.isPending}>
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            disabled={confirmCodigo.trim() !== obra.codigo || deleteObra.isPending}
+            onClick={() => {
+              void deleteObra
+                .mutateAsync({ obra_id: obra.id })
+                .then(() => {
+                  toast.success(`Obra ${obra.codigo} excluída permanentemente.`)
+                  setOpenDelete(false)
+                  navigate({ to: '/gerencial/obras' })
+                })
+                .catch((e) => toast.error(e instanceof Error ? e.message : 'Falha ao excluir a obra'))
+            }}
+          >
+            <Trash2 size={11} /> {deleteObra.isPending ? 'Excluindo…' : 'Excluir definitivamente'}
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   )
 }

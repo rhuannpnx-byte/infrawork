@@ -54,6 +54,7 @@ export interface Obra {
   nome: string
   codigo: string
   status: string
+  ativa: boolean
   created_at: string
 }
 

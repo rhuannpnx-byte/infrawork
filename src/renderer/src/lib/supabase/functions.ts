@@ -97,6 +97,18 @@ export const adminApi = {
     unidade_espaco_padrao?: 'km' | 'm' | 'estaca'
   }) => call<{ id: string; nome: string; codigo: string }>('create-obra', { method: 'POST', body }),
 
+  setObraAtiva: (body: { obra_id: string; ativa: boolean }) =>
+    call<{ ok: boolean; obra_id: string; ativa: boolean; codigo: string }>('set-obra-ativa', {
+      method: 'POST',
+      body
+    }),
+
+  deleteObra: (body: { obra_id: string }) =>
+    call<{ ok: boolean; deleted: { id: string; nome: string; codigo: string } }>('delete-obra', {
+      method: 'POST',
+      body
+    }),
+
   grantObraPermissao: (body: { obra_id: string; user_id: string }) =>
     call<{ id: string; obra_id: string; user_id: string }>('grant-obra-permissao', {
       method: 'POST',

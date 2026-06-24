@@ -90,12 +90,13 @@ export async function identificarRemetente(jid: string): Promise<Profile | null>
   return null
 }
 
-/** Lista as obras a que o profile tem acesso — espelha a RLS de `obras`. */
+/** Lista as obras a que o profile tem acesso — espelha a RLS de `obras`.
+ *  Obras desabilitadas (ativa=false) são excluídas: o agente não as vê. */
 export async function obrasPermitidas(p: Profile): Promise<ObraRef[]> {
   const sel = 'id, codigo, nome, empresa_id'
 
   if (p.role === 'god') {
-    const { data } = await supabase.from('obras').select(sel).order('codigo')
+    const { data } = await supabase.from('obras').select(sel).eq('ativa', true).order('codigo')
     return (data ?? []) as ObraRef[]
   }
 
@@ -105,6 +106,7 @@ export async function obrasPermitidas(p: Profile): Promise<ObraRef[]> {
       .from('obras')
       .select(sel)
       .eq('empresa_id', p.empresa_id)
+      .eq('ativa', true)
       .order('codigo')
     return (data ?? []) as ObraRef[]
   }
@@ -115,12 +117,12 @@ export async function obrasPermitidas(p: Profile): Promise<ObraRef[]> {
 
   const { data } = await supabase
     .from('obra_permissoes')
-    .select('obra:obra_id(id, codigo, nome, empresa_id)')
+    .select('obra:obra_id(id, codigo, nome, empresa_id, ativa)')
     .eq('user_id', alvoUserId)
 
   const obras = (data ?? [])
-    .map((r) => (r as unknown as { obra: ObraRef | null }).obra)
-    .filter((o): o is ObraRef => !!o)
+    .map((r) => (r as unknown as { obra: (ObraRef & { ativa?: boolean }) | null }).obra)
+    .filter((o): o is ObraRef & { ativa?: boolean } => !!o && o.ativa !== false)
   obras.sort((a, b) => a.codigo.localeCompare(b.codigo))
   return obras
 }

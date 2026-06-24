@@ -37,10 +37,14 @@ Deno.serve(async (req) => {
   // Obras visíveis ao caller (resolve cada papel via service_role pra evitar
   // confiar 100% na RLS — defesa em profundidade).
   let obras: Array<{ id: string; nome: string; codigo: string; status: string; empresa_id: string }> = []
+  // Obras desabilitadas (ativa=false) não entram na seleção do app.
+  type ObraEmbed = typeof obras[number] & { ativa?: boolean }
+  const ativa = (o: ObraEmbed | null): o is ObraEmbed => !!o && o.ativa !== false
   if (caller.role === 'god') {
     const { data } = await admin
       .from('obras')
       .select('id, nome, codigo, status, empresa_id')
+      .eq('ativa', true)
       .order('created_at', { ascending: false })
     obras = data ?? []
   } else if (caller.role === 'adm') {
@@ -48,28 +52,29 @@ Deno.serve(async (req) => {
       .from('obras')
       .select('id, nome, codigo, status, empresa_id')
       .eq('empresa_id', caller.empresa_id!)
+      .eq('ativa', true)
       .order('created_at', { ascending: false })
     obras = data ?? []
   } else if (caller.role === 'engenheiro' || caller.role === 'cliente') {
     // Cliente espelha o engenheiro: obras via permissão direta em obra_permissoes.
     const { data } = await admin
       .from('obra_permissoes')
-      .select('obras:obra_id ( id, nome, codigo, status, empresa_id )')
+      .select('obras:obra_id ( id, nome, codigo, status, empresa_id, ativa )')
       .eq('user_id', caller.id)
     obras = (data ?? [])
-      .map((r) => (r as unknown as { obras: typeof obras[number] | null }).obras)
-      .filter((o): o is typeof obras[number] => !!o)
+      .map((r) => (r as unknown as { obras: ObraEmbed | null }).obras)
+      .filter(ativa)
   } else if (caller.role === 'apoio') {
     if (!caller.engenheiro_id) {
       obras = []
     } else {
       const { data } = await admin
         .from('obra_permissoes')
-        .select('obras:obra_id ( id, nome, codigo, status, empresa_id )')
+        .select('obras:obra_id ( id, nome, codigo, status, empresa_id, ativa )')
         .eq('user_id', caller.engenheiro_id)
       obras = (data ?? [])
-        .map((r) => (r as unknown as { obras: typeof obras[number] | null }).obras)
-        .filter((o): o is typeof obras[number] => !!o)
+        .map((r) => (r as unknown as { obras: ObraEmbed | null }).obras)
+        .filter(ativa)
     }
   }
 

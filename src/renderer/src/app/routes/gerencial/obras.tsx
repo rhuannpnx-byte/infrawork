@@ -56,6 +56,19 @@ export function ObrasPage(): ReactNode {
         size: 130
       },
       {
+        id: 'ativa',
+        header: 'Situação',
+        accessorFn: (row) => (row.ativa ? 'Ativa' : 'Desabilitada'),
+        cell: ({ row }) =>
+          row.original.ativa ? (
+            <span className="text-2xs font-mono text-text-dim">Ativa</span>
+          ) : (
+            <Badge variant="warn">Desabilitada</Badge>
+          ),
+        meta: { label: 'Situação' },
+        size: 120
+      },
+      {
         accessorKey: 'created_at',
         header: 'Criada em',
         cell: (info) => (
