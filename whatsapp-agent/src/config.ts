@@ -33,6 +33,12 @@ export const config = {
   confiancaMinima: num('CONFIANCA_MINIMA', 0.6),
   // Oráculo
   oraculoMaxFotos: num('ORACULO_MAX_FOTOS', 10),
+  // Teto de tokens de SAÍDA por chamada ao OpenRouter. Sem isto o OpenRouter
+  // reserva o máximo do modelo (dezenas de milhares) como caução de crédito e
+  // rejeita com 402 quando o saldo não cobre a reserva. Respostas do Oráculo são
+  // curtas (mensagens de WhatsApp); 2048 é folgado e mantém a reserva baixa.
+  oraculoMaxTokens: num('ORACULO_MAX_TOKENS', 2048),
+  visionMaxTokens: num('VISION_MAX_TOKENS', 1024),
   // Janela DESLIZANTE da sessão de conversa sobre uma obra. A cada mensagem o
   // relógio reinicia; após este tempo de inatividade a obra "expira" e o usuário
   // escolhe de novo. Trocar de obra (comando/linguagem) também renova a janela.
