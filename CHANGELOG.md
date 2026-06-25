@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.28] - 2026-06-25
+
+### Corrigido
+
+- **Acompanhamento / Mapa de fotos (dashboard e Fotos)** — a coloração dos clusters por serviço ficava inconsistente ao diminuir o zoom: o cluster assumia uma única cor "dominante", fazendo uma região de CBUQ aparecer na cor de outro serviço (ex.: Micro) e oscilar ao pan/zoom. Agora o cluster é uma **pizza** com fatias proporcionais às cores dos serviços que ele contém — cada serviço fica na sua própria cor e a composição real fica visível (contagem no centro).
+
 ## [0.3.27] - 2026-06-24
 
 ### Adicionado

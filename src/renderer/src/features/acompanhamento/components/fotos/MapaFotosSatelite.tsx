@@ -90,16 +90,26 @@ interface PointProps {
 }
 type Valida = Omit<FotoEnriquecida, 'lat' | 'lng'> & { lat: number; lng: number; _idx: number }
 
-function corDominante(cores: Record<string, number> | undefined): string {
-  if (!cores) return '#67e8f9'
-  let melhor = '#67e8f9'
-  let max = -1
-  for (const k in cores)
-    if (cores[k] > max) {
-      max = cores[k]
-      melhor = k
-    }
-  return melhor
+/** Fundo do cluster: pizza (conic-gradient) com fatias proporcionais por serviço.
+ *  Antes usávamos só a cor DOMINANTE — ao diminuir o zoom, um cluster com CBUQ +
+ *  Micro aparecia inteiro na cor de um só serviço (e o dominante oscilava ao
+ *  pan/zoom). A pizza mostra a composição real, então cada serviço fica na sua
+ *  própria cor. Ordem por cor (estável) pra as fatias não reembaralharem. */
+function clusterPieBg(cores: Record<string, number> | undefined): string {
+  const entradas = cores ? Object.entries(cores).filter(([, n]) => n > 0) : []
+  if (entradas.length === 0) return '#67e8f9'
+  if (entradas.length === 1) return entradas[0][0]
+  entradas.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = entradas.reduce((s, [, n]) => s + n, 0)
+  let acc = 0
+  const stops: string[] = []
+  for (const [cor, n] of entradas) {
+    const ini = (acc / total) * 360
+    acc += n
+    const fim = (acc / total) * 360
+    stops.push(`${cor} ${ini.toFixed(1)}deg ${fim.toFixed(1)}deg`)
+  }
+  return `conic-gradient(${stops.join(',')})`
 }
 
 export function MapaFotosSatelite({
@@ -265,11 +275,12 @@ export function MapaFotosSatelite({
       const [lng, lat] = c.geometry.coordinates
       if (c.properties.cluster) {
         const count = c.properties.point_count ?? 0
-        const cor = corDominante(c.properties.cores)
+        const bg = clusterPieBg(c.properties.cores)
         const tam = count >= 100 ? 38 : count >= 10 ? 32 : 26
+        const inner = Math.round(tam * 0.6)
         const icon = L.divIcon({
           className: '',
-          html: `<div style="width:${tam}px;height:${tam}px;border-radius:50%;background:${cor};color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.5);text-shadow:0 1px 2px rgba(0,0,0,.7)">${count}</div>`,
+          html: `<div style="width:${tam}px;height:${tam}px;border-radius:50%;background:${bg};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:rgba(11,23,38,.82);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px rgba(0,0,0,.7)">${count}</div></div>`,
           iconSize: [tam, tam],
           iconAnchor: [tam / 2, tam / 2]
         })
