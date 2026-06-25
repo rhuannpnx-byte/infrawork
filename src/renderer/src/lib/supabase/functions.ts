@@ -444,22 +444,82 @@ export const adminApi = {
       { method: 'POST', body }
     ),
 
-  // ─── Documentação Oficial (IA — extração de entidades do contrato) ────────
-  extrairContrato: (body: { obra_id: string; arquivo_url: string; mime: string; nome: string }) =>
-    call<import('@renderer/types/documentacao').ExtrairContratoResposta>(
-      'documentacao-extrair-contrato',
-      { method: 'POST', body }
-    ),
+  // ─── Documentação Oficial v2 (Raio-X / ObraDossier) ───────────────────────
+  ocrTexto: (body: { documento_id: string; texto?: string }) =>
+    call<import('@renderer/types/documentacao').OcrTextoResposta>('documentacao-ocr-texto', {
+      method: 'POST',
+      body
+    }),
 
-  // ─── Documentação Oficial (IA — classificação, embeddings, agente) ────────
   classificarDocumento: (body: {
     obra_id: string
-    arquivo_url: string
-    mime: string
-    nome: string
+    texto?: string
+    arquivo_url?: string
+    mime?: string
+    nome?: string
     pasta?: string
   }) =>
     call<import('@renderer/types/documentacao').ClassificarResposta>('documentacao-classificar', {
+      method: 'POST',
+      body
+    }),
+
+  verificarAderencia: (body: {
+    obra_id: string
+    grupo_codigo: string
+    texto?: string
+    arquivo_url?: string
+    mime?: string
+    nome?: string
+    pasta?: string
+  }) =>
+    call<{
+      adere: boolean
+      grupo_sugerido: string | null
+      confianca: number
+      motivo: string
+    }>('documentacao-aderencia', { method: 'POST', body }),
+
+  analisarClausula: (body: { obra_id: string; clausula_id: string; refresh?: boolean }) =>
+    call<{
+      analise: import('@renderer/types/documentacao').ClausulaAnalise
+      cached: boolean
+    }>('documentacao-clausula-analise', { method: 'POST', body }),
+
+  extrairDocumento: (body: {
+    obra_id: string
+    documento_id: string
+    categoria: string
+    grupo_codigo?: string
+    texto?: string
+  }) =>
+    call<import('@renderer/types/documentacao').ExtrairResposta>('documentacao-extrair', {
+      method: 'POST',
+      body
+    }),
+
+  consolidarDocumento: (body: {
+    obra_id: string
+    documento_id: string
+    categoria: string
+    respostas: import('@renderer/types/documentacao').ExtrairResposta['respostas']
+    entradas: import('@renderer/types/documentacao').ExtrairResposta['entradas']
+    confianca?: number
+    assinado?: boolean
+    doc_data?: string | null
+  }) =>
+    call<{ ok: boolean; candidatos: number }>('documentacao-consolidar', { method: 'POST', body }),
+
+  // Resolução obra-level dos candidatos (âncora + dedup + normalização).
+  resolverDossie: (body: { obra_id: string }) =>
+    call<{ ok: boolean; resolvidos: number; conflitos: string[] }>('documentacao-resolver', {
+      method: 'POST',
+      body
+    }),
+
+  // Validador de TAP (regras R-XX) → findings + gate de emissão.
+  validarDossie: (body: { obra_id: string }) =>
+    call<import('@renderer/types/documentacao').ValidarResposta>('documentacao-validar', {
       method: 'POST',
       body
     }),
@@ -471,5 +531,17 @@ export const adminApi = {
     call<import('@renderer/types/documentacao').PerguntarResposta>('documentacao-perguntar', {
       method: 'POST',
       body
-    })
+    }),
+
+  reavaliarLacunas: (body: { obra_id: string }) =>
+    call<import('@renderer/types/documentacao').ReavaliarLacunasResposta>(
+      'documentacao-reavaliar-lacunas',
+      { method: 'POST', body }
+    ),
+
+  montarDossie: (body: { obra_id: string; fresh?: boolean }) =>
+    call<{ dossie: import('@renderer/types/documentacao').ObraDossier }>(
+      'documentacao-montar-dossie',
+      { method: 'POST', body }
+    )
 }

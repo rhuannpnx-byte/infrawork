@@ -1,16 +1,10 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { toast } from 'sonner'
 import { Sparkles, Send, FileText, User } from 'lucide-react'
-import { RequireRole } from '@/components/layout/RequireRole'
-import { RequireObra } from '@/components/layout/RequireObra'
-import { PageHeader } from '@/components/layout/PageHeader'
-import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { EmptyState } from '@/components/layout/EmptyState'
 import { adminApi } from '@/lib/supabase/functions'
-import { abrirDocumentoPorId } from '@/features/documentacao/hooks/documentos'
 import type { FonteAgente } from '@/types/documentacao'
 
 interface Turno {
@@ -20,16 +14,6 @@ interface Turno {
   erro?: string
 }
 
-export function DocumentacaoBuscaPage(): ReactNode {
-  return (
-    <RequireRole allow={['god']} pageTitle="Agente documental">
-      <RequireObra pageTitle="Agente documental">
-        <Inner />
-      </RequireObra>
-    </RequireRole>
-  )
-}
-
 const SUGESTOES = [
   'Qual o valor vigente e o % aditado deste contrato?',
   'Quais licenças e garantias estão previstas e seus prazos?',
@@ -37,9 +21,12 @@ const SUGESTOES = [
   'Quem são os responsáveis técnicos e suas ARTs?'
 ]
 
-function Inner(): ReactNode {
-  const scope = useCurrentScope()
-  const obraId = scope.obraId!
+interface Props {
+  obraId: string
+  onAbrirFonte: (docId: string | null, pagina: number | null) => void
+}
+
+export function ConversarTab({ obraId, onAbrirFonte }: Props): ReactNode {
   const [pergunta, setPergunta] = useState('')
   const [turnos, setTurnos] = useState<Turno[]>([])
   const [carregando, setCarregando] = useState(false)
@@ -75,18 +62,14 @@ function Inner(): ReactNode {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <PageHeader
-        title="Agente documental"
-        subtitle="Pergunte ao acervo da obra — respostas com citação das fontes (RAG sobre os documentos indexados)."
-      />
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 overflow-auto p-4">
         {turnos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4">
             <EmptyState
               icon="sparkles"
               title="Converse com o acervo"
-              description="As respostas usam apenas os documentos ingeridos e indexados desta obra, sempre citando as fontes."
+              description="Respostas usam apenas os documentos indexados desta obra, sempre citando as fontes (RAG híbrido)."
             />
             <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
               {SUGESTOES.map((s) => (
@@ -105,7 +88,6 @@ function Inner(): ReactNode {
           <div className="max-w-3xl mx-auto space-y-4">
             {turnos.map((t, i) => (
               <div key={i} className="space-y-2">
-                {/* Pergunta */}
                 <div className="flex items-start gap-2 justify-end">
                   <div className="rounded border border-border bg-bg-panel px-3 py-2 text-xs text-text max-w-[80%]">
                     {t.pergunta}
@@ -114,7 +96,6 @@ function Inner(): ReactNode {
                     <User size={12} />
                   </div>
                 </div>
-                {/* Resposta */}
                 <div className="flex items-start gap-2">
                   <div className="w-6 h-6 shrink-0 rounded-full bg-accent-glow border border-accent-line flex items-center justify-center text-accent">
                     <Sparkles size={12} />
@@ -138,16 +119,13 @@ function Inner(): ReactNode {
                               <button
                                 key={f.n}
                                 type="button"
-                                onClick={() =>
-                                  void abrirDocumentoPorId(f.documento_id).then((ok) => {
-                                    if (!ok) toast.error('Não foi possível abrir o documento.')
-                                  })
-                                }
+                                onClick={() => onAbrirFonte(f.documento_id, f.pagina)}
                                 title={`${f.tipo_codigo ?? ''} · similaridade ${(f.similaridade * 100).toFixed(0)}%`}
                               >
                                 <Badge variant="outline" className="hover:border-border-accent">
                                   <FileText size={9} /> [{f.n}]{' '}
                                   {f.titulo ?? f.documento_id.slice(0, 8)}
+                                  {f.pagina ? ` p.${f.pagina}` : ''}
                                 </Badge>
                               </button>
                             ))}

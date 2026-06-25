@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.29] - 2026-06-25
+
+### Adicionado
+
+- **Documentação Oficial — Template de GRUPOS de documentos (taxonomia editável por obra)** — a classificação deixa de ser fixa: cada grupo define as **regras** do que pertence a ele e **quais campos** alimenta; o classificador passa a usar os grupos do template (não mais uma lista fixa). Vêm 29 grupos de fábrica (20 canônicos + recorrentes: consórcio, empenhos, orçamentos, atas, notificações da supervisora, pleitos, desapropriação, compliance, NPO). O **perfil da obra** (consórcio / público‑privado / órgão) adapta quais grupos se aplicam.
+- **Inserção manual com checagem de aderência (orienta, não restringe)** — ao arquivar um documento num grupo escolhido, a IA avalia a aderência e **sugere** um grupo melhor sem bloquear o arquivamento.
+- **Grafo radial** — contrato no centro, **hubs por grupo** (com contagem) que **expandem** nos documentos ao clicar; arestas semânticas (MODIFICA, REAJUSTA, AUTORIZA, COMUNICA…).
+- **Cláusulas & Risco** — separa **todas as cláusulas** do contrato e gera **análise por cláusula com IA sob demanda** (resumo, risco, implicações, pontos de atenção e referências cruzadas), integrada ao contexto do contrato e dos aditivos.
+- **TÉCNICO → Logs & Diagnóstico** — nova página com o validador de consistência (regras R‑XX), campos a conferir (baixa confiança) e meta do dossiê — retirados do Raio‑X para deixá‑lo executivo.
+- **Emitir TAP** com validador (R‑XX) e trava rascunho/definitivo (não emite definitivo com inconsistência bloqueante).
+
+### Alterado
+
+- **Timeline contínua** — uma única linha cronológica (não “zera” por tipo), com marcos sintetizados de forma determinística dos campos resolvidos (assinatura, publicação, OS, términos), **ARTs como eventos** e **término de execução que considera paralisações** (o prazo congela durante a Ordem de Paralização).
+- **Raio‑X repensado** — financeiro (P0 → vigente, % reajuste/aditivos), responsáveis técnicos, partes/consórcio **deduplicado** (líder marcado, sem o consórcio guarda‑chuva como “membro”), início (OS) e término calculado.
+- **OCR via Mistral OCR**; extração **dirigida pelo template** (o grupo do documento dita exatamente os campos extraídos).
+
+### Corrigido
+
+- **Responsáveis técnicos colapsavam** (ex.: 13 ARTs viravam 4) — o dedup usava o **número da ART**, que o anti‑PII mascarava como `[CPF]`, fundindo profissionais distintos. Agora deduplica por **nome** e o anti‑PII não destrói mais ART/CREA/protocolo.
+- **Lacunas com ruído** — “Edital consta sem assinatura” repetido: assinatura passa a ser cobrada só de documentos que de fato se assinam (contrato, OS, ART, aditivo) e **uma vez por categoria**.
+
 ## [0.3.28] - 2026-06-25
 
 ### Corrigido

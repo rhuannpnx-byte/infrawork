@@ -15,7 +15,9 @@ export function IngestaoStatus(): ReactNode {
   if (fila.length === 0) return null
 
   const total = fila.length
-  const concluidos = fila.filter((j) => j.status === 'ok' || j.status === 'erro').length
+  const concluidos = fila.filter(
+    (j) => j.status === 'ok' || j.status === 'erro' || j.status === 'ignorado'
+  ).length
   const erros = fila.filter((j) => j.status === 'erro').length
   const atual = fila.find((j) => j.status === 'processando')
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0

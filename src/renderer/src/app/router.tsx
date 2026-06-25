@@ -46,12 +46,16 @@ import { AcompanhamentoFotosPage } from '@/app/routes/acompanhamento/fotos'
 import { AcompanhamentoEquipesPage } from '@/app/routes/acompanhamento/equipes'
 import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/comparativo'
 import { AcompanhamentoAlertasPage } from '@/app/routes/acompanhamento/alertas'
+import { DocumentacaoLayout } from '@/app/routes/documentacao/layout'
 import { DocumentacaoIndex } from '@/app/routes/documentacao'
-import { DocumentacaoContratosPage } from '@/app/routes/documentacao/contratos'
-import { DocumentacaoContratoDetailPage } from '@/app/routes/documentacao/contrato-detail'
 import { DocumentacaoRepositorioPage } from '@/app/routes/documentacao/repositorio'
-import { DocumentacaoIngestaoPage } from '@/app/routes/documentacao/ingestao'
-import { DocumentacaoBuscaPage } from '@/app/routes/documentacao/busca'
+import { DocumentacaoClausulasPage } from '@/app/routes/documentacao/clausulas'
+import { DocumentacaoGrafoPage } from '@/app/routes/documentacao/grafo'
+import { DocumentacaoTimelinePage } from '@/app/routes/documentacao/timeline'
+import { DocumentacaoTapPage } from '@/app/routes/documentacao/tap'
+import { DocumentacaoTemplatePage } from '@/app/routes/documentacao/template'
+import { DocumentacaoConversarPage } from '@/app/routes/documentacao/conversar'
+import { DocumentacaoLogsPage } from '@/app/routes/documentacao/logs'
 import { WhatsAppSessaoPage } from '@/app/routes/whatsapp'
 import { WhatsAppGruposPage } from '@/app/routes/whatsapp/grupos'
 import { WhatsAppBackfillPage } from '@/app/routes/whatsapp/backfill'
@@ -292,7 +296,7 @@ function buildRouteTree() {
   const documentacaoLayout = createRoute({
     getParentRoute: () => rootRoute,
     path: 'documentacao',
-    component: () => <Outlet />
+    component: DocumentacaoLayout
   })
   const documentacaoTree = documentacaoLayout.addChildren([
     createRoute({
@@ -302,28 +306,43 @@ function buildRouteTree() {
     }),
     createRoute({
       getParentRoute: () => documentacaoLayout,
-      path: 'contratos',
-      component: DocumentacaoContratosPage
-    }),
-    createRoute({
-      getParentRoute: () => documentacaoLayout,
-      path: 'contratos/$id',
-      component: DocumentacaoContratoDetailPage
-    }),
-    createRoute({
-      getParentRoute: () => documentacaoLayout,
       path: 'repositorio',
       component: DocumentacaoRepositorioPage
     }),
     createRoute({
       getParentRoute: () => documentacaoLayout,
-      path: 'ingestao',
-      component: DocumentacaoIngestaoPage
+      path: 'clausulas',
+      component: DocumentacaoClausulasPage
     }),
     createRoute({
       getParentRoute: () => documentacaoLayout,
-      path: 'busca',
-      component: DocumentacaoBuscaPage
+      path: 'grafo',
+      component: DocumentacaoGrafoPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'timeline',
+      component: DocumentacaoTimelinePage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'tap',
+      component: DocumentacaoTapPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'template',
+      component: DocumentacaoTemplatePage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'conversar',
+      component: DocumentacaoConversarPage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'logs',
+      component: DocumentacaoLogsPage
     })
   ])
 

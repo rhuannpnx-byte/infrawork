@@ -332,37 +332,69 @@ export const MODULES: ModuleConfig[] = [
       {
         title: 'OBRA',
         items: [
-          {
-            icon: 'layout-dashboard',
-            label: 'Visão geral',
-            route: '/documentacao',
-            requiresObra: true
-          },
-          {
-            icon: 'file-text',
-            label: 'Contratos',
-            route: '/documentacao/contratos',
-            requiresObra: true
-          },
+          { icon: 'scan-line', label: 'Raio-X', route: '/documentacao', requiresObra: true },
           {
             icon: 'folder-archive',
             label: 'Repositório',
             route: '/documentacao/repositorio',
             requiresObra: true
-          },
+          }
+        ]
+      },
+      {
+        title: 'ANÁLISE',
+        items: [
           {
-            icon: 'sparkles',
-            label: 'Agente (busca IA)',
-            route: '/documentacao/busca',
+            icon: 'scale',
+            label: 'Cláusulas & Risco',
+            route: '/documentacao/clausulas',
+            requiresObra: true
+          },
+          { icon: 'share-2', label: 'Grafo', route: '/documentacao/grafo', requiresObra: true },
+          {
+            icon: 'git-commit-horizontal',
+            label: 'Timeline',
+            route: '/documentacao/timeline',
             requiresObra: true
           },
           {
-            icon: 'upload-cloud',
-            label: 'Ingestão',
-            route: '/documentacao/ingestao',
-            requiresObra: true,
-            // Apoio é somente leitura — não ingere.
-            requiredRoles: ['god', 'adm', 'engenheiro']
+            icon: 'sparkles',
+            label: 'Conversar',
+            route: '/documentacao/conversar',
+            requiresObra: true
+          }
+        ]
+      },
+      {
+        title: 'PRODUTOS',
+        items: [
+          {
+            icon: 'file-output',
+            label: 'Emitir TAP',
+            route: '/documentacao/tap',
+            requiresObra: true
+          }
+        ]
+      },
+      {
+        title: 'CONFIG',
+        items: [
+          {
+            icon: 'list-checks',
+            label: 'Template de extração',
+            route: '/documentacao/template',
+            requiresObra: true
+          }
+        ]
+      },
+      {
+        title: 'TÉCNICO',
+        items: [
+          {
+            icon: 'scroll-text',
+            label: 'Logs & Diagnóstico',
+            route: '/documentacao/logs',
+            requiresObra: true
           }
         ]
       }
