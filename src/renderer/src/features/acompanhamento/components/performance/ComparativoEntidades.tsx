@@ -5,7 +5,7 @@ import {
 import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { COR, type EntidadeSerie, type Dimensao } from '../../lib/performance-calc'
+import { COR, escalaVerde, type EntidadeSerie, type Dimensao } from '../../lib/performance-calc'
 import type { PerfHistorico } from '@/types/acompanhamento'
 
 interface Props {
@@ -27,6 +27,12 @@ export function ComparativoEntidades({
   series, dias, dimensao, cpuMeta, historico, mediaObra, unidade, selectedKey, onSelect
 }: Props): ReactNode {
   const topSeries = useMemo(() => series.slice(0, MAX_LINHAS), [series])
+  const corPorKey = useMemo(() => {
+    const tons = escalaVerde(topSeries.length)
+    const m = new Map<string, string>()
+    topSeries.forEach((s, i) => m.set(s.key, tons[i]))
+    return m
+  }, [topSeries])
   const chartData = useMemo(() => {
     return dias.map((d) => {
       const row: Record<string, number | string | null> = { data: d }
@@ -71,11 +77,13 @@ export function ComparativoEntidades({
             {topSeries.map((s) => (
               <Line
                 key={s.key}
+                type="monotone"
                 dataKey={s.key}
-                stroke={COR.realizado}
-                strokeWidth={selectedKey === s.key ? 2.6 : 1.4}
-                strokeOpacity={selectedKey === s.key ? 1 : selectedKey ? 0.25 : 0.5}
+                stroke={corPorKey.get(s.key) ?? COR.realizado}
+                strokeWidth={selectedKey === s.key ? 2.8 : 1.6}
+                strokeOpacity={selectedKey && selectedKey !== s.key ? 0.3 : 1}
                 dot={false}
+                activeDot={{ r: 3 }}
                 connectNulls
                 isAnimationActive={false}
               />
@@ -118,7 +126,7 @@ export function ComparativoEntidades({
                 >
                   <td className="px-2 py-1.5">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="size-2 rounded-sm" style={{ background: COR.realizado, opacity: selectedKey && selectedKey !== s.key ? 0.35 : 1 }} />
+                      <span className="size-2 rounded-sm shrink-0" style={{ background: corPorKey.get(s.key) ?? COR.mediaObra, opacity: selectedKey && selectedKey !== s.key ? 0.4 : 1 }} />
                       <span className="text-text truncate max-w-[180px]">{s.nome}</span>
                     </span>
                   </td>

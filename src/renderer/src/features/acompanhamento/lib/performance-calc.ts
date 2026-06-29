@@ -24,6 +24,21 @@ export const COR = {
   mediaObra: CHART_THEME.axisLabel
 } as const
 
+/**
+ * Escala monocromática de verdes da família "Realizado" (mesma cor do
+ * Previsto × Realizado), do mais claro ao mais escuro — para distinguir várias
+ * linhas/equipes sem sair da paleta. O índice 0 (melhor colocado) é o mais claro.
+ */
+export function escalaVerde(n: number): string[] {
+  if (n <= 1) return [COR.realizado]
+  const L0 = 0.9 // claro
+  const L1 = 0.52 // escuro
+  return Array.from({ length: n }, (_, i) => {
+    const l = L0 + (L1 - L0) * (i / (n - 1))
+    return `oklch(${Math.round(l * 100)}% 0.15 145)`
+  })
+}
+
 export interface ServicoOpcao {
   id: string // servico_planejamento_id (catálogo global)
   codigo: string | null
