@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { COR } from '../../lib/performance-calc'
 
 interface Props {
   /** Produção por dia (ISO → qtd) da entidade focada (ou geral). */
@@ -17,15 +18,19 @@ const JANELA = 30
 const dow = (iso: string): number => new Date(iso + 'T00:00:00').getDay()
 const fmtBR = (iso: string): string => iso.split('-').reverse().join('/').slice(0, 5)
 
-// Mesma rampa do CalendarHeatmap do dashboard.
-function cor(qtd: number, max: number): string {
-  if (qtd <= 0) return 'bg-bg'
+// Rampa pelo MESMO verde do "Realizado" do Previsto × Realizado (COR.realizado),
+// variando só a opacidade — sem cores extras.
+const OPACIDADE = [0, 0.2, 0.42, 0.68, 1]
+function nivel(qtd: number, max: number): number {
+  if (qtd <= 0) return 0
   const r = qtd / max
-  if (r < 0.25) return 'bg-emerald-900'
-  if (r < 0.5) return 'bg-emerald-700'
-  if (r < 0.75) return 'bg-emerald-500'
-  return 'bg-emerald-400'
+  if (r < 0.25) return 1
+  if (r < 0.5) return 2
+  if (r < 0.75) return 3
+  return 4
 }
+/** Aplica alpha a uma cor oklch: 'oklch(78% .18 145)' → 'oklch(78% .18 145 / 0.4)'. */
+const comAlpha = (c: string, a: number): string => c.replace(/\)\s*$/, ` / ${a})`)
 
 /** Mapa de calor da produção diária — janela de 30 dias, navegável (‹ ›) quando
  *  o período é maior. Mesmo visual do CalendarHeatmap do dashboard. */
@@ -99,15 +104,20 @@ export function MapaCalorProducao({ porDia, dias, unidade }: Props): ReactNode {
       <div className="grid grid-cols-7 gap-1">
         {celulas.map((c, i) => {
           if (!c) return <div key={i} className="aspect-square" />
-          const claro = c.qtd > 0 && c.qtd / maxPeriodo >= 0.5
-          const txt = claro ? 'text-emerald-950' : 'text-text'
+          const n = nivel(c.qtd, maxPeriodo)
+          const claro = n >= 3
+          const txt = claro ? 'text-black/80' : 'text-text'
           return (
             <div
               key={i}
-              className={cn('rounded-sm aspect-square relative flex items-center justify-center overflow-hidden', cor(c.qtd, maxPeriodo))}
+              className={cn(
+                'rounded-sm aspect-square relative flex items-center justify-center overflow-hidden',
+                n === 0 && 'bg-bg'
+              )}
+              style={n > 0 ? { background: comAlpha(COR.realizado, OPACIDADE[n]) } : undefined}
               title={`${c.iso.split('-').reverse().join('/')} — ${formatNumber(c.qtd, 1)} ${un}`}
             >
-              <span className={cn('absolute top-0.5 left-1 text-[8px] font-mono leading-none', claro ? 'text-emerald-950/60' : 'text-text-dim')}>
+              <span className={cn('absolute top-0.5 left-1 text-[8px] font-mono leading-none', claro ? 'text-black/50' : 'text-text-dim')}>
                 {Number(c.iso.split('-')[2])}
               </span>
               {c.qtd > 0 ? (

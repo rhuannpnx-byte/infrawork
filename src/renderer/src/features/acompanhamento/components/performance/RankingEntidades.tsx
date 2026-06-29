@@ -17,7 +17,7 @@ interface Props {
 /** Ranking horizontal (barras com rótulo) por equipe/encarregado — média/dia. */
 export function RankingEntidades({ series, cpuMeta, unidade, selectedKey, onSelect }: Props): ReactNode {
   const data = useMemo(
-    () => series.map((s) => ({ entKey: s.key, nome: s.nome, media: Number(s.media.toFixed(1)), cor: s.cor })),
+    () => series.map((s) => ({ entKey: s.key, nome: s.nome, media: Number(s.media.toFixed(1)) })),
     [series]
   )
   if (data.length === 0) {
@@ -56,7 +56,7 @@ export function RankingEntidades({ series, cpuMeta, unidade, selectedKey, onSele
             }}
             className="cursor-pointer">
             {data.map((d) => (
-              <Cell key={d.entKey} fill={d.cor} fillOpacity={!selectedKey || selectedKey === d.entKey ? 1 : 0.4} />
+              <Cell key={d.entKey} fill={COR.realizado} fillOpacity={!selectedKey || selectedKey === d.entKey ? 1 : 0.35} />
             ))}
             <LabelList
               dataKey="media"

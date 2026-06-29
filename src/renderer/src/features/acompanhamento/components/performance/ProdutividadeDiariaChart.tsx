@@ -79,13 +79,13 @@ export function ProdutividadeDiariaChart({
             formatter={(v, n) => [`${formatNumber(Number(v), 1)} ${un}`, n]}
           />
           <Legend verticalAlign="top" height={22} iconSize={8} wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }} />
-          <Bar name="Produção/dia" dataKey="qtd" fill={serie.cor} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
+          <Bar name="Produção/dia" dataKey="qtd" fill={COR.realizado} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
           {trendOk ? (
             <Line name="Tendência" dataKey="trend" stroke={COR.tendencia} strokeWidth={1.6} strokeDasharray="5 3" dot={false} connectNulls isAnimationActive={false} />
           ) : null}
           {/* média da equipe */}
-          <ReferenceLine y={serie.media} stroke={serie.cor} strokeDasharray="4 4" strokeOpacity={0.7}
-            label={{ value: `média ${formatNumber(serie.media, 0)}`, fontSize: 9, fill: serie.cor, position: 'insideTopLeft' }} />
+          <ReferenceLine y={serie.media} stroke={COR.realizado} strokeDasharray="4 4" strokeOpacity={0.7}
+            label={{ value: `média ${formatNumber(serie.media, 0)}`, fontSize: 9, fill: COR.realizado, position: 'insideTopLeft' }} />
           {/* meta CPU */}
           {cpuMeta != null ? (
             <ReferenceLine y={cpuMeta} stroke={COR.meta} strokeWidth={1.4}
