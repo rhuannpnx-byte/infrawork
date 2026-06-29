@@ -112,6 +112,9 @@ function Inner(): ReactNode {
 
   const labelDim = dimensao === 'equipe' ? 'equipe' : 'encarregado'
 
+  // clique numa entidade alterna o foco: a mesma de novo volta para "Geral"
+  const toggleEntidade = (key: string): void => setEntidadeSel((cur) => (cur === key ? null : key))
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -243,7 +246,7 @@ function Inner(): ReactNode {
                 cpuMeta={cpuMeta}
                 unidade={unidade}
                 selectedKey={entidadeSel}
-                onSelect={setEntidadeSel}
+                onSelect={toggleEntidade}
               />
             </div>
 
@@ -263,7 +266,7 @@ function Inner(): ReactNode {
                   mediaObra={mediaObra}
                   unidade={unidade}
                   selectedKey={entidadeSel}
-                  onSelect={setEntidadeSel}
+                  onSelect={toggleEntidade}
                 />
               </div>
               <BenchmarkHistorico
