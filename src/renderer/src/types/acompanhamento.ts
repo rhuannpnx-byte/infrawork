@@ -459,12 +459,10 @@ export interface ProdutividadeEquipeItem {
   ultima_data: string | null
 }
 
-/** Benchmark histórico (cross-obra, outliers removidos) de um serviço.
- *  Resultado da RPC `acompanhamento_perf_historico`. Produção diária de equipe
- *  na unidade do plano. */
-export interface PerfHistoricoServico {
-  servico_id: string
-  unidade: string | null
+/** Benchmark histórico (cross-obra, outliers removidos) do serviço selecionado.
+ *  Resultado combinado da RPC `acompanhamento_perf_historico` (produção diária
+ *  de equipe). */
+export interface PerfHistorico {
   n_amostras: number
   n_outliers: number
   p25: number | null

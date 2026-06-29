@@ -6,14 +6,14 @@ import {
 import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
 import { formatNumber } from '@/lib/format'
 import { regressaoLinear } from '../../lib/estatistica'
-import type { EntidadeSerie } from '../../lib/performance-calc'
-import type { PerfHistoricoServico } from '@/types/acompanhamento'
+import { COR, type EntidadeSerie } from '../../lib/performance-calc'
+import type { PerfHistorico } from '@/types/acompanhamento'
 
 interface Props {
   serie: EntidadeSerie | null
   dias: string[]
   cpuMeta: number | null
-  historico: PerfHistoricoServico | null
+  historico: PerfHistorico | null
   unidade: string | null
   altura?: number
 }
@@ -60,8 +60,8 @@ export function ProdutividadeDiariaChart({
             <ReferenceArea
               y1={historico.p25}
               y2={historico.p75}
-              fill={CHART_THEME.series[4]}
-              fillOpacity={0.08}
+              fill={COR.historico}
+              fillOpacity={0.1}
               ifOverflow="extendDomain"
             />
           ) : null}
@@ -81,20 +81,20 @@ export function ProdutividadeDiariaChart({
           <Legend verticalAlign="top" height={22} iconSize={8} wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }} />
           <Bar name="Produção/dia" dataKey="qtd" fill={serie.cor} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
           {trendOk ? (
-            <Line name="Tendência" dataKey="trend" stroke={CHART_THEME.series[3]} strokeWidth={1.6} strokeDasharray="5 3" dot={false} connectNulls isAnimationActive={false} />
+            <Line name="Tendência" dataKey="trend" stroke={COR.tendencia} strokeWidth={1.6} strokeDasharray="5 3" dot={false} connectNulls isAnimationActive={false} />
           ) : null}
           {/* média da equipe */}
           <ReferenceLine y={serie.media} stroke={serie.cor} strokeDasharray="4 4" strokeOpacity={0.7}
             label={{ value: `média ${formatNumber(serie.media, 0)}`, fontSize: 9, fill: serie.cor, position: 'insideTopLeft' }} />
           {/* meta CPU */}
           {cpuMeta != null ? (
-            <ReferenceLine y={cpuMeta} stroke={CHART_THEME.series[2]} strokeWidth={1.4}
-              label={{ value: `meta CPU ${formatNumber(cpuMeta, 0)}`, fontSize: 9, fill: CHART_THEME.series[2], position: 'insideBottomLeft' }} />
+            <ReferenceLine y={cpuMeta} stroke={COR.meta} strokeWidth={1.4}
+              label={{ value: `meta CPU ${formatNumber(cpuMeta, 0)}`, fontSize: 9, fill: COR.meta, position: 'insideBottomLeft' }} />
           ) : null}
           {/* mediana histórica */}
           {historico?.p50 != null ? (
-            <ReferenceLine y={historico.p50} stroke={CHART_THEME.series[4]} strokeDasharray="2 4"
-              label={{ value: `hist. p50 ${formatNumber(historico.p50, 0)}`, fontSize: 9, fill: CHART_THEME.series[4], position: 'insideTopRight' }} />
+            <ReferenceLine y={historico.p50} stroke={COR.historico} strokeDasharray="2 4"
+              label={{ value: `hist. p50 ${formatNumber(historico.p50, 0)}`, fontSize: 9, fill: COR.historico, position: 'insideTopRight' }} />
           ) : null}
         </ComposedChart>
       </ResponsiveContainer>

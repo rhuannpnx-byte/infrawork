@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { Users, HardHat, Gauge, CalendarRange, Trophy, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Users, HardHat, Gauge, CalendarRange, Trophy, Activity, Flame, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { RequireRole } from '@/components/layout/RequireRole'
@@ -19,7 +19,9 @@ import {
   servicosDisponiveis,
   contarSemServico,
   construirSeries,
+  construirSerieGeral,
   valoresDiariosObra,
+  sigaIdsDoServico,
   eixoDias,
   type Dimensao
 } from '@/features/acompanhamento/lib/performance-calc'
@@ -27,6 +29,8 @@ import { media } from '@/features/acompanhamento/lib/estatistica'
 import { ProdutividadeDiariaChart } from '@/features/acompanhamento/components/performance/ProdutividadeDiariaChart'
 import { ComparativoEntidades } from '@/features/acompanhamento/components/performance/ComparativoEntidades'
 import { BenchmarkHistorico } from '@/features/acompanhamento/components/performance/BenchmarkHistorico'
+import { MapaCalorProducao } from '@/features/acompanhamento/components/performance/MapaCalorProducao'
+import { RankingEntidades } from '@/features/acompanhamento/components/performance/RankingEntidades'
 
 export function AcompanhamentoPerformancePage(): ReactNode {
   return (
@@ -83,14 +87,16 @@ function Inner(): ReactNode {
     () => (servicoSel ? construirSeries(prods, servicoSel, dimensao) : []),
     [prods, servicoSel, dimensao]
   )
+  const serieGeral = useMemo(() => construirSerieGeral(series), [series])
 
-  // entidade selecionada default = melhor (topo)
+  // entidadeSel === null → visão "Geral" (todas). Se a entidade some, volta p/ Geral.
   useEffect(() => {
-    if (series.length === 0) { setEntidadeSel(null); return }
-    if (!entidadeSel || !series.some((s) => s.key === entidadeSel)) setEntidadeSel(series[0].key)
+    if (entidadeSel && !series.some((s) => s.key === entidadeSel)) setEntidadeSel(null)
   }, [series, entidadeSel])
 
-  const entidade = series.find((s) => s.key === entidadeSel) ?? null
+  // foco = entidade selecionada, ou a série Geral quando nenhuma está escolhida
+  const entidadeFocada = entidadeSel ? series.find((s) => s.key === entidadeSel) ?? serieGeral : serieGeral
+  const ehGeral = !entidadeSel
   const mediaObra = useMemo(() => media(valoresDiariosObra(series)), [series])
 
   const cpuMeta = useMemo(() => {
@@ -101,9 +107,8 @@ function Inner(): ReactNode {
     return row?.producao_diaria_cpu ?? null
   }, [produtividade, servicoSel])
 
-  const servicoIds = useMemo(() => (servicoSel ? [servicoSel] : []), [servicoSel])
-  const { data: histMap, isLoading: histLoading } = usePerfHistorico(servicoIds, obraId)
-  const historico = servicoSel ? histMap?.get(servicoSel) ?? null : null
+  const sigaIds = useMemo(() => (servicoSel ? sigaIdsDoServico(prods, servicoSel) : []), [prods, servicoSel])
+  const { data: historico, isLoading: histLoading } = usePerfHistorico(sigaIds, obraId)
 
   const labelDim = dimensao === 'equipe' ? 'equipe' : 'encarregado'
 
@@ -178,40 +183,76 @@ function Inner(): ReactNode {
           </div>
         ) : (
           <>
-            {/* KPIs da entidade selecionada */}
+            {/* Foco: Geral (todas) ou uma entidade — controla KPIs, gráfico diário e mapa de calor */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-2xs font-mono uppercase text-text-dim">Foco:</span>
+              <FiltroBtn ativo={ehGeral} onClick={() => setEntidadeSel(null)}>Geral (todas)</FiltroBtn>
+              {entidadeFocada && !ehGeral ? (
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-2xs font-mono bg-accent text-white">
+                  <span className="size-2 rounded-sm" style={{ background: entidadeFocada.cor }} />
+                  {entidadeFocada.nome}
+                </span>
+              ) : null}
+              <span className="text-2xs font-mono text-text-dim">· clique numa {labelDim} no ranking/tabela para focar</span>
+            </div>
+
             <KpisEntidade
-              nome={entidade?.nome ?? '—'}
+              nome={entidadeFocada?.nome ?? '—'}
               labelDim={labelDim}
-              media={entidade?.media ?? 0}
-              mediana={entidade?.mediana ?? 0}
-              melhorDia={entidade?.melhorDia ?? 0}
-              melhorData={entidade?.melhorData ?? null}
-              dias={entidade?.dias ?? 0}
-              spark={entidade?.valores ?? []}
+              media={entidadeFocada?.media ?? 0}
+              mediana={entidadeFocada?.mediana ?? 0}
+              melhorDia={entidadeFocada?.melhorDia ?? 0}
+              melhorData={entidadeFocada?.melhorData ?? null}
+              dias={entidadeFocada?.dias ?? 0}
+              spark={entidadeFocada?.valores ?? []}
               unidade={unidade}
               cpuMeta={cpuMeta}
               histP50={historico?.p50 ?? null}
-              tendencia={entidade?.tendencia ?? null}
+              tendencia={entidadeFocada?.tendencia ?? null}
             />
 
-            {/* Produção diária da entidade + meta + faixa histórica + tendência */}
-            <div className="rounded border border-border bg-bg-panel p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-semibold text-text flex items-center gap-1.5">
-                  <Activity size={12} className="text-accent" />
-                  Produção diária — {entidade?.nome ?? '—'}
+            {/* Produção diária (gráfico) + mapa de calor */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 rounded border border-border bg-bg-panel p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-text flex items-center gap-1.5">
+                    <Activity size={12} className="text-accent" />
+                    Produção diária — {entidadeFocada?.nome ?? '—'}
+                  </div>
+                  <div className="text-2xs font-mono text-text-dim">{de.split('-').reverse().join('/')} → {ate.split('-').reverse().join('/')}</div>
                 </div>
-                <div className="text-2xs font-mono text-text-dim">{de.split('-').reverse().join('/')} → {ate.split('-').reverse().join('/')}</div>
+                <ProdutividadeDiariaChart serie={entidadeFocada} dias={dias} cpuMeta={cpuMeta} historico={historico ?? null} unidade={unidade} />
               </div>
-              <ProdutividadeDiariaChart serie={entidade} dias={dias} cpuMeta={cpuMeta} historico={historico} unidade={unidade} />
+              <div className="rounded border border-border bg-bg-panel p-3">
+                <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
+                  <Flame size={12} className="text-accent" />
+                  Mapa de calor — {ehGeral ? 'produção geral' : entidadeFocada?.nome}
+                </div>
+                <MapaCalorProducao porDia={entidadeFocada?.porDia ?? new Map()} dias={dias} unidade={unidade} />
+              </div>
             </div>
 
+            {/* Ranking horizontal por entidade (média/dia) */}
+            <div className="rounded border border-border bg-bg-panel p-3">
+              <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
+                <Trophy size={12} className="text-accent" />
+                Ranking de produtividade por {labelDim} · média/dia — clique para focar
+              </div>
+              <RankingEntidades
+                series={series}
+                cpuMeta={cpuMeta}
+                unidade={unidade}
+                selectedKey={entidadeSel}
+                onSelect={setEntidadeSel}
+              />
+            </div>
+
+            {/* Comparativo no tempo + Benchmark histórico */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Comparativo (ocupa 2 colunas) */}
               <div className="lg:col-span-2 rounded border border-border bg-bg-panel p-3">
                 <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
                   <Users size={12} className="text-accent" />
-                  Comparativo {dimensao === 'equipe' ? 'entre equipes' : 'entre encarregados'} · clique para focar
+                  Comparativo {dimensao === 'equipe' ? 'entre equipes' : 'entre encarregados'} no tempo · clique para focar
                 </div>
                 <ComparativoEntidades
                   series={series}
@@ -225,7 +266,6 @@ function Inner(): ReactNode {
                   onSelect={setEntidadeSel}
                 />
               </div>
-              {/* Benchmark histórico */}
               <BenchmarkHistorico
                 historico={historico}
                 loading={histLoading}

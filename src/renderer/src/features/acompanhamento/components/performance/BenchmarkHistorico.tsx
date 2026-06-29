@@ -2,10 +2,10 @@ import { type ReactNode } from 'react'
 import { History, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { PerfHistoricoServico } from '@/types/acompanhamento'
+import type { PerfHistorico } from '@/types/acompanhamento'
 
 interface Props {
-  historico: PerfHistoricoServico | null | undefined
+  historico: PerfHistorico | null | undefined
   loading: boolean
   /** Média diária do serviço NESTA obra (todas as entidades) no período. */
   mediaObra: number

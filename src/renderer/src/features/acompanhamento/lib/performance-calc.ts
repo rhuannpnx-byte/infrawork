@@ -2,6 +2,7 @@
 // para séries diárias por equipe/encarregado e métricas por serviço.
 
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
+import { CHART_THEME } from '@/components/charts/theme'
 import {
   media,
   mediana,
@@ -11,6 +12,17 @@ import {
 } from './estatistica'
 
 export type Dimensao = 'equipe' | 'encarregado'
+
+// Paleta padronizada com o Previsto × Realizado (CurvaSComProjecoes):
+//   azul = planejado/meta, verde = realizado, laranja = projeção atual/tendência,
+//   violeta = projeção necessária/benchmark histórico.
+export const COR = {
+  meta: CHART_THEME.series[0], // azul
+  realizado: CHART_THEME.series[2], // verde
+  tendencia: 'oklch(74% 0.16 50)', // laranja
+  historico: 'oklch(74% 0.14 295)', // violeta
+  mediaObra: CHART_THEME.axisLabel
+} as const
 
 export interface ServicoOpcao {
   id: string // servico_planejamento_id (catálogo global)
@@ -34,11 +46,8 @@ export interface EntidadeSerie {
   tendencia: { slope: number; r2: number; rotulo: string; pctPorDia: number }
 }
 
-const CORES_FALLBACK = [
-  'oklch(67% 0.18 255)', 'oklch(78% 0.18 145)', 'oklch(82% 0.16 80)',
-  'oklch(74% 0.14 295)', 'oklch(73% 0.16 350)', 'oklch(85% 0.12 215)',
-  'oklch(70% 0.16 30)', 'oklch(75% 0.15 175)'
-]
+// Mesma paleta de séries do tema (usada no Previsto × Realizado).
+const CORES_FALLBACK = CHART_THEME.series
 
 /** Eixo de dias (ISO) do período, inclusivo. */
 export function eixoDias(dataDe: string, dataAte: string): string[] {
@@ -131,38 +140,58 @@ export function construirSeries(
   let ci = 0
   const series: EntidadeSerie[] = []
   for (const [key, e] of porEntidade) {
-    const datas = [...e.porDia.keys()].sort()
-    const valores = datas.map((d) => e.porDia.get(d)!)
-    const pontos = valores.map((y, i) => ({ x: i, y }))
-    const reg: Regressao = regressaoLinear(pontos)
-    const med = media(valores)
-    const t = classificarTendencia(reg.slope, med)
-    let melhorDia = 0
-    let melhorData: string | null = null
-    for (const d of datas) {
-      const v = e.porDia.get(d)!
-      if (v > melhorDia) { melhorDia = v; melhorData = d }
-    }
-    series.push({
-      key,
-      nome: e.nome,
-      cor: e.cor || CORES_FALLBACK[ci++ % CORES_FALLBACK.length],
-      porDia: e.porDia,
-      valores,
-      total: valores.reduce((a, b) => a + b, 0),
-      dias: valores.length,
-      media: med,
-      mediana: mediana(valores),
-      melhorDia,
-      melhorData,
-      tendencia: { slope: reg.slope, r2: reg.r2, rotulo: t.rotulo, pctPorDia: t.pctPorDia }
-    })
+    series.push(metricasSerie(key, e.nome, e.cor || CORES_FALLBACK[ci++ % CORES_FALLBACK.length], e.porDia))
   }
   // ordena por produção média desc (melhores no topo)
   return series.sort((a, b) => b.media - a.media)
 }
 
+/** Calcula métricas + tendência de um conjunto produção-por-dia. */
+function metricasSerie(key: string, nome: string, cor: string, porDia: Map<string, number>): EntidadeSerie {
+  const datas = [...porDia.keys()].sort()
+  const valores = datas.map((d) => porDia.get(d)!)
+  const reg: Regressao = regressaoLinear(valores.map((y, i) => ({ x: i, y })))
+  const med = media(valores)
+  const t = classificarTendencia(reg.slope, med)
+  let melhorDia = 0
+  let melhorData: string | null = null
+  for (const d of datas) {
+    const v = porDia.get(d)!
+    if (v > melhorDia) { melhorDia = v; melhorData = d }
+  }
+  return {
+    key, nome, cor, porDia, valores,
+    total: valores.reduce((a, b) => a + b, 0),
+    dias: valores.length,
+    media: med,
+    mediana: mediana(valores),
+    melhorDia, melhorData,
+    tendencia: { slope: reg.slope, r2: reg.r2, rotulo: t.rotulo, pctPorDia: t.pctPorDia }
+  }
+}
+
+/** Série "Geral" do serviço: soma a produção de TODAS as entidades por dia. */
+export function construirSerieGeral(series: EntidadeSerie[]): EntidadeSerie | null {
+  if (series.length === 0) return null
+  const porDia = new Map<string, number>()
+  for (const s of series) {
+    for (const [d, v] of s.porDia) porDia.set(d, (porDia.get(d) ?? 0) + v)
+  }
+  return metricasSerie('__geral__', 'Geral (todas)', COR.realizado, porDia)
+}
+
 /** Todos os valores diários (todas as entidades) do serviço — base p/ média da obra. */
 export function valoresDiariosObra(series: EntidadeSerie[]): number[] {
   return series.flatMap((s) => s.valores)
+}
+
+/** IDs do serviço executado do SIGA presentes na obra para o serviço (catálogo) escolhido. */
+export function sigaIdsDoServico(prods: ProducaoEnriquecida[], servicoPlanId: string): number[] {
+  const ids = new Set<number>()
+  for (const p of prods) {
+    if (p.servico_planejamento_id === servicoPlanId && p.siga_servico_id != null) {
+      ids.add(Number(p.siga_servico_id))
+    }
+  }
+  return [...ids]
 }

@@ -284,22 +284,22 @@ export const MODULES: ModuleConfig[] = [
             label: 'Previsto × Realizado',
             route: '/acompanhamento/comparativo',
             requiresObra: true
-          }
-        ]
-      },
-      {
-        title: 'ADMINISTRAÇÃO',
-        // Inclui eng/apoio para que Equipes/Alertas/Performance apareçam pra eles;
-        // o Vínculo SIGA continua restrito a god/adm pelo requiredRoles do item.
-        requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
-        items: [
+          },
           {
             icon: 'bar-chart-3',
             label: 'Performance',
             route: '/acompanhamento/performance',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
-          },
+          }
+        ]
+      },
+      {
+        title: 'ADMINISTRAÇÃO',
+        // Inclui eng/apoio para que Equipes/Alertas apareçam pra eles; o Vínculo
+        // SIGA continua restrito a god/adm pelo requiredRoles do item.
+        requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
+        items: [
           {
             icon: 'users',
             label: 'Equipes',

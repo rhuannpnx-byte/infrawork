@@ -5,15 +5,15 @@ import {
 import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { EntidadeSerie, Dimensao } from '../../lib/performance-calc'
-import type { PerfHistoricoServico } from '@/types/acompanhamento'
+import { COR, type EntidadeSerie, type Dimensao } from '../../lib/performance-calc'
+import type { PerfHistorico } from '@/types/acompanhamento'
 
 interface Props {
   series: EntidadeSerie[]
   dias: string[]
   dimensao: Dimensao
   cpuMeta: number | null
-  historico: PerfHistoricoServico | null
+  historico: PerfHistorico | null
   mediaObra: number
   unidade: string | null
   selectedKey: string | null
@@ -62,11 +62,11 @@ export function ComparativoEntidades({
                 return [`${formatNumber(Number(v), 1)} ${un}`, s?.nome ?? String(key)]
               }}
             />
-            <ReferenceLine y={mediaObra} stroke={CHART_THEME.axisLabel} strokeDasharray="4 4"
-              label={{ value: `média obra ${formatNumber(mediaObra, 0)}`, fontSize: 9, fill: CHART_THEME.axisLabel, position: 'insideTopLeft' }} />
+            <ReferenceLine y={mediaObra} stroke={COR.mediaObra} strokeDasharray="4 4"
+              label={{ value: `média obra ${formatNumber(mediaObra, 0)}`, fontSize: 9, fill: COR.mediaObra, position: 'insideTopLeft' }} />
             {cpuMeta != null ? (
-              <ReferenceLine y={cpuMeta} stroke={CHART_THEME.series[2]} strokeWidth={1.2}
-                label={{ value: `CPU ${formatNumber(cpuMeta, 0)}`, fontSize: 9, fill: CHART_THEME.series[2], position: 'insideBottomLeft' }} />
+              <ReferenceLine y={cpuMeta} stroke={COR.meta} strokeWidth={1.2}
+                label={{ value: `CPU ${formatNumber(cpuMeta, 0)}`, fontSize: 9, fill: COR.meta, position: 'insideBottomLeft' }} />
             ) : null}
             {topSeries.map((s) => (
               <Line

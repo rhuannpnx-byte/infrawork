@@ -8,7 +8,7 @@ import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import type {
   ProducaoEnriquecida,
   ProdutividadeEquipeItem,
-  PerfHistoricoServico
+  PerfHistorico
 } from '@/types/acompanhamento'
 
 function notReady(): never {
@@ -70,39 +70,38 @@ export function useProdutividadeObra(
 const toNum = (v: unknown): number | null =>
   v == null ? null : Number.isFinite(Number(v)) ? Number(v) : null
 
-/** Benchmark histórico por serviço (cross-obra, sem outliers) excluindo a obra atual. */
+/**
+ * Benchmark histórico (cross-obra, sem outliers) do serviço selecionado,
+ * excluindo a obra atual. Recebe os IDs do serviço executado do SIGA (estáveis
+ * entre obras) e devolve UMA distribuição combinada.
+ */
 export function usePerfHistorico(
-  servicoIds: string[],
+  sigaServicoIds: number[],
   obraAtualId: string | null | undefined
-): ReturnType<typeof useQuery<Map<string, PerfHistoricoServico>>> {
-  const idsKey = [...servicoIds].sort().join(',')
+): ReturnType<typeof useQuery<PerfHistorico | null>> {
+  const idsKey = [...sigaServicoIds].sort((a, b) => a - b).join(',')
   return useQuery({
     queryKey: ['acompanhamento', 'perf-historico', obraAtualId, idsKey],
-    enabled: !!obraAtualId && servicoIds.length > 0,
+    enabled: !!obraAtualId && sigaServicoIds.length > 0,
     staleTime: 5 * 60 * 1000,
-    queryFn: async (): Promise<Map<string, PerfHistoricoServico>> => {
+    queryFn: async (): Promise<PerfHistorico | null> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('acompanhamento_perf_historico', {
-        p_servico_ids: servicoIds,
+        p_siga_servico_ids: sigaServicoIds,
         p_obra_atual: obraAtualId!
       })
       if (error) throw error
-      const map = new Map<string, PerfHistoricoServico>()
-      for (const row of (data ?? []) as Record<string, unknown>[]) {
-        const r: PerfHistoricoServico = {
-          servico_id: String(row.servico_id),
-          unidade: (row.unidade as string | null) ?? null,
-          n_amostras: Number(row.n_amostras ?? 0),
-          n_outliers: Number(row.n_outliers ?? 0),
-          p25: toNum(row.p25),
-          p50: toNum(row.p50),
-          p75: toNum(row.p75),
-          media_trim: toNum(row.media_trim),
-          media_bruta: toNum(row.media_bruta)
-        }
-        map.set(r.servico_id, r)
+      const row = ((data ?? []) as Record<string, unknown>[])[0]
+      if (!row) return null
+      return {
+        n_amostras: Number(row.n_amostras ?? 0),
+        n_outliers: Number(row.n_outliers ?? 0),
+        p25: toNum(row.p25),
+        p50: toNum(row.p50),
+        p75: toNum(row.p75),
+        media_trim: toNum(row.media_trim),
+        media_bruta: toNum(row.media_bruta)
       }
-      return map
     }
   })
 }
