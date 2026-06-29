@@ -29,20 +29,64 @@ function chaveGrupo(dia: string, frente: string | null, enc: string | null, serv
   return `${dia}|${frente ?? ''}|${enc ?? ''}|${serv ?? ''}`
 }
 
+/** Normaliza um campo de display p/ casar foto × produção (trim + minúsculas). */
+function norm(s: string | null | undefined): string {
+  return (s ?? '').trim().toLowerCase()
+}
+
+/** Chave de produção SEM encarregado (dia × frente × serviço). */
+function chaveFrenteServico(dia: string, frente: string | null, serv: string | null): string {
+  return `${dia}|${norm(frente)}|${norm(serv)}`
+}
+
+interface BucketQtd {
+  /** Total do (dia × frente × serviço), somando todos os encarregados. */
+  total: number
+  /** Quebra por encarregado normalizado. */
+  porEnc: Map<string, number>
+}
+
 /**
- * Soma da qtd lançada por (dia × frente × encarregado × serviço), a partir das
- * produções enriquecidas. Casa pelos mesmos campos de display usados nas fotos.
+ * Índice da qtd lançada por (dia × frente × serviço), com quebra por
+ * encarregado. As fotos do SIGA frequentemente NÃO trazem o encarregado
+ * (`encarregado_display_nome` nulo) mesmo quando a produção traz — então casar
+ * pela tupla de 4 campos zera a qtd ("Qtd —"). Aqui resolvemos por nível:
+ * quando a foto tem encarregado e ele casa, usa a qtd dele; senão usa o total
+ * do dia/frente/serviço (semântica de um card não atribuído a encarregado).
  */
-function somarQtdPorGrupo(producoes: ProducaoEnriquecida[]): Map<string, number> {
-  const m = new Map<string, number>()
+function indiceQtd(producoes: ProducaoEnriquecida[]): Map<string, BucketQtd> {
+  const idx = new Map<string, BucketQtd>()
   for (const p of producoes) {
     if (!p.data) continue
-    const k = chaveGrupo(p.data, p.frente, p.encarregado_display_nome, p.servico_display_nome)
     // Usa a qtd JÁ CONVERTIDA pelo fator (ex.: CBUQ 0,12), como no resto do acompanhamento.
     const qtd = Number(p.qtd_convertida ?? p.qtd) || 0
-    m.set(k, (m.get(k) ?? 0) + qtd)
+    const k = chaveFrenteServico(p.data, p.frente, p.servico_display_nome)
+    let b = idx.get(k)
+    if (!b) {
+      b = { total: 0, porEnc: new Map() }
+      idx.set(k, b)
+    }
+    b.total += qtd
+    const en = norm(p.encarregado_display_nome)
+    b.porEnc.set(en, (b.porEnc.get(en) ?? 0) + qtd)
   }
-  return m
+  return idx
+}
+
+/** Resolve a qtd de um grupo de fotos a partir do índice de produção. */
+function qtdDoGrupo(
+  idx: Map<string, BucketQtd>,
+  dia: string,
+  frente: string | null,
+  enc: string | null,
+  serv: string | null
+): number {
+  const b = idx.get(chaveFrenteServico(dia, frente, serv))
+  if (!b) return 0
+  const en = norm(enc)
+  // Encarregado conhecido e casou → qtd dele; senão → total do dia/frente/serviço.
+  if (en && b.porEnc.has(en)) return b.porEnc.get(en)!
+  return b.total
 }
 
 /**
@@ -55,7 +99,7 @@ export function agruparSequencias(
   producoes: ProducaoEnriquecida[],
   trechos: ObraTrecho[]
 ): SequenciaAtaque[] {
-  const qtdPorGrupo = somarQtdPorGrupo(producoes)
+  const qtdIdx = indiceQtd(producoes)
 
   // Agrupa fotos com GPS por (dia × frente × encarregado × serviço).
   const grupos = new Map<string, FotoGeo[]>()
@@ -108,7 +152,13 @@ export function agruparSequencias(
       fim: { lat: ultima.lat, lng: ultima.lng, marcador: projFim ? marcadorFormatado(projFim) : null },
       sentido,
       distanciaFmt: distanciaEntre(projIni, projFim, primeira, ultima),
-      qtdTotal: qtdPorGrupo.get(k) ?? 0,
+      qtdTotal: qtdDoGrupo(
+        qtdIdx,
+        dia,
+        primeira.frente,
+        primeira.encarregado_display_nome ?? primeira.siga_encarregado_nome,
+        primeira.servico_display_nome
+      ),
       cor
     })
   }
