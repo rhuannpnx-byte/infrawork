@@ -211,25 +211,25 @@ function Inner(): ReactNode {
               tendencia={entidadeFocada?.tendencia ?? null}
             />
 
-            {/* Produção diária (gráfico) */}
-            <div className="rounded border border-border bg-bg-panel p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-semibold text-text flex items-center gap-1.5">
-                  <Activity size={12} className="text-accent" />
-                  Produção diária — {entidadeFocada?.nome ?? '—'}
+            {/* Produção diária (gráfico, 2/3) + mapa de calor (1/3) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 rounded border border-border bg-bg-panel p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-text flex items-center gap-1.5">
+                    <Activity size={12} className="text-accent" />
+                    Produção diária — {entidadeFocada?.nome ?? '—'}
+                  </div>
+                  <div className="text-2xs font-mono text-text-dim">{de.split('-').reverse().join('/')} → {ate.split('-').reverse().join('/')}</div>
                 </div>
-                <div className="text-2xs font-mono text-text-dim">{de.split('-').reverse().join('/')} → {ate.split('-').reverse().join('/')}</div>
+                <ProdutividadeDiariaChart serie={entidadeFocada} dias={dias} cpuMeta={cpuMeta} historico={historico ?? null} unidade={unidade} />
               </div>
-              <ProdutividadeDiariaChart serie={entidadeFocada} dias={dias} cpuMeta={cpuMeta} historico={historico ?? null} unidade={unidade} />
-            </div>
-
-            {/* Mapa de calor da produção diária (geral ou da entidade focada) */}
-            <div className="rounded border border-border bg-bg-panel p-3">
-              <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
-                <Flame size={12} className="text-accent" />
-                Mapa de calor — {ehGeral ? 'produção geral' : entidadeFocada?.nome}
+              <div className="rounded border border-border bg-bg-panel p-3 flex flex-col">
+                <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
+                  <Flame size={12} className="text-accent" />
+                  Mapa de calor — {ehGeral ? 'produção geral' : entidadeFocada?.nome}
+                </div>
+                <MapaCalorProducao porDia={entidadeFocada?.porDia ?? new Map()} dias={dias} unidade={unidade} />
               </div>
-              <MapaCalorProducao porDia={entidadeFocada?.porDia ?? new Map()} dias={dias} unidade={unidade} />
             </div>
 
             {/* Ranking horizontal por entidade (média/dia) */}

@@ -1,6 +1,7 @@
-import { type ReactNode, useMemo } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumber } from '@/lib/format'
-import { COR } from '../../lib/performance-calc'
+import { cn } from '@/lib/utils'
 
 interface Props {
   /** Produção por dia (ISO → qtd) da entidade focada (ou geral). */
@@ -11,105 +12,115 @@ interface Props {
 }
 
 const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const addDays = (iso: string, n: number): string => {
-  const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10)
-}
+const JANELA = 30
+
 const dow = (iso: string): number => new Date(iso + 'T00:00:00').getDay()
+const fmtBR = (iso: string): string => iso.split('-').reverse().join('/').slice(0, 5)
 
-interface Cel { iso: string; qtd: number; dentro: boolean }
+// Mesma rampa do CalendarHeatmap do dashboard.
+function cor(qtd: number, max: number): string {
+  if (qtd <= 0) return 'bg-bg'
+  const r = qtd / max
+  if (r < 0.25) return 'bg-emerald-900'
+  if (r < 0.5) return 'bg-emerald-700'
+  if (r < 0.75) return 'bg-emerald-500'
+  return 'bg-emerald-400'
+}
 
-/** Mapa de calor estilo "contribuições": dias da semana em LINHAS (altura fixa),
- *  semanas em COLUNAS (rola na horizontal). Cor = intensidade do realizado. */
+/** Mapa de calor da produção diária — janela de 30 dias, navegável (‹ ›) quando
+ *  o período é maior. Mesmo visual do CalendarHeatmap do dashboard. */
 export function MapaCalorProducao({ porDia, dias, unidade }: Props): ReactNode {
-  const { semanas, max } = useMemo(() => {
-    if (dias.length === 0) return { semanas: [] as Cel[][], max: 1 }
-    const ini = addDays(dias[0], -dow(dias[0]))
-    let fim = dias[dias.length - 1]
-    while (dow(fim) !== 6) fim = addDays(fim, 1)
-    const dentroSet = new Set(dias)
-    const cols: Cel[][] = []
-    let cur = ini
-    let mx = 1
-    let guard = 0
-    while (cur <= fim && guard < 800) {
-      const semana: Cel[] = []
-      for (let i = 0; i < 7; i++) {
-        const dentro = dentroSet.has(cur)
-        const qtd = porDia.get(cur) ?? 0
-        if (dentro && qtd > mx) mx = qtd
-        semana.push({ iso: cur, qtd, dentro })
-        cur = addDays(cur, 1)
-        guard++
-      }
-      cols.push(semana)
-    }
-    return { semanas: cols, max: mx }
+  const [offset, setOffset] = useState(0)
+  const totalJanelas = Math.max(1, Math.ceil(dias.length / JANELA))
+
+  const resetKey = `${dias[0] ?? ''}|${dias.length}`
+  useEffect(() => { setOffset(0) }, [resetKey])
+
+  const maxPeriodo = useMemo(() => {
+    let m = 1
+    for (const d of dias) { const q = porDia.get(d) ?? 0; if (q > m) m = q }
+    return m
   }, [porDia, dias])
 
-  if (semanas.length === 0) {
-    return <div className="h-24 flex items-center justify-center text-2xs font-mono text-text-dim">Sem período.</div>
+  const { celulas, range, iniIdx, total, diasTrab } = useMemo(() => {
+    const fimIdx = dias.length - offset * JANELA
+    const ini = Math.max(0, fimIdx - JANELA)
+    const slice = dias.slice(ini, fimIdx)
+    const cels: Array<{ iso: string; qtd: number } | null> = []
+    if (slice.length > 0) {
+      for (let i = 0; i < dow(slice[0]); i++) cels.push(null) // alinha 1º dia à coluna
+      for (const iso of slice) cels.push({ iso, qtd: porDia.get(iso) ?? 0 })
+    }
+    let t = 0, dt = 0
+    for (const iso of slice) { const q = porDia.get(iso) ?? 0; if (q > 0) { t += q; dt++ } }
+    return {
+      celulas: cels,
+      iniIdx: ini,
+      total: t,
+      diasTrab: dt,
+      range: slice.length ? { de: slice[0], ate: slice[slice.length - 1] } : null
+    }
+  }, [dias, offset, porDia])
+
+  if (dias.length === 0 || !range) {
+    return <div className="h-24 flex items-center justify-center text-2xs font-mono text-text-dim">Sem produção no período.</div>
   }
 
   const un = unidade ?? ''
-  const CELL = 14
-  const GAP = 3
+  const canOlder = iniIdx > 0
+  const canNewer = offset > 0
 
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="inline-flex flex-col gap-1 min-w-min">
-        {/* rótulos de mês alinhados às colunas de semana */}
-        <div className="flex" style={{ gap: GAP, marginLeft: 18 }}>
-          {semanas.map((s, i) => {
-            const primeiroDoMes = s.find((c) => c.dentro && Number(c.iso.split('-')[2]) <= 7)
-            const label = primeiroDoMes ? MES[Number(primeiroDoMes.iso.split('-')[1]) - 1] : ''
-            return (
-              <div key={i} className="text-[8px] font-mono text-text-dim text-left" style={{ width: CELL }}>
-                {label}
-              </div>
-            )
-          })}
-        </div>
-        <div className="flex" style={{ gap: GAP }}>
-          {/* coluna de rótulos de dia da semana */}
-          <div className="flex flex-col" style={{ gap: GAP }}>
-            {WEEK.map((l, i) => (
-              <div key={i} className="text-[8px] font-mono text-text-dim flex items-center justify-end pr-1"
-                style={{ height: CELL, width: 15 }}>
-                {i % 2 === 1 ? l : ''}
-              </div>
-            ))}
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-2xs font-mono text-text-dim">
+          {fmtBR(range.de)} – {fmtBR(range.ate)}
+        </span>
+        {totalJanelas > 1 ? (
+          <div className="flex items-center gap-1">
+            <span className="text-2xs font-mono text-text-dim mr-1">{totalJanelas - offset}/{totalJanelas}</span>
+            <button onClick={() => setOffset((o) => o + 1)} disabled={!canOlder}
+              className={cn('p-0.5 rounded border border-border', canOlder ? 'text-text hover:bg-bg-hover' : 'text-text-dim/40 cursor-not-allowed')}
+              title="30 dias anteriores">
+              <ChevronLeft size={12} />
+            </button>
+            <button onClick={() => setOffset((o) => Math.max(0, o - 1))} disabled={!canNewer}
+              className={cn('p-0.5 rounded border border-border', canNewer ? 'text-text hover:bg-bg-hover' : 'text-text-dim/40 cursor-not-allowed')}
+              title="30 dias seguintes">
+              <ChevronRight size={12} />
+            </button>
           </div>
-          {/* colunas de semanas */}
-          {semanas.map((s, wi) => (
-            <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
-              {s.map((c, di) => {
-                if (!c.dentro) {
-                  return <div key={di} className="rounded-[2px] bg-transparent" style={{ width: CELL, height: CELL }} />
-                }
-                const ratio = c.qtd > 0 ? c.qtd / max : 0
-                const op = 0.16 + 0.84 * ratio
-                return (
-                  <div
-                    key={di}
-                    className="rounded-[2px] border border-border/40"
-                    style={{ width: CELL, height: CELL, background: c.qtd > 0 ? COR.realizado : 'var(--bg)', opacity: c.qtd > 0 ? op : 1 }}
-                    title={`${c.iso.split('-').reverse().join('/')} — ${formatNumber(c.qtd, 1)} ${un}`}
-                  />
-                )
-              })}
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1 text-2xs font-mono text-text-dim text-center">
+        {WEEK.map((l, i) => <div key={i}>{l}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {celulas.map((c, i) => {
+          if (!c) return <div key={i} className="aspect-square" />
+          const claro = c.qtd > 0 && c.qtd / maxPeriodo >= 0.5
+          const txt = claro ? 'text-emerald-950' : 'text-text'
+          return (
+            <div
+              key={i}
+              className={cn('rounded-sm aspect-square relative flex items-center justify-center overflow-hidden', cor(c.qtd, maxPeriodo))}
+              title={`${c.iso.split('-').reverse().join('/')} — ${formatNumber(c.qtd, 1)} ${un}`}
+            >
+              <span className={cn('absolute top-0.5 left-1 text-[8px] font-mono leading-none', claro ? 'text-emerald-950/60' : 'text-text-dim')}>
+                {Number(c.iso.split('-')[2])}
+              </span>
+              {c.qtd > 0 ? (
+                <span className={cn('text-[11px] font-mono font-semibold leading-none', txt)}>{formatNumber(c.qtd, 0)}</span>
+              ) : null}
             </div>
-          ))}
-        </div>
-        {/* legenda */}
-        <div className="flex items-center gap-1.5 text-[8px] font-mono text-text-dim mt-0.5" style={{ marginLeft: 18 }}>
-          <span>menos</span>
-          {[0.16, 0.4, 0.65, 1].map((o, i) => (
-            <span key={i} className="rounded-[2px] border border-border/40" style={{ width: CELL - 3, height: CELL - 3, background: COR.realizado, opacity: o }} />
-          ))}
-          <span>mais</span>
-          <span className="ml-auto">máx {formatNumber(max, 0)} {un}/dia</span>
-        </div>
+          )
+        })}
+      </div>
+
+      <div className="pt-2 mt-auto text-2xs font-mono text-text-dim flex items-center justify-between">
+        <span>{formatNumber(total, 0)} {un} no período</span>
+        <span>{diasTrab} {diasTrab === 1 ? 'dia' : 'dias'} com produção</span>
       </div>
     </div>
   )
