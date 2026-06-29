@@ -38,6 +38,7 @@ export function BenchmarkHistorico({ historico, loading, mediaObra, unidade }: P
           <DeltaLinha mediaObra={mediaObra} p50={historico.p50} un={un} />
           <div className="text-2xs font-mono text-text-dim mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
             <span>n = {formatNumber(historico.n_amostras, 0)} dias-equipe</span>
+            {historico.n_obras ? <span>{formatNumber(historico.n_obras, 0)} obras (SIGA)</span> : null}
             <span>outliers removidos: {formatNumber(historico.n_outliers, 0)}</span>
             {historico.media_trim != null ? <span>média aparada: {formatNumber(historico.media_trim, 1)} {un}</span> : null}
           </div>

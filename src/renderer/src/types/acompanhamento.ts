@@ -460,8 +460,9 @@ export interface ProdutividadeEquipeItem {
 }
 
 /** Benchmark histórico (cross-obra, outliers removidos) do serviço selecionado.
- *  Resultado combinado da RPC `acompanhamento_perf_historico` (produção diária
- *  de equipe). */
+ *  Calculado direto no SIGA (todos os projetos do ERP, exceto a obra atual) pela
+ *  edge function `acompanhamento-perf-historico`. Uma amostra = produção diária
+ *  de uma equipe nesse serviço executado. */
 export interface PerfHistorico {
   n_amostras: number
   n_outliers: number
@@ -470,6 +471,14 @@ export interface PerfHistorico {
   p75: number | null
   media_trim: number | null
   media_bruta: number | null
+  /** Quantas obras (projetos SIGA) contribuíram com amostras. */
+  n_obras?: number
+  /** Unidade nativa do serviço no SIGA. */
+  unidade?: string | null
+}
+
+export interface PerfHistoricoResposta extends PerfHistorico {
+  ok: boolean
 }
 
 // ─── Curva-S ─────────────────────────────────────────────────────────────

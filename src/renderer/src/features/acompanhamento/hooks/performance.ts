@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { adminApi } from '@/lib/supabase/functions'
 import type {
   ProducaoEnriquecida,
   ProdutividadeEquipeItem,
@@ -72,8 +73,9 @@ const toNum = (v: unknown): number | null =>
 
 /**
  * Benchmark histórico (cross-obra, sem outliers) do serviço selecionado,
- * excluindo a obra atual. Recebe os IDs do serviço executado do SIGA (estáveis
- * entre obras) e devolve UMA distribuição combinada.
+ * excluindo a obra atual. Calculado DIRETO no SIGA (todos os projetos do ERP,
+ * não só as obras importadas) pela edge function — recebe os IDs do serviço
+ * executado do SIGA e devolve UMA distribuição combinada.
  */
 export function usePerfHistorico(
   sigaServicoIds: number[],
@@ -85,22 +87,33 @@ export function usePerfHistorico(
     enabled: !!obraAtualId && sigaServicoIds.length > 0,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<PerfHistorico | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { data, error } = await supabase.rpc('acompanhamento_perf_historico', {
-        p_siga_servico_ids: sigaServicoIds,
-        p_obra_atual: obraAtualId!
+      const res = await adminApi.acompanhamentoPerfHistorico({
+        siga_servico_ids: sigaServicoIds,
+        obra_id: obraAtualId!
       })
-      if (error) throw error
-      const row = ((data ?? []) as Record<string, unknown>[])[0]
-      if (!row) return null
+      if (!res || res.n_amostras === 0) {
+        return {
+          n_amostras: 0,
+          n_outliers: 0,
+          p25: null,
+          p50: null,
+          p75: null,
+          media_trim: null,
+          media_bruta: null,
+          n_obras: res?.n_obras ?? 0,
+          unidade: res?.unidade ?? null
+        }
+      }
       return {
-        n_amostras: Number(row.n_amostras ?? 0),
-        n_outliers: Number(row.n_outliers ?? 0),
-        p25: toNum(row.p25),
-        p50: toNum(row.p50),
-        p75: toNum(row.p75),
-        media_trim: toNum(row.media_trim),
-        media_bruta: toNum(row.media_bruta)
+        n_amostras: Number(res.n_amostras ?? 0),
+        n_outliers: Number(res.n_outliers ?? 0),
+        p25: toNum(res.p25),
+        p50: toNum(res.p50),
+        p75: toNum(res.p75),
+        media_trim: toNum(res.media_trim),
+        media_bruta: toNum(res.media_bruta),
+        n_obras: toNum(res.n_obras) ?? 0,
+        unidade: res.unidade ?? null
       }
     }
   })

@@ -444,6 +444,14 @@ export const adminApi = {
       { method: 'POST', body }
     ),
 
+  // Benchmark histórico de produtividade: calculado direto no SIGA (todos os
+  // projetos do ERP, exceto a obra atual), não só as obras importadas.
+  acompanhamentoPerfHistorico: (body: { siga_servico_ids: number[]; obra_id: string }) =>
+    call<import('@renderer/types/acompanhamento').PerfHistoricoResposta>(
+      'acompanhamento-perf-historico',
+      { method: 'POST', body }
+    ),
+
   // ─── Documentação Oficial v2 (Raio-X / ObraDossier) ───────────────────────
   ocrTexto: (body: { documento_id: string; texto?: string }) =>
     call<import('@renderer/types/documentacao').OcrTextoResposta>('documentacao-ocr-texto', {
