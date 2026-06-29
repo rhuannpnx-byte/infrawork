@@ -44,6 +44,7 @@ import { AcompanhamentoProducaoPage } from '@/app/routes/acompanhamento/producao
 import { AcompanhamentoValorAgregadoPage } from '@/app/routes/acompanhamento/valor-agregado'
 import { AcompanhamentoFotosPage } from '@/app/routes/acompanhamento/fotos'
 import { AcompanhamentoEquipesPage } from '@/app/routes/acompanhamento/equipes'
+import { AcompanhamentoPerformancePage } from '@/app/routes/acompanhamento/performance'
 import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/comparativo'
 import { AcompanhamentoAlertasPage } from '@/app/routes/acompanhamento/alertas'
 import { DocumentacaoLayout } from '@/app/routes/documentacao/layout'
@@ -289,6 +290,11 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: 'alertas',
       component: AcompanhamentoAlertasPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'performance',
+      component: AcompanhamentoPerformancePage
     })
   ])
 

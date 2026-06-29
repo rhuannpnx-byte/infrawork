@@ -280,6 +280,27 @@ export const MODULES: ModuleConfig[] = [
             requiresObra: true
           },
           {
+            icon: 'scale',
+            label: 'Previsto × Realizado',
+            route: '/acompanhamento/comparativo',
+            requiresObra: true
+          }
+        ]
+      },
+      {
+        title: 'ADMINISTRAÇÃO',
+        // Inclui eng/apoio para que Equipes/Alertas/Performance apareçam pra eles;
+        // o Vínculo SIGA continua restrito a god/adm pelo requiredRoles do item.
+        requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
+        items: [
+          {
+            icon: 'bar-chart-3',
+            label: 'Performance',
+            route: '/acompanhamento/performance',
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
+          },
+          {
             icon: 'users',
             label: 'Equipes',
             route: '/acompanhamento/equipes',
@@ -287,24 +308,12 @@ export const MODULES: ModuleConfig[] = [
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           },
           {
-            icon: 'scale',
-            label: 'Previsto × Realizado',
-            route: '/acompanhamento/comparativo',
-            requiresObra: true
-          },
-          {
             icon: 'alert-triangle',
             label: 'Alertas',
             route: '/acompanhamento/alertas',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
-          }
-        ]
-      },
-      {
-        title: 'ADMINISTRAÇÃO',
-        requiredRoles: ['god', 'adm'],
-        items: [
+          },
           {
             icon: 'link',
             label: 'Vínculo SIGA',

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.30] - 2026-06-29
+
+### Adicionado
+
+- **Acompanhamento → Administração → Performance** — nova página de análise de produtividade de **equipes e encarregados**. Por serviço e período (30/90/180 dias ou intervalo custom):
+  - **Produção diária** da equipe/encarregado com **meta da CPU**, **média da equipe**, **linha de tendência** (regressão linear) e **faixa histórica p25–p75**.
+  - **Comparativo** equipe×equipe (ou encarregado×encarregado) e equipe×**média da obra**, com ranking (média, mediana, melhor dia, aderência à CPU, Δ vs histórico, tendência).
+  - **Benchmark histórico**: mediana/p25/p75 daquele serviço em **todas as outras obras** do sistema (no escopo do usuário), com **outliers removidos por IQR** — e o Δ% da obra atual contra essa referência.
+  - KPIs: média/dia, mediana, melhor dia, dias trabalhados, aderência à CPU e tendência (com R²).
+
+### Alterado
+
+- **Acompanhamento — menu** — **Equipes** e **Alertas** movidos para o grupo **Administração** (junto com Performance e Vínculo SIGA). Vínculo SIGA segue restrito a god/adm; Equipes/Alertas/Performance continuam acessíveis também a engenheiro/apoio.
+
 ## [0.3.29] - 2026-06-25
 
 ### Adicionado
