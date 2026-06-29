@@ -112,14 +112,25 @@ export function mediaMovel(xs: number[], janela: number): number[] {
   return out
 }
 
-/** Classifica a tendência a partir do slope relativo à média (robusto à escala). */
+/**
+ * Classifica a tendência a partir do slope relativo à média (robusto à escala).
+ * Só rotula subindo/caindo quando há sinal real: inclinação ≥ 1%/dia da média,
+ * ajuste minimamente explicativo (r² ≥ `r2Min`) e amostra suficiente
+ * (`n ≥ nMin`). Caso contrário é ruído → "estável". Sem r²/n informados,
+ * mantém o comportamento antigo (só pelo slope).
+ */
 export function classificarTendencia(
   slope: number,
-  mediaSerie: number
+  mediaSerie: number,
+  r2?: number,
+  n?: number,
+  r2Min = 0.1,
+  nMin = 5
 ): { rotulo: 'subindo' | 'estavel' | 'caindo'; pctPorDia: number } {
   const base = Math.abs(mediaSerie) > 1e-9 ? mediaSerie : 1
   const pctPorDia = slope / base // fração da média por dia
-  if (pctPorDia > 0.01) return { rotulo: 'subindo', pctPorDia }
-  if (pctPorDia < -0.01) return { rotulo: 'caindo', pctPorDia }
-  return { rotulo: 'estavel', pctPorDia }
+  const semSinal =
+    (r2 != null && r2 < r2Min) || (n != null && n < nMin) || Math.abs(pctPorDia) <= 0.01
+  if (semSinal) return { rotulo: 'estavel', pctPorDia }
+  return { rotulo: pctPorDia > 0 ? 'subindo' : 'caindo', pctPorDia }
 }

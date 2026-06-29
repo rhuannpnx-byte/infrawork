@@ -167,7 +167,7 @@ function metricasSerie(key: string, nome: string, cor: string, porDia: Map<strin
   const valores = datas.map((d) => porDia.get(d)!)
   const reg: Regressao = regressaoLinear(valores.map((y, i) => ({ x: i, y })))
   const med = media(valores)
-  const t = classificarTendencia(reg.slope, med)
+  const t = classificarTendencia(reg.slope, med, reg.r2, valores.length)
   let melhorDia = 0
   let melhorData: string | null = null
   for (const d of datas) {
