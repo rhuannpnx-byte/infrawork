@@ -451,15 +451,9 @@ export const adminApi = {
       body
     }),
 
-  classificarDocumento: (body: {
-    obra_id: string
-    texto?: string
-    arquivo_url?: string
-    mime?: string
-    nome?: string
-    pasta?: string
-  }) =>
-    call<import('@renderer/types/documentacao').ClassificarResposta>('documentacao-classificar', {
+  // Remove um documento (god/adm): tira do bucket, apaga em cascata e re-resolve o dossiê.
+  removerDocumento: (body: { obra_id: string; documento_id: string }) =>
+    call<{ ok: boolean; removido: boolean }>('documentacao-remover-documento', {
       method: 'POST',
       body
     }),
@@ -527,7 +521,12 @@ export const adminApi = {
   gerarEmbeddings: (body: { documento_id: string; texto?: string }) =>
     call<{ ok: boolean; chunks: number }>('documentacao-embeddings', { method: 'POST', body }),
 
-  perguntarDocumento: (body: { obra_id: string; pergunta: string; match_count?: number }) =>
+  perguntarDocumento: (body: {
+    obra_id: string
+    pergunta: string
+    match_count?: number
+    documento_id?: string
+  }) =>
     call<import('@renderer/types/documentacao').PerguntarResposta>('documentacao-perguntar', {
       method: 'POST',
       body

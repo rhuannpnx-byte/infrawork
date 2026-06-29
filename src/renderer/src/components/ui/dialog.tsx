@@ -19,6 +19,11 @@ interface DialogProps {
    * leaflet popup, etc). Use no ConfirmDialog global.
    */
   topmost?: boolean
+  /**
+   * Esconde o botão X padrão (canto sup. direito). Use quando o conteúdo já
+   * provê o próprio controle de fechar no cabeçalho (ex.: Visualizador).
+   */
+  hideClose?: boolean
 }
 
 const SIZES = {
@@ -37,7 +42,8 @@ export function Dialog({
   className,
   size = 'md',
   disableDismiss = false,
-  topmost = false
+  topmost = false,
+  hideClose = false
 }: DialogProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -82,7 +88,7 @@ export function Dialog({
           className
         )}
       >
-        {!disableDismiss ? (
+        {!disableDismiss && !hideClose ? (
           <button
             type="button"
             aria-label="Fechar"

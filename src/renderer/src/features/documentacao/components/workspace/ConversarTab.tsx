@@ -120,7 +120,7 @@ export function ConversarTab({ obraId, onAbrirFonte }: Props): ReactNode {
                                 key={f.n}
                                 type="button"
                                 onClick={() => onAbrirFonte(f.documento_id, f.pagina)}
-                                title={`${f.tipo_codigo ?? ''} · similaridade ${(f.similaridade * 100).toFixed(0)}%`}
+                                title={f.tipo_codigo ? `Categoria ${f.tipo_codigo}` : 'Abrir fonte'}
                               >
                                 <Badge variant="outline" className="hover:border-border-accent">
                                   <FileText size={9} /> [{f.n}]{' '}

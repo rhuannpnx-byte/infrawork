@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase/client'
 import { adminApi } from '@/lib/supabase/functions'
 import {
   ingerirDocumento,
-  aplicarClassificacao,
   arquivarEmGrupo,
   registrarAderencia
 } from '@/features/documentacao/lib/ingest'
@@ -20,13 +19,12 @@ export interface JobIngestao {
   nome: string
   tamanho: number
   mtime: number
-  /** Exatamente um dos dois: arquivo arrastado ou caminho no disco (pasta/OneDrive). */
+  /** Exatamente um dos dois: arquivo arrastado ou caminho no disco. */
   file?: File
   path?: string
-  classificar: boolean
   indexar: boolean
-  /** Inserção MANUAL: grupo escolhido pelo usuário (pula classificação, checa aderência). */
-  grupo_forcado?: string
+  /** Inserção sempre é guiada: grupo escolhido pelo usuário (checa aderência, nunca bloqueia). */
+  grupo_forcado: string
   status: StatusJob
   erro?: string
 }
@@ -194,72 +192,52 @@ async function processarJob(job: JobIngestao): Promise<void> {
 
   let categoriaCodigo = '20'
   let grupoCodigo = '20'
-  let assinado: boolean | undefined
+  const assinado: boolean | undefined = undefined
 
-  if (job.grupo_forcado) {
-    // 2') Inserção MANUAL: arquiva no grupo escolhido (sem classificar) e checa
-    // aderência em paralelo — ORIENTA sem restringir (banner no Repositório).
-    try {
-      const tmpl = await ensureTemplate(job.obra_id)
-      const g = tmpl.grupos.find((x) => x.codigo === job.grupo_forcado)
-      grupoCodigo = job.grupo_forcado
-      categoriaCodigo = g?.tipo_codigo_base ?? '20'
-      await arquivarEmGrupo(documento_id, grupoCodigo, categoriaCodigo)
-      void adminApi
-        .verificarAderencia({
-          obra_id: job.obra_id,
-          grupo_codigo: grupoCodigo,
-          texto: texto || undefined,
-          nome: job.nome,
-          pasta: pastaDoPath(job.path) ?? undefined
-        })
-        .then((v) => registrarAderencia(documento_id, v.confianca, v.grupo_sugerido))
-        .catch((e) => console.warn('[ingestao] aderência falhou em', job.nome, e))
-    } catch (e) {
-      console.warn('[ingestao] arquivamento manual falhou em', job.nome, e)
-    }
-  } else if (job.classificar) {
-    // 2) Classificação automática (conteúdo + pasta).
-    try {
-      const cls = await adminApi.classificarDocumento({
+  // 2) Inserção GUIADA: arquiva no grupo indicado pelo usuário (sem classificar IA)
+  //    e checa aderência em paralelo — ORIENTA sem restringir (banner no Repositório).
+  try {
+    const tmpl = await ensureTemplate(job.obra_id)
+    const g = tmpl.grupos.find((x) => x.codigo === job.grupo_forcado)
+    grupoCodigo = job.grupo_forcado
+    categoriaCodigo = g?.tipo_codigo_base ?? '20'
+    await arquivarEmGrupo(documento_id, grupoCodigo, categoriaCodigo)
+    void adminApi
+      .verificarAderencia({
         obra_id: job.obra_id,
+        grupo_codigo: grupoCodigo,
         texto: texto || undefined,
         nome: job.nome,
         pasta: pastaDoPath(job.path) ?? undefined
       })
-      categoriaCodigo = cls.tipo_codigo
-      grupoCodigo = cls.grupo_codigo ?? cls.tipo_codigo
-      assinado = cls.sinais?.assinado
-      await aplicarClassificacao(documento_id, job.obra_id, job.nome, pastaDoPath(job.path), cls)
-    } catch (e) {
-      console.warn('[ingestao] classificação falhou em', job.nome, e)
-    }
+      .then((v) => registrarAderencia(documento_id, v.confianca, v.grupo_sugerido))
+      .catch((e) => console.warn('[ingestao] aderência falhou em', job.nome, e))
+  } catch (e) {
+    console.warn('[ingestao] arquivamento falhou em', job.nome, e)
   }
 
   // 3) Extração TEMPLATE-AWARE + gravação de candidatos (resolução no fim do lote).
-  if (job.classificar || job.grupo_forcado) {
-    try {
-      await ensureTemplate(job.obra_id) // garante o template da obra antes de extrair
-      const categoria = `${categoriaCodigo} ${nomeCategoria(categoriaCodigo)}`
-      const ex = await adminApi.extrairDocumento({
-        obra_id: job.obra_id,
-        documento_id,
-        categoria,
-        grupo_codigo: grupoCodigo,
-        texto: texto || undefined
-      })
-      await adminApi.consolidarDocumento({
-        obra_id: job.obra_id,
-        documento_id,
-        categoria,
-        respostas: ex.respostas ?? [],
-        entradas: ex.entradas ?? [],
-        confianca: ex.confianca,
-        assinado
-      })
-    } catch (e) {
-      console.warn('[ingestao] extração/consolidação falhou em', job.nome, e)
-    }
+  try {
+    await ensureTemplate(job.obra_id) // garante o template da obra antes de extrair
+    const categoria = `${categoriaCodigo} ${nomeCategoria(categoriaCodigo)}`
+    const ex = await adminApi.extrairDocumento({
+      obra_id: job.obra_id,
+      documento_id,
+      categoria,
+      grupo_codigo: grupoCodigo,
+      texto: texto || undefined
+    })
+    await adminApi.consolidarDocumento({
+      obra_id: job.obra_id,
+      documento_id,
+      categoria,
+      respostas: ex.respostas ?? [],
+      entradas: ex.entradas ?? [],
+      confianca: ex.confianca,
+      assinado
+    })
+  } catch (e) {
+    console.warn('[ingestao] extração/consolidação falhou em', job.nome, e)
   }
 
   // 4) Indexação (embeddings) para o RAG.

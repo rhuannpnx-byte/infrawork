@@ -28,8 +28,6 @@ const infrawork = {
     lerArquivoBytes: (path: string) => ipcRenderer.invoke('orcamento:upload-arquivo-bytes', path)
   },
   documentacao: {
-    escolherPasta: () => ipcRenderer.invoke('documentacao:escolher-pasta'),
-    varrerPasta: (path: string) => ipcRenderer.invoke('documentacao:varrer-pasta', path),
     lerArquivoBytes: (path: string) => ipcRenderer.invoke('documentacao:ler-arquivo-bytes', path)
   },
   medicao: {

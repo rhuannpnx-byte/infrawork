@@ -11,7 +11,14 @@
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import { assertObraAccess } from '../_shared/orc.ts'
-import { chamarLLM, conteudoArquivo, chunkText, MODEL_VISAO } from '../_shared/doc-ia.ts'
+import {
+  chamarLLM,
+  conteudoArquivo,
+  chunkComPagina,
+  gerarEmbedding,
+  MISTRAL_EMBED_MODEL,
+  MODEL_VISAO
+} from '../_shared/doc-ia.ts'
 
 interface Body {
   documento_id?: string
@@ -98,8 +105,18 @@ Deno.serve(async (req) => {
     await admin.from('documento_versao').update({ texto_extraido: texto }).eq('id', versao.id)
   }
 
-  const chunks = chunkText(texto.slice(0, 200_000))
+  const chunks = chunkComPagina(texto.slice(0, 200_000))
   if (chunks.length === 0) return json({ ok: true, chunks: 0 })
+
+  // Embeddings semânticos (Mistral 1024-dim). Falha → segue só com FTS (vetor null).
+  let vetores: number[][] = []
+  try {
+    vetores = await gerarEmbedding(chunks.map((c) => c.conteudo))
+  } catch (e) {
+    console.warn('[embeddings] falha ao gerar vetores; indexando só FTS', e)
+    vetores = []
+  }
+  const comVetor = vetores.length === chunks.length
 
   // Re-indexação idempotente (substitui chunks antigos).
   await admin.from('documento_chunk').delete().eq('documento_id', documento_id)
@@ -108,12 +125,18 @@ Deno.serve(async (req) => {
     documento_id,
     versao_id: versao.id,
     ordem: i,
-    pagina: null,
-    conteudo: c,
-    metadados: { len: c.length, fts: true }
+    pagina: c.pagina,
+    conteudo: c.conteudo,
+    // pgvector via PostgREST espera o literal textual "[..]" (não array JSON).
+    embedding: comVetor && vetores[i]?.length ? JSON.stringify(vetores[i]) : null,
+    metadados: {
+      len: c.conteudo.length,
+      fts: true,
+      embedding_model: comVetor ? MISTRAL_EMBED_MODEL : null
+    }
   }))
   const { error: errIns } = await admin.from('documento_chunk').insert(linhas)
   if (errIns) return json({ error: errIns.message }, 500)
 
-  return json({ ok: true, chunks: linhas.length })
+  return json({ ok: true, chunks: linhas.length, vetorizados: comVetor ? linhas.length : 0 })
 })

@@ -118,46 +118,6 @@ export async function ingerirDocumento(
   return { documento_id: documentoId, versao_id: (ver as { id: string }).id }
 }
 
-/** Atualiza a classificação do documento (após IA) e grava feedback (aceito). */
-export async function aplicarClassificacao(
-  documentoId: string,
-  obraId: string,
-  nomeArquivo: string,
-  pasta: string | null,
-  cls: {
-    tipo_codigo: string
-    grupo_codigo?: string | null
-    especie: string | null
-    titulo_sugerido: string | null
-    confianca: number
-    sinais: { assinado: boolean }
-  }
-): Promise<void> {
-  if (!SUPABASE_ENABLED || !supabase) return
-  await supabase
-    .from('documento')
-    .update({
-      tipo_codigo: cls.tipo_codigo,
-      categoria: cls.tipo_codigo,
-      grupo_codigo: cls.grupo_codigo ?? cls.tipo_codigo,
-      especie: cls.especie,
-      titulo: cls.titulo_sugerido || undefined,
-      assinado: cls.sinais?.assinado ?? false,
-      classificacao_confianca: cls.confianca,
-      classificacao_origem: 'ia'
-    })
-    .eq('id', documentoId)
-  await supabase.from('documento_classificacao_feedback').insert({
-    obra_id: obraId,
-    documento_id: documentoId,
-    nome_arquivo: nomeArquivo,
-    pasta_origem: pasta,
-    tipo_sugerido: cls.tipo_codigo,
-    tipo_final: cls.tipo_codigo,
-    acao: 'aceito'
-  })
-}
-
 /** Arquivamento MANUAL: define grupo/categoria sem IA (origem manual). */
 export async function arquivarEmGrupo(
   documentoId: string,

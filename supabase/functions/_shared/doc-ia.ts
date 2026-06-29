@@ -181,6 +181,56 @@ export function chunkText(texto: string, alvo = 900, overlap = 150): string[] {
   return final.slice(0, 100) // teto por documento (limite de compute do gte-small na edge)
 }
 
+export interface ChunkPagina {
+  conteudo: string
+  pagina: number | null
+}
+
+/**
+ * Igual ao chunkText, mas preserva o nº da página a partir dos marcadores
+ * `[[page:N]]` (gravados pelo OCR em texto_extraido). Documentos nato-digitais
+ * (sem marcadores) caem para chunk plano com pagina = null.
+ */
+export function chunkComPagina(texto: string, alvo = 900, overlap = 150): ChunkPagina[] {
+  const limpo = (texto ?? '').replace(/\r/g, '')
+  if (!limpo.includes('[[page:')) {
+    return chunkText(limpo, alvo, overlap).map((c) => ({ conteudo: c, pagina: null }))
+  }
+  const out: ChunkPagina[] = []
+  // split com grupo de captura → [pre, n1, seg1, n2, seg2, ...]
+  const partes = limpo.split(/\[\[page:(\d+)\]\]/)
+  for (let i = 1; i < partes.length; i += 2) {
+    const pagina = Number(partes[i]) || null
+    const seg = partes[i + 1] ?? ''
+    for (const c of chunkText(seg, alvo, overlap)) out.push({ conteudo: c, pagina })
+  }
+  return out.slice(0, 120)
+}
+
+export const MISTRAL_EMBED_MODEL = Deno.env.get('MISTRAL_EMBED_MODEL') ?? 'mistral-embed'
+
+/**
+ * Embeddings via Mistral (`mistral-embed`, 1024-dim). Batch. Lança em erro/sem
+ * chave — o chamador decide o fallback (RAG segue só com FTS). Trunca cada
+ * entrada (limite de tokens do provedor).
+ */
+export async function gerarEmbedding(textos: string[]): Promise<number[][]> {
+  if (!MISTRAL_API_KEY) throw new Error('MISTRAL_API_KEY não configurada')
+  if (textos.length === 0) return []
+  const input = textos.map((t) => (t ?? '').slice(0, 8000))
+  const resp = await fetch('https://api.mistral.ai/v1/embeddings', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${MISTRAL_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: MISTRAL_EMBED_MODEL, input })
+  })
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '')
+    throw new Error(`Mistral embeddings ${resp.status}: ${t.slice(0, 200)}`)
+  }
+  const data = (await resp.json()) as { data?: Array<{ embedding?: number[] }> }
+  return (data.data ?? []).map((d) => d.embedding ?? [])
+}
+
 /** Soma `n` dias a uma data ISO. */
 export function addDaysIso(iso: string | null, n: number | null): string | null {
   if (!iso || n == null || !Number.isFinite(n)) return null

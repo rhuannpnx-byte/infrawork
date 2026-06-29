@@ -353,18 +353,3 @@ export interface ReavaliarLacunasResposta {
   lacunas: DossieLacuna[]
   cobertura_essencial_pct: number
 }
-
-/** Arquivo varrido de uma pasta local (resultado do main process). */
-export interface ArquivoVarrido {
-  path: string
-  nome: string
-  tamanho: number
-  mtime: number
-  online_only: boolean
-}
-
-export interface VarreduraResultado {
-  arquivos: ArquivoVarrido[]
-  total: number
-  online_only: number
-}

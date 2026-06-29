@@ -122,6 +122,29 @@ export const GrupoTemplateSchema = z.object({
   ordem: z.number().default(0)
 }) as z.ZodType<GrupoTemplate>
 
+/**
+ * Filtra os grupos aplicáveis ao perfil da obra (consórcio / natureza / órgão).
+ * Espelha a `gruposAplicaveis` do edge `_shared/template.ts` para a UI guiada.
+ */
+export function gruposAplicaveis(
+  grupos: GrupoTemplate[],
+  ctx: { consorcio?: boolean | null; natureza?: string | null; perfil_orgao?: string | null }
+): GrupoTemplate[] {
+  return grupos.filter((g) => {
+    const a = g.aplicavel_se ?? {}
+    if (a.consorcio === true && ctx.consorcio !== true) return false
+    if (
+      a.natureza?.length &&
+      ctx.natureza &&
+      !a.natureza.includes(ctx.natureza as 'publico' | 'privado')
+    )
+      return false
+    if (a.perfil_orgao?.length && ctx.perfil_orgao && !a.perfil_orgao.includes(ctx.perfil_orgao))
+      return false
+    return true
+  })
+}
+
 export const TemplateSchema = z.object({
   id: z.string(),
   obra_id: z.string().nullable(),
