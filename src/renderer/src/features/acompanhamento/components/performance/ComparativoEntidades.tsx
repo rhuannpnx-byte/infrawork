@@ -72,9 +72,9 @@ export function ComparativoEntidades({
               <Line
                 key={s.key}
                 dataKey={s.key}
-                stroke={s.cor}
+                stroke={COR.realizado}
                 strokeWidth={selectedKey === s.key ? 2.6 : 1.4}
-                strokeOpacity={selectedKey && selectedKey !== s.key ? 0.35 : 1}
+                strokeOpacity={selectedKey === s.key ? 1 : selectedKey ? 0.25 : 0.5}
                 dot={false}
                 connectNulls
                 isAnimationActive={false}
@@ -118,7 +118,7 @@ export function ComparativoEntidades({
                 >
                   <td className="px-2 py-1.5">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="size-2 rounded-sm" style={{ background: s.cor }} />
+                      <span className="size-2 rounded-sm" style={{ background: COR.realizado, opacity: selectedKey && selectedKey !== s.key ? 0.35 : 1 }} />
                       <span className="text-text truncate max-w-[180px]">{s.nome}</span>
                     </span>
                   </td>

@@ -23,6 +23,7 @@ import {
   valoresDiariosObra,
   sigaIdsDoServico,
   eixoDias,
+  COR,
   type Dimensao
 } from '@/features/acompanhamento/lib/performance-calc'
 import { media } from '@/features/acompanhamento/lib/estatistica'
@@ -192,7 +193,7 @@ function Inner(): ReactNode {
               <FiltroBtn ativo={ehGeral} onClick={() => setEntidadeSel(null)}>Geral (todas)</FiltroBtn>
               {entidadeFocada && !ehGeral ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-2xs font-mono bg-accent text-white">
-                  <span className="size-2 rounded-sm" style={{ background: entidadeFocada.cor }} />
+                  <span className="size-2 rounded-sm" style={{ background: COR.realizado }} />
                   {entidadeFocada.nome}
                 </span>
               ) : null}
