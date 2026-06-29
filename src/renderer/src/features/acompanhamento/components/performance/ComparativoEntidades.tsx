@@ -80,7 +80,7 @@ export function ComparativoEntidades({
             {topSeries.map((s) => (
               <Line
                 key={s.key}
-                type="linear"
+                type="monotone"
                 dataKey={s.key}
                 stroke={corPorKey.get(s.key) ?? COR.realizado}
                 strokeWidth={selectedKey === s.key ? 2.8 : 1.6}
