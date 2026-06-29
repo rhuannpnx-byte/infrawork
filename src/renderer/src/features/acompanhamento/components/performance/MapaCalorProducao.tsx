@@ -11,67 +11,105 @@ interface Props {
 }
 
 const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 const addDays = (iso: string, n: number): string => {
   const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10)
 }
 const dow = (iso: string): number => new Date(iso + 'T00:00:00').getDay()
 
-/** Mapa de calor da produção diária (semanas em linhas), na cor do realizado. */
+interface Cel { iso: string; qtd: number; dentro: boolean }
+
+/** Mapa de calor estilo "contribuições": dias da semana em LINHAS (altura fixa),
+ *  semanas em COLUNAS (rola na horizontal). Cor = intensidade do realizado. */
 export function MapaCalorProducao({ porDia, dias, unidade }: Props): ReactNode {
-  const { celulas, max } = useMemo(() => {
-    if (dias.length === 0) return { celulas: [] as Array<{ iso: string; qtd: number; dentro: boolean } | null>, max: 1 }
-    const ini = addDays(dias[0], -dow(dias[0])) // alinha ao domingo
-    const fimP = dias[dias.length - 1]
-    let fim = fimP
-    while (dow(fim) !== 6) fim = addDays(fim, 1) // até sábado
+  const { semanas, max } = useMemo(() => {
+    if (dias.length === 0) return { semanas: [] as Cel[][], max: 1 }
+    const ini = addDays(dias[0], -dow(dias[0]))
+    let fim = dias[dias.length - 1]
+    while (dow(fim) !== 6) fim = addDays(fim, 1)
     const dentroSet = new Set(dias)
-    const cels: Array<{ iso: string; qtd: number; dentro: boolean } | null> = []
+    const cols: Cel[][] = []
     let cur = ini
-    let guard = 0
     let mx = 1
-    while (cur <= fim && guard < 500) {
-      const dentro = dentroSet.has(cur)
-      const qtd = porDia.get(cur) ?? 0
-      if (dentro && qtd > mx) mx = qtd
-      cels.push({ iso: cur, qtd, dentro })
-      cur = addDays(cur, 1)
-      guard++
+    let guard = 0
+    while (cur <= fim && guard < 800) {
+      const semana: Cel[] = []
+      for (let i = 0; i < 7; i++) {
+        const dentro = dentroSet.has(cur)
+        const qtd = porDia.get(cur) ?? 0
+        if (dentro && qtd > mx) mx = qtd
+        semana.push({ iso: cur, qtd, dentro })
+        cur = addDays(cur, 1)
+        guard++
+      }
+      cols.push(semana)
     }
-    return { celulas: cels, max: mx }
+    return { semanas: cols, max: mx }
   }, [porDia, dias])
 
-  if (celulas.length === 0) {
-    return <div className="h-40 flex items-center justify-center text-2xs font-mono text-text-dim">Sem período.</div>
+  if (semanas.length === 0) {
+    return <div className="h-24 flex items-center justify-center text-2xs font-mono text-text-dim">Sem período.</div>
   }
 
   const un = unidade ?? ''
+  const CELL = 14
+  const GAP = 3
+
   return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 mb-1 text-2xs font-mono text-text-dim text-center">
-        {WEEK.map((l, i) => <div key={i}>{l}</div>)}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {celulas.map((c, i) => {
-          if (!c || !c.dentro) {
-            return <div key={i} className="rounded-sm bg-bg/40 aspect-square" />
-          }
-          const ratio = c.qtd > 0 ? c.qtd / max : 0
-          const op = 0.18 + 0.82 * ratio
-          const dia = Number(c.iso.split('-')[2])
-          return (
-            <div
-              key={i}
-              className="rounded-sm aspect-square relative border border-border/40 bg-bg overflow-hidden flex items-center justify-center"
-              title={`${c.iso.split('-').reverse().join('/')} — ${formatNumber(c.qtd, 1)} ${un}`}
-            >
-              {c.qtd > 0 ? <span className="absolute inset-0" style={{ background: COR.realizado, opacity: op }} /> : null}
-              <span className="absolute top-0.5 left-1 text-[8px] font-mono text-text-dim leading-none">{dia}</span>
-              {c.qtd > 0 ? (
-                <span className="relative text-[9px] font-mono font-semibold text-text leading-none">{formatNumber(c.qtd, 0)}</span>
-              ) : null}
+    <div className="overflow-x-auto pb-1">
+      <div className="inline-flex flex-col gap-1 min-w-min">
+        {/* rótulos de mês alinhados às colunas de semana */}
+        <div className="flex" style={{ gap: GAP, marginLeft: 18 }}>
+          {semanas.map((s, i) => {
+            const primeiroDoMes = s.find((c) => c.dentro && Number(c.iso.split('-')[2]) <= 7)
+            const label = primeiroDoMes ? MES[Number(primeiroDoMes.iso.split('-')[1]) - 1] : ''
+            return (
+              <div key={i} className="text-[8px] font-mono text-text-dim text-left" style={{ width: CELL }}>
+                {label}
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex" style={{ gap: GAP }}>
+          {/* coluna de rótulos de dia da semana */}
+          <div className="flex flex-col" style={{ gap: GAP }}>
+            {WEEK.map((l, i) => (
+              <div key={i} className="text-[8px] font-mono text-text-dim flex items-center justify-end pr-1"
+                style={{ height: CELL, width: 15 }}>
+                {i % 2 === 1 ? l : ''}
+              </div>
+            ))}
+          </div>
+          {/* colunas de semanas */}
+          {semanas.map((s, wi) => (
+            <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
+              {s.map((c, di) => {
+                if (!c.dentro) {
+                  return <div key={di} className="rounded-[2px] bg-transparent" style={{ width: CELL, height: CELL }} />
+                }
+                const ratio = c.qtd > 0 ? c.qtd / max : 0
+                const op = 0.16 + 0.84 * ratio
+                return (
+                  <div
+                    key={di}
+                    className="rounded-[2px] border border-border/40"
+                    style={{ width: CELL, height: CELL, background: c.qtd > 0 ? COR.realizado : 'var(--bg)', opacity: c.qtd > 0 ? op : 1 }}
+                    title={`${c.iso.split('-').reverse().join('/')} — ${formatNumber(c.qtd, 1)} ${un}`}
+                  />
+                )
+              })}
             </div>
-          )
-        })}
+          ))}
+        </div>
+        {/* legenda */}
+        <div className="flex items-center gap-1.5 text-[8px] font-mono text-text-dim mt-0.5" style={{ marginLeft: 18 }}>
+          <span>menos</span>
+          {[0.16, 0.4, 0.65, 1].map((o, i) => (
+            <span key={i} className="rounded-[2px] border border-border/40" style={{ width: CELL - 3, height: CELL - 3, background: COR.realizado, opacity: o }} />
+          ))}
+          <span>mais</span>
+          <span className="ml-auto">máx {formatNumber(max, 0)} {un}/dia</span>
+        </div>
       </div>
     </div>
   )

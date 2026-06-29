@@ -19,7 +19,7 @@ const PERF_COLS =
   'id, obra_id, data, qtd, qtd_convertida, unidade_plano, ' +
   'siga_equipe_nome, equipe_planejamento_id, equipe_display_nome, equipe_display_cor, ' +
   'siga_encarregado_nome, encarregado_match_id, encarregado_display_nome, ' +
-  'servico_planejamento_id, servico_display_nome, servico_codigo, servico_unidade, item_orcamentario_id'
+  'siga_servico_id, servico_planejamento_id, servico_display_nome, servico_codigo, servico_unidade, item_orcamentario_id'
 
 /** Produções enriquecidas da obra no período — base de toda a análise da página. */
 export function useProducaoPerformance(
