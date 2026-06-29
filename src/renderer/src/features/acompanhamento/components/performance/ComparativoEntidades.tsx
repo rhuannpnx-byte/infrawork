@@ -6,7 +6,6 @@ import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { COR, escalaVerde, type EntidadeSerie, type Dimensao } from '../../lib/performance-calc'
-import { mediaMovel } from '../../lib/estatistica'
 import type { PerfHistorico } from '@/types/acompanhamento'
 
 interface Props {
@@ -23,7 +22,6 @@ interface Props {
 
 const fmtDM = (iso: string): string => { const [, m, d] = iso.split('-'); return `${d}/${m}` }
 const MAX_LINHAS = 6
-const JANELA_MM = 5 // dias trabalhados para a média móvel
 
 export function ComparativoEntidades({
   series, dias, dimensao, cpuMeta, historico, mediaObra, unidade, selectedKey, onSelect
@@ -35,25 +33,13 @@ export function ComparativoEntidades({
     topSeries.forEach((s, i) => m.set(s.key, tons[i]))
     return m
   }, [topSeries])
-  // Média móvel por equipe sobre os dias trabalhados (declutter do serrilhado).
-  const suavPorKey = useMemo(() => {
-    const m = new Map<string, Map<string, number>>()
-    for (const s of topSeries) {
-      const datas = [...s.porDia.keys()].sort()
-      const mm = mediaMovel(datas.map((d) => s.porDia.get(d)!), JANELA_MM)
-      const dm = new Map<string, number>()
-      datas.forEach((d, i) => dm.set(d, mm[i]))
-      m.set(s.key, dm)
-    }
-    return m
-  }, [topSeries])
   const chartData = useMemo(() => {
     return dias.map((d) => {
       const row: Record<string, number | string | null> = { data: d }
-      for (const s of topSeries) row[s.key] = suavPorKey.get(s.key)?.get(d) ?? null
+      for (const s of topSeries) row[s.key] = s.porDia.get(d) ?? null
       return row
     })
-  }, [dias, topSeries, suavPorKey])
+  }, [dias, topSeries])
 
   const un = unidade ?? ''
   const labelDim = dimensao === 'equipe' ? 'Equipe' : 'Encarregado'
@@ -69,7 +55,7 @@ export function ComparativoEntidades({
   return (
     <div className="space-y-3">
       <div className="text-2xs font-mono text-text-dim">
-        Linhas suavizadas (média móvel de {JANELA_MM} dias trabalhados) · top {Math.min(MAX_LINHAS, series.length)} por média/dia
+        Produção diária (valores reais) · top {Math.min(MAX_LINHAS, series.length)} por média/dia
       </div>
       <div style={{ height: 240 }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -82,7 +68,7 @@ export function ComparativoEntidades({
               labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('pt-BR')}
               formatter={(v, key) => {
                 const s = topSeries.find((x) => x.key === String(key))
-                return [`${formatNumber(Number(v), 1)} ${un}/dia (mm${JANELA_MM})`, s?.nome ?? String(key)]
+                return [`${formatNumber(Number(v), 1)} ${un}`, s?.nome ?? String(key)]
               }}
             />
             <ReferenceLine y={mediaObra} stroke={COR.mediaObra} strokeDasharray="4 4"
@@ -94,7 +80,7 @@ export function ComparativoEntidades({
             {topSeries.map((s) => (
               <Line
                 key={s.key}
-                type="monotone"
+                type="linear"
                 dataKey={s.key}
                 stroke={corPorKey.get(s.key) ?? COR.realizado}
                 strokeWidth={selectedKey === s.key ? 2.8 : 1.6}
