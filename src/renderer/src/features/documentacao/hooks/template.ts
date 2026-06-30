@@ -97,18 +97,25 @@ export function useSalvarTemplate(): ReturnType<
   typeof useMutation<
     void,
     Error,
-    { obra_id: string; campos?: TemplateCampo[]; grupos?: GrupoTemplate[]; versao: number }
+    {
+      obra_id: string
+      campos?: TemplateCampo[]
+      grupos?: GrupoTemplate[]
+      prompts?: Record<string, string>
+      versao: number
+    }
   >
 > {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ obra_id, campos, grupos, versao }) => {
+    mutationFn: async ({ obra_id, campos, grupos, prompts, versao }) => {
       const patch: Record<string, unknown> = {
         versao: versao + 1,
         atualizado_em: new Date().toISOString()
       }
       if (campos) patch.campos = campos
       if (grupos) patch.grupos = grupos
+      if (prompts) patch.prompts = prompts
       const { error } = await cli().from('extracao_template').update(patch).eq('obra_id', obra_id)
       if (error) throw error
     },
@@ -127,18 +134,19 @@ export function useCopiarTemplate(): ReturnType<
       const c = cli()
       const { data: origem, error: e1 } = await c
         .from('extracao_template')
-        .select('campos, grupos, versao')
+        .select('campos, grupos, prompts, versao')
         .eq('obra_id', de_obra_id)
         .maybeSingle()
       if (e1) throw e1
       if (!origem) throw new Error('Obra de origem não tem template.')
-      // garante a linha de destino e sobrescreve campos + grupos
+      // garante a linha de destino e sobrescreve campos + grupos + prompts
       await ensureTemplate(para_obra_id)
       const { error: e2 } = await c
         .from('extracao_template')
         .update({
           campos: origem.campos,
           grupos: origem.grupos ?? DEFAULT_TEMPLATE_GRUPOS,
+          prompts: origem.prompts ?? {},
           versao: (origem.versao ?? 1) + 1,
           atualizado_em: new Date().toISOString()
         })
@@ -163,6 +171,7 @@ export function useResetTemplate(): ReturnType<
         .update({
           campos: DEFAULT_TEMPLATE_CAMPOS,
           grupos: DEFAULT_TEMPLATE_GRUPOS,
+          prompts: {},
           atualizado_em: new Date().toISOString()
         })
         .eq('obra_id', obra_id)

@@ -6,7 +6,7 @@ export function DocumentacaoRepositorioPage(): ReactNode {
   return (
     <DocPage
       title="Repositório"
-      subtitle="Acervo da obra por categoria. Ingestão por pasta ou arrasto."
+      subtitle="Acervo da obra pela estrutura esperada do template. Insira cada documento no seu grupo."
     >
       {({ dossie, obraId, abrirFonte }) => (
         <RepositorioTab obraId={obraId} documentos={dossie.documentos} abrirFonte={abrirFonte} />

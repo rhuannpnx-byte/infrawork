@@ -153,6 +153,8 @@ export const TemplateSchema = z.object({
   descricao: z.string().nullish(),
   campos: z.array(TemplateCampoSchema).default([]),
   grupos: z.array(GrupoTemplateSchema).default([]),
+  /** Overrides dos system prompts de processamento (chave→texto). Vazio = DEFAULT. */
+  prompts: z.record(z.string(), z.string()).default({}),
   versao: z.number().default(1),
   atualizado_em: z.string().nullish()
 })

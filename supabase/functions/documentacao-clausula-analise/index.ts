@@ -9,6 +9,7 @@ import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import { assertObraAccess } from '../_shared/orc.ts'
 import { chamarLLM, extrairJson, mascararPII, MODEL_TEXTO } from '../_shared/doc-ia.ts'
+import { carregarPrompts, promptDe } from '../_shared/prompts.ts'
 
 interface Body {
   obra_id?: string
@@ -16,8 +17,8 @@ interface Body {
   refresh?: boolean
 }
 
-function sistema(): string {
-  return `Você é advogado(a)/engenheiro(a) analista de contratos de obras públicas no Brasil. Analise UMA cláusula no CONTEXTO do contrato e das demais cláusulas/aditivos fornecidos. Seja concreto e cite cláusulas relacionadas pelo número quando fizer sentido.
+function sistema(framing: string): string {
+  return `${framing}
 Responda SOMENTE com JSON válido (sem markdown):
 {
   "resumo": string,                    // 1-2 frases: o que a cláusula determina, em linguagem clara
@@ -60,6 +61,8 @@ Deno.serve(async (req) => {
   if (!cl) return json({ error: 'Cláusula não encontrada' }, 404)
   if (cl.analise && !body.refresh) return json({ analise: cl.analise, cached: true })
 
+  const prompts = await carregarPrompts(admin, obra_id)
+
   // Contexto: contrato + demais cláusulas (índice) + aditivos.
   const [{ data: ctr }, { data: outras }, { data: aditivos }] = await Promise.all([
     admin
@@ -97,7 +100,7 @@ ${adit || '(nenhum)'}`
   try {
     const raw = await chamarLLM(
       [
-        { role: 'system', content: sistema() },
+        { role: 'system', content: sistema(promptDe(prompts, 'clausula_sistema')) },
         { role: 'user', content: contexto }
       ],
       { model: MODEL_TEXTO, json: true, max_tokens: 900, titulo: 'InfraWork Cláusula' }

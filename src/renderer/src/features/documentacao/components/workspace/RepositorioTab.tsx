@@ -22,6 +22,7 @@ import { gruposAplicaveis, type GrupoTemplate } from '@/types/documentacao-templ
 import { useTemplate } from '@/features/documentacao/hooks/template'
 import { useObraPerfil } from '@/features/documentacao/hooks/perfil'
 import { arquivarEmGrupo, registrarAderencia } from '@/features/documentacao/lib/ingest'
+import { ReprocessarButton } from '@/features/documentacao/components/workspace/ReprocessarButton'
 import type { AbrirFonte } from '@/features/documentacao/components/DocPage'
 
 const LIMITE_MB = 50
@@ -239,9 +240,10 @@ export function RepositorioTab({ obraId, documentos, abrirFonte }: Props): React
           <b>orienta</b> a aderência (nunca bloqueia). WORM: o original nunca é alterado. Limite{' '}
           {LIMITE_MB} MB.
         </p>
-        <span className="text-2xs font-mono text-text-dim shrink-0 ml-3">
-          {documentos.length} documentos
-        </span>
+        <div className="flex items-center gap-3 shrink-0 ml-3">
+          <span className="text-2xs font-mono text-text-dim">{documentos.length} documentos</span>
+          {documentos.length > 0 ? <ReprocessarButton obraId={obraId} /> : null}
+        </div>
       </div>
 
       {grupos.map((g) => {

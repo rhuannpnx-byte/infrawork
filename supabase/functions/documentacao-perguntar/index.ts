@@ -11,6 +11,7 @@ import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import { assertObraAccess } from '../_shared/orc.ts'
 import { chamarLLM, gerarEmbedding, MODEL_TEXTO } from '../_shared/doc-ia.ts'
+import { carregarPrompts, promptDe } from '../_shared/prompts.ts'
 
 interface Body {
   obra_id?: string
@@ -114,11 +115,8 @@ Deno.serve(async (req) => {
   const escopo = documento_id
     ? 'Você responde APENAS sobre o documento aberto (os trechos abaixo são todos dele).'
     : 'Você é o assistente documental da obra.'
-  const sistema =
-    `${escopo} Responda SOMENTE com base nos TRECHOS fornecidos. ` +
-    'Cite as fontes no formato [Fonte N] (com a página quando houver). ' +
-    'Se a resposta NÃO estiver nos trechos, diga claramente que não encontrou e sugira onde procurar — ' +
-    'NUNCA invente nem complete com conhecimento externo. Seja direto e objetivo, em PT-BR.'
+  const prompts = await carregarPrompts(admin, obra_id)
+  const sistema = promptDe(prompts, 'agente_sistema', { escopo })
 
   let resposta: string
   try {

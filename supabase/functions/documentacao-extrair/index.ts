@@ -17,6 +17,7 @@ import {
   categoriaCodigo,
   type TemplateCampo
 } from '../_shared/template.ts'
+import { carregarPrompts, promptDe } from '../_shared/prompts.ts'
 
 interface Body {
   obra_id?: string
@@ -28,7 +29,7 @@ interface Body {
 
 const CONF_MIN = 0.6
 
-function instrucoes(campos: TemplateCampo[]): string {
+function instrucoes(framing: string, campos: TemplateCampo[]): string {
   const escalares = campos.filter((c) => c.cardinalidade === 'escalar')
   const listas = campos.filter((c) => c.cardinalidade === 'incremental')
 
@@ -42,17 +43,9 @@ function instrucoes(campos: TemplateCampo[]): string {
     })
     .join('\n')
 
-  return `Você é analista documental de obras públicas no Brasil. Leia o DOCUMENTO e responda EXCLUSIVAMENTE às perguntas abaixo — não extraia nada fora desta lista. Responda SOMENTE com JSON válido (sem markdown).
-
-REGRAS CRÍTICAS:
-- Extraia LITERALMENTE do documento. NUNCA infira nem complete com conhecimento externo (ex.: não "chute" a lei vigente — só registre a lei se constar no texto).
-- Use null quando o documento não trouxer a informação. Não invente.
-- Datas no formato ISO AAAA-MM-DD (ou AAAA-MM se só houver mês). Valores monetários em R$ puro (ex.: 152173654.15), sem separador de milhar.
-- Preserve identificadores com prefixo/máscara exatamente (ex.: "TT-392/2024", não "392/2024").
-- Em listas de empresas, inclua apenas PESSOAS JURÍDICAS (com CNPJ); NÃO inclua pessoas físicas/representantes.
-- Decodifique entidades HTML (ex.: "&amp;" → "&").
-- O texto traz marcadores "[[page:N]]". Para cada resposta, informe a "pagina" (N) de onde extraiu; se não souber, null.
-- Para cada valor, dê uma "confianca" honesta de 0 a 1.
+  // framing = system prompt editável; as listas de campos + formato JSON são
+  // máquina-críticas e sempre anexadas em código.
+  return `${framing}
 
 CAMPOS ESCALARES (um valor cada):
 ${linhasEsc || '  (nenhum)'}
@@ -94,9 +87,10 @@ Deno.serve(async (req) => {
   if (acc) return acc
 
   const codigo = categoriaCodigo(body.categoria)
-  const [todosCampos, grupos] = await Promise.all([
+  const [todosCampos, grupos, prompts] = await Promise.all([
     carregarCampos(admin, obra_id),
-    carregarGrupos(admin, obra_id)
+    carregarGrupos(admin, obra_id),
+    carregarPrompts(admin, obra_id)
   ])
   // Grupo dita os campos: extrai só o que o grupo do documento declara alimentar.
   const campos = camposParaGrupo(todosCampos, grupos, body.grupo_codigo, codigo)
@@ -108,7 +102,7 @@ Deno.serve(async (req) => {
   if (!texto) return json({ respostas: [], entradas: [], confianca: 0, avisos: ['sem texto'] })
 
   const messages = [
-    { role: 'system', content: instrucoes(campos) },
+    { role: 'system', content: instrucoes(promptDe(prompts, 'extracao_sistema'), campos) },
     { role: 'user', content: `DOCUMENTO (categoria ${codigo}):\n${mascararPII(texto).slice(0, 28000)}` }
   ]
 

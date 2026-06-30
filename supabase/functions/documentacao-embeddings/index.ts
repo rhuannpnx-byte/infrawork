@@ -19,6 +19,7 @@ import {
   MISTRAL_EMBED_MODEL,
   MODEL_VISAO
 } from '../_shared/doc-ia.ts'
+import { carregarPrompts, promptDe } from '../_shared/prompts.ts'
 
 interface Body {
   documento_id?: string
@@ -66,6 +67,10 @@ Deno.serve(async (req) => {
   let texto = (body.texto ?? versao.texto_extraido ?? '').trim()
   const origemCache = !body.texto && !!versao.texto_extraido
   if (!texto) {
+    const transcricaoSistema = promptDe(
+      await carregarPrompts(admin, doc.obra_id),
+      'transcricao_sistema'
+    )
     const { data: signed } = await admin.storage
       .from(versao.storage_bucket)
       .createSignedUrl(versao.storage_key, 600)
@@ -76,8 +81,7 @@ Deno.serve(async (req) => {
             [
               {
                 role: 'system',
-                content:
-                  'Transcreva FIELMENTE todo o texto legível do documento. Sem resumo, sem markdown de cerca. Apenas o texto.'
+                content: transcricaoSistema
               },
               {
                 role: 'user',

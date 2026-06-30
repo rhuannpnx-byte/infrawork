@@ -393,6 +393,12 @@ export const MODULES: ModuleConfig[] = [
             label: 'Template de extração',
             route: '/documentacao/template',
             requiresObra: true
+          },
+          {
+            icon: 'sparkles',
+            label: 'Prompts de IA',
+            route: '/documentacao/prompts',
+            requiresObra: true
           }
         ]
       },

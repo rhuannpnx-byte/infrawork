@@ -57,6 +57,7 @@ import { DocumentacaoTapPage } from '@/app/routes/documentacao/tap'
 import { DocumentacaoTemplatePage } from '@/app/routes/documentacao/template'
 import { DocumentacaoConversarPage } from '@/app/routes/documentacao/conversar'
 import { DocumentacaoLogsPage } from '@/app/routes/documentacao/logs'
+import { DocumentacaoPromptsPage } from '@/app/routes/documentacao/prompts'
 import { WhatsAppSessaoPage } from '@/app/routes/whatsapp'
 import { WhatsAppGruposPage } from '@/app/routes/whatsapp/grupos'
 import { WhatsAppBackfillPage } from '@/app/routes/whatsapp/backfill'
@@ -339,6 +340,11 @@ function buildRouteTree() {
       getParentRoute: () => documentacaoLayout,
       path: 'template',
       component: DocumentacaoTemplatePage
+    }),
+    createRoute({
+      getParentRoute: () => documentacaoLayout,
+      path: 'prompts',
+      component: DocumentacaoPromptsPage
     }),
     createRoute({
       getParentRoute: () => documentacaoLayout,

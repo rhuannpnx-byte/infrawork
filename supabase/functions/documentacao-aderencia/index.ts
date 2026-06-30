@@ -18,6 +18,7 @@ import {
   MODEL_VISAO
 } from '../_shared/doc-ia.ts'
 import { carregarGrupos, gruposAplicaveis, type TemplateGrupo } from '../_shared/template.ts'
+import { carregarPrompts, promptDe } from '../_shared/prompts.ts'
 
 interface Body {
   obra_id?: string
@@ -53,9 +54,13 @@ function lista(grupos: TemplateGrupo[]): string {
     .join('\n')
 }
 
-function sistema(grupos: TemplateGrupo[], alvo: TemplateGrupo | undefined): string {
-  return `Você organiza documentos de obras de engenharia. O usuário quer ARQUIVAR um documento no grupo "${alvo?.codigo ?? '?'} · ${alvo?.nome ?? '?'}"${alvo?.regras ? ` (regras: ${alvo.regras})` : ''}.
-Avalie se o documento ADERE a esse grupo. Se não aderir, indique o melhor grupo da lista. Oriente, não proíba.
+function sistema(
+  framing: string,
+  grupos: TemplateGrupo[],
+  alvo: TemplateGrupo | undefined
+): string {
+  const grupoTxt = `"${alvo?.codigo ?? '?'} · ${alvo?.nome ?? '?'}"${alvo?.regras ? ` (regras: ${alvo.regras})` : ''}`
+  return `${framing.split('{{grupo}}').join(grupoTxt)}
 GRUPOS DISPONÍVEIS:
 ${lista(grupos)}
 Responda SOMENTE com JSON válido (sem markdown):
@@ -93,6 +98,7 @@ Deno.serve(async (req) => {
   const grupos = gruposAplicaveis(todos, await contextoObra(admin, obra_id))
   const alvo = todos.find((g) => g.codigo === grupo_codigo)
   const codigosValidos = new Set(grupos.map((g) => g.codigo))
+  const framing = promptDe(await carregarPrompts(admin, obra_id), 'aderencia_sistema')
 
   const nomeCtx = body.nome ? `\nNOME DO ARQUIVO: ${body.nome}` : ''
   const pastaCtx = body.pasta ? `\nPASTA: ${body.pasta}` : ''
@@ -103,13 +109,13 @@ Deno.serve(async (req) => {
   let model = MODEL_TEXTO
   if (texto) {
     messages = [
-      { role: 'system', content: sistema(grupos, alvo) },
+      { role: 'system', content: sistema(framing, grupos, alvo) },
       { role: 'user', content: `${nomeCtx}${pastaCtx}\n\nCONTEÚDO (início):\n${mascararPII(texto).slice(0, 6000)}` }
     ]
   } else if (body.arquivo_url) {
     model = MODEL_VISAO
     messages = [
-      { role: 'system', content: sistema(grupos, alvo) },
+      { role: 'system', content: sistema(framing, grupos, alvo) },
       {
         role: 'user',
         content: [
