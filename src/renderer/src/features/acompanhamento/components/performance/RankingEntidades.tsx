@@ -6,19 +6,28 @@ import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
 import { formatNumber } from '@/lib/format'
 import { COR, type EntidadeSerie } from '../../lib/performance-calc'
 
+type Metrica = 'media' | 'total'
+
 interface Props {
   series: EntidadeSerie[]
+  /** 'media' = média/dia (com linha de meta CPU); 'total' = total produzido no período. */
+  metrica: Metrica
   cpuMeta: number | null
   unidade: string | null
   selectedKey: string | null
   onSelect: (key: string) => void
 }
 
-/** Ranking horizontal (barras com rótulo) por equipe/encarregado — média/dia. */
-export function RankingEntidades({ series, cpuMeta, unidade, selectedKey, onSelect }: Props): ReactNode {
+/** Ranking horizontal (barras com rótulo) por equipe/encarregado. */
+export function RankingEntidades({ series, metrica, cpuMeta, unidade, selectedKey, onSelect }: Props): ReactNode {
+  const ehMedia = metrica === 'media'
+  const dec = ehMedia ? 1 : 0
   const data = useMemo(
-    () => series.map((s) => ({ entKey: s.key, nome: s.nome, media: Number(s.media.toFixed(1)) })),
-    [series]
+    () =>
+      [...series]
+        .sort((a, b) => (ehMedia ? b.media - a.media : b.total - a.total))
+        .map((s) => ({ entKey: s.key, nome: s.nome, valor: Number((ehMedia ? s.media : s.total).toFixed(dec)) })),
+    [series, ehMedia, dec]
   )
   if (data.length === 0) {
     return <div className="h-32 flex items-center justify-center text-2xs font-mono text-text-dim">Sem dados.</div>
@@ -29,7 +38,7 @@ export function RankingEntidades({ series, cpuMeta, unidade, selectedKey, onSele
   return (
     <div style={{ height: altura }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, left: 8, bottom: 4 }}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 64, left: 8, bottom: 4 }}>
           <CartesianGrid stroke={CHART_THEME.gridStroke} strokeDasharray="2 3" horizontal={false} />
           <XAxis type="number" tick={axisStyle} stroke={CHART_THEME.axisStroke} tickFormatter={(v: number) => formatNumber(v, 0)} />
           <YAxis
@@ -43,13 +52,13 @@ export function RankingEntidades({ series, cpuMeta, unidade, selectedKey, onSele
           <Tooltip
             contentStyle={tooltipStyle}
             cursor={{ fill: 'oklch(50% 0.01 255 / 0.12)' }}
-            formatter={(v) => [`${formatNumber(Number(v), 1)} ${un}/dia`, 'Média']}
+            formatter={(v) => [`${formatNumber(Number(v), dec)} ${un}${ehMedia ? '/dia' : ''}`, ehMedia ? 'Média/dia' : 'Total']}
           />
-          {cpuMeta != null ? (
+          {ehMedia && cpuMeta != null ? (
             <ReferenceLine x={cpuMeta} stroke={COR.meta} strokeWidth={1.2} strokeDasharray="4 3"
               label={{ value: `CPU ${formatNumber(cpuMeta, 0)}`, fontSize: 9, fill: COR.meta, position: 'top' }} />
           ) : null}
-          <Bar dataKey="media" radius={[0, 3, 3, 0]} maxBarSize={22} isAnimationActive={false}
+          <Bar dataKey="valor" radius={[0, 3, 3, 0]} maxBarSize={22} isAnimationActive={false}
             onClick={(e) => {
               const k = (e as unknown as { payload?: { entKey?: string } }).payload?.entKey
               if (k) onSelect(k)
@@ -59,9 +68,9 @@ export function RankingEntidades({ series, cpuMeta, unidade, selectedKey, onSele
               <Cell key={d.entKey} fill={COR.realizado} fillOpacity={!selectedKey || selectedKey === d.entKey ? 1 : 0.35} />
             ))}
             <LabelList
-              dataKey="media"
+              dataKey="valor"
               position="right"
-              formatter={(v) => formatNumber(Number(v), 1)}
+              formatter={(v) => formatNumber(Number(v), dec)}
               style={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', fill: CHART_THEME.axisLabel }}
             />
           </Bar>

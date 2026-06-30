@@ -236,19 +236,36 @@ function Inner(): ReactNode {
               </div>
             </div>
 
-            {/* Ranking horizontal por entidade (média/dia) */}
-            <div className="rounded border border-border bg-bg-panel p-3">
-              <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
-                <Trophy size={12} className="text-accent" />
-                Ranking de produtividade por {labelDim} · média/dia — clique para focar
+            {/* Rankings horizontais lado a lado: média/dia e total no período */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded border border-border bg-bg-panel p-3">
+                <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
+                  <Trophy size={12} className="text-accent" />
+                  Ranking por {labelDim} · média/dia — clique para focar
+                </div>
+                <RankingEntidades
+                  series={series}
+                  metrica="media"
+                  cpuMeta={cpuMeta}
+                  unidade={unidade}
+                  selectedKey={entidadeSel}
+                  onSelect={toggleEntidade}
+                />
               </div>
-              <RankingEntidades
-                series={series}
-                cpuMeta={cpuMeta}
-                unidade={unidade}
-                selectedKey={entidadeSel}
-                onSelect={toggleEntidade}
-              />
+              <div className="rounded border border-border bg-bg-panel p-3">
+                <div className="text-xs font-semibold text-text flex items-center gap-1.5 mb-2">
+                  <Trophy size={12} className="text-accent" />
+                  Ranking por {labelDim} · total no período — clique para focar
+                </div>
+                <RankingEntidades
+                  series={series}
+                  metrica="total"
+                  cpuMeta={null}
+                  unidade={unidade}
+                  selectedKey={entidadeSel}
+                  onSelect={toggleEntidade}
+                />
+              </div>
             </div>
 
             {/* Comparativo no tempo + Benchmark histórico */}
