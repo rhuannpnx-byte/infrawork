@@ -32,6 +32,8 @@ export interface RecursoPreco {
   custo_unitario: number
   vigencia_inicio: string
   vigencia_fim: string | null
+  /** Preço atualmente em vigor — marcado explicitamente pelo usuário. */
+  is_vigente: boolean
   origem: string | null
   documento_url: string | null
   observacao: string | null

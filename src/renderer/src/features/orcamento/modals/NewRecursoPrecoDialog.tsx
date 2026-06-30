@@ -33,6 +33,7 @@ export function NewRecursoPrecoDialog({
   const [vigenciaInicio, setVigenciaInicio] = useState(today)
   const [origem, setOrigem] = useState('')
   const [observacao, setObservacao] = useState('')
+  const [marcarVigente, setMarcarVigente] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const reset = (): void => {
@@ -40,6 +41,7 @@ export function NewRecursoPrecoDialog({
     setVigenciaInicio(today)
     setOrigem('')
     setObservacao('')
+    setMarcarVigente(true)
     setError(null)
   }
 
@@ -58,7 +60,8 @@ export function NewRecursoPrecoDialog({
         custo_unitario: valor,
         vigencia_inicio: vigenciaInicio,
         origem: origem.trim() || undefined,
-        observacao: observacao.trim() || undefined
+        observacao: observacao.trim() || undefined,
+        marcar_vigente: marcarVigente
       })
       toast.success('Preço registrado.')
       reset()
@@ -84,9 +87,6 @@ export function NewRecursoPrecoDialog({
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
-          <div className="text-2xs text-text-dim font-mono">
-            O preço anterior em aberto será fechado em (vigência − 1d) automaticamente.
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="p-custo">Custo unitário</Label>
@@ -124,6 +124,15 @@ export function NewRecursoPrecoDialog({
             <Label htmlFor="p-obs">Observação (opcional)</Label>
             <Input id="p-obs" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
           </div>
+          <label className="flex items-center gap-2 text-xs text-text cursor-pointer">
+            <input
+              type="checkbox"
+              checked={marcarVigente}
+              onChange={(e) => setMarcarVigente(e.target.checked)}
+              className="accent-[color:var(--accent)] cursor-pointer"
+            />
+            Marcar como preço vigente
+          </label>
         </DialogBody>
         <DialogFooter>
           <Button
