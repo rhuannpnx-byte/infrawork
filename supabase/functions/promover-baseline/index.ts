@@ -83,6 +83,27 @@ Deno.serve(async (req) => {
     admin.from('obra_produtividade_mes').select('*').eq('obra_id', plan.obra_id)
   ])
 
+  // 1.5) GUARD: não promover plano sem cronograma calculado. O "previsto" do
+  //      acompanhamento (vw_acompanhamento_curva_s) é gerado a partir do perfil
+  //      semanal (planejamento_tarefa_perfil_semana), que só nasce quando
+  //      calcular-cronograma roda. Promover um plano com tarefas-folha mas sem
+  //      perfis gera uma baseline com previsto vazio (bug observado na 6.493).
+  const tarefasFolha = (tarRes.data ?? []).filter(
+    (t) => (t as { tipo_no?: string }).tipo_no === 'tarefa'
+  )
+  const perfisCount = (perfilRes.data ?? []).length
+  if (tarefasFolha.length > 0 && perfisCount === 0) {
+    return json(
+      {
+        error:
+          'Cronograma não calculado: recalcule o cronograma antes de promover a baseline. ' +
+          'O previsto (curva-S, previsto × realizado) é gerado a partir do cálculo — ' +
+          'sem ele a baseline fica sem previsto.'
+      },
+      409
+    )
+  }
+
   const payload = {
     tarefas: tarRes.data ?? [],
     dependencias: depRes.data ?? [],
