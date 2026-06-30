@@ -351,7 +351,11 @@ export const DEFAULT_TEMPLATE_CAMPOS: TemplateCampo[] = [
     obrigatorio: true,
     validacoes: ['R-06', 'R-12'],
     ordem: 30,
-    pergunta: 'Qual o prazo de EXECUÇÃO em dias?'
+    pergunta:
+      'Qual o prazo de EXECUÇÃO das obras? Responda SEMPRE o total em DIAS (número). ' +
+      'Se o contrato indicar em MESES, converta com 1 mês = 30 dias (ex.: 19 meses → 570). ' +
+      'Se houver uma TABELA de prazos por trecho/obra, use o MAIOR prazo (o mais longo). ' +
+      'Se vier como DATA-limite, não use aqui (isso é o término).'
   }),
   C({
     chave: 'contrato.prazo_vig_dias',
@@ -362,7 +366,10 @@ export const DEFAULT_TEMPLATE_CAMPOS: TemplateCampo[] = [
     obrigatorio: true,
     validacoes: ['R-06'],
     ordem: 31,
-    pergunta: 'Qual o prazo de VIGÊNCIA em dias?'
+    pergunta:
+      'Qual o prazo de VIGÊNCIA do contrato? Responda SEMPRE o total em DIAS (número). ' +
+      'Se o contrato indicar em MESES, converta com 1 mês = 30 dias (ex.: 23 meses → 690). ' +
+      'É o prazo durante o qual o contrato vigora (normalmente ≥ prazo de execução).'
   }),
   C({
     chave: 'contrato.inicio_exec',

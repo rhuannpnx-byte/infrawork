@@ -74,6 +74,25 @@ export function RaioXTab({ dossie, obraId }: Props): ReactNode {
     () => dossie.eventos.find((e) => e.tipo === 'termino_exec') ?? null,
     [dossie.eventos]
   )
+  const terminoVig = useMemo(
+    () => dossie.eventos.find((e) => e.tipo === 'termino_vig') ?? null,
+    [dossie.eventos]
+  )
+
+  // Prazo CONTRATUAL = o MAIOR entre execução e vigência (a vigência costuma
+  // governar o fim do contrato). Término governante = o término da vigência se
+  // houver, senão o de execução.
+  const prazoExecD = c?.prazo_exec_dias ?? null
+  const prazoVigD = c?.prazo_vig_dias ?? null
+  const prazoMaior = Math.max(prazoExecD ?? 0, prazoVigD ?? 0) || null
+  const prazoMaiorFonte =
+    prazoMaior == null
+      ? null
+      : prazoVigD != null && prazoVigD >= (prazoExecD ?? 0)
+        ? 'vigência'
+        : 'execução'
+  const terminoGov =
+    terminoVig?.data_norm ?? c?.termino_vig ?? terminoExec?.data_norm ?? c?.termino_exec
 
   return (
     <div className="h-full p-5 space-y-5 overflow-auto">
@@ -95,11 +114,11 @@ export function RaioXTab({ dossie, obraId }: Props): ReactNode {
           sub={fin?.pct_reajuste ? `+${fin.pct_reajuste.toFixed(2)}% reajuste` : undefined}
         />
         <KPI
-          label="Prazo execução"
-          valor={c?.prazo_exec_dias ? `${c.prazo_exec_dias} dias` : '—'}
+          label="Prazo contratual"
+          valor={prazoMaior ? `${prazoMaior} dias` : '—'}
           sub={
-            terminoExec?.data_norm
-              ? `término ${terminoExec.data_norm}`
+            prazoMaiorFonte
+              ? `${prazoMaiorFonte}${terminoGov ? ` · término ${terminoGov}` : ''}`
               : c?.inicio_exec
                 ? `início ${c.inicio_exec}`
                 : undefined
@@ -120,8 +139,17 @@ export function RaioXTab({ dossie, obraId }: Props): ReactNode {
           <KV k="Edital / Lei" v={[c?.edital, c?.lei].filter(Boolean).join(' · ') || null} />
           <KV k="Assinatura" v={c?.assinatura} />
           <KV k="Início (OS)" v={c?.inicio_exec} />
+          <KV k="Prazo execução" v={prazoExecD != null ? `${prazoExecD} dias` : null} />
+          <KV k="Prazo vigência" v={prazoVigD != null ? `${prazoVigD} dias` : null} />
           <KV k="Término execução" v={terminoExec?.data_norm ?? c?.termino_exec} />
-          <KV k="Vigência" v={c?.termino_vig ? `até ${c.termino_vig}` : null} />
+          <KV
+            k="Término vigência"
+            v={
+              (terminoVig?.data_norm ?? c?.termino_vig)
+                ? `até ${terminoVig?.data_norm ?? c?.termino_vig}`
+                : null
+            }
+          />
           <KV k="Fiscal" v={c?.fiscal} />
 
           <h3 className="text-sm font-semibold text-text mt-4 mb-2">Financeiro</h3>

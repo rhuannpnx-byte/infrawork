@@ -394,12 +394,41 @@ Deno.serve(async (req) => {
     return marco('contrato.termino_exec', 'termino_exec', 'Término previsto da execução')
   })()
 
+  // Término de VIGÊNCIA: do prazo_vig_dias contado da ASSINATURA (ou, na falta,
+  // do início), espelhando a execução. Vigência costuma ser ≥ execução — é a
+  // MAIOR e governa o fim do contrato. Cai p/ a data extraída se faltar prazo.
+  const prazoVig = num(escalares.get('contrato.prazo_vig_dias')?.valor)
+  const baseVigIso = dateOnly(escalares.get('contrato.assinatura')?.valor) ?? inicioIso
+  const terminoVigCalc = baseVigIso && prazoVig != null ? addDiasIso(baseVigIso, prazoVig) : null
+  const marcoTerminoVig = ((): Record<string, unknown> | null => {
+    if (terminoVigCalc) {
+      const sc =
+        escalares.get('contrato.assinatura') ?? escalares.get('contrato.inicio_exec')
+      return {
+        obra_id,
+        doc_id: sc?.doc_id ?? null,
+        pagina: sc?.pagina ?? null,
+        confianca: 1,
+        tipo: 'termino_vig',
+        data_norm: terminoVigCalc,
+        data_precisao: 'dia',
+        data_rotulo: terminoVigCalc,
+        rotulo: 'Término da vigência',
+        descricao: `${baseVigIso} + ${prazoVig} dias de vigência`,
+        valor: null,
+        delta: null,
+        valor_resultante: null
+      }
+    }
+    return marco('contrato.termino_vig', 'termino_vig', 'Término da vigência')
+  })()
+
   const sintetizados = [
     marco('contrato.assinatura', 'assinatura', 'Assinatura do contrato'),
     marco('contrato.publicacao', 'publicacao', 'Publicação do extrato'),
     marco('contrato.inicio_exec', 'ordem_servico', 'Ordem de Serviço — início dos serviços'),
     marcoTerminoExec,
-    marco('contrato.termino_vig', 'termino_vig', 'Término da vigência')
+    marcoTerminoVig
   ].filter((e): e is Record<string, unknown> => e != null)
 
   const eventosFinais = [...eventos.filter((e) => !SINT_TIPOS.has(String(e.tipo))), ...sintetizados]
