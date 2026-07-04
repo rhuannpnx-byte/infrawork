@@ -18,8 +18,17 @@ export interface ResultadoFotos {
 
 export interface FiltrosFotos {
   servico?: string | null
+  encarregado?: string | null // nome (parcial) do encarregado/colaborador
   dataInicio?: string | null // YYYY-MM-DD
   dataFim?: string | null // YYYY-MM-DD
+}
+
+/** Aplica filtro de encarregado por nome (match no display OU no nome do SIGA). */
+function filtroEncarregado<T extends { or: (f: string) => T }>(q: T, nome: string): T {
+  const esc = nome.replace(/[,()]/g, ' ').trim()
+  return q.or(
+    `encarregado_display_nome.ilike.%${esc}%,siga_encarregado_nome.ilike.%${esc}%`
+  )
 }
 
 const VIEW = 'vw_acompanhamento_foto_enriquecida'
@@ -32,6 +41,7 @@ export async function buscarFotos(obraId: string, f: FiltrosFotos): Promise<Resu
   // contagem total (sem baixar bytes)
   let countQ = supabase.from(VIEW).select('id', { count: 'exact', head: true }).eq('obra_id', obraId)
   if (f.servico) countQ = countQ.ilike('servico_display_nome', `%${f.servico}%`)
+  if (f.encarregado) countQ = filtroEncarregado(countQ, f.encarregado)
   if (f.dataInicio) countQ = countQ.gte('captured_date', f.dataInicio)
   if (f.dataFim) countQ = countQ.lte('captured_date', f.dataFim)
   const { count } = await countQ
@@ -40,9 +50,12 @@ export async function buscarFotos(obraId: string, f: FiltrosFotos): Promise<Resu
   // página com metadados das fotos a enviar
   let listaQ = supabase
     .from(VIEW)
-    .select('storage_bucket, storage_key, servico_display_nome, captured_date, captured_at')
+    .select(
+      'storage_bucket, storage_key, servico_display_nome, encarregado_display_nome, captured_date, captured_at'
+    )
     .eq('obra_id', obraId)
   if (f.servico) listaQ = listaQ.ilike('servico_display_nome', `%${f.servico}%`)
+  if (f.encarregado) listaQ = filtroEncarregado(listaQ, f.encarregado)
   if (f.dataInicio) listaQ = listaQ.gte('captured_date', f.dataInicio)
   if (f.dataFim) listaQ = listaQ.lte('captured_date', f.dataFim)
   const { data: linhas } = await listaQ.order('captured_at', { ascending: false }).limit(max)
@@ -60,7 +73,11 @@ export async function buscarFotos(obraId: string, f: FiltrosFotos): Promise<Resu
     const buffer = Buffer.from(await dl.data.arrayBuffer())
     const servico = (l.servico_display_nome as string) || 'Serviço'
     const data = (l.captured_date as string) || ''
-    fotos.push({ buffer, caption: `${servico}${data ? ` — ${data}` : ''}` })
+    const enc = (l.encarregado_display_nome as string) || ''
+    fotos.push({
+      buffer,
+      caption: `${servico}${data ? ` — ${data}` : ''}${enc ? ` · ${enc}` : ''}`
+    })
   }
 
   return { fotos, total, hasMore: total > fotos.length }

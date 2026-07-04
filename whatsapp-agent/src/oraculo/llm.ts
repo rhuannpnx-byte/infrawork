@@ -20,6 +20,10 @@ interface ToolCall {
 }
 
 const MAX_ITER = 4
+// Timeout por chamada ao OpenRouter. Sem isto, uma chamada lenta/pendurada trava
+// o atendimento para sempre (o usuário nunca recebe resposta). Com AbortController
+// a chamada é cancelada e o erro sobe → o orquestrador envia um fallback.
+const OPENROUTER_TIMEOUT_MS = 40_000
 
 async function chamarOpenRouter(messages: ChatMessage[]): Promise<{
   content: string | null
@@ -32,15 +36,27 @@ async function chamarOpenRouter(messages: ChatMessage[]): Promise<{
     tools: TOOL_DEFS,
     tool_choice: 'auto'
   }
-  const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.openrouterApiKey}`,
-      'Content-Type': 'application/json',
-      'X-Title': 'InfraWork Oráculo'
-    },
-    body: JSON.stringify(body)
-  })
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), OPENROUTER_TIMEOUT_MS)
+  let resp: Response
+  try {
+    resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.openrouterApiKey}`,
+        'Content-Type': 'application/json',
+        'X-Title': 'InfraWork Oráculo'
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    })
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError')
+      throw new Error(`OpenRouter timeout (${OPENROUTER_TIMEOUT_MS}ms)`)
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '')
     throw new Error(`OpenRouter ${resp.status}: ${txt.slice(0, 300)}`)

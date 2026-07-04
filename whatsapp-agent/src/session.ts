@@ -29,9 +29,16 @@ export class Session {
   // versão anterior"). Só é descartado em logout (creds invalidadas).
   private auth: SupabaseAuthState | null = null
 
-  constructor(sessaoId: string, attach: AttachHandlers) {
+  /** Predicado opcional: se retornar true para um jid, o Baileys IGNORA as
+   *  mensagens dele (sem decifrar, sem retry receipts). Usado para não processar
+   *  grupos NÃO monitorados — senão um grupo movimentado afoga a conexão com
+   *  retries de mídia e trava até as respostas de DM. */
+  private shouldIgnoreJid?: (jid: string) => boolean
+
+  constructor(sessaoId: string, attach: AttachHandlers, shouldIgnoreJid?: (jid: string) => boolean) {
     this.sessaoId = sessaoId
     this.attach = attach
+    this.shouldIgnoreJid = shouldIgnoreJid
   }
 
   get socket(): WASocket | null {
@@ -53,7 +60,12 @@ export class Session {
       auth: state,
       logger: logger.child({ mod: 'baileys' }),
       markOnlineOnConnect: false,
-      syncFullHistory: config.baileysSyncFullHistory
+      syncFullHistory: config.baileysSyncFullHistory,
+      // Ignora grupos não monitorados: evita a tempestade de retry de mídia que
+      // satura o socket e trava as respostas de DM. DMs nunca são ignoradas.
+      shouldIgnoreJid: this.shouldIgnoreJid,
+      // Não insistir em decifrar mídia problemática (reduz flood de retry receipts).
+      maxMsgRetryCount: 2
     })
     this.sock = sock
 

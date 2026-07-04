@@ -6,7 +6,8 @@
 import type { WASocket, WAMessageKey } from '@whiskeysockets/baileys'
 import { supabase } from '../supabase.js'
 import { logger } from '../logger.js'
-import { enviarTexto, marcarLido } from '../reply.js'
+import { enviarTexto, enviarImagem, marcarLido } from '../reply.js'
+import { buscarFotos } from './fotos.js'
 import { identificarRemetente, obrasPermitidas, type ObraRef } from './identidade.js'
 import {
   carregarConversa,
@@ -14,7 +15,8 @@ import {
   expirada,
   ehComandoTrocar,
   montarTriagem,
-  parseEscolha
+  parseEscolha,
+  detectarObraCitada
 } from './conversa.js'
 import { montarContexto } from './contexto.js'
 import { responder, type ChatMessage } from './llm.js'
@@ -23,6 +25,31 @@ import { config } from '../config.js'
 function hojeBR(): string {
   // en-CA formata como YYYY-MM-DD; fuso de São Paulo para "ontem" bater.
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+}
+
+/** Heurística: a mensagem pede fotos/imagens? */
+function pediuFotos(texto: string): boolean {
+  return /\b(foto|fotos|imagem|imagens|print|prints)\b/i.test(texto)
+}
+
+function addDias(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Período aproximado citado no texto (hoje/ontem/semana). null = sem período
+ *  (a busca usa as mais recentes). */
+function periodoDoTexto(texto: string, hoje: string): { inicio: string; fim: string } | null {
+  const t = texto.toLowerCase()
+  if (/\bontem\b/.test(t)) {
+    const o = addDias(hoje, -1)
+    return { inicio: o, fim: o }
+  }
+  if (/\bhoje\b/.test(t)) return { inicio: hoje, fim: hoje }
+  if (/semana/.test(t)) return { inicio: addDias(hoje, -6), fim: hoje }
+  if (/m[êe]s/.test(t)) return { inicio: addDias(hoje, -29), fim: hoje }
+  return null
 }
 
 function systemPrompt(
@@ -42,8 +69,10 @@ function systemPrompt(
 Obra ATIVA da conversa: *${obra.codigo} - ${obra.nome}*. Responda sobre ELA por padrão.
 Data de hoje: ${hoje} (use para interpretar "ontem", "esta semana", etc.).
 
-Troca de obra: o usuário PODE pedir dados de outra obra a qualquer momento (por nome ou código, ex.: "e na Anel Viário?", "muda pra 6.502"). Quando isso acontecer, chame a ferramenta *mudar_obra* ANTES de responder e então responda sobre a nova obra. NUNCA responda com dados de uma obra diferente da ativa sem antes trocar. Para reabrir a lista de obras, oriente a digitar *obras*.
+Troca de obra: você atende TODAS as obras a que este usuário tem acesso — NUNCA diga que atende "exclusivamente" uma obra, nem recuse falar de outra. Se o usuário pedir dados de outra obra por NOME (ex.: "e na Anel Viário?"), chame *mudar_obra* ANTES de responder e então responda sobre a nova obra. NUNCA responda com dados de uma obra diferente da ativa sem antes trocar. Para reabrir a lista de obras, oriente a digitar *obras*. (Trocas por CÓDIGO, ex.: "6.502", já são tratadas automaticamente pelo sistema.)
 Outras obras que este usuário pode acessar: ${listaOutras}.
+
+Capacidades: você TEM ferramentas para produção apontada, composição/CPU de serviços, previsto×realizado (planejamento/semana) e fotos. Sempre chame a ferramenta adequada — NUNCA diga que "não tem acesso" a esses dados. Só diga que não há informação se a ferramenta retornar vazio.
 
 Responda em pt-BR, curto e objetivo (é uma mensagem de WhatsApp). Para negrito use UM ÚNICO asterisco de cada lado (*assim*) — NUNCA use dois (**assim** não funciona no WhatsApp). Use "• " para listas.
 Baseie-se SOMENTE no contexto/dados retornados pelas ferramentas. NUNCA invente números. Se não houver registro, diga que não há.
@@ -52,6 +81,8 @@ Ferramentas:
 • mudar_obra — troca a obra ativa (use quando o usuário citar outra obra).
 • producao_periodo — produção apontada num período (já convertida para a unidade do InfraWork).
 • composicao_servico — composição/CPU de um serviço (produção diária, custo unitário, insumos por grupo).
+• listar_composicoes — lista todos os serviços da obra que têm CPU (use para "liste as composições/serviços").
+• consumo_estimado — estimativa de consumo de MATERIAIS e DIESEL no período (composição × produção). Sempre deixe claro que é ESTIMATIVA, não medição de estoque/abastecimento.
 • previsto_x_realizado — planejamento da SEMANA por serviço (linha de base) + andamento/atraso/risco.
 
 Ao responder "o que está previsto para a semana" (ou quanto produzir de um serviço na semana), use SEMPRE a tool previsto_x_realizado e responda com NÚMEROS da linha de base, por serviço. NÃO decida sozinho se está atrasado ou adiantado — use SEMPRE o campo "atrasado" que a tool retorna:
@@ -59,7 +90,9 @@ Ao responder "o que está previsto para a semana" (ou quanto produzir de um serv
 2) Se atrasado=true: acrescente que, por estar atrasado, para manter o término planejado é preciso entregar *necessario_semana unidade* na semana (sempre ≥ previsto da base).
 3) Se atrasado=false: diga que está no ritmo/adiantado e que o ritmo atual sustenta o prazo; NÃO peça mais que a base. Nunca proponha número acima de qtd_restante nem de qtd_plan_total.
 4) Se atrasado=null ou previsto_semana_baseline=0: trate como não iniciado/sem previsão de base na semana (não invente números).
-• buscar_fotos — envia fotos do serviço/período pedido (as imagens vão automaticamente; só confirme o que foi enviado).
+• buscar_fotos — envia fotos por serviço, encarregado/colaborador (ex.: "fotos do Ailton") e/ou período (as imagens vão automaticamente; só confirme o que foi enviado).
+
+REGRA CRÍTICA de fotos: para QUALQUER pedido de foto/imagem você é OBRIGADO a chamar buscar_fotos nesta mesma resposta. É TERMINANTEMENTE PROIBIDO dizer que enviou/enviei fotos sem ter chamado buscar_fotos — as imagens só saem pela ferramenta. Se não chamar a ferramenta, NÃO afirme que enviou.
 
 Contexto atual da obra (orçamento, produção e planejamento), em JSON:
 ${JSON.stringify(contexto)}`
@@ -136,8 +169,39 @@ export async function atenderDM(
     obraSel = obrasById.get(conversa.obra_id) ?? null
   }
 
+  // Troca/seleção DETERMINÍSTICA por código citado ("6.502", "muda pra 6508",
+  // "quero a obra 6508", ou só o código). Não confia no LLM para trocar de obra —
+  // era a causa de responder da obra errada. Vale em triagem e em sessão ativa.
+  const citada = detectarObraCitada(texto, obras)
+  if (citada && citada.id !== obraSel?.id) {
+    await salvarConversa(sessaoId, jid, profile.id, {
+      obra_id: citada.id,
+      estado: 'ativa',
+      opcoes_obra: null
+    })
+    obraSel = citada
+    // Se a mensagem é basicamente só o código (sem pergunta), confirma e encerra;
+    // senão, avisa a troca e segue para responder a pergunta sobre a obra citada.
+    const resto = texto
+      .toLowerCase()
+      .replace(citada.codigo.toLowerCase(), ' ')
+      .replace(citada.codigo.replace(/\D/g, ''), ' ')
+      .replace(/\b(obra|muda(?:r)?|troca(?:r)?|pra|para|na|da|do|de|em|quero|saber|ver|a|o)\b/g, ' ')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
+    if (resto.length < 3) {
+      await enviarTexto(
+        sock,
+        replyJid,
+        `✅ Obra *${citada.codigo} - ${citada.nome}* selecionada. Pode mandar sua pergunta (produção, planejamento, orçamento ou fotos).`
+      )
+      return
+    }
+    await enviarTexto(sock, replyJid, `📍 Agora na obra *${citada.codigo} - ${citada.nome}*.`)
+  }
+
   // comando para trocar de obra → re-triagem (mesmo com 1 obra, reapresenta)
-  if (ehComandoTrocar(texto)) {
+  if (!citada && ehComandoTrocar(texto)) {
     const { texto: lista, mapa } = montarTriagem(obras)
     await salvarConversa(sessaoId, jid, profile.id, {
       obra_id: null,
@@ -227,6 +291,33 @@ export async function atenderDM(
     erro = String(e)
     logger.error({ err: e, obra: ctx.obra.codigo }, 'erro ao responder no oráculo')
     resposta = 'Tive um problema ao consultar os dados agora. Tente novamente em instantes.'
+  }
+
+  // SALVAGUARDA anti-alucinação de fotos: o LLM às vezes afirma "enviei as fotos"
+  // SEM chamar buscar_fotos → o usuário não recebe nada. Se o pedido era de fotos
+  // e a ferramenta não foi chamada, buscamos e enviamos de verdade aqui.
+  if (!erro && pediuFotos(texto) && !toolsUsadas.includes('buscar_fotos')) {
+    try {
+      const per = periodoDoTexto(texto, ctx.hoje)
+      const r = await buscarFotos(ctx.obra.id, {
+        servico: null,
+        encarregado: null,
+        dataInicio: per?.inicio ?? null,
+        dataFim: per?.fim ?? null
+      })
+      toolsUsadas.push('buscar_fotos')
+      if (r.fotos.length === 0) {
+        resposta = 'Não encontrei fotos georreferenciadas para esse pedido.'
+      } else {
+        for (const f of r.fotos) await enviarImagem(sock, replyJid, f.buffer, f.caption)
+        resposta = `Enviei ${r.fotos.length}${r.hasMore ? ` de ${r.total}` : ''} foto(s).${
+          r.hasMore ? ' Refine por serviço, colaborador ou período para ver outras.' : ''
+        }`
+      }
+    } catch (e) {
+      logger.error({ err: e }, 'falha na salvaguarda de fotos')
+      resposta = 'Tentei buscar as fotos mas tive um problema. Tente novamente em instantes.'
+    }
   }
 
   await enviarTexto(sock, replyJid, resposta)

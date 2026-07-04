@@ -29,6 +29,43 @@ export interface ComposicaoResultado {
   itens?: Array<Record<string, unknown>>
 }
 
+export interface ServicoComCpu {
+  codigo: string | null
+  nome: string
+  unidade: string | null
+  producao_diaria: string | null
+  custo_unitario: number | null
+}
+
+/** Lista todos os serviços da obra que têm CPU vigente (para "liste as composições"). */
+export async function listarComposicoes(obraId: string): Promise<ServicoComCpu[]> {
+  const { data: cpus } = await supabase
+    .from('cpu')
+    .select(
+      'nome, producao_diaria_qtde, producao_diaria_unidade, custo_unit_calc, servico:servico_id(codigo, nome, unidade)'
+    )
+    .eq('obra_id', obraId)
+    .eq('is_vigente', true)
+  const out: ServicoComCpu[] = []
+  for (const c of cpus ?? []) {
+    const s = c.servico as { codigo?: string; nome?: string; unidade?: string } | null
+    const nome = s?.nome ?? (c.nome as string) ?? ''
+    if (!nome) continue
+    out.push({
+      codigo: s?.codigo ?? null,
+      nome,
+      unidade: s?.unidade ?? null,
+      producao_diaria:
+        c.producao_diaria_qtde != null
+          ? `${c.producao_diaria_qtde} ${c.producao_diaria_unidade ?? ''}/dia`
+          : null,
+      custo_unitario: c.custo_unit_calc != null ? Number(c.custo_unit_calc) : null
+    })
+  }
+  out.sort((a, b) => a.nome.localeCompare(b.nome))
+  return out
+}
+
 export async function buscarComposicao(obraId: string, busca: string): Promise<ComposicaoResultado> {
   const q = busca.trim().toLowerCase().replace(/\b(servi[çc]o|aplica[çc][ãa]o|de|da|do)\b/g, '').trim()
 

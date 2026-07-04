@@ -162,7 +162,10 @@ async function reconcile(): Promise<void> {
   // status conectado | aguardando_qr | erro ⇒ deve estar rodando
   if (!current || current.sessaoId !== alvo.id) {
     if (current) current.closeQuiet()
-    current = new Session(alvo.id, attach(alvo.id))
+    // Ignora grupos NÃO monitorados no socket (evita afogar a conexão com retries
+    // de mídia de grupos que não interessam). DMs (@s.whatsapp.net/@lid) passam.
+    const ignorar = (jid: string): boolean => jid.endsWith('@g.us') && !monitorados.has(jid)
+    current = new Session(alvo.id, attach(alvo.id), ignorar)
     await current.start()
     logger.info({ sessaoId: alvo.id }, 'sessão iniciada pelo reconcile')
   }

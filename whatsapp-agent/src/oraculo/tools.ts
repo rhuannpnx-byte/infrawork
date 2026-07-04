@@ -10,7 +10,8 @@ import type { ObraRef } from './identidade.js'
 import { buscarFotos } from './fotos.js'
 import { acharObra } from './conversa.js'
 import { montarContexto } from './contexto.js'
-import { buscarComposicao } from './composicao.js'
+import { buscarComposicao, listarComposicoes } from './composicao.js'
+import { estimarConsumo } from './combustivel.js'
 
 export interface ToolCtx {
   /** Obra ATIVA da sessão. Mutável: a tool mudar_obra reatribui em tempo real. */
@@ -75,6 +76,30 @@ export const TOOL_DEFS = [
   {
     type: 'function',
     function: {
+      name: 'listar_composicoes',
+      description:
+        'Lista TODOS os serviços da obra que têm composição (CPU) cadastrada, com código, unidade, produção diária e custo unitário. Use para "liste as composições/serviços da obra", "quais serviços têm CPU".',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'consumo_estimado',
+      description:
+        'ESTIMATIVA de consumo de MATERIAIS e DIESEL no período, por serviço e total, cruzando a composição (CPU) com a produção apontada. Retorna diesel (litros) e cada material com sua quantidade e unidade. Use para "consumo de material/diesel/insumos", "quanto de CBUQ/emulsão/cimento/diesel gastamos". Deixe claro que é estimativa (não é medição de estoque/abastecimento). Datas YYYY-MM-DD; sem datas usa os últimos 30 dias.',
+      parameters: {
+        type: 'object',
+        properties: {
+          data_inicio: { type: 'string', description: 'YYYY-MM-DD' },
+          data_fim: { type: 'string', description: 'YYYY-MM-DD' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'previsto_x_realizado',
       description:
         'Comparativo previsto × realizado por serviço da obra COM o planejamento da SEMANA, segundo a LINHA DE BASE do cronograma. Para cada serviço retorna: previsto_semana_baseline (quanto o cronograma prevê produzir na semana), necessario_semana (quanto precisa ser entregue na semana para manter o término planejado, já considerando o atraso), media_necessaria_dia, qtd_plan_total, qtd_real, qtd_restante, status, desvio_dias e adiantado. Use para "o que está previsto para esta semana", "quanto preciso fazer de X esta semana", andamento, atraso, risco. Sem datas usa a semana corrente (seg–dom).',
@@ -92,11 +117,15 @@ export const TOOL_DEFS = [
     function: {
       name: 'buscar_fotos',
       description:
-        'Envia ao usuário as fotos georreferenciadas da obra que casem com o serviço e/ou período. As imagens são enviadas automaticamente no WhatsApp. Datas YYYY-MM-DD.',
+        'Envia ao usuário as fotos georreferenciadas da obra que casem com o serviço, o encarregado/colaborador e/ou período. As imagens são enviadas automaticamente no WhatsApp. Datas YYYY-MM-DD.',
       parameters: {
         type: 'object',
         properties: {
           servico: { type: 'string', description: 'Texto do serviço (ex.: "CBUQ", "drenagem")' },
+          encarregado: {
+            type: 'string',
+            description: 'Nome (parcial) do encarregado/colaborador (ex.: "Ailton")'
+          },
           data_inicio: { type: 'string', description: 'YYYY-MM-DD' },
           data_fim: { type: 'string', description: 'YYYY-MM-DD' }
         }
@@ -226,6 +255,18 @@ export async function executarTool(
 
     if (name === 'composicao_servico') {
       const r = await buscarComposicao(obraId, String(args.servico ?? ''))
+      return JSON.stringify(r)
+    }
+
+    if (name === 'listar_composicoes') {
+      const servicos = await listarComposicoes(obraId)
+      return JSON.stringify({ total: servicos.length, servicos })
+    }
+
+    if (name === 'consumo_estimado') {
+      const dataFim = (args.data_fim as string) || ctx.hoje
+      const dataInicio = (args.data_inicio as string) || diasAtras(dataFim, 30)
+      const r = await estimarConsumo(obraId, dataInicio, dataFim)
       return JSON.stringify(r)
     }
 
@@ -360,6 +401,7 @@ export async function executarTool(
     if (name === 'buscar_fotos') {
       const r = await buscarFotos(obraId, {
         servico: (args.servico as string) ?? null,
+        encarregado: (args.encarregado as string) ?? null,
         dataInicio: (args.data_inicio as string) ?? null,
         dataFim: (args.data_fim as string) ?? null
       })

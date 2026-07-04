@@ -93,6 +93,33 @@ export function acharObra(
   return { match: null, candidatos: contem }
 }
 
+/**
+ * Detecta se a mensagem cita EXPLICITAMENTE o CÓDIGO de uma obra permitida
+ * (ex.: "6.502", "muda pra 6508", "quero a obra 6508", ou a mensagem sendo só o
+ * código). Determinístico — não depende do LLM chamar mudar_obra, evitando
+ * responder da obra errada. Retorna a obra única casada, ou null (nenhuma /
+ * ambígua / número que não é código de obra). NÃO casa por nome (ambíguo:
+ * várias "Rota Verde") — nome fica a cargo do mudar_obra do LLM.
+ */
+export function detectarObraCitada(texto: string, obras: ObraRef[]): ObraRef | null {
+  const t = texto.trim().toLowerCase()
+  if (!t) return null
+  const tDig = t.replace(/\D/g, '')
+  const hits: ObraRef[] = []
+  for (const o of obras) {
+    const dig = o.codigo.replace(/\D/g, '')
+    if (dig.length < 3) continue
+    const codLit = o.codigo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const reDotted = new RegExp(`(?<!\\d)${codLit}(?!\\d)`) // "6.502" literal
+    const reKw = new RegExp(
+      `(?:obra|muda(?:r)?|troca(?:r)?|pra|para|\\bna\\b|\\bda\\b|\\bdo\\b|\\bde\\b|\\bem\\b)\\s+(?:obra\\s+)?${dig}(?!\\d)`
+    )
+    const bareExact = tDig === dig && t.replace(/[\s.]/g, '') === dig // msg é só o código
+    if (reDotted.test(t) || reKw.test(t) || bareExact) hits.push(o)
+  }
+  return hits.length === 1 ? hits[0] : null
+}
+
 /** Monta a lista numerada de obras + o mapa "N" → obra_id. */
 export function montarTriagem(obras: ObraRef[]): { texto: string; mapa: Record<string, string> } {
   const mapa: Record<string, string> = {}

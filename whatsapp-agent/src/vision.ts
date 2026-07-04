@@ -111,15 +111,26 @@ export async function classificarFoto(
     ]
   }
 
-  const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.openrouterApiKey}`,
-      'Content-Type': 'application/json',
-      'X-Title': 'InfraWork WhatsApp Agent'
-    },
-    body: JSON.stringify(body)
-  })
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 40_000)
+  let resp: Response
+  try {
+    resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.openrouterApiKey}`,
+        'Content-Type': 'application/json',
+        'X-Title': 'InfraWork WhatsApp Agent'
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    })
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') throw new Error('OpenRouter timeout (40000ms)')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '')
