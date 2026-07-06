@@ -48,12 +48,21 @@ export const TOOL_DEFS = [
     function: {
       name: 'producao_periodo',
       description:
-        'Soma a produção apontada da obra em um período, agrupada por serviço. As quantidades JÁ vêm convertidas para a unidade do InfraWork (fator de conversão do vínculo aplicado) — use sempre a "qtd" e a "unidade" retornadas, nunca a quantidade bruta do SIGA. Use para "produção de ontem/da semana/do dia X". Datas YYYY-MM-DD; se omitidas, usa os últimos 7 dias.',
+        'Soma a produção apontada da obra em um período. Por padrão agrupa por SERVIÇO, mas pode agrupar por ENCARREGADO ou por EQUIPE (parâmetro agrupar_por) — use agrupar_por="encarregado" para "detalhe/produção por encarregado", "quais os encarregados", e agrupar_por="equipe" para "por equipe". Para a produção de UM encarregado específico ("quanto o Emanoel produziu"), passe encarregado com o nome parcial. As quantidades JÁ vêm convertidas para a unidade do InfraWork — use sempre a "qtd"/"unidade" retornadas. Como serviços têm unidades diferentes, o detalhamento por encarregado/equipe lista a produção por serviço dentro de cada um (não some entre unidades diferentes). Use para "produção de ontem/da semana/do dia X". Datas YYYY-MM-DD; se omitidas, usa os últimos 7 dias.',
       parameters: {
         type: 'object',
         properties: {
           data_inicio: { type: 'string', description: 'YYYY-MM-DD' },
-          data_fim: { type: 'string', description: 'YYYY-MM-DD' }
+          data_fim: { type: 'string', description: 'YYYY-MM-DD' },
+          agrupar_por: {
+            type: 'string',
+            enum: ['servico', 'encarregado', 'equipe'],
+            description: 'Dimensão do agrupamento. Padrão "servico".'
+          },
+          encarregado: {
+            type: 'string',
+            description: 'Filtra por um encarregado específico (nome parcial, ex.: "Emanuel").'
+          }
         }
       }
     }
@@ -163,6 +172,39 @@ function arred2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+function norm(s: string | null | undefined): string {
+  return (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim()
+}
+
+/** Distância de edição (Levenshtein) — para casar grafias próximas de nomes
+ *  (ex.: "Emanoel" ↔ "Emanuel"). */
+function lev(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  if (!m) return n
+  if (!n) return m
+  let prev = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i++) {
+    const cur = [i]
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+    }
+    prev = cur
+  }
+  return prev[n]
+}
+
+/** true se `nome` casa o texto buscado: substring (sem acento) ou primeiro token
+ *  com grafia próxima (edição ≤ 1) — resolve "Emanoel" para "Emanuel Rocha…". */
+function nomeCasa(nome: string, busca: string): boolean {
+  const n = norm(nome)
+  if (n.includes(busca)) return true
+  const q = busca.split(/\s+/)[0]
+  if (q.length < 4) return false
+  return n.split(/\s+/).some((tok) => tok.length >= 4 && lev(tok, q) <= 1)
+}
+
 /** Executa uma tool e devolve um JSON-string com o resultado para o LLM. */
 export async function executarTool(
   name: string,
@@ -206,50 +248,127 @@ export async function executarTool(
     if (name === 'producao_periodo') {
       const dataFim = (args.data_fim as string) || ctx.hoje
       const dataInicio = (args.data_inicio as string) || diasAtras(dataFim, 7)
+      const filtroEnc = args.encarregado ? norm(String(args.encarregado)) : null
+      const agruparPor = ['encarregado', 'equipe', 'servico'].includes(String(args.agrupar_por))
+        ? (String(args.agrupar_por) as 'encarregado' | 'equipe' | 'servico')
+        : filtroEnc
+          ? 'encarregado'
+          : 'servico'
       // View enriquecida: aplica o vínculo SIGA→InfraWork (fator_conversao) e
       // traz a UNIDADE do InfraWork. Reportamos a qtd CONVERTIDA, não a bruta.
       const { data } = await supabase
         .from('vw_acompanhamento_producao_enriquecida')
         .select(
-          'servico_display_nome, siga_servico_nome, servico_unidade, siga_unidade_nome, qtd, qtd_convertida, fator_conversao, equipe_display_nome, siga_equipe_nome'
+          'servico_display_nome, siga_servico_nome, servico_unidade, siga_unidade_nome, qtd, qtd_convertida, fator_conversao, equipe_display_nome, siga_equipe_nome, encarregado_display_nome'
         )
         .eq('obra_id', obraId)
         .gte('data', dataInicio)
         .lte('data', dataFim)
-      const linhas = data ?? []
-      const porServico = new Map<
-        string,
-        { qtd: number; unidade: string; fator: number | null; convertido: boolean }
-      >()
-      const equipes = new Set<string>()
-      for (const l of linhas) {
-        const convertido = l.qtd_convertida != null
-        const nome =
-          (l.servico_display_nome as string) || (l.siga_servico_nome as string) || 'Serviço'
-        const unidade =
-          (l.servico_unidade as string) || (l.siga_unidade_nome as string) || ''
-        const cur =
-          porServico.get(nome) ?? { qtd: 0, unidade, fator: (l.fator_conversao as number) ?? null, convertido }
-        cur.qtd += Number(l.qtd_convertida ?? l.qtd) || 0
-        // se qualquer registro do serviço não tem conversão, sinaliza
-        if (!convertido) cur.convertido = false
-        porServico.set(nome, cur)
-        const eq = (l.equipe_display_nome as string) || (l.siga_equipe_nome as string)
-        if (eq) equipes.add(eq)
+      const todas = data ?? []
+
+      const nomeServico = (l: Record<string, unknown>): string =>
+        (l.servico_display_nome as string) || (l.siga_servico_nome as string) || 'Serviço'
+      const unidadeServico = (l: Record<string, unknown>): string =>
+        (l.servico_unidade as string) || (l.siga_unidade_nome as string) || ''
+      const nomeEquipe = (l: Record<string, unknown>): string =>
+        (l.equipe_display_nome as string) || (l.siga_equipe_nome as string) || '(sem equipe)'
+      const nomeEncarregado = (l: Record<string, unknown>): string =>
+        (l.encarregado_display_nome as string) || '(sem encarregado)'
+
+      // ── Agrupamento por SERVIÇO (padrão) ──────────────────────────────────
+      if (agruparPor === 'servico') {
+        const porServico = new Map<
+          string,
+          { qtd: number; unidade: string; fator: number | null; convertido: boolean }
+        >()
+        const equipes = new Set<string>()
+        for (const l of todas) {
+          const convertido = l.qtd_convertida != null
+          const nome = nomeServico(l)
+          const cur =
+            porServico.get(nome) ??
+            { qtd: 0, unidade: unidadeServico(l), fator: (l.fator_conversao as number) ?? null, convertido }
+          cur.qtd += Number(l.qtd_convertida ?? l.qtd) || 0
+          if (!convertido) cur.convertido = false
+          porServico.set(nome, cur)
+          const eq = (l.equipe_display_nome as string) || (l.siga_equipe_nome as string)
+          if (eq) equipes.add(eq)
+        }
+        return JSON.stringify({
+          periodo: { inicio: dataInicio, fim: dataFim },
+          agrupado_por: 'servico',
+          registros: todas.length,
+          equipes: [...equipes],
+          observacao:
+            'Quantidades já na unidade do InfraWork (fator de conversão do vínculo aplicado). convertido=false indica serviço sem vínculo (valor bruto do SIGA).',
+          por_servico: [...porServico.entries()].map(([servico, v]) => ({
+            servico,
+            qtd: arred2(v.qtd),
+            unidade: v.unidade,
+            fator_conversao: v.fator,
+            convertido: v.convertido
+          }))
+        })
       }
+
+      // ── Agrupamento por ENCARREGADO ou EQUIPE ─────────────────────────────
+      const chaveDe = agruparPor === 'encarregado' ? nomeEncarregado : nomeEquipe
+
+      // filtro opcional por encarregado (nome parcial, sem acento)
+      let linhas = todas
+      if (filtroEnc) {
+        linhas = todas.filter((l) => nomeCasa(nomeEncarregado(l), filtroEnc))
+        if (linhas.length === 0) {
+          const disponiveis = [...new Set(todas.map((l) => nomeEncarregado(l)))].sort()
+          return JSON.stringify({
+            periodo: { inicio: dataInicio, fim: dataFim },
+            encarregado_buscado: String(args.encarregado),
+            nao_encontrado: true,
+            encarregados_disponiveis: disponiveis,
+            observacao:
+              'Nenhum apontamento para esse encarregado no período. Ofereça ao usuário os nomes em encarregados_disponiveis (o nome pode estar grafado de forma diferente).'
+          })
+        }
+      }
+
+      // grupo → serviço → {qtd, unidade}
+      const grupos = new Map<
+        string,
+        { registros: number; equipes: Set<string>; servicos: Map<string, { qtd: number; unidade: string }> }
+      >()
+      for (const l of linhas) {
+        const k = chaveDe(l)
+        const g = grupos.get(k) ?? { registros: 0, equipes: new Set<string>(), servicos: new Map() }
+        g.registros += 1
+        if (agruparPor === 'encarregado') g.equipes.add(nomeEquipe(l))
+        const sv = nomeServico(l)
+        const unid = unidadeServico(l)
+        const sc = g.servicos.get(sv) ?? { qtd: 0, unidade: unid }
+        sc.qtd += Number(l.qtd_convertida ?? l.qtd) || 0
+        g.servicos.set(sv, sc)
+        grupos.set(k, g)
+      }
+
+      const lista = [...grupos.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([nome, g]) => ({
+          [agruparPor]: nome,
+          registros: g.registros,
+          ...(agruparPor === 'encarregado' ? { equipes: [...g.equipes] } : {}),
+          servicos: [...g.servicos.entries()]
+            .map(([servico, v]) => ({ servico, qtd: arred2(v.qtd), unidade: v.unidade }))
+            .sort((a, b) => b.qtd - a.qtd)
+        }))
+
       return JSON.stringify({
         periodo: { inicio: dataInicio, fim: dataFim },
+        agrupado_por: agruparPor,
         registros: linhas.length,
-        equipes: [...equipes],
         observacao:
-          'Quantidades já na unidade do InfraWork (fator de conversão do vínculo aplicado). convertido=false indica serviço sem vínculo (valor bruto do SIGA).',
-        por_servico: [...porServico.entries()].map(([servico, v]) => ({
-          servico,
-          qtd: Number(v.qtd.toFixed(2)),
-          unidade: v.unidade,
-          fator_conversao: v.fator,
-          convertido: v.convertido
-        }))
+          'Produção por ' +
+          agruparPor +
+          ', detalhada por serviço dentro de cada um (serviços têm unidades diferentes — NÃO some quantidades de unidades distintas). Quantidades já na unidade do InfraWork.',
+        [agruparPor === 'encarregado' ? 'por_encarregado' : 'por_equipe']: lista
       })
     }
 
