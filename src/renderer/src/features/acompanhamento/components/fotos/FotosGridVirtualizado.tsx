@@ -13,7 +13,13 @@ interface Props {
   cols?: number
 }
 
-const THUMB_HEIGHT = 96
+// Célula quadrada que acompanha a largura da coluna, com a foto INTEIRA dentro
+// (object-contain). Antes era 96px de altura + object-cover: em fotos de celular
+// (em pé) sobrava só uma faixa do meio e a miniatura parecia um zoom.
+const THUMB_MIN = 96
+const THUMB_MAX = 260
+const GAP = 4
+const PAD = 8
 
 interface HoverState { fotoId: string; x: number; y: number }
 
@@ -21,6 +27,19 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [hover, setHover] = useState<HoverState | null>(null)
+  const [largura, setLargura] = useState(0)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setLargura(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [loading, fotos.length === 0])
+
+  const THUMB_HEIGHT = largura > 0
+    ? Math.round(Math.min(THUMB_MAX, Math.max(THUMB_MIN, (largura - PAD - GAP * (cols - 1)) / cols)))
+    : THUMB_MIN
 
   // grid: cada "row" do virtualizer corresponde a `cols` thumbnails
   const rows = useMemo(() => {
@@ -42,6 +61,7 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
     estimateSize: () => THUMB_HEIGHT + 6,
     overscan: 6
   })
+  useEffect(() => { rowVirtualizer.measure() }, [rowVirtualizer, THUMB_HEIGHT])
 
   // Carrega signed URLs dos itens visíveis
   useEffect(() => {
@@ -138,7 +158,7 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
                         alt=""
                         loading="lazy"
                         decoding="async"
-                        className="object-cover w-full h-full"
+                        className="object-contain w-full h-full bg-black/40"
                       />
                     ) : (
                       <div className="flex items-center justify-center w-full h-full text-text-dim">
@@ -177,7 +197,7 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
           }}
         >
           {urlHover ? (
-            <img src={urlHover} alt="" className="w-full block" style={{ maxHeight: 220, objectFit: 'cover' }} />
+            <img src={urlHover} alt="" className="w-full block bg-black/60" style={{ height: 220, objectFit: 'contain' }} />
           ) : (
             <div className="w-full h-[180px] flex items-center justify-center text-text-dim">
               <ImageIcon size={28} />

@@ -1,10 +1,10 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { LayoutGrid, Map as MapIcon, Columns } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
-import { useFotosInfinite } from '@/features/acompanhamento/hooks/fotos'
+import { useFotosTodas } from '@/features/acompanhamento/hooks/fotos'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { useFotosFiltrosStore, type FotosViewMode } from '@/features/acompanhamento/stores/fotos-filtros'
@@ -44,12 +44,8 @@ function Inner(): ReactNode {
     somente_geo: filtros.somente_geo || undefined
   }), [filtros])
 
-  const { data: pages, fetchNextPage, hasNextPage, isFetching } = useFotosInfinite(obraId, efFiltros)
-
-  const fotos = useMemo<FotoEnriquecida[]>(
-    () => (pages?.pages ?? []).flatMap((p) => p.fotos),
-    [pages]
-  )
+  const { data, isFetching } = useFotosTodas(obraId, efFiltros)
+  const fotos = useMemo<FotoEnriquecida[]>(() => data?.fotos ?? [], [data])
 
   // Trechos (KMZ) + sequência de ataque. A sequência só é computada quando ligada.
   const { data: trechos = [] } = useObraTrechos(obraId)
@@ -79,24 +75,11 @@ function Inner(): ReactNode {
   }, [fotos])
 
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
-  const total = pages?.pages[0]?.total ?? 0
-
-  // Auto-fetch da próxima página enquanto há mais
-  const sentinel = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!sentinel.current) return
-    const obs = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && hasNextPage && !isFetching) void fetchNextPage()
-    })
-    obs.observe(sentinel.current)
-    return () => obs.disconnect()
-  }, [hasNextPage, isFetching, fetchNextPage])
-
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Fotos & Mapa"
-        subtitle={`${scope.obra?.nome ?? ''} · ${fotos.length}${total > fotos.length ? ` de ${total}` : ''} fotos`}
+        subtitle={`${scope.obra?.nome ?? ''} · ${isFetching && !data ? 'carregando…' : `${fotos.length} fotos`}`}
         actions={
           <div className="inline-flex border border-border rounded overflow-hidden">
             <ViewBtn cur={filtros.view_mode} mode="split" onClick={setViewMode}><Columns size={11} /></ViewBtn>
@@ -143,10 +126,6 @@ function Inner(): ReactNode {
               loading={isFetching && fotos.length === 0}
               cols={filtros.view_mode === 'grid' ? 4 : 2}
             />
-            <div ref={sentinel} className="h-2 shrink-0" />
-            {isFetching && fotos.length > 0 && (
-              <div className="px-2 py-1 text-2xs font-mono text-text-dim text-center">carregando…</div>
-            )}
           </div>
         )}
         {filtros.view_mode !== 'grid' && (

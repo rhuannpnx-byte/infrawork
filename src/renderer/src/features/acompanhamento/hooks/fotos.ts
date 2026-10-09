@@ -1,72 +1,82 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { adminApi } from '@/lib/supabase/functions'
-import type {
-  FotosListarFiltros,
-  FotosListarResposta,
-  FotoEnriquecida
-} from '@/types/acompanhamento'
+import type { FotosListarFiltros, FotoEnriquecida } from '@/types/acompanhamento'
 
-const PAGE = 50
+/** Máximo aceito pela edge function de listagem por chamada. */
+const PAGE = 200
+/** Páginas buscadas em paralelo depois da primeira. */
+const CONCORRENCIA = 4
 
 /** Variants de tamanho usadas pela UI. */
 export type FotoVariant = 'thumb' | 'preview' | 'full'
-const VARIANT_TRANSFORM: Record<FotoVariant, { width: number; quality?: number; resize?: 'cover' | 'contain' }> = {
-  // Grid virtualizado (96px alto). 240 dá margem pra retina/zoom sem inchar.
-  thumb: { width: 240, quality: 70, resize: 'cover' },
-  // Hover preview (~280px largura) + thumbs do cluster.
-  preview: { width: 480, quality: 75, resize: 'cover' },
+const VARIANT_TRANSFORM: Record<FotoVariant, { width: number; height?: number; quality?: number; resize?: 'cover' | 'contain' }> = {
+  // Foto INTEIRA dentro de uma caixa (contain). Com só `width` + cover o Storage
+  // mantém a altura original e recorta uma faixa do centro — a miniatura virava
+  // um zoom no meio da foto.
+  // Grid (células de até 260px).
+  thumb: { width: 320, height: 320, quality: 70, resize: 'contain' },
+  // Hover preview (~280px) + thumbs do cluster. ≤ 480 → URL de longa duração.
+  preview: { width: 480, height: 480, quality: 75, resize: 'contain' },
   // Lightbox fullscreen — usa contain pra preservar aspect ratio.
   full: { width: 1600, quality: 85, resize: 'contain' }
 }
 
-export function useFotosInfinite(
+/**
+ * Lista TODAS as fotos do filtro, só metadados (sem URLs — miniaturas e prévias
+ * são assinadas sob demanda pelo que está visível). A 1ª página traz o total;
+ * as demais vão em paralelo. Assim o mapa recebe todos os pontos de uma vez em
+ * vez de esperar ~20 páginas sequenciais.
+ */
+export async function listarTodasFotos(
+  obraId: string,
+  filtros: FotosListarFiltros = {}
+): Promise<{ fotos: FotoEnriquecida[]; total: number }> {
+  const pagina = (page: number): Promise<FotoEnriquecida[]> =>
+    adminApi
+      .acompanhamentoFotosListar({ obra_id: obraId, filtros, page, page_size: PAGE, with_urls: false })
+      .then((r) => r.fotos)
+  const primeira = await adminApi.acompanhamentoFotosListar({
+    obra_id: obraId, filtros, page: 0, page_size: PAGE, with_urls: false
+  })
+  const nPaginas = Math.ceil(primeira.total / PAGE)
+  const paginas: FotoEnriquecida[][] = [primeira.fotos]
+  let proxima = 1
+  await Promise.all(
+    Array.from({ length: Math.min(CONCORRENCIA, Math.max(0, nPaginas - 1)) }, async () => {
+      while (proxima < nPaginas) {
+        const p = proxima++
+        paginas[p] = await pagina(p)
+      }
+    })
+  )
+  // Uma foto sincronizada no meio da busca desloca as páginas — evita duplicata.
+  const vistos = new Set<string>()
+  const fotos = paginas.flat().filter((f) => (vistos.has(f.id) ? false : (vistos.add(f.id), true)))
+  return { fotos, total: primeira.total }
+}
+
+export function useFotosTodas(
   obraId: string | null | undefined,
   filtros: FotosListarFiltros = {}
-) {
-  return useInfiniteQuery({
+): ReturnType<typeof useQuery<{ fotos: FotoEnriquecida[]; total: number }>> {
+  return useQuery({
     queryKey: ['acompanhamento', 'fotos', obraId, filtros],
     enabled: !!obraId,
-    initialPageParam: 0,
     staleTime: 30 * 1000,
-    queryFn: async ({ pageParam }) => {
-      // URLs in-place pedidas como thumb (grid usa 96px). Lightbox/hover refazem
-      // o pedido sob demanda via getSignedUrls(ids, 'full' | 'preview').
-      return await adminApi.acompanhamentoFotosListar({
-        obra_id: obraId!,
-        filtros,
-        page: pageParam as number,
-        page_size: PAGE,
-        with_urls: true,
-        url_transform: VARIANT_TRANSFORM.thumb
-      })
-    },
-    getNextPageParam: (last: FotosListarResposta, all) => {
-      const carregado = all.reduce((s, p) => s + p.fotos.length, 0)
-      return carregado < last.total ? all.length : undefined
-    }
+    queryFn: () => listarTodasFotos(obraId!, filtros)
   })
 }
 
-/** Subset georreferenciado para mini-mapa do dashboard. Sem URLs. */
+/** Fotos georreferenciadas para o mini-mapa do dashboard. Sem URLs. */
 export function useFotosGeo(
-  obraId: string | null | undefined,
-  limit = 500
+  obraId: string | null | undefined
 ): ReturnType<typeof useQuery<FotoEnriquecida[]>> {
   return useQuery({
-    queryKey: ['acompanhamento', 'fotos-geo', obraId, limit],
+    queryKey: ['acompanhamento', 'fotos-geo', obraId],
     enabled: !!obraId,
     staleTime: 60 * 1000,
-    queryFn: async () => {
-      const r = await adminApi.acompanhamentoFotosListar({
-        obra_id: obraId!,
-        filtros: { somente_geo: true },
-        page: 0,
-        page_size: limit,
-        with_urls: false
-      })
-      return r.fotos
-    }
+    queryFn: async () => (await listarTodasFotos(obraId!, { somente_geo: true })).fotos
   })
 }
 
@@ -79,6 +89,42 @@ export function useFotosGeo(
  */
 interface SignedEntry { url: string; expires: number }
 const urlCache = new Map<string, SignedEntry>() // key = `${variant}:${id}`
+
+// Miniaturas e prévias pedem URLs de 7 dias e ficam salvas entre sessões: a URL
+// assinada é a chave do cache em disco do navegador, então reaproveitá-la evita
+// baixar (e redimensionar no Storage) a mesma imagem de novo a cada abertura.
+// Foto cheia (lightbox) segue com o TTL curto padrão e não é persistida.
+const TTL_PERSISTENTE = 7 * 24 * 3600
+const VARIANTES_PERSISTIDAS: FotoVariant[] = ['thumb', 'preview']
+const STORAGE_KEY = 'infrawork.fotos.urls.v2' // v2: miniaturas 'contain' (v1 eram recortadas)
+const MAX_PERSISTIDAS = 4000
+
+;(function carregarCachePersistido(): void {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+    const agora = Date.now()
+    for (const [k, v] of Object.entries(JSON.parse(raw) as Record<string, SignedEntry>)) {
+      if (v && typeof v.url === 'string' && v.expires > agora) urlCache.set(k, v)
+    }
+  } catch { /* cache é só otimização */ }
+})()
+
+let salvarTimer: ReturnType<typeof setTimeout> | null = null
+function agendarPersistencia(): void {
+  if (salvarTimer) return
+  salvarTimer = setTimeout(() => {
+    salvarTimer = null
+    try {
+      const agora = Date.now()
+      const entradas = [...urlCache.entries()]
+        .filter(([k, v]) => v.expires > agora && VARIANTES_PERSISTIDAS.some((p) => k.startsWith(p + ':')))
+        .sort((a, b) => b[1].expires - a[1].expires)
+        .slice(0, MAX_PERSISTIDAS)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(entradas)))
+    } catch { /* quota cheia etc. — ignora */ }
+  }, 1500)
+}
 type PendingMap = Map<FotoVariant, { ids: Set<string>; resolvers: Array<() => void>; timer: ReturnType<typeof setTimeout> | null }>
 const pendingByVariant: PendingMap = new Map()
 
@@ -94,7 +140,12 @@ async function flushPendingFor(variant: FotoVariant): Promise<void> {
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100)
     try {
-      const r = await adminApi.acompanhamentoFotoSignedUrlsBatch({ foto_ids: slice, transform })
+      const persistir = VARIANTES_PERSISTIDAS.includes(variant)
+      const r = await adminApi.acompanhamentoFotoSignedUrlsBatch({
+        foto_ids: slice,
+        transform,
+        ...(persistir ? { ttl_seconds: TTL_PERSISTENTE } : {})
+      })
       const now = Date.now()
       const ttlMs = (r.ttl_seconds ?? 900) * 1000
       for (const u of r.urls) {
@@ -104,6 +155,7 @@ async function flushPendingFor(variant: FotoVariant): Promise<void> {
       }
     } catch { /* swallow */ }
   }
+  if (VARIANTES_PERSISTIDAS.includes(variant)) agendarPersistencia()
   for (const r of resolvers) r()
 }
 

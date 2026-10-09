@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.34] - 2026-10-09
+
+### Alterado
+
+- **Acompanhamento → Fotos & Mapa — carregamento muito mais rápido**:
+  - O mapa recebe **todas as fotos de uma vez** (lista só com dados, em páginas paralelas): ~4–6 s para 980 fotos, contra ~50 s antes (20 páginas em sequência, cada uma assinando 50 URLs que a galeria nem usava).
+  - A galeria assina só as miniaturas visíveis.
+  - URLs de miniaturas/prévias valem 7 dias e ficam guardadas entre sessões — ao reabrir a tela, as imagens vêm do cache em disco, sem nova assinatura nem novo download.
+  - O mini-mapa do Dashboard passa a mostrar todas as fotos georreferenciadas (antes, no máximo 500).
+
+### Corrigido
+
+- **Miniaturas de fotos** mostravam só uma faixa do meio da foto (parecia um zoom). Agora a miniatura é a foto inteira, em célula quadrada que acompanha a largura da coluna — na galeria, na prévia ao passar o mouse e nos agrupamentos do mapa.
+
 ## [0.3.33] - 2026-10-09
 
 ### Corrigido

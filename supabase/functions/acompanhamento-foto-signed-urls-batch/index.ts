@@ -1,5 +1,5 @@
 // POST /functions/v1/acompanhamento-foto-signed-urls-batch
-// Body: { foto_ids: string[], transform?: { width, height?, quality?, resize? } }
+// Body: { foto_ids: string[], transform?: { width, height?, quality?, resize? }, ttl_seconds? }
 // Permissão: god / adm / engenheiro / apoio com acesso à obra.
 //
 // Versão batch da signed-url singular — usada pelo grid de fotos virtualizado
@@ -17,6 +17,10 @@ import { assertObraAccess } from '../_shared/orc.ts'
 const TTL = Number(Deno.env.get('SUPABASE_PRESIGN_TTL_SECONDS') ?? '900')
 const DEFAULT_BUCKET = Deno.env.get('SUPABASE_BUCKET_FOTOS') ?? 'monito-fotos'
 const MAX_IDS = 100
+// Miniaturas/prévias (≤ 480px) podem pedir validade maior: o app guarda as URLs
+// entre sessões e reaproveita o cache em disco. Foto em tamanho cheio segue no TTL padrão.
+const TTL_MAX_MINIATURA = 7 * 24 * 3600
+const LARGURA_MAX_MINIATURA = 480
 
 interface TransformOpts {
   width?: number
@@ -28,6 +32,7 @@ interface TransformOpts {
 interface Body {
   foto_ids?: string[]
   transform?: TransformOpts
+  ttl_seconds?: number
 }
 
 Deno.serve(async (req) => {
@@ -76,7 +81,12 @@ Deno.serve(async (req) => {
     if (accErr) return accErr
   }
 
-  const expiresIso = new Date(Date.now() + TTL * 1000).toISOString()
+  const ehMiniatura = !!tW && tW <= LARGURA_MAX_MINIATURA && (!tH || tH <= LARGURA_MAX_MINIATURA)
+  const ttl =
+    ehMiniatura && typeof body.ttl_seconds === 'number' && body.ttl_seconds > TTL
+      ? Math.min(TTL_MAX_MINIATURA, Math.round(body.ttl_seconds))
+      : TTL
+  const expiresIso = new Date(Date.now() + ttl * 1000).toISOString()
 
   // Paraleliza geração de URLs (até 50 concorrentes)
   const out: Array<{ foto_id: string; url?: string; expires_at?: string; error?: string }> = []
@@ -89,7 +99,7 @@ Deno.serve(async (req) => {
         const bucket = f.storage_bucket || DEFAULT_BUCKET
         const { data: signed, error } = await admin.storage
           .from(bucket)
-          .createSignedUrl(f.storage_key, TTL, transformOpts)
+          .createSignedUrl(f.storage_key, ttl, transformOpts)
         if (error || !signed) return { foto_id: f.id as string, error: error?.message ?? 'falha sign' }
         return { foto_id: f.id as string, url: signed.signedUrl, expires_at: expiresIso }
       })
@@ -97,5 +107,5 @@ Deno.serve(async (req) => {
     out.push(...results)
   }
 
-  return json({ ok: true, urls: out, ttl_seconds: TTL })
+  return json({ ok: true, urls: out, ttl_seconds: ttl })
 })

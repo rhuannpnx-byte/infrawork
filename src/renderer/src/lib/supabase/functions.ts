@@ -423,6 +423,8 @@ export const adminApi = {
       quality?: number
       resize?: 'cover' | 'contain' | 'fill'
     }
+    /** Validade pedida (s). O servidor só aceita acima do padrão para miniaturas (≤ 480px). */
+    ttl_seconds?: number
   }) =>
     call<{
       ok: boolean

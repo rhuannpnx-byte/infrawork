@@ -60,7 +60,7 @@ function SingleContent({ foto, url }: { foto: PinFoto | undefined; url: string |
   return (
     <>
       {url ? (
-        <img src={url} alt="" className="w-full block" style={{ maxHeight: 180, objectFit: 'cover' }} />
+        <img src={url} alt="" className="w-full block bg-black/60" style={{ height: 180, objectFit: 'contain' }} />
       ) : (
         <div className="w-full h-[150px] flex items-center justify-center text-text-dim">
           <ImageIcon size={24} />
@@ -100,7 +100,7 @@ function ClusterContent({
         {visiveis.map((f) => (
           <div key={f.id} className="aspect-square bg-bg overflow-hidden relative">
             {urls[f.id] ? (
-              <img src={urls[f.id]} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <img src={urls[f.id]} alt="" className="absolute inset-0 w-full h-full object-contain" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-text-dim">
                 <ImageIcon size={14} />
