@@ -57,7 +57,7 @@ function hojeIso(): string { return new Date().toISOString().slice(0, 10) }
 // ─── Tipos das séries derivadas ──────────────────────────────────────────────
 export interface SemanaPrevReal { prev: number; real: number; range: string }
 export interface SemanaMedia { media: number; range: string }
-export interface DiaBarra { v: number; l1: string; l2: string }
+export interface DiaBarra { v: number; prev: number; l1: string; l2: string }
 export interface ProjStats {
   realHoje: number
   mediaAtual: number | null
@@ -87,6 +87,7 @@ export function computarServico(pr: PrevistoRealizadoItem, cs: CurvaSPonto[]): S
     .filter((r) => Number(r.realizado_dia ?? 0) > 0)
     .map((r) => ({ data: r.data, v: Number(r.realizado_dia) }))
   const daily = new Map(real.map((r) => [r.data, r.v]))
+  const planDaily = new Map(rows.map((r) => [r.data, Number(r.planejado_dia ?? 0)]))
 
   // semanas previsto × realizado (até hoje)
   const wpr = new Map<string, { mon: string; prev: number; real: number; dias: string[] }>()
@@ -128,7 +129,7 @@ export function computarServico(pr: PrevistoRealizadoItem, cs: CurvaSPonto[]): S
     const lastMon = weeksMon[weeksMon.length - 1]
     lastWeekDaily = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map((nome, i) => {
       const iso = addDays(lastMon, i)
-      return { v: daily.get(iso) ?? 0, l1: nome, l2: fmtDM(iso) }
+      return { v: daily.get(iso) ?? 0, prev: planDaily.get(iso) ?? 0, l1: nome, l2: fmtDM(iso) }
     })
     lastWeekRange = `${fmtDM(lastMon)}–${fmtDM(addDays(lastMon, 5))}`
   }
@@ -264,14 +265,27 @@ function calendarioHeatmap(dailyMap: Map<string, number>): string {
   return `<div class="cal"><div class="cal-grid cal-head">${head}</div><div class="cal-grid cal-body">${body}</div></div>`
 }
 
+// Barras do realizado no dia + marcador (traço violeta) da produção prevista do dia.
+// Rótulos empilhados acima do mais alto dos dois: realizado (verde se ≥ previsto,
+// vermelho se menor) e, abaixo dele, o previsto.
 function svgBars(items: DiaBarra[], color: string, decimals = 0): string {
-  const W = 503, Hh = 150, ml = 8, mr = 8, mt = 18, mb = 30
+  const W = 503, Hh = 150, ml = 8, mr = 8, mt = 30, mb = 30
   const iw = W - ml - mr, ih = Hh - mt - mb
-  const max = Math.max(1, ...items.map((i) => i.v)) * 1.2, bw = iw / items.length
+  const max = Math.max(1, ...items.flatMap((i) => [i.v, i.prev])) * 1.15, bw = iw / items.length
   const bars = items.map((it, idx) => {
     const h = (it.v / max) * ih, bx = ml + idx * bw + bw * 0.16, bwi = bw * 0.68, by = mt + ih - h
-    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bwi.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" rx="2" fill="${color}"/>
-      <text x="${(bx + bwi / 2).toFixed(1)}" y="${(by - 4).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${C.ink}">${it.v > 0 ? nf(it.v, decimals) : ''}</text>
+    const cx = bx + bwi / 2
+    const temPrev = it.prev > 0
+    const yPrev = mt + ih - (it.prev / max) * ih
+    const top = temPrev ? Math.min(by, yPrev) : by
+    const corReal = !temPrev ? C.ink : it.v >= it.prev ? C.success : C.danger
+    const marcador = temPrev
+      ? `<line x1="${(bx - bw * 0.06).toFixed(1)}" y1="${yPrev.toFixed(1)}" x2="${(bx + bwi + bw * 0.06).toFixed(1)}" y2="${yPrev.toFixed(1)}" stroke="${C.violet}" stroke-width="2" stroke-dasharray="4 2"/>
+        <text x="${cx.toFixed(1)}" y="${(top - 4).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="600" fill="${C.violet}">prev ${nf(it.prev, decimals)}</text>`
+      : ''
+    const yReal = temPrev ? top - 14 : top - 4
+    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bwi.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" rx="2" fill="${color}"/>${marcador}
+      <text x="${cx.toFixed(1)}" y="${yReal.toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${corReal}">${it.v > 0 ? nf(it.v, decimals) : temPrev ? '0' : ''}</text>
       <text x="${(bx + bwi / 2).toFixed(1)}" y="${(mt + ih + 13).toFixed(1)}" text-anchor="middle" font-size="9" fill="${C.dim}">${it.l1}</text>
       <text x="${(bx + bwi / 2).toFixed(1)}" y="${(mt + ih + 24).toFixed(1)}" text-anchor="middle" font-size="8" fill="${C.faint}">${it.l2 || ''}</text>`
   }).join('')
@@ -288,12 +302,13 @@ function svgPrevRealBars(weeks: SemanaPrevReal[]): string {
     const wideW = Math.min(52, bw * 0.62), thinW = Math.min(20, bw * 0.26)
     const hp = (w.prev / max) * ih, hr = (w.real / max) * ih
     const yp = mt + ih - hp, yr = mt + ih - hr
-    const delta = w.real - w.prev, dColor = delta >= 0 ? C.success : C.danger
+    // Rótulos: previsto (azul) em cima, realizado embaixo — verde se ≥ previsto, vermelho se menor.
+    const rColor = w.real >= w.prev ? C.success : C.danger
     const top = Math.min(yp, yr)
     return `<rect x="${(cx - wideW / 2).toFixed(1)}" y="${yp.toFixed(1)}" width="${wideW.toFixed(1)}" height="${Math.max(0, hp).toFixed(1)}" rx="2" fill="${C.accentSoft}" fill-opacity="0.15" stroke="${C.accentSoft}" stroke-width="1"/>
-      <rect x="${(cx - thinW / 2).toFixed(1)}" y="${yr.toFixed(1)}" width="${thinW.toFixed(1)}" height="${Math.max(0, hr).toFixed(1)}" rx="1.5" fill="${C.success}"/>
-      <text x="${cx.toFixed(1)}" y="${(top - 14).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="${C.ink}">${nf(w.real, 0)}</text>
-      <text x="${cx.toFixed(1)}" y="${(top - 4).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${dColor}">${delta >= 0 ? '+' : ''}${nf(delta, 0)}</text>
+      <rect x="${(cx - thinW / 2).toFixed(1)}" y="${yr.toFixed(1)}" width="${thinW.toFixed(1)}" height="${Math.max(0, hr).toFixed(1)}" rx="1.5" fill="${rColor}"/>
+      <text x="${cx.toFixed(1)}" y="${(top - 15).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="600" fill="${C.accent}">${nf(w.prev, 0)}</text>
+      <text x="${cx.toFixed(1)}" y="${(top - 4).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="${rColor}">${nf(w.real, 0)}</text>
       <text x="${cx.toFixed(1)}" y="${(mt + ih + 13).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="600" fill="${C.text}">Sem ${idx + 1}</text>
       <text x="${cx.toFixed(1)}" y="${(mt + ih + 24).toFixed(1)}" text-anchor="middle" font-size="8" fill="${C.faint}">${w.range}</text>`
   }).join('')
@@ -307,10 +322,20 @@ function svgMediaSemanal(weeks: SemanaMedia[], mediaNec: number): string {
   const x = (i: number): number => ml + pad + (weeks.length === 1 ? (iw - 2 * pad) / 2 : (i / (weeks.length - 1)) * (iw - 2 * pad))
   const y = (v: number): number => mt + ih - (v / max) * ih
   const pts = weeks.map((w, i) => `${x(i).toFixed(1)},${y(w.media).toFixed(1)}`).join(' ')
-  const dots = weeks.map((w, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(w.media).toFixed(1)}" r="3.5" fill="${C.success}"/>
+  // Obras longas: rótulos (semana, período e valor) só a cada `passo` semanas,
+  // ancorados na mais recente — cabem ~7 rótulos de período na largura do painel.
+  const MAX_ROTULOS = 7
+  const passo = Math.max(1, Math.ceil(weeks.length / MAX_ROTULOS))
+  const rotulada = (i: number): boolean => (weeks.length - 1 - i) % passo === 0
+  const r = weeks.length > 20 ? 2.2 : weeks.length > 10 ? 2.8 : 3.5
+  const dots = weeks.map((w, i) => {
+    const dot = `<circle cx="${x(i).toFixed(1)}" cy="${y(w.media).toFixed(1)}" r="${rotulada(i) ? r + 0.8 : r}" fill="${C.success}"/>`
+    if (!rotulada(i)) return dot
+    return `${dot}
     <text x="${x(i).toFixed(1)}" y="${(y(w.media) - 8).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="600" fill="${C.success}">${nf(w.media, 1)}</text>
     <text x="${x(i).toFixed(1)}" y="${(mt + ih + 13).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="600" fill="${C.text}">Sem ${i + 1}</text>
-    <text x="${x(i).toFixed(1)}" y="${(mt + ih + 24).toFixed(1)}" text-anchor="middle" font-size="8" fill="${C.faint}">${w.range}</text>`).join('')
+    <text x="${x(i).toFixed(1)}" y="${(mt + ih + 24).toFixed(1)}" text-anchor="middle" font-size="8" fill="${C.faint}">${w.range}</text>`
+  }).join('')
   const yNec = y(mediaNec)
   const yticks = [0, .5, 1].map((f) => { const v = max * f; return `<line x1="${ml}" y1="${y(v).toFixed(1)}" x2="${W - mr}" y2="${y(v).toFixed(1)}" stroke="${C.grid}"/><text x="${ml - 6}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end" font-size="8.5" fill="${C.dim}">${nf(v, 0)}</text>` }).join('')
   return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" preserveAspectRatio="xMidYMid meet">${yticks}
@@ -331,7 +356,8 @@ function pagina(pr: PrevistoRealizadoItem, cs: CurvaSPonto[], d: ServicoReportDa
     `${d.proj.mediaNec != null ? `<span><b style="color:${C.violet}">média necessária</b> ${nf(d.proj.mediaNec, 0)}/dia</span>` : ''}` +
     `${pr.data_fim_plan ? `<span><b style="color:${C.accent}">fim plan.</b> ${fmtBR(pr.data_fim_plan)}</span>` : ''}` +
     `${d.proj.crossA != null ? `<span><b style="color:${C.warn}">fim proj.</b> ${fmtBR(isoFromMs(d.proj.crossA))}</span>` : ''}`
-  const legPR = `<span class="leg"><i class="wide"></i>Previsto <i class="thin"></i>Realizado</span>`
+  const legPR = `<span class="leg"><i class="wide"></i><b style="color:${C.accent}">Previsto</b> <i class="thin"></i>Realizado ≥ prev <i class="thin" style="background:${C.danger}"></i>&lt; prev</span>`
+  const legDia = `<span class="leg"><i style="background:${C.accent}"></i>Realizado <i class="dash" style="border-color:${C.violet}"></i>Previsto do dia</span>`
   const legMedia = `<span class="leg"><i style="background:${C.success}"></i>Produtiva <i class="dash" style="border-color:${C.violet}"></i>Necessária ${nf(d.proj.mediaNec ?? 0, 0)}</span>`
   const mesLabel = new Date(HOJE + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
@@ -350,7 +376,7 @@ function pagina(pr: PrevistoRealizadoItem, cs: CurvaSPonto[], d: ServicoReportDa
     <div class="row2">
       <div class="panel"><div class="panel-t">Calor de produção — últimos 30 dias <span class="panel-sub">(${un}/dia · ${mesLabel})</span></div>
         ${temReal ? calendarioHeatmap(daily) : '<div class="empty-box">Sem produção apontada no período</div>'}</div>
-      <div class="panel"><div class="panel-t">Produção dia-a-dia <span class="panel-sub">${d.lastWeekRange ? '· semana ' + d.lastWeekRange + ' (' + un + ')' : '(' + un + ')'}</span></div>
+      <div class="panel"><div class="panel-t">Produção dia-a-dia <span class="panel-sub">${d.lastWeekRange ? '· semana ' + d.lastWeekRange + ' (' + un + ')' : '(' + un + ')'}</span>${legDia}</div>
         ${temReal && d.lastWeekDaily.length ? svgBars(d.lastWeekDaily, C.accent, 1) : '<div class="empty-box">Sem produção apontada</div>'}</div></div>
     <div class="row2">
       <div class="panel"><div class="panel-t">Produção por semana — previsto × realizado <span class="panel-sub">(${un})</span>${legPR}</div>

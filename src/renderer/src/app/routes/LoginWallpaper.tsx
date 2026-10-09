@@ -98,7 +98,7 @@ export function LoginWallpaper(): ReactNode {
       return Math.round(1017 + v)
     }
 
-    // ── mapa (Leaflet + carto dark) ──
+    // ── mapa (Leaflet + Esri Dark Gray — sem chave de API; o Carto passou a exigir) ──
     void (async () => {
       const L = await import('leaflet')
       await import('leaflet/dist/leaflet.css')
@@ -111,10 +111,9 @@ export function LoginWallpaper(): ReactNode {
         doubleClickZoom: true,
         keyboard: false
       }).setView([-16.3267, -48.9526], 13) // Anápolis · GO
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 20
-      }).addTo(map)
+      const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas'
+      L.tileLayer(`${esri}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16 }).addTo(map)
+      L.tileLayer(`${esri}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16 }).addTo(map)
       mapLoaded = true
     })()
 

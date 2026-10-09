@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.33] - 2026-10-09
+
+### Corrigido
+
+- **Tela de login** — o mapa de fundo exibia "API KEY REQUIRED" (o provedor Carto passou a exigir chave). Trocado pelo mapa escuro da Esri, que não exige chave.
+- **Relatório PDF Previsto × Realizado — Média semanal × necessária** — em obras com muitas semanas, os rótulos do eixo X se sobrepunham. Agora o gráfico mostra no máximo ~7 rótulos espaçados (sempre incluindo a semana mais recente); a linha e todos os pontos continuam.
+
+### Alterado
+
+- **Relatório PDF — Produção por semana (batom)** — os rótulos passam a ser a **quantidade prevista** (azul) e a **quantidade realizada** (verde se ≥ previsto, vermelho se menor); a barra do realizado segue a mesma cor.
+- **Relatório PDF — Produção dia-a-dia** — novo marcador tracejado com a **produção prevista de cada dia**, com rótulo; o realizado fica verde/vermelho contra o previsto.
+
 ## [0.3.32] - 2026-10-09
 
 ### Adicionado
