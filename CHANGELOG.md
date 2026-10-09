@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.32] - 2026-10-09
+
+### Adicionado
+
+- **WhatsApp — Oráculo** — produção por **encarregado** e por **equipe** (além de por serviço), com filtro por nome de encarregado.
+- **Modo de apresentação (temporário)** — para um login de demonstração específico, o app exibe uma única obra com nome, código e empresa genéricos. Não altera dados e não afeta os demais usuários; será removido após a demonstração.
+
 ## [0.3.30] - 2026-06-29
 
 ### Adicionado
