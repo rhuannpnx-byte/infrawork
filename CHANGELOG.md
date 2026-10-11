@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.35] - 2026-10-11
+
+### Removido
+
+- **Modo de apresentação (temporário)** da 0.3.32 — a demonstração terminou; o login de demonstração foi excluído e o app volta a exibir nomes e códigos reais para todos.
+
 ## [0.3.34] - 2026-10-09
 
 ### Alterado

@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { useTabsStore } from '@/stores/tabs-store'
-import { aplicarApresentacaoEtica } from '@/lib/apresentacao-etica'
 import type { AuthEmpresa, AuthObra, AuthProfile, MePayload, Role } from '@/types/auth'
 
 /**
@@ -75,7 +74,7 @@ async function fetchMe(): Promise<MePayload | null> {
   if (!r.ok) {
     throw new Error(`/me retornou ${r.status}`)
   }
-  return aplicarApresentacaoEtica((await r.json()) as MePayload)
+  return (await r.json()) as MePayload
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
