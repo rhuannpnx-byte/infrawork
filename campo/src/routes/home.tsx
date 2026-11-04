@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Camera, ChevronRight, HardHat, LogOut, Truck } from 'lucide-react'
+import { Camera, ChevronRight, HardHat, LineChart, LogOut, Truck } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useAuth } from '@/features/auth/useAuth'
 import { sessionStore, useIsAuthenticated, useSession } from '@/core/auth/SessionStore'
@@ -11,7 +11,7 @@ import { servicosPorModo, useCatalogo, useObra, useObras, useOutboxCounts } from
 import { useSyncStatus } from '@/core/sync/useSyncStatus'
 import { refreshAllCatalogs, refreshCatalogo } from '@/core/sync/catalogSync'
 import { cn } from '@/lib/cn'
-import { PainelHomeCard } from '@/features/painel/PainelHomeCard'
+import { ModuleCard } from '@/features/common/ModuleCard'
 import { podeVerPainel } from '@/features/painel/papel'
 
 /**
@@ -19,8 +19,7 @@ import { podeVerPainel } from '@/features/painel/papel'
  *  1. Barra: logo + operador + sync + sair
  *  2. Obra atual (abre a escolha da obra)
  *  3. Pendências de envio e situação dos dados offline da obra
- *  4. Visão estratégica (só engenheiro, adm e god)
- *  5. Módulos: Produção, Viagens, Fotos
+ *  4. Módulos: Visão estratégica (só engenheiro, adm e god), Produção, Viagens, Fotos
  */
 export function HomeRoute() {
   const authed = useIsAuthenticated()
@@ -118,14 +117,6 @@ export function HomeRoute() {
           onPick={() => setShowPicker(true)}
         />
 
-        {podeVerPainel(session?.role) && (
-          <PainelHomeCard
-            obraId={session?.obraAtualId}
-            enabled={temObra}
-            onClick={() => navigate('/painel')}
-          />
-        )}
-
         {outbox && (outbox.total > 0 || outbox.recusados > 0) && (
           <div className="flex items-center gap-2 px-1 text-xs text-on-surface-dim">
             <span
@@ -162,6 +153,17 @@ export function HomeRoute() {
         )}
 
         <div className="space-y-3">
+          {podeVerPainel(session?.role) && (
+            <ModuleCard
+              icon={<LineChart className="h-5 w-5" strokeWidth={1.8} />}
+              title="Visão estratégica"
+              subtitle="Avanço, serviços e equipes da obra"
+              badge={0}
+              enabled={temObra}
+              onClick={() => navigate('/painel')}
+              testId="card-visao-estrategica"
+            />
+          )}
           <ModuleCard
             icon={<HardHat className="h-5 w-5" strokeWidth={1.8} />}
             title="Produção"
@@ -288,61 +290,6 @@ function ObraAtualCard({
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-border-strong text-on-surface-dim transition-colors group-hover:border-accent/60 group-hover:text-accent">
           <ChevronRight className="h-4 w-4" />
         </div>
-      </div>
-    </button>
-  )
-}
-
-interface ModuleCardProps {
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  badge: number
-  enabled: boolean
-  onClick: () => void
-}
-
-function ModuleCard({ icon, title, subtitle, badge, enabled, onClick }: ModuleCardProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!enabled}
-      className={cn(
-        'group relative w-full overflow-hidden rounded-md text-left',
-        'border border-border bg-bg-panel',
-        'flex min-h-[80px] items-stretch gap-0',
-        'transition-all duration-150 ease-out',
-        enabled
-          ? 'hover:border-border-strong hover:bg-bg-elevated active:bg-bg-elevated/80'
-          : 'cursor-not-allowed opacity-40',
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          'w-[2px] bg-transparent transition-colors duration-150',
-          enabled && 'group-hover:bg-accent group-active:bg-accent',
-        )}
-      />
-      <div className="flex items-center px-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-accent/30 bg-accent-glow text-accent">
-          {icon}
-        </div>
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center py-3 pr-3">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate text-base font-semibold text-on-surface">{title}</h3>
-          {badge > 0 && (
-            <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-warn px-1.5 text-[10px] font-bold text-bg-base tabular">
-              {badge > 99 ? '99+' : badge}
-            </span>
-          )}
-        </div>
-        <p className="mt-0.5 truncate text-xs text-on-surface-dim">{subtitle}</p>
-      </div>
-      <div className="flex items-center pr-4 text-on-surface-muted">
-        <ChevronRight className="h-4 w-4" />
       </div>
     </button>
   )
