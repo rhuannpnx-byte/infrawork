@@ -114,6 +114,7 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
 
   return (
     <DataTable
+      exportTitulo="Indireto"
       data={data}
       columns={columns}
       loading={loading}

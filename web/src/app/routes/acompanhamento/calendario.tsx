@@ -1,3 +1,4 @@
+import { AvisoSemLinhaDeBase } from '@/features/acompanhamento/components/AvisoSemLinhaDeBase'
 import { type ReactNode, useMemo } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
@@ -40,6 +41,7 @@ function Inner(): ReactNode {
         title="Calendário"
         subtitle={`${scope.obra?.nome ?? ''} · programação mensal — previsto × realizado por serviço`}
       />
+      <AvisoSemLinhaDeBase obraId={obraId} />
       <div className="flex-1 overflow-auto p-5">
         <CalendarioPrevExec
           pontos={curva}

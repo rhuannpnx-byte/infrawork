@@ -30,6 +30,23 @@ import { Dropdown, DropdownItem, DropdownLabel } from '@/components/ui/dropdown'
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
 import type { TableExportConfig } from './export-types'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
+
+/** Valor de célula para a planilha: número fica número; data, texto dd/mm/aaaa; objeto, o nome. */
+function valorExport(v: unknown): string | number | null {
+  if (v === null || v === undefined || v === '') return null
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  if (typeof v === 'boolean') return v ? 'sim' : 'não'
+  if (v instanceof Date) return v.toLocaleDateString('pt-BR')
+  if (typeof v === 'string')
+    return /^\d{4}-\d{2}-\d{2}T/.test(v) ? new Date(v).toLocaleString('pt-BR') : v
+  if (typeof v === 'object') {
+    const o = v as { nome?: unknown; codigo?: unknown }
+    if (typeof o.nome === 'string') return o.nome
+    if (typeof o.codigo === 'string') return o.codigo
+  }
+  return String(v)
+}
 
 interface DataTableProps<T> {
   data: T[]
@@ -52,10 +69,11 @@ interface DataTableProps<T> {
   /** Habilita exportação real (CSV/Excel/PDF). Recebe as linhas visíveis
    *  (filtro + ordenação atuais) e devolve a config de exportação. */
   getExportConfig?: (visibleRows: T[]) => TableExportConfig
+  /** Título e nome do arquivo da exportação padrão (sem `getExportConfig`): as colunas e linhas visíveis. */
+  exportTitulo?: string
   /** Controles do toolbar à direita (default: todos visíveis). */
   enableColumnVisibility?: boolean
   enableDensity?: boolean
-  enableFilters?: boolean
   enableExport?: boolean
 }
 
@@ -75,8 +93,8 @@ export function DataTable<T>({
   getExportConfig,
   enableColumnVisibility = true,
   enableDensity = true,
-  enableFilters = true,
-  enableExport = true
+  enableExport = true,
+  exportTitulo
 }: DataTableProps<T>): ReactNode {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -86,6 +104,7 @@ export function DataTable<T>({
   const density = useUIStore((s) => s.density)
   const setDensity = useUIStore((s) => s.setDensity)
   const openModal = useUIStore((s) => s.openModal)
+  const scope = useCurrentScope()
 
   // Pré-pende coluna de checkbox quando enableRowSelection. Mantém memoização
   // estável: o array de columns recebido como prop não muda, então o spread
@@ -247,12 +266,6 @@ export function DataTable<T>({
           </Dropdown>
         ) : null}
 
-        {enableFilters ? (
-          <Button variant="ghost" size="sm" onClick={() => openModal('filters')}>
-            Filtros
-          </Button>
-        ) : null}
-
         {enableExport ? (
           <Button
             variant="secondary"
@@ -262,8 +275,28 @@ export function DataTable<T>({
                 const visibleRows = table.getSortedRowModel().rows.map((r) => r.original)
                 openModal('export', getExportConfig(visibleRows))
               } else {
-                // limpa payload anterior p/ não vazar config de outra tabela
-                openModal('export', null)
+                // exportação padrão: as colunas com dado e as linhas visíveis (filtro + ordenação atuais)
+                const cols = table
+                  .getVisibleLeafColumns()
+                  .filter((c) => c.id !== '__select__' && c.accessorFn !== undefined)
+                const titulo = exportTitulo ?? 'Tabela'
+                openModal('export', {
+                  filenameBase: `${titulo
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^\w]+/g, '-')
+                    .toLowerCase()}`,
+                  titulo,
+                  obraNome: scope.obra?.nome ?? '',
+                  colunas: cols.map((c) => {
+                    const meta = c.columnDef.meta as { label?: string } | undefined
+                    const h = c.columnDef.header
+                    return { header: meta?.label || (typeof h === 'string' ? h : c.id) }
+                  }),
+                  linhas: table
+                    .getSortedRowModel()
+                    .rows.map((r) => cols.map((c) => valorExport(r.getValue(c.id))))
+                } satisfies TableExportConfig)
               }
             }}
           >

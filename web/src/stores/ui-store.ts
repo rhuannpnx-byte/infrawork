@@ -4,16 +4,9 @@ import { storageKey } from '@/lib/storage-keys'
 export type ModalKey =
   | 'commandPalette'
   | 'projectSwitcher'
-  | 'share'
-  | 'newTask'
-  | 'newRDO'
-  | 'newBM'
-  | 'newOrder'
-  | 'newEmployee'
   | 'export'
   | 'confirmDelete'
   | 'settings'
-  | 'filters'
   | 'shortcuts'
 
 interface UIStore {

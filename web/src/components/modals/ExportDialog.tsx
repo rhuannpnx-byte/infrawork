@@ -155,8 +155,8 @@ export function ExportDialog(): ReactNode {
         ) : fmt === 'excel' ? (
           <p className="text-xs text-text-muted leading-relaxed">
             Planilha <strong className="text-text">.xlsx</strong>: aba{' '}
-            <strong className="text-text">Comparativo</strong> ({config?.linhas.length}{' '}
-            {config?.linhas.length === 1 ? 'linha' : 'linhas'})
+            <strong className="text-text">{temRelatorio ? 'Comparativo' : config?.titulo}</strong> (
+            {config?.linhas.length} {config?.linhas.length === 1 ? 'linha' : 'linhas'})
             {nServ > 0 ? (
               <>
                 {' '}

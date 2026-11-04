@@ -143,6 +143,7 @@ export function ObrasPage(): ReactNode {
         </div>
       ) : (
         <DataTable
+          exportTitulo="Obras"
           data={obras}
           columns={columns}
           loading={isLoading}

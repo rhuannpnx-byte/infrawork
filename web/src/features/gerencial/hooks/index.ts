@@ -207,7 +207,8 @@ export function useObra(id: string | undefined): ReturnType<typeof useQuery<Obra
       const { data, error } = await supabase
         .from('obras')
         .select(
-          'id, empresa_id, nome, codigo, status, ativa, created_at, empresa:empresa_id(id, nome)'
+          'id, empresa_id, nome, codigo, status, ativa, created_at, rodovia, trecho, extensao_km, ' +
+            'data_base_orcamento, data_inicio_planejada, data_fim_planejada, empresa:empresa_id(id, nome)'
         )
         .eq('id', id!)
         .single()

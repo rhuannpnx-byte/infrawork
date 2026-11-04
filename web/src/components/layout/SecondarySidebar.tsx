@@ -182,11 +182,6 @@ export function SecondarySidebar(): ReactNode {
                 if (a.onClick) {
                   // Map common command actions to modals
                   const mapping: Record<string, string> = {
-                    'new-task': 'newTask',
-                    'new-rdo': 'newRDO',
-                    'new-bm': 'newBM',
-                    'new-order': 'newOrder',
-                    'new-employee': 'newEmployee',
                     'export-report': 'export',
                     'export-bm': 'export'
                   }

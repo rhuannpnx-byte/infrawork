@@ -305,6 +305,7 @@ function RecursosInner(): ReactNode {
         </div>
       ) : (
         <DataTable
+          exportTitulo="Recursos"
           data={recursos}
           columns={columns}
           loading={isLoading}

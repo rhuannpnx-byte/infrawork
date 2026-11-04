@@ -45,18 +45,6 @@ export const MODULES: ModuleConfig[] = [
             route: '/gerencial/frota'
           }
         ]
-      },
-      {
-        title: 'ACESSO',
-        requiredRoles: ['god', 'adm'],
-        items: [
-          {
-            icon: 'key-round',
-            label: 'Permissões de obras',
-            route: '/gerencial/obras',
-            requiredRoles: ['god', 'adm']
-          }
-        ]
       }
     ]
   },

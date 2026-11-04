@@ -8,7 +8,8 @@ import {
   Users,
   Power,
   PowerOff,
-  AlertTriangle
+  AlertTriangle,
+  Pencil
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -28,6 +29,7 @@ import {
   useDeleteObra
 } from '@/features/gerencial/hooks'
 import { GrantPermissaoDialog } from '@/features/gerencial/modals/GrantPermissaoDialog'
+import { EditObraDialog } from '@/features/gerencial/modals/EditObraDialog'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +48,7 @@ export function ObraDetailPage(): ReactNode {
   const deleteObra = useDeleteObra()
 
   const [openGrant, setOpenGrant] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
   const [openDelete, setOpenDelete] = useState(false)
   const [confirmCodigo, setConfirmCodigo] = useState('')
 
@@ -134,6 +137,9 @@ export function ObraDetailPage(): ReactNode {
                 </>
               )}
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => setOpenEdit(true)}>
+              <Pencil size={11} /> Editar dados
+            </Button>
             <Button
               variant="default"
               size="sm"
@@ -163,6 +169,29 @@ export function ObraDetailPage(): ReactNode {
           <Block label="Status" value={obra.status.replace('_', ' ')} />
           <Block label="Empresa" value={obra.empresa?.nome ?? '—'} />
           <Block label="Criada em" value={formatDate(obra.created_at)} mono />
+          <Block
+            label="Rodovia / trecho"
+            value={[obra.rodovia, obra.trecho].filter(Boolean).join(' · ') || '—'}
+          />
+          <Block
+            label="Extensão"
+            value={
+              obra.extensao_km != null
+                ? `${Number(obra.extensao_km).toLocaleString('pt-BR')} km`
+                : '—'
+            }
+            mono
+          />
+          <Block
+            label="Data-base"
+            value={obra.data_base_orcamento ? formatDate(obra.data_base_orcamento) : '—'}
+            mono
+          />
+          <Block
+            label="Início → término"
+            value={`${obra.data_inicio_planejada ? formatDate(obra.data_inicio_planejada) : '—'} → ${obra.data_fim_planejada ? formatDate(obra.data_fim_planejada) : '—'}`}
+            mono
+          />
         </div>
 
         {/* Permissões */}
@@ -214,7 +243,11 @@ export function ObraDetailPage(): ReactNode {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <Badge variant={p.usuario?.role === 'cliente' ? 'default' : 'success'}>
-                            {p.usuario?.role === 'cliente' ? 'cliente' : p.usuario?.role === 'apontador' ? 'apontador' : 'eng'}
+                            {p.usuario?.role === 'cliente'
+                              ? 'cliente'
+                              : p.usuario?.role === 'apontador'
+                                ? 'apontador'
+                                : 'eng'}
                           </Badge>
                           <div>
                             <div className="text-text font-medium">{p.usuario?.nome ?? '—'}</div>
@@ -311,6 +344,7 @@ export function ObraDetailPage(): ReactNode {
         </section>
       </div>
 
+      {openEdit ? <EditObraDialog open onOpenChange={setOpenEdit} obra={obra} /> : null}
       <GrantPermissaoDialog
         open={openGrant}
         onOpenChange={setOpenGrant}

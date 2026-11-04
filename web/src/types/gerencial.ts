@@ -56,6 +56,12 @@ export interface Obra {
   status: string
   ativa: boolean
   created_at: string
+  rodovia?: string | null
+  trecho?: string | null
+  extensao_km?: number | null
+  data_base_orcamento?: string | null
+  data_inicio_planejada?: string | null
+  data_fim_planejada?: string | null
 }
 
 export interface ObraComEmpresa extends Obra {

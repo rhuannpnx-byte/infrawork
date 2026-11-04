@@ -57,7 +57,10 @@ function sanitizeSheetName(nome: string, usados: Set<string>): string {
 }
 
 function abaComparativo(wb: ExcelJS.Workbook, p: TabelaXlsxPayload): void {
-  const ws = wb.addWorksheet('Comparativo')
+  // tabela simples (sem relatório por serviço): a aba leva o nome da tabela
+  const ws = wb.addWorksheet(
+    p.servicos.length ? 'Comparativo' : sanitizeSheetName(p.titulo, new Set<string>())
+  )
   ws.mergeCells(1, 1, 1, Math.max(1, p.colunas.length))
   ws.getCell(1, 1).value = p.titulo
   ws.getCell(1, 1).font = { bold: true, size: 14 }

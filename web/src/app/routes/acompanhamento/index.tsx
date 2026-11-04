@@ -1,3 +1,4 @@
+import { AvisoSemLinhaDeBase } from '@/features/acompanhamento/components/AvisoSemLinhaDeBase'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
@@ -121,6 +122,7 @@ function DashboardAcompanhamento(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Dashboard" subtitle={scope.obra?.nome ?? ''} />
+      <AvisoSemLinhaDeBase obraId={obraId} />
 
       <div className="flex-1 overflow-auto">
         {/* Filtros sticky */}

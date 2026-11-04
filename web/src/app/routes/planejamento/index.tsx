@@ -125,8 +125,9 @@ function PlanejamentoIndexInner(): ReactNode {
               cada mês (dezembro 0,7 por chuva, por exemplo).
             </li>
             <li>
-              Em <strong>Serviços</strong>, confira a produção por dia de cada serviço do orçamento
-              (vem da composição) e as equipes que o executam.
+              Em <strong>Equipes</strong>, cadastre as equipes nomeadas quando quiser controlar quem
+              executa cada tarefa. A produção por dia de cada serviço vem da composição (Orçamento ›
+              Composições) × o número de equipes da tarefa.
             </li>
             <li>
               Em <strong>Locais</strong>, cadastre os eixos (nome, estaca inicial e final — o mapa é
@@ -142,9 +143,11 @@ function PlanejamentoIndexInner(): ReactNode {
               No <strong>cronograma</strong>,{' '}
               <strong>crie as tarefas a partir das quantidades por local</strong> (uma por sequência
               contígua de estacas, por local ou por janela) — ou manualmente, com o local e as
-              estacas — e ligue as dependências (arrastando no Gantt ou no tempo-caminho). A tarefa
-              é os seus locais: posição, quantidade e a “escada” do tempo-caminho saem deles; divida
-              por estaca ou por quantidade, combine e mude de trecho pelo menu da tarefa.
+              estacas — e ligue as dependências (arrastando no Gantt ou no tempo-caminho). Uma
+              dependência “por estacas” pode valer para todas as tarefas dos dois serviços (regra
+              entre serviços). A tarefa é os seus locais: posição, quantidade e a “escada” do
+              tempo-caminho saem deles; divida por estaca ou por quantidade, combine e mude de
+              trecho pelo menu da tarefa.
             </li>
             <li>
               Quando aprovar, <strong>trave como linha de base</strong> e torne-a{' '}

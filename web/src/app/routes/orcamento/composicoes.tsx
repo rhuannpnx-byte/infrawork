@@ -242,6 +242,7 @@ function ComposicoesInner(): ReactNode {
         </div>
       ) : (
         <DataTable
+          exportTitulo="Composições"
           data={cpus}
           columns={columns}
           loading={isLoading}

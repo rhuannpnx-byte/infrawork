@@ -230,6 +230,7 @@ function TaxasInner(): ReactNode {
         </div>
       ) : (
         <DataTable
+          exportTitulo="Taxas"
           data={taxas}
           columns={columns}
           loading={isLoading}

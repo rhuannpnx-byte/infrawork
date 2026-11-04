@@ -107,6 +107,7 @@ export function EmpresasPage(): ReactNode {
         </div>
       ) : (
         <DataTable
+          exportTitulo="Empresas"
           data={empresas}
           columns={columns}
           loading={isLoading}

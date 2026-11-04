@@ -1,3 +1,4 @@
+import { AvisoSemLinhaDeBase } from '@/features/acompanhamento/components/AvisoSemLinhaDeBase'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { X } from 'lucide-react'
@@ -333,6 +334,7 @@ function Inner(): ReactNode {
           )
         }
       />
+      <AvisoSemLinhaDeBase obraId={obraId} />
       <div className="flex-1 overflow-auto p-5 space-y-4">
         <CurvaSComProjecoes
           pontos={curvaFiltrada}

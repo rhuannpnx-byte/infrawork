@@ -320,6 +320,7 @@ export function UsuariosPage(): ReactNode {
         </div>
       ) : (
         <DataTable
+          exportTitulo="Usuários"
           data={usuarios}
           columns={columns}
           loading={isLoading}
