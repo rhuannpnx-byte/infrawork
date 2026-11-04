@@ -79,7 +79,7 @@ comum, no máximo a cada 5 min — só da obra atual. Perder o acesso apaga o re
 
 ## C-10 Frota vinda da FleetHub
 
-A FleetHub não tem API: a função `fleethub-sync` entra com o login guardado nos segredos e lê a página de Equipamentos
+A FleetHub não tem API: a função `fleethub-sync` entra com a conta da empresa e lê a página de Equipamentos
 (só leitura; Ativo e Em transferência). Entram os equipamentos de transporte de carga e as máquinas de carga
 (escavadeira, retroescavadeira, carregadeira). A FleetHub é dona de código, placa, marca, modelo, ano, obra e status; o
 InfraWork, de capacidade, proprietário, fornecedor e tipo (gatilho impede editar o resto). Quem some da FleetHub é
@@ -87,3 +87,7 @@ inativado, nunca apagado. Formato inesperado ou lista vazia abortam a rodada sem
 
 O vínculo obra ↔ obra FleetHub é feito no InfraWork (`obra_fleet_obra`); com ele, viagens (web e app) mostram só os
 veículos dessas obras e os manuais (`veiculos_da_obra`). A viagem registra a máquina que carregou (`carregador_id`).
+
+Credenciais por empresa: o adm conecta pela tela; a função testa o login e grava a senha no Vault (`fleethub_config`
+guarda só o e-mail e a referência). Só o serviço lê a senha (`fleethub_credencial`, service_role); o cron percorre as
+empresas conectadas. Empresa sem FleetHub cadastra a frota à mão.

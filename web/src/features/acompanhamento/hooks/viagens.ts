@@ -320,13 +320,47 @@ export function useUltimaSyncFleet(
   })
 }
 
-export function useSincronizarFleet(): ReturnType<
-  typeof useMutation<{ novos: number; atualizados: number; inativados: number }, Error, void>
+export interface FleethubConfig {
+  empresa_id: string
+  email: string
+  conectado_em: string
+}
+
+export function useFleethubConfig(
+  empresaId: string | null | undefined
+): ReturnType<typeof useQuery<FleethubConfig | null>> {
+  return useQuery({
+    queryKey: ['fleethub-config', empresaId],
+    enabled: !!empresaId,
+    queryFn: async () => {
+      const { data, error } = await sb()
+        .from('fleethub_config')
+        .select('empresa_id, email, conectado_em')
+        .eq('empresa_id', empresaId!)
+        .maybeSingle()
+      if (error) throw error
+      return (data as FleethubConfig | null) ?? null
+    }
+  })
+}
+
+type AcaoFleet =
+  | { acao: 'sincronizar'; empresa_id: string }
+  | { acao: 'conectar'; empresa_id: string; email: string; senha: string }
+  | { acao: 'desconectar'; empresa_id: string }
+
+/** Conectar (testa o login e guarda a senha no servidor), desconectar ou sincronizar a frota. */
+export function useFleethub(): ReturnType<
+  typeof useMutation<
+    { novos?: number; atualizados?: number; inativados?: number },
+    Error,
+    AcaoFleet
+  >
 > {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await sb().functions.invoke('fleethub-sync', { body: {} })
+    mutationFn: async (body) => {
+      const { data, error } = await sb().functions.invoke('fleethub-sync', { body })
       if (error) {
         const ctx = (error as { context?: Response }).context
         const corpo = ctx
@@ -334,13 +368,16 @@ export function useSincronizarFleet(): ReturnType<
           : null
         throw new Error(corpo?.error ?? error.message)
       }
-      if (!data?.ok) throw new Error(data?.error ?? 'Falha ao sincronizar')
+      if (!data?.ok) throw new Error(data?.error ?? 'Falha na FleetHub')
       return data
     },
+    // cada tela mostra o erro no próprio lugar (sem o aviso global repetido)
+    onError: () => undefined,
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['frota'] })
       void qc.invalidateQueries({ queryKey: ['fleet-sync'] })
       void qc.invalidateQueries({ queryKey: ['fleet-obras'] })
+      void qc.invalidateQueries({ queryKey: ['fleethub-config'] })
     }
   })
 }

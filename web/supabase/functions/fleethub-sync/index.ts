@@ -1,6 +1,7 @@
-// POST /functions/v1/fleethub-sync — atualiza a frota com os equipamentos da FleetHub (só leitura lá).
-// Quem chama: god/adm (botão em Gerencial › Frota) ou o cron diário (service role).
-// Segredos: FLEETHUB_EMAIL, FLEETHUB_PASSWORD, FLEETHUB_EMPRESA_ID; FLEETHUB_BASE_URL só nos testes.
+// POST /functions/v1/fleethub-sync — frota a partir da FleetHub (só leitura lá).
+// { acao: 'conectar', email, senha } testa o login e guarda a credencial da empresa no Vault;
+// { acao: 'desconectar' } apaga; { acao: 'sincronizar' } (padrão) atualiza a frota.
+// Quem chama: god/adm (god informa empresa_id) ou o cron (service role: todas as empresas conectadas).
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { handlePreflight, json } from '../_shared/cors.ts'
@@ -16,9 +17,6 @@ import {
 } from '../_shared/fleethub-parse.ts'
 
 const BASE = (Deno.env.get('FLEETHUB_BASE_URL') ?? 'https://fleethub.app.br').replace(/\/$/, '')
-const EMAIL = Deno.env.get('FLEETHUB_EMAIL') ?? ''
-const SENHA = Deno.env.get('FLEETHUB_PASSWORD') ?? ''
-const EMPRESA = Deno.env.get('FLEETHUB_EMPRESA_ID') ?? ''
 const INTERVALO_MANUAL_MS = 5 * 60_000
 const PRAZO_MS = 60_000
 const UA = 'InfraWork-Frota/1.0'
@@ -49,16 +47,40 @@ class Sessao {
   }
 }
 
-async function lerFleetHub() {
+class LoginRecusado extends Error {}
+
+async function entrar(email: string, senha: string) {
   const s = new Sessao()
   const login = await s.req('/login')
   const token = extrairToken(await login.text())
   if (!token) throw new FormatoFleetHubError('Página de login da FleetHub mudou')
-  const r = await s.form('/login', { _token: token, email: EMAIL, password: SENHA })
+  const r = await s.form('/login', { _token: token, email, password: senha })
   await r.body?.cancel()
   if (r.status !== 302 || /\/login\b/.test(r.headers.get('location') ?? '')) {
-    throw new Error('Login recusado pela FleetHub — confira o e-mail e a senha nos segredos')
+    throw new LoginRecusado('Login recusado pela FleetHub — confira o e-mail e a senha')
   }
+  return s
+}
+
+async function sair(s: Sessao, html: string) {
+  const tk = extrairToken(html)
+  if (tk) await s.form('/logout', { _token: tk }).then((x) => x.body?.cancel()).catch(() => undefined)
+}
+
+/** Login e acesso à página de equipamentos (usado ao conectar). */
+async function testar(email: string, senha: string) {
+  const s = await entrar(email, senha)
+  const p = await s.req(`/equipamento?${new URLSearchParams({ 'statusEquipamento[]': 'Ativo' })}`)
+  const html = await p.text()
+  await sair(s, html)
+  if (p.status !== 200 || ehPaginaDeLogin(html)) {
+    throw new Error('Este usuário entra na FleetHub mas não tem acesso à página de Equipamentos')
+  }
+  parseEquipamentos(html)
+}
+
+async function lerFleetHub(email: string, senha: string) {
+  const s = await entrar(email, senha)
   const pagina = async (status: string) => {
     const q = new URLSearchParams({ 'statusEquipamento[]': status })
     const p = await s.req(`/equipamento?${q}`)
@@ -71,8 +93,7 @@ async function lerFleetHub() {
   const ativos = parseEquipamentos(htmlAtivos)
   const transf = parseEquipamentos(htmlTransf)
   const obras = parseObras(htmlAtivos)
-  const tk = extrairToken(htmlAtivos)
-  if (tk) await s.form('/logout', { _token: tk }).then((x) => x.body?.cancel()).catch(() => undefined)
+  await sair(s, htmlAtivos)
   if (ativos.length === 0) throw new FormatoFleetHubError('FleetHub devolveu a lista de equipamentos vazia')
   const status = new Map<number, string>()
   for (const e of ativos) status.set(e.fleet_id, 'Ativo')
@@ -149,11 +170,52 @@ async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<Ret
   return { lidos: dados.equipamentos.length, novos: novos.length, atualizados: atualizar.length, inativados: sair.length, obras: dados.obras.length }
 }
 
+async function sincronizar(admin: SupabaseClient, empresa: string, quem: string | null, cron: boolean) {
+  const { data: cred } = await admin.rpc('fleethub_credencial', { _empresa_id: empresa }).maybeSingle()
+  const c = cred as { email: string; senha: string } | null
+  if (!c?.senha) return { status: 400, body: { ok: false, error: 'A FleetHub não está conectada para esta empresa' } }
+
+  const { data: ultima } = await admin
+    .from('fleet_sync_execucao')
+    .select('iniciado_em, terminado_em')
+    .eq('empresa_id', empresa)
+    .order('iniciado_em', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (ultima) {
+    const desde = Date.now() - new Date(ultima.iniciado_em).getTime()
+    if (!ultima.terminado_em && desde < 10 * 60_000) {
+      return { status: 409, body: { ok: false, error: 'Já há uma sincronização em andamento' } }
+    }
+    if (!cron && desde < INTERVALO_MANUAL_MS) {
+      return { status: 429, body: { ok: false, error: 'A frota foi sincronizada há poucos minutos — aguarde um pouco' } }
+    }
+  }
+  const { data: exec, error: eExec } = await admin
+    .from('fleet_sync_execucao')
+    .insert({ empresa_id: empresa, disparado_por: quem, origem: cron ? 'cron' : 'manual' })
+    .select('id')
+    .single()
+  if (eExec) return { status: 500, body: { ok: false, error: eExec.message } }
+  try {
+    const r = await gravar(admin, empresa, await lerFleetHub(c.email, c.senha))
+    await admin.from('fleet_sync_execucao').update({ ...r, ok: true, terminado_em: new Date().toISOString() }).eq('id', exec.id)
+    return { status: 200, body: { ok: true, ...r } }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)
+    await admin
+      .from('fleet_sync_execucao')
+      .update({ ok: false, mensagem: msg.slice(0, 500), terminado_em: new Date().toISOString() })
+      .eq('id', exec.id)
+    return { status: 502, body: { ok: false, error: msg } }
+  }
+}
+
 Deno.serve(async (req) => {
   const pre = handlePreflight(req)
   if (pre) return pre
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405)
-  let body: { origem?: string } = {}
+  let body: { acao?: string; origem?: string; empresa_id?: string; email?: string; senha?: string } = {}
   try {
     body = await req.json()
   } catch { /* sem corpo */ }
@@ -169,55 +231,52 @@ Deno.serve(async (req) => {
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+  const acao = body.acao ?? 'sincronizar'
 
-  let quem: string | null = null
-  if (!servico) {
-    const ctx = await resolveCaller(req)
-    if (ctx instanceof Response) return ctx
-    const roleErr = assertRole(ctx.caller, ['god', 'adm'])
-    if (roleErr) return roleErr
-    if (ctx.caller.role === 'adm' && ctx.caller.empresa_id !== EMPRESA) {
-      return json({ error: 'A FleetHub não está configurada para a sua empresa' }, 400)
+  // cron: todas as empresas conectadas, uma de cada vez
+  if (servico) {
+    if (acao !== 'sincronizar') return json({ error: 'Ação não permitida' }, 400)
+    const { data: cfgs } = await admin.from('fleethub_config').select('empresa_id')
+    const resultados = []
+    for (const c of cfgs ?? []) {
+      const r = await sincronizar(admin, c.empresa_id, null, true)
+      resultados.push({ empresa_id: c.empresa_id, ...r.body })
     }
-    quem = ctx.caller.id
+    return json({ ok: true, empresas: resultados })
   }
-  if (!EMAIL || !SENHA || !EMPRESA) return json({ ok: false, error: 'FleetHub não configurada' }, 200)
 
-  const { data: ultima } = await admin
-    .from('fleet_sync_execucao')
-    .select('iniciado_em, terminado_em')
-    .eq('empresa_id', EMPRESA)
-    .order('iniciado_em', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (ultima) {
-    const desde = Date.now() - new Date(ultima.iniciado_em).getTime()
-    if (!ultima.terminado_em && desde < 10 * 60_000) return json({ error: 'Já há uma sincronização em andamento' }, 409)
-    if (!servico && desde < INTERVALO_MANUAL_MS) {
-      return json({ error: 'A frota foi sincronizada há poucos minutos — aguarde um pouco' }, 429)
+  const ctx = await resolveCaller(req)
+  if (ctx instanceof Response) return ctx
+  const roleErr = assertRole(ctx.caller, ['god', 'adm'])
+  if (roleErr) return roleErr
+  const empresa = ctx.caller.role === 'god' ? body.empresa_id : ctx.caller.empresa_id
+  if (!empresa) return json({ error: 'Informe a empresa' }, 400)
+
+  if (acao === 'conectar') {
+    const email = (body.email ?? '').trim().toLowerCase()
+    const senha = body.senha ?? ''
+    if (!email || !senha) return json({ ok: false, error: 'Informe o e-mail e a senha da FleetHub' }, 400)
+    try {
+      await testar(email, senha)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return json({ ok: false, error: msg }, e instanceof LoginRecusado ? 400 : 502)
     }
+    const { error } = await admin.rpc('fleethub_gravar_credencial', {
+      _empresa_id: empresa,
+      _email: email,
+      _senha: senha,
+      _por: ctx.caller.id,
+    })
+    if (error) return json({ ok: false, error: error.message }, 500)
+    return json({ ok: true })
   }
-
-  const { data: exec, error: eExec } = await admin
-    .from('fleet_sync_execucao')
-    .insert({ empresa_id: EMPRESA, disparado_por: quem, origem: servico && body.origem === 'cron' ? 'cron' : 'manual' })
-    .select('id')
-    .single()
-  if (eExec) return json({ error: eExec.message }, 500)
-
-  try {
-    const r = await gravar(admin, EMPRESA, await lerFleetHub())
-    await admin
-      .from('fleet_sync_execucao')
-      .update({ ...r, ok: true, terminado_em: new Date().toISOString() })
-      .eq('id', exec.id)
-    return json({ ok: true, ...r })
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)
-    await admin
-      .from('fleet_sync_execucao')
-      .update({ ok: false, mensagem: msg.slice(0, 500), terminado_em: new Date().toISOString() })
-      .eq('id', exec.id)
-    return json({ ok: false, error: msg }, 502)
+  if (acao === 'desconectar') {
+    const { error } = await admin.rpc('fleethub_remover_credencial', { _empresa_id: empresa })
+    if (error) return json({ ok: false, error: error.message }, 500)
+    return json({ ok: true })
   }
+  if (acao !== 'sincronizar') return json({ error: 'Ação desconhecida' }, 400)
+  const r = await sincronizar(admin, empresa, ctx.caller.id, false)
+  return json(r.body, r.status)
 })

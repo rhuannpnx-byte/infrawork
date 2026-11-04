@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Copy, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, Plus, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
@@ -16,12 +16,11 @@ import {
   useFleetObras,
   useFrota,
   useSalvarVeiculo,
-  useSincronizarFleet,
-  useUltimaSyncFleet,
   type TipoVeiculo,
   type Veiculo
 } from '@/features/acompanhamento/hooks/viagens'
 import { cn } from '@/lib/utils'
+import { FleethubIntegracao } from '@/features/frota/FleethubIntegracao'
 
 export function GerencialFrotaPage(): ReactNode {
   return (
@@ -33,24 +32,14 @@ export function GerencialFrotaPage(): ReactNode {
 
 const TIPOS = Object.keys(TIPO_VEICULO_LABEL) as TipoVeiculo[]
 const txt = (v: number | null): string => (v === null ? '' : String(v).replace('.', ','))
-const dataHora = (iso: string): string =>
-  new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-
 function Inner(): ReactNode {
   const scope = useCurrentScope()
   const empresaId = scope.empresaId
   const role = useAuthStore((s) => s.profile?.role)
   const { data: frota = [], isLoading } = useFrota(empresaId)
   const { data: fleetObras = [] } = useFleetObras(empresaId)
-  const { data: ultima } = useUltimaSyncFleet(empresaId)
   const salvar = useSalvarVeiculo()
   const excluir = useExcluirVeiculo()
-  const sincronizar = useSincronizarFleet()
   const aplicarModelo = useAplicarCapacidadeModelo()
   const [novo, setNovo] = useState({ prefixo: '', placa: '', tipo: 'basculante' as TipoVeiculo })
   const [filtroObra, setFiltroObra] = useState('')
@@ -99,49 +88,16 @@ function Inner(): ReactNode {
       }
     )
   }
-  const podeSincronizar = role === 'god' || role === 'adm'
+  const podeGerenciar = role === 'god' || role === 'adm'
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Frota"
         subtitle="Caminhões e máquinas de carga usados no registro de viagens."
-        actions={
-          podeSincronizar ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={sincronizar.isPending}
-              onClick={() =>
-                sincronizar.mutate(undefined, {
-                  onSuccess: (r) =>
-                    void toast.success(
-                      `FleetHub: ${r.novos} novo(s), ${r.atualizados} atualizado(s), ${r.inativados} inativado(s).`
-                    ),
-                  onError: erro
-                })
-              }
-            >
-              <RefreshCw size={12} className={cn(sincronizar.isPending && 'animate-spin')} />
-              {sincronizar.isPending ? 'Sincronizando…' : 'Sincronizar com FleetHub'}
-            </Button>
-          ) : null
-        }
       />
       <div className="min-h-0 flex-1 overflow-auto p-4">
-        {ultima ? (
-          <p
-            className={cn('mb-3 text-xs', ultima.ok === false ? 'text-danger' : 'text-text-muted')}
-            data-testid="fleet-ultima"
-          >
-            Última sincronização com a FleetHub: {dataHora(ultima.iniciado_em)}
-            {ultima.ok === null
-              ? ' · em andamento'
-              : ultima.ok
-                ? ` · ${ultima.novos} novo(s) · ${ultima.atualizados} atualizado(s) · ${ultima.inativados} inativado(s)`
-                : ` · falhou: ${ultima.mensagem ?? ''}`}
-          </p>
-        ) : null}
+        <FleethubIntegracao empresaId={empresaId} podeGerenciar={podeGerenciar} />
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Input
@@ -385,8 +341,11 @@ function Inner(): ReactNode {
             ) : null}
           </tbody>
         </table>
+        <p className="mt-4 text-2xs font-mono uppercase tracking-wider text-text-dim">
+          Cadastro manual (veículos fora da FleetHub)
+        </p>
         <form
-          className="mt-3 flex items-center gap-2"
+          className="mt-1 flex items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault()
             if (!novo.prefixo.trim()) return
