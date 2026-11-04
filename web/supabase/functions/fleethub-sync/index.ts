@@ -170,6 +170,21 @@ async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<Ret
   return { lidos: dados.equipamentos.length, novos: novos.length, atualizados: atualizar.length, inativados: sair.length, obras: dados.obras.length }
 }
 
+const textoErro = (e: unknown): string =>
+  e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)
+
+/** 502/503/504, tempo esgotado ou rede: vale tentar de novo. */
+const transitorio = (e: unknown): boolean =>
+  /^\s*<|\b50[234]\b|timed? ?out|fetch failed|network|connection/i.test(textoErro(e))
+
+/** Página de erro (HTML do proxy) vira uma frase. */
+function mensagem(e: unknown): string {
+  const t = textoErro(e)
+  if (!/^\s*</.test(t)) return t
+  const cod = t.match(/\b(5\d\d)\b/)?.[1]
+  return `Falha temporária de comunicação${cod ? ` (${cod})` : ''} — tente de novo`
+}
+
 async function sincronizar(admin: SupabaseClient, empresa: string, quem: string | null, cron: boolean) {
   const { data: cred } = await admin.rpc('fleethub_credencial', { _empresa_id: empresa }).maybeSingle()
   const c = cred as { email: string; senha: string } | null
@@ -198,11 +213,18 @@ async function sincronizar(admin: SupabaseClient, empresa: string, quem: string 
     .single()
   if (eExec) return { status: 500, body: { ok: false, error: eExec.message } }
   try {
-    const r = await gravar(admin, empresa, await lerFleetHub(c.email, c.senha))
+    let r
+    try {
+      r = await gravar(admin, empresa, await lerFleetHub(c.email, c.senha))
+    } catch (e) {
+      if (!transitorio(e)) throw e
+      await new Promise((ok) => setTimeout(ok, 15_000))
+      r = await gravar(admin, empresa, await lerFleetHub(c.email, c.senha))
+    }
     await admin.from('fleet_sync_execucao').update({ ...r, ok: true, terminado_em: new Date().toISOString() }).eq('id', exec.id)
     return { status: 200, body: { ok: true, ...r } }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)
+    const msg = mensagem(e)
     await admin
       .from('fleet_sync_execucao')
       .update({ ok: false, mensagem: msg.slice(0, 500), terminado_em: new Date().toISOString() })
