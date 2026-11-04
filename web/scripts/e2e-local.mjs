@@ -938,6 +938,100 @@ await sbAp.auth.signOut()
   for (const k of Object.keys(u)) await u[k].c.auth.signOut()
 }
 
+// ── 12. Visão estratégica no app (campo_painel, migração 0037): quem vê e se os números batem com o web ─────────
+{
+  const { createClient: cc } = await import('@supabase/supabase-js')
+  const { criarValorizacao, montarComparativoPorServico } = await import('../src/features/acompanhamento/lib/valor-agregado-calc')
+  const entrar = async (email, senha) => {
+    const c = cc(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } })
+    await c.auth.signInWithPassword({ email, password: senha })
+    return c
+  }
+  const SENHA = 'Senha-e2e-2026'
+  const mk = (papel, emp, extra = {}) =>
+    fn('create-usuario', {
+      email: `p12.${papel}.${STAMP}.${Math.random().toString(36).slice(2, 7)}@e2e.local`,
+      nome: `${papel} painel`,
+      role: papel,
+      empresa_id: emp.id,
+      password: SENHA,
+      ...extra
+    })
+  const empOutra = await fn('create-empresa', { nome: `Outra do painel ${STAMP}` })
+  const eng = await mk('engenheiro', empresa)
+  const engSem = await mk('engenheiro', empresa)
+  const apt = await mk('apontador', empresa)
+  const cli = await mk('cliente', empresa)
+  const apo = await mk('apoio', empresa, { engenheiro_id: eng.id })
+  const admOutra = await mk('adm', empOutra)
+  for (const u of [eng, apt, cli]) await fn('grant-obra-permissao', { obra_id: obraId, user_id: u.id })
+  const painelComo = async (u) => (await entrar(u.email, SENHA)).rpc('campo_painel', { _obra_id: obraId })
+
+  const okEng = await painelComo(eng)
+  check('engenheiro com a obra recebe o painel', !okEng.error && !!okEng.data?.versao, okEng.error?.message)
+  for (const [nome, u] of [['apontador', apt], ['apoio', apo], ['cliente', cli], ['engenheiro sem a obra', engSem], ['adm de outra empresa', admOutra]]) {
+    const r = await painelComo(u)
+    check(`${nome} não recebe o painel`, !!r.error, r.error?.message?.slice(0, 60))
+  }
+  const anon = await cc(URL, ANON, { auth: { persistSession: false } }).rpc('campo_painel', { _obra_id: obraId })
+  check('anônimo não recebe o painel', !!anon.error)
+  const preco = await (await entrar(eng.email, SENHA)).rpc('fn_valor_servico_em', { _grupo_id: obraId, _data: '2026-01-01' })
+  check('a função de valor não é chamável direto', !!preco.error)
+
+  const p = okEng.data
+  const outra = (await painelComo(eng)).data
+  check('versão estável sem mudança de dados', outra?.versao === p.versao)
+
+  // números físicos = view do web
+  const pxr = await q('vw_acompanhamento_previsto_x_realizado', (t) => t.select('item_orcamentario_id, qtd_real, qtd_plan, pct_avanco, status').eq('obra_id', obraId))
+  const difFis = pxr.filter((r) => {
+    const s = p.servicos.find((x) => x.id === r.item_orcamentario_id)
+    return !s || Number(s.qtd_real) !== Number(r.qtd_real) || Number(s.qtd_plan) !== Number(r.qtd_plan) || s.status !== r.status
+  })
+  check('serviços do painel = previsto × realizado do web', pxr.length > 0 && difFis.length === 0 && p.servicos.length === pxr.length, `${pxr.length} serviços; ${difFis.length} divergentes`)
+  const [resumo] = await q('vw_acompanhamento_obra_resumo', (t) => t.select('avanco_pct').eq('obra_id', obraId))
+  check('avanço físico = dashboard do web', Math.abs(Number(p.resumo.avanco) - Number(resumo.avanco_pct)) < 0.00005, `${p.resumo.avanco} × ${resumo.avanco_pct}`)
+
+  // valor executado e previsto = Valor Agregado do web (mesma regra, com o reajuste da seção 7d)
+  const ref = (await q('planejamento', (t) => t.select('id, travada_em, vigente').eq('obra_id', obraId).eq('is_baseline', true).not('vigente_em', 'is', null).order('vigente', { ascending: false }).order('vigente_em', { ascending: false }).limit(1)))[0]
+  const tarefas = await q('vw_planejamento_tarefa_completa', (t) => t.select('*').eq('planejamento_id', ref.id))
+  const curvaSRows = await q('vw_acompanhamento_curva_s', (t) => t.select('item_orcamentario_id, data, planejado_dia, realizado_dia').eq('obra_id', obraId).limit(20000))
+  const itens = await q('item_orcamentario', (t) => t.select('id, codigo, descricao, tipo, quantidade, venda_unitaria, quantidade_referencia, unidade, unidade_referencia, custo_unitario_calc').eq('obra_id', obraId).in('tipo', ['servico_grupo', 'receita']))
+  const alocs = await q('item_orc_alocacao', (t) => t.select('grupo_id, receita_id, fracao').eq('obra_id', obraId))
+  const receitas = new Map(itens.filter((i) => i.tipo === 'receita').map((r) => [r.id, r]))
+  const grupos = itens.filter((i) => i.tipo === 'servico_grupo').map((g) => ({
+    id: g.id, codigo: g.codigo ?? '', descricao: g.descricao ?? '', quantidade_referencia: Number(g.quantidade_referencia ?? 0),
+    unidade_referencia: g.unidade_referencia ?? '', custo_unitario: Number(g.custo_unitario_calc ?? 0),
+    filhos: alocs.filter((a) => a.grupo_id === g.id && receitas.has(a.receita_id)).map((a) => {
+      const c = receitas.get(a.receita_id)
+      return { id: c.id, codigo: c.codigo ?? '', descricao: c.descricao ?? '', unidade: c.unidade ?? '', quantidade: Number(c.quantidade ?? 0) * Number(a.fracao ?? 0), venda_unitaria: Number(c.venda_unitaria ?? 0) }
+    })
+  }))
+  const rjs = await q('orcamento_reajuste', (t) => t.select('id, data').eq('obra_id', obraId).eq('status', 'aplicado'))
+  const rjItens = await q('orcamento_reajuste_item', (t) => t.select('reajuste_id, receita_id, preco_antes').eq('obra_id', obraId).not('preco_antes', 'is', null))
+  const dataDe = new Map(rjs.map((r) => [r.id, r.data]))
+  const hist = new Map()
+  for (const i of rjItens) {
+    const d = dataDe.get(i.reajuste_id)
+    if (!d) continue
+    hist.set(i.receita_id, [...(hist.get(i.receita_id) ?? []), { data: d, preco_antes: Number(i.preco_antes) }])
+  }
+  for (const a of hist.values()) a.sort((x, y) => (x.data < y.data ? -1 : 1))
+  const val = criarValorizacao(grupos, hist, ref.travada_em?.slice(0, 10) ?? null)
+  const comp = montarComparativoPorServico({ tarefas, curvaSRows, de: '0000-01-01', ate: p.hoje, valorizacao: val })
+  const webExec = comp.reduce((a, c) => a + c.projetado, 0)
+  const webPrev = comp.reduce((a, c) => a + c.planejado, 0)
+  check('reajuste aplicado na obra do teste (paridade com preço do dia)', rjs.length > 0, `${rjs.length} reajuste(s)`)
+  check('valor executado = Valor Agregado do web', Math.abs(webExec - Number(p.financeiro.executado)) < 0.05 && webExec > 0, `web ${webExec.toFixed(2)} × painel ${p.financeiro.executado}`)
+  check('valor previsto até hoje = Valor Agregado do web', Math.abs(webPrev - Number(p.financeiro.previsto)) < 0.05, `web ${webPrev.toFixed(2)} × painel ${p.financeiro.previsto}`)
+  const porServ = comp.filter((c) => {
+    const s = p.servicos.find((x) => x.id === c.item_orcamentario_id)
+    return !s || Math.abs(Number(s.valor_executado) - c.projetado) >= 0.01 || Math.abs(Number(s.valor_previsto) - c.planejado) >= 0.01
+  })
+  check('valores por serviço = web', porServ.length === 0, JSON.stringify(porServ.slice(0, 2)))
+  check('equipes e encarregados presentes', Array.isArray(p.equipes) && Array.isArray(p.encarregados) && p.equipes.length > 0, `${p.equipes.length} equipe(s), ${p.encarregados.length} encarregado(s)`)
+}
+
 // ── 9. Excluir obra inteira: as travas de exclusão (aditivo aplicado, linha de base, cadeia) não impedem ────────
 const recDireto = await sb.from('recurso').delete().eq('obra_id', obraTr.id)
 check('fora da exclusão da obra, recurso usado em composição continua protegido', !!recDireto.error, recDireto.error?.message?.slice(0, 90))
