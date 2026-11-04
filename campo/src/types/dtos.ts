@@ -134,6 +134,7 @@ export interface ViagemDto {
   posicao_inicio_m: number | null
   posicao_fim_m: number | null
   obs: string | null
+  carregador_id: string | null
 }
 
 /** Ficha de viagens do dia (cabeçalho + viagens) — `campo_sync_ficha`, idempotente pelos ids. */

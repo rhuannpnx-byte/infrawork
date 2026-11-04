@@ -97,3 +97,6 @@ verify_jwt = true
 
 [functions.acompanhamento-foto-delete]
 verify_jwt = true
+
+[functions.fleethub-sync]
+verify_jwt = true

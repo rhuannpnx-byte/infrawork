@@ -54,6 +54,8 @@ export function CarreteiroStep1Route() {
         estaca: null,
         posicaoM: null,
         obs: null,
+        carregadorId: ult?.carregadorId ?? null,
+        carregadorNome: ult?.carregadorNome ?? null,
       },
     })
   }

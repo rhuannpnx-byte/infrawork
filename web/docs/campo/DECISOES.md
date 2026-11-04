@@ -76,3 +76,14 @@ preço do dia com reajuste prospectivo, sem agregar acima da quantidade do contr
 Offline: o último retrato fica no aparelho (`cat_painel`, só regravado quando a `versao` muda) e abre sem sinal com a
 data dos dados; amarelo depois de 24 h. Renova ao abrir o app, ao voltar a rede, ao tocar em Atualizar e, no ciclo
 comum, no máximo a cada 5 min — só da obra atual. Perder o acesso apaga o retrato daquela obra.
+
+## C-10 Frota vinda da FleetHub
+
+A FleetHub não tem API: a função `fleethub-sync` entra com o login guardado nos segredos e lê a página de Equipamentos
+(só leitura; Ativo e Em transferência). Entram os equipamentos de transporte de carga e as máquinas de carga
+(escavadeira, retroescavadeira, carregadeira). A FleetHub é dona de código, placa, marca, modelo, ano, obra e status; o
+InfraWork, de capacidade, proprietário, fornecedor e tipo (gatilho impede editar o resto). Quem some da FleetHub é
+inativado, nunca apagado. Formato inesperado ou lista vazia abortam a rodada sem mexer na frota.
+
+O vínculo obra ↔ obra FleetHub é feito no InfraWork (`obra_fleet_obra`); com ele, viagens (web e app) mostram só os
+veículos dessas obras e os manuais (`veiculos_da_obra`). A viagem registra a máquina que carregou (`carregador_id`).

@@ -26,8 +26,11 @@ app de campo (celular): https://infrawork-campo.vercel.app
 5. **Cronograma**: tarefas e dependências; o cálculo roda ao abrir a tela.
 6. **Planejamento › Planos e linhas de base › Travar como linha de base** (com **Tornar vigente**). Sem linha de base
    vigente o acompanhamento não tem previsto — as telas avisam.
-7. **Acompanhamento › Equipes & Encarregados** e, se houver transporte, **Gerencial › Frota** e **Acompanhamento ›
-   Origens e destinos**.
+7. **Acompanhamento › Equipes & Encarregados** e, se houver transporte, **Acompanhamento › Origens e destinos**.
+8. **Frota (FleetHub)**: em **Gerencial › Frota**, o adm toca em **Sincronizar com FleetHub** (também roda sozinho às
+   5h). Vêm os caminhões, carretas, pipas e as escavadeiras/carregadeiras ativos. Preencha a **capacidade (m³/t)** de um
+   caminhão e use o ícone de copiar para aplicar ao mesmo modelo. Em **Gerencial › Obras › (obra) › Editar dados**,
+   marque a(s) **Obra(s) na FleetHub**: as viagens da obra passam a mostrar só esses veículos.
 
 ## 3. Apontadores
 
@@ -42,7 +45,7 @@ app de campo (celular): https://infrawork-campo.vercel.app
 - **Produção**: Nova sessão → serviço → quantidade (local e estacas quando o serviço pede) → Finalizar. A sessão em
   andamento fica salva no celular mesmo se o app fechar. Lançamento recusado aparece em vermelho com o motivo — tocar,
   corrigir, finalizar de novo.
-- **Viagens**: ficha do caminhão do dia e as viagens (origem, destino, estaca, quantidade).
+- **Viagens**: ficha do caminhão do dia e as viagens (origem, destino, estaca, quantidade e a máquina que carregou).
 - **Fotos**: com GPS quando houver; sem sinal de GPS a foto sai sem coordenadas.
 - **Escritório**: Acompanhamento › Produção, Previsto × Realizado, Dashboard, Fotos & Mapa. Correções feitas no web
   não são desfeitas pelo celular.

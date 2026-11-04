@@ -99,6 +99,7 @@ function paraDto(f: OutFicha): FichaDto {
       posicao_inicio_m: v.posicaoM,
       posicao_fim_m: v.posicaoM,
       obs: v.obs,
+      carregador_id: v.carregadorId ?? null,
     })),
     ...(f.excluir ? { excluir: true } : {}),
   }

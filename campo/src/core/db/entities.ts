@@ -81,6 +81,9 @@ export interface ViagemLocal {
   estaca: string | null
   posicaoM: number | null
   obs: string | null
+  /** máquina que carregou (escavadeira/carregadeira) */
+  carregadorId?: string | null
+  carregadorNome?: string | null
 }
 
 export interface FichaCabecalho {

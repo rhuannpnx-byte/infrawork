@@ -10,6 +10,7 @@ import { parseNum } from '@/lib/numero'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
+import { ehMaquinaDeCarga } from '@/lib/frota'
 
 /** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado, equipe e km. */
 export function CarreteiroStep0Route() {
@@ -36,7 +37,7 @@ export function CarreteiroStep0Route() {
     navigate('/carreteiro/step1')
   }
 
-  const veiculos = catalogo?.veiculos ?? []
+  const veiculos = (catalogo?.veiculos ?? []).filter((v) => !ehMaquinaDeCarga(v))
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
       <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">

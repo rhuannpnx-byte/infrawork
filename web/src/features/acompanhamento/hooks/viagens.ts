@@ -6,15 +6,35 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 
-export type TipoVeiculo = 'basculante' | 'carreta' | 'betoneira' | 'pipa' | 'caminhao' | 'outro'
+export type TipoVeiculo =
+  | 'basculante'
+  | 'carreta'
+  | 'betoneira'
+  | 'pipa'
+  | 'caminhao'
+  | 'escavadeira'
+  | 'retroescavadeira'
+  | 'carregadeira'
+  | 'outro'
 export const TIPO_VEICULO_LABEL: Record<TipoVeiculo, string> = {
   basculante: 'Basculante',
   carreta: 'Carreta',
   betoneira: 'Betoneira',
   pipa: 'Pipa',
   caminhao: 'Caminhão',
+  escavadeira: 'Escavadeira',
+  retroescavadeira: 'Retroescavadeira',
+  carregadeira: 'Carregadeira',
   outro: 'Outro'
 }
+/** Máquinas que carregam ("Carregado por" na viagem); as demais transportam. */
+export const TIPOS_MAQUINA_DE_CARGA: readonly TipoVeiculo[] = [
+  'escavadeira',
+  'retroescavadeira',
+  'carregadeira'
+]
+export const ehMaquinaDeCarga = (v: Pick<Veiculo, 'tipo'>): boolean =>
+  TIPOS_MAQUINA_DE_CARGA.includes(v.tipo)
 
 export interface Veiculo {
   id: string
@@ -28,6 +48,30 @@ export interface Veiculo {
   capacidade_m3: number | null
   capacidade_t: number | null
   ativo: boolean
+  origem: 'manual' | 'fleethub'
+  fleet_id: number | null
+  fleet_tipo: string | null
+  marca: string | null
+  ano: number | null
+  fleet_obra_id: string | null
+  fleet_status: string | null
+  sincronizado_em: string | null
+}
+
+export interface FleetObra {
+  id: string
+  fleet_id: number
+  nome: string
+}
+
+export interface FleetSyncExecucao {
+  iniciado_em: string
+  terminado_em: string | null
+  ok: boolean | null
+  mensagem: string | null
+  novos: number
+  atualizados: number
+  inativados: number
 }
 
 export type TipoLocalTransporte =
@@ -74,6 +118,7 @@ export interface Viagem {
   posicao_fim_m: number | null
   obs: string | null
   ordem: number
+  carregador_id: string | null
 }
 
 export interface FichaViagens {
@@ -99,6 +144,12 @@ function sb(): NonNullable<typeof supabase> {
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v))
 
 // ─── frota ──────────────────────────────────────────────────────────────────
+const veiculoDe = (v: Record<string, unknown>): Veiculo => ({
+  ...(v as unknown as Veiculo),
+  capacidade_m3: num(v.capacidade_m3),
+  capacidade_t: num(v.capacidade_t)
+})
+
 export function useFrota(
   empresaId: string | null | undefined
 ): ReturnType<typeof useQuery<Veiculo[]>> {
@@ -112,11 +163,7 @@ export function useFrota(
         .eq('empresa_id', empresaId!)
         .order('prefixo')
       if (error) throw error
-      return (data ?? []).map((v) => ({
-        ...(v as Veiculo),
-        capacidade_m3: num(v.capacidade_m3),
-        capacidade_t: num(v.capacidade_t)
-      }))
+      return (data ?? []).map(veiculoDe)
     }
   })
 }
@@ -150,6 +197,151 @@ export function useExcluirVeiculo(): ReturnType<typeof useMutation<void, Error, 
       if (error) throw new Error(error.message)
     },
     onSettled: () => void qc.invalidateQueries({ queryKey: ['frota'] })
+  })
+}
+
+/** Veículos que a obra enxerga: os da FleetHub das obras vinculadas + os manuais (sem vínculo, todos). */
+export function useVeiculosDaObra(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<Veiculo[]>> {
+  return useQuery({
+    queryKey: ['frota', 'obra', obraId],
+    enabled: !!obraId,
+    queryFn: async () => {
+      const { data, error } = await sb().rpc('veiculos_da_obra', { _obra_id: obraId! })
+      if (error) throw error
+      return ((data ?? []) as Record<string, unknown>[])
+        .map(veiculoDe)
+        .sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }))
+    }
+  })
+}
+
+export function useAplicarCapacidadeModelo(): ReturnType<
+  typeof useMutation<
+    number,
+    Error,
+    {
+      empresa_id: string
+      modelo: string
+      capacidade_m3: number | null
+      capacidade_t: number | null
+    }
+  >
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ empresa_id, modelo, ...cap }) => {
+      const { data, error } = await sb()
+        .from('frota_veiculo')
+        .update(cap)
+        .eq('empresa_id', empresa_id)
+        .eq('modelo', modelo)
+        .select('id')
+      if (error) throw new Error(error.message)
+      return data?.length ?? 0
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: ['frota'] })
+  })
+}
+
+// ─── FleetHub ───────────────────────────────────────────────────────────────
+export function useFleetObras(
+  empresaId: string | null | undefined
+): ReturnType<typeof useQuery<FleetObra[]>> {
+  return useQuery({
+    queryKey: ['fleet-obras', empresaId],
+    enabled: !!empresaId,
+    queryFn: async () => {
+      const { data, error } = await sb()
+        .from('fleet_obra')
+        .select('id, fleet_id, nome')
+        .eq('empresa_id', empresaId!)
+        .order('nome')
+      if (error) throw error
+      return (data ?? []) as FleetObra[]
+    }
+  })
+}
+
+export function useObraFleetObras(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<string[]>> {
+  return useQuery({
+    queryKey: ['obra-fleet', obraId],
+    enabled: !!obraId,
+    queryFn: async () => {
+      const { data, error } = await sb()
+        .from('obra_fleet_obra')
+        .select('fleet_obra_id')
+        .eq('obra_id', obraId!)
+      if (error) throw error
+      return (data ?? []).map((x) => x.fleet_obra_id as string)
+    }
+  })
+}
+
+export function useVincularFleetObra(): ReturnType<
+  typeof useMutation<void, Error, { obra_id: string; fleet_obra_id: string; vincular: boolean }>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ obra_id, fleet_obra_id, vincular }) => {
+      const c = sb().from('obra_fleet_obra')
+      const { error } = vincular
+        ? await c.insert({ obra_id, fleet_obra_id })
+        : await c.delete().eq('obra_id', obra_id).eq('fleet_obra_id', fleet_obra_id)
+      if (error) throw new Error(error.message)
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['obra-fleet'] })
+      void qc.invalidateQueries({ queryKey: ['frota'] })
+    }
+  })
+}
+
+export function useUltimaSyncFleet(
+  empresaId: string | null | undefined
+): ReturnType<typeof useQuery<FleetSyncExecucao | null>> {
+  return useQuery({
+    queryKey: ['fleet-sync', empresaId],
+    enabled: !!empresaId,
+    queryFn: async () => {
+      const { data, error } = await sb()
+        .from('fleet_sync_execucao')
+        .select('iniciado_em, terminado_em, ok, mensagem, novos, atualizados, inativados')
+        .eq('empresa_id', empresaId!)
+        .order('iniciado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw error
+      return (data as FleetSyncExecucao | null) ?? null
+    }
+  })
+}
+
+export function useSincronizarFleet(): ReturnType<
+  typeof useMutation<{ novos: number; atualizados: number; inativados: number }, Error, void>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await sb().functions.invoke('fleethub-sync', { body: {} })
+      if (error) {
+        const ctx = (error as { context?: Response }).context
+        const corpo = ctx
+          ? ((await ctx.json().catch(() => null)) as { error?: string } | null)
+          : null
+        throw new Error(corpo?.error ?? error.message)
+      }
+      if (!data?.ok) throw new Error(data?.error ?? 'Falha ao sincronizar')
+      return data
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['frota'] })
+      void qc.invalidateQueries({ queryKey: ['fleet-sync'] })
+      void qc.invalidateQueries({ queryKey: ['fleet-obras'] })
+    }
   })
 }
 

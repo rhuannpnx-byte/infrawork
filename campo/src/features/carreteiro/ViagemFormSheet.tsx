@@ -8,6 +8,7 @@ import { estacaFinalTexto, estacaInicialTexto, estacaParaMetros } from '@/lib/es
 import { formatNumero } from '@/lib/datas'
 import type { ViagemLocal } from '@/core/db/entities'
 import type { CatalogoDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
+import { ehMaquinaDeCarga, rotuloVeiculo } from '@/lib/frota'
 
 const TIPO_LOCAL: Record<OrigemDestinoDto['tipo'], string> = {
   jazida: 'Jazida',
@@ -59,7 +60,10 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   )
   const [dmt, setDmt] = useState(inicial.dmtKm != null ? String(inicial.dmtKm) : '')
   const [nf, setNf] = useState(inicial.nfTicket ?? '')
-  const [picker, setPicker] = useState<'servico' | 'origem' | 'destino' | null>(null)
+  const [carregadorId, setCarregadorId] = useState(inicial.carregadorId ?? null)
+  const maquinas = catalogo.veiculos.filter(ehMaquinaDeCarga)
+  const carregador = maquinas.find((v) => v.id === carregadorId) ?? null
+  const [picker, setPicker] = useState<'servico' | 'origem' | 'destino' | 'carregador' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
   const servico: ServicoDto | undefined = servicos.find((s) => s.id === servicoId)
@@ -109,6 +113,8 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
       trechoId: eixo?.id ?? destino?.trecho_id ?? origem?.trecho_id ?? null,
       estaca: eixo ? estaca.trim() || null : null,
       posicaoM,
+      carregadorId: carregador?.id ?? null,
+      carregadorNome: carregador ? rotuloVeiculo(carregador) : null,
     })
   }
 
@@ -159,6 +165,14 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
               empty={!destino}
             />
           </div>
+          {maquinas.length > 0 && (
+            <PickerField
+              label="CARREGADO POR"
+              value={carregador ? rotuloVeiculo(carregador) : 'Opcional'}
+              onClick={() => setPicker('carregador')}
+              empty={!carregador}
+            />
+          )}
           {eixo && (
             <LabeledInput
               label={`Estaca de ${pontaNaPista} (${eixo.nome})`}
@@ -224,6 +238,21 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           }}
           onDismiss={() => setPicker(null)}
           emptyMessage="Nenhum serviço da obra é lançado por viagens."
+        />
+      )}
+      {picker === 'carregador' && (
+        <PickerSheet
+          open
+          title="Carregado por"
+          items={maquinas}
+          label={rotuloVeiculo}
+          sublabel={(v) => v.modelo ?? ''}
+          onPick={(v) => {
+            setCarregadorId(v.id)
+            setPicker(null)
+          }}
+          onDismiss={() => setPicker(null)}
+          emptyMessage="Nenhuma escavadeira ou carregadeira na frota da obra."
         />
       )}
       {(picker === 'origem' || picker === 'destino') && (

@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import type { ObraComEmpresa } from '@/types/gerencial'
+import { VinculoFleetHub } from '../components/VinculoFleetHub'
 
 const STATUS = [
   { value: 'planejamento', label: 'Planejamento' },
@@ -148,6 +149,9 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
             {campo('data_inicio_planejada', 'Início', { type: 'date' })}
             {campo('data_fim_planejada', 'Término', { type: 'date' })}
           </div>
+          {obra.empresa_id ? (
+            <VinculoFleetHub obraId={obra.id} empresaId={obra.empresa_id} />
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button

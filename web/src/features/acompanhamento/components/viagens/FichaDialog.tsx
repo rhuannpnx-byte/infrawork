@@ -1,8 +1,7 @@
 /**
- * Ficha de viagens de um veículo no dia (o "carreteiro" do Monito): cabeçalho (data, veículo, motorista, encarregado,
- * equipe, km) e uma linha por viagem (serviço por viagens, origem, destino, estaca de descarga na pista, horas,
- * quantidade, material, DMT, NF/ticket). A nova viagem repete o serviço, a origem e o destino da anterior (o
- * "padrão do dia"). Gravada pela RPC do app de campo; a produção do dia é recomposta no banco.
+ * Ficha de viagens de um veículo no dia: cabeçalho (data, veículo, motorista, encarregado, equipe, km) e uma linha por
+ * viagem. A nova viagem repete serviço, origem, destino e máquina de carga da anterior. Gravada pela RPC do app de
+ * campo; a produção do dia é recomposta no banco.
  */
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -33,7 +32,9 @@ import {
 import { useEncarregados } from '../../hooks/lancamento'
 import {
   TIPO_LOCAL_LABEL,
+  ehMaquinaDeCarga,
   useFrota,
+  useVeiculosDaObra,
   useLocaisTransporte,
   useExcluirFicha,
   useSalvarFicha,
@@ -55,6 +56,7 @@ interface LinhaViagem {
   mat: string
   dmt: string
   nf: string
+  carregador: string
 }
 
 const txtNum = (v: number | null): string =>
@@ -104,6 +106,7 @@ function Form({
   const { data: servicos = [] } = useServicosParametrizaveis(obraId)
   const { data: parametros } = useParametrosServicos(obraId)
   const { data: frota = [] } = useFrota(empresaId)
+  const { data: daObra = [] } = useVeiculosDaObra(obraId)
   const { data: transp } = useLocaisTransporte(obraId)
   const { data: trechos = [] } = useObraTrechos(obraId)
   const { data: equipes = [] } = useEquipes(obraId)
@@ -126,6 +129,16 @@ function Form({
   }
   const eixoDaViagem = (origem: string, destino: string): (typeof trechos)[number] | null =>
     eixoDoLocal(destino) ?? eixoDoLocal(origem)
+
+  const caminhoes = daObra.filter((v) => !ehMaquinaDeCarga(v))
+  const maquinas = daObra.filter(ehMaquinaDeCarga)
+  // ficha antiga com veículo que saiu da obra: continua aparecendo
+  const comAtual = (lista: typeof daObra, id: string): typeof daObra => {
+    const atual = id && !lista.some((v) => v.id === id) ? frota.find((v) => v.id === id) : undefined
+    return atual ? [...lista, atual] : lista
+  }
+  const rotulo = (v: (typeof daObra)[number]): string =>
+    `${v.prefixo}${v.placa ? ` · ${v.placa}` : ''}${v.proprietario === 'terceiro' ? ' · terceiro' : ''}`
 
   const [data, setData] = useState(ficha?.data ?? hojeLocalISO())
   const [veiculo, setVeiculo] = useState(ficha?.veiculo_id ?? '')
@@ -153,7 +166,8 @@ function Form({
         qtd: txtNum(v.quantidade),
         mat: txtNum(v.material_qtd),
         dmt: txtNum(v.dmt_km),
-        nf: v.nf_ticket ?? ''
+        nf: v.nf_ticket ?? '',
+        carregador: v.carregador_id ?? ''
       }
     })
   )
@@ -176,7 +190,8 @@ function Form({
           qtd: ult?.qtd ?? (cap ? txtNum(cap) : ''),
           mat: '',
           dmt: '',
-          nf: ''
+          nf: '',
+          carregador: ult?.carregador ?? ''
         }
       ]
     })
@@ -217,7 +232,8 @@ function Form({
         trecho_id: eixo?.id ?? null,
         posicao_inicio_m: pos,
         posicao_fim_m: pos,
-        obs: null
+        obs: null,
+        carregador_id: l.carregador || null
       })
     }
     try {
@@ -243,12 +259,12 @@ function Form({
 
   const campo = 'h-8 text-xs'
   return (
-    <Dialog open onOpenChange={onOpenChange} size="xl" disableDismiss={salvar.isPending}>
+    <Dialog open onOpenChange={onOpenChange} size="full" disableDismiss={salvar.isPending}>
       <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
         <DialogHeader>
           <DialogTitle>{ficha ? 'Editar ficha de viagens' : 'Nova ficha de viagens'}</DialogTitle>
         </DialogHeader>
-        <DialogBody className="space-y-3">
+        <DialogBody className="min-h-0 flex-1 space-y-3 overflow-auto">
           <DialogErrorBanner message={erro} />
           {!servicosViagem.length ? (
             <p className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn">
@@ -274,15 +290,11 @@ function Form({
                 className={campo}
               >
                 <option value="">—</option>
-                {frota
-                  .filter((v) => v.ativo || v.id === veiculo)
-                  .map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.prefixo}
-                      {v.placa ? ` · ${v.placa}` : ''}
-                      {v.proprietario === 'terceiro' ? ' · terceiro' : ''}
-                    </option>
-                  ))}
+                {comAtual(caminhoes, veiculo).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {rotulo(v)}
+                  </option>
+                ))}
               </Select>
             </div>
             <div>
@@ -339,15 +351,21 @@ function Form({
             </div>
           </div>
 
-          <div className="rounded border border-border">
-            <table className="w-full border-collapse text-xs">
+          <div className="overflow-x-auto rounded border border-border">
+            <table className="w-full min-w-[1300px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-border text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
                   <th className="w-8 px-2 py-1.5 font-normal">#</th>
-                  <th className="px-2 py-1.5 font-normal">Serviço</th>
-                  <th className="px-2 py-1.5 font-normal">Origem</th>
-                  <th className="px-2 py-1.5 font-normal">Destino</th>
-                  <th className="w-28 px-2 py-1.5 font-normal" title="Na pista: a estaca da descarga (ou do corte, quando a origem é a pista)">Estaca</th>
+                  <th className="min-w-[200px] px-2 py-1.5 font-normal">Serviço</th>
+                  <th className="min-w-[150px] px-2 py-1.5 font-normal">Origem</th>
+                  <th className="min-w-[150px] px-2 py-1.5 font-normal">Destino</th>
+                  <th className="min-w-[150px] px-2 py-1.5 font-normal">Carregado por</th>
+                  <th
+                    className="w-28 px-2 py-1.5 font-normal"
+                    title="Na pista: a estaca da descarga (ou do corte, quando a origem é a pista)"
+                  >
+                    Estaca
+                  </th>
                   <th className="w-24 px-2 py-1.5 font-normal">Carga</th>
                   <th className="w-24 px-2 py-1.5 font-normal">Descarga</th>
                   <th className="w-24 px-2 py-1.5 font-normal">Qtd</th>
@@ -409,6 +427,21 @@ function Form({
                           {locais.map((x) => (
                             <option key={x.id} value={x.id}>
                               {x.nome} ({TIPO_LOCAL_LABEL[x.tipo]})
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <Select
+                          value={l.carregador}
+                          onChange={(e) => setLinha(i, { carregador: e.target.value })}
+                          className={campo}
+                          aria-label="Carregado por"
+                        >
+                          <option value="">—</option>
+                          {comAtual(maquinas, l.carregador).map((x) => (
+                            <option key={x.id} value={x.id}>
+                              {rotulo(x)}
                             </option>
                           ))}
                         </Select>

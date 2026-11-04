@@ -1,0 +1,223 @@
+// POST /functions/v1/fleethub-sync — atualiza a frota com os equipamentos da FleetHub (só leitura lá).
+// Quem chama: god/adm (botão em Gerencial › Frota) ou o cron diário (service role).
+// Segredos: FLEETHUB_EMAIL, FLEETHUB_PASSWORD, FLEETHUB_EMPRESA_ID; FLEETHUB_BASE_URL só nos testes.
+
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
+import { handlePreflight, json } from '../_shared/cors.ts'
+import { assertRole, resolveCaller } from '../_shared/auth.ts'
+import {
+  ehPaginaDeLogin,
+  equipamentosDeCarga,
+  extrairToken,
+  FormatoFleetHubError,
+  parseEquipamentos,
+  parseObras,
+  type EquipamentoFleet,
+} from '../_shared/fleethub-parse.ts'
+
+const BASE = (Deno.env.get('FLEETHUB_BASE_URL') ?? 'https://fleethub.app.br').replace(/\/$/, '')
+const EMAIL = Deno.env.get('FLEETHUB_EMAIL') ?? ''
+const SENHA = Deno.env.get('FLEETHUB_PASSWORD') ?? ''
+const EMPRESA = Deno.env.get('FLEETHUB_EMPRESA_ID') ?? ''
+const INTERVALO_MANUAL_MS = 5 * 60_000
+const PRAZO_MS = 60_000
+const UA = 'InfraWork-Frota/1.0'
+
+class Sessao {
+  private jar = new Map<string, string>()
+  private guarda(r: Response) {
+    for (const c of r.headers.getSetCookie()) {
+      const par = c.split(';')[0] ?? ''
+      const i = par.indexOf('=')
+      if (i > 0) this.jar.set(par.slice(0, i).trim(), par.slice(i + 1))
+    }
+  }
+  async req(path: string, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers)
+    headers.set('User-Agent', UA)
+    if (this.jar.size) headers.set('Cookie', [...this.jar].map(([k, v]) => `${k}=${v}`).join('; '))
+    const r = await fetch(`${BASE}${path}`, { ...init, headers, redirect: 'manual', signal: AbortSignal.timeout(PRAZO_MS) })
+    this.guarda(r)
+    return r
+  }
+  async form(path: string, campos: Record<string, string>) {
+    return this.req(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Referer: `${BASE}/login` },
+      body: new URLSearchParams(campos),
+    })
+  }
+}
+
+async function lerFleetHub() {
+  const s = new Sessao()
+  const login = await s.req('/login')
+  const token = extrairToken(await login.text())
+  if (!token) throw new FormatoFleetHubError('Página de login da FleetHub mudou')
+  const r = await s.form('/login', { _token: token, email: EMAIL, password: SENHA })
+  await r.body?.cancel()
+  if (r.status !== 302 || /\/login\b/.test(r.headers.get('location') ?? '')) {
+    throw new Error('Login recusado pela FleetHub — confira o e-mail e a senha nos segredos')
+  }
+  const pagina = async (status: string) => {
+    const q = new URLSearchParams({ 'statusEquipamento[]': status })
+    const p = await s.req(`/equipamento?${q}`)
+    const html = await p.text()
+    if (p.status !== 200 || ehPaginaDeLogin(html)) throw new Error(`FleetHub não abriu os equipamentos (${p.status})`)
+    return html
+  }
+  const htmlAtivos = await pagina('Ativo')
+  const htmlTransf = await pagina('Em transferência')
+  const ativos = parseEquipamentos(htmlAtivos)
+  const transf = parseEquipamentos(htmlTransf)
+  const obras = parseObras(htmlAtivos)
+  const tk = extrairToken(htmlAtivos)
+  if (tk) await s.form('/logout', { _token: tk }).then((x) => x.body?.cancel()).catch(() => undefined)
+  if (ativos.length === 0) throw new FormatoFleetHubError('FleetHub devolveu a lista de equipamentos vazia')
+  const status = new Map<number, string>()
+  for (const e of ativos) status.set(e.fleet_id, 'Ativo')
+  for (const e of transf) status.set(e.fleet_id, 'Em transferência')
+  const todos = new Map<number, EquipamentoFleet>()
+  for (const e of [...ativos, ...transf]) todos.set(e.fleet_id, e)
+  return { equipamentos: [...todos.values()], status, obras }
+}
+
+async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<ReturnType<typeof lerFleetHub>>) {
+  const agora = new Date().toISOString()
+  const { error: eObras } = await admin.from('fleet_obra').upsert(
+    dados.obras.map((o) => ({ empresa_id: empresa, fleet_id: o.fleet_id, nome: o.nome, atualizado_em: agora })),
+    { onConflict: 'empresa_id,fleet_id' },
+  )
+  if (eObras) throw eObras
+  const { data: obras, error: eLer } = await admin.from('fleet_obra').select('id, fleet_id, nome').eq('empresa_id', empresa)
+  if (eLer) throw eLer
+  const obraPorNome = new Map<string, string>()
+  for (const o of obras ?? []) if (!obraPorNome.has(o.nome)) obraPorNome.set(o.nome, o.id)
+  const obraPorNomeCI = new Map<string, string>()
+  for (const o of obras ?? []) if (!obraPorNomeCI.has(o.nome.toUpperCase())) obraPorNomeCI.set(o.nome.toUpperCase(), o.id)
+
+  const { data: frota, error: eFrota } = await admin
+    .from('frota_veiculo')
+    .select('id, fleet_id, prefixo, origem, ativo')
+    .eq('empresa_id', empresa)
+  if (eFrota) throw eFrota
+  const porFleet = new Map((frota ?? []).filter((v) => v.fleet_id != null).map((v) => [v.fleet_id as number, v]))
+  const porPrefixo = new Map((frota ?? []).map((v) => [v.prefixo as string, v]))
+
+  const carga = equipamentosDeCarga(dados.equipamentos)
+  const novos: Record<string, unknown>[] = []
+  const atualizar: { id: string; campos: Record<string, unknown> }[] = []
+  for (const e of carga) {
+    const campos = {
+      origem: 'fleethub',
+      fleet_id: e.fleet_id,
+      placa: e.placa,
+      marca: e.marca,
+      modelo: e.modelo,
+      ano: e.ano,
+      fleet_tipo: e.tipo,
+      fleet_obra_id: e.obra ? (obraPorNome.get(e.obra) ?? obraPorNomeCI.get(e.obra.toUpperCase()) ?? null) : null,
+      fleet_status: dados.status.get(e.fleet_id) ?? 'Ativo',
+      ativo: true,
+      sincronizado_em: agora,
+    }
+    const atual = porFleet.get(e.fleet_id) ?? (porPrefixo.get(e.codigo)?.origem === 'manual' ? porPrefixo.get(e.codigo) : undefined)
+    const ocupado = porPrefixo.get(e.codigo)
+    const prefixo = ocupado && ocupado.id !== atual?.id ? `${e.codigo}-${e.fleet_id}` : e.codigo
+    if (atual) atualizar.push({ id: atual.id, campos: { ...campos, prefixo } })
+    else novos.push({ ...campos, empresa_id: empresa, prefixo, tipo: e.tipo_infrawork, proprietario: 'proprio' })
+  }
+  if (novos.length) {
+    const { error } = await admin.from('frota_veiculo').insert(novos)
+    if (error) throw error
+  }
+  for (let i = 0; i < atualizar.length; i += 20) {
+    const lote = atualizar.slice(i, i + 20)
+    const res = await Promise.all(lote.map((u) => admin.from('frota_veiculo').update(u.campos).eq('id', u.id)))
+    const erro = res.find((r) => r.error)?.error
+    if (erro) throw erro
+  }
+  const vistos = new Set(carga.map((e) => e.fleet_id))
+  const sair = (frota ?? []).filter((v) => v.origem === 'fleethub' && v.ativo && !vistos.has(v.fleet_id as number))
+  if (sair.length) {
+    const { error } = await admin
+      .from('frota_veiculo')
+      .update({ ativo: false, fleet_status: 'Fora da FleetHub', sincronizado_em: agora })
+      .in('id', sair.map((v) => v.id))
+    if (error) throw error
+  }
+  return { lidos: dados.equipamentos.length, novos: novos.length, atualizados: atualizar.length, inativados: sair.length, obras: dados.obras.length }
+}
+
+Deno.serve(async (req) => {
+  const pre = handlePreflight(req)
+  if (pre) return pre
+  if (req.method !== 'POST') return json({ error: 'Use POST' }, 405)
+  let body: { origem?: string } = {}
+  try {
+    body = await req.json()
+  } catch { /* sem corpo */ }
+
+  const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '')
+  let servico = !!SERVICE_KEY && token === SERVICE_KEY
+  if (!servico && token) {
+    try {
+      servico = JSON.parse(atob(token.split('.')[1] ?? ''))?.role === 'service_role'
+    } catch { /* jwt de usuário */ }
+  }
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  let quem: string | null = null
+  if (!servico) {
+    const ctx = await resolveCaller(req)
+    if (ctx instanceof Response) return ctx
+    const roleErr = assertRole(ctx.caller, ['god', 'adm'])
+    if (roleErr) return roleErr
+    if (ctx.caller.role === 'adm' && ctx.caller.empresa_id !== EMPRESA) {
+      return json({ error: 'A FleetHub não está configurada para a sua empresa' }, 400)
+    }
+    quem = ctx.caller.id
+  }
+  if (!EMAIL || !SENHA || !EMPRESA) return json({ ok: false, error: 'FleetHub não configurada' }, 200)
+
+  const { data: ultima } = await admin
+    .from('fleet_sync_execucao')
+    .select('iniciado_em, terminado_em')
+    .eq('empresa_id', EMPRESA)
+    .order('iniciado_em', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (ultima) {
+    const desde = Date.now() - new Date(ultima.iniciado_em).getTime()
+    if (!ultima.terminado_em && desde < 10 * 60_000) return json({ error: 'Já há uma sincronização em andamento' }, 409)
+    if (!servico && desde < INTERVALO_MANUAL_MS) {
+      return json({ error: 'A frota foi sincronizada há poucos minutos — aguarde um pouco' }, 429)
+    }
+  }
+
+  const { data: exec, error: eExec } = await admin
+    .from('fleet_sync_execucao')
+    .insert({ empresa_id: EMPRESA, disparado_por: quem, origem: servico && body.origem === 'cron' ? 'cron' : 'manual' })
+    .select('id')
+    .single()
+  if (eExec) return json({ error: eExec.message }, 500)
+
+  try {
+    const r = await gravar(admin, EMPRESA, await lerFleetHub())
+    await admin
+      .from('fleet_sync_execucao')
+      .update({ ...r, ok: true, terminado_em: new Date().toISOString() })
+      .eq('id', exec.id)
+    return json({ ok: true, ...r })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)
+    await admin
+      .from('fleet_sync_execucao')
+      .update({ ok: false, mensagem: msg.slice(0, 500), terminado_em: new Date().toISOString() })
+      .eq('id', exec.id)
+    return json({ ok: false, error: msg }, 502)
+  }
+})
