@@ -69,6 +69,8 @@ export const adminApi = {
     empresa_id?: string | null
     engenheiro_id?: string | null
     ativo?: boolean
+    /** nova senha (≥ 10) — redefinição pelo administrador */
+    senha?: string
   }) =>
     call<{
       id: string

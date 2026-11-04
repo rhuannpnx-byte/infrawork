@@ -820,6 +820,124 @@ check('foto registrada uma vez, ligada ao lançamento do campo', f1?.duplicada =
 await sbAp.auth.signOut()
 }
 
+// ── 11. Segurança e papéis (migração 0035): duas empresas, um usuário de cada papel ───────────────────────────
+{
+  const { createClient: cc } = await import('@supabase/supabase-js')
+  const novoCliente = () => cc(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } })
+  const entrar = async (email, senha) => {
+    const c = novoCliente()
+    const { data, error } = await c.auth.signInWithPassword({ email, password: senha })
+    return { c, token: data?.session?.access_token ?? null, erro: error?.message ?? null }
+  }
+  const fnComo = async (tk, name, body) => {
+    const r = await fetch(`${URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tk}`, apikey: ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    let j = null
+    try {
+      j = await r.json()
+    } catch {
+      /* corpo vazio */
+    }
+    return { status: r.status, j }
+  }
+  const SENHA = 'Senha-e2e-2026'
+  const mk = (papel, emp, extra = {}) =>
+    fn('create-usuario', {
+      email: `${papel}.${STAMP}.${emp.id.slice(0, 4)}@e2e.local`,
+      nome: `${papel} E2E`,
+      role: papel,
+      empresa_id: emp.id,
+      password: SENHA,
+      ...extra
+    })
+
+  const semSenha = await fetch(`${URL}/functions/v1/create-usuario`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, apikey: ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: `sem.${STAMP}@e2e.local`, nome: 'Sem senha', role: 'apontador', empresa_id: empresa.id })
+  })
+  check('criar usuário sem senha é recusado (sem SMTP não há convite)', semSenha.status === 400)
+
+  const empB = await fn('create-empresa', { nome: `Outra Construtora ${STAMP}` })
+  const admA = await mk('adm', empresa)
+  const eng = await mk('engenheiro', empresa)
+  const cli = await mk('cliente', empresa)
+  const apt = await mk('apontador', empresa)
+  const admB = await mk('adm', empB)
+  const u = {}
+  for (const [k, p] of Object.entries({ admA, eng, cli, apt, admB })) {
+    u[k] = await entrar(p.email, SENHA)
+    check(`login ${k}`, !!u[k].token, u[k].erro ?? '')
+  }
+  await fn('grant-obra-permissao', { obra_id: obraId, user_id: eng.id })
+  await fn('grant-obra-permissao', { obra_id: obraId, user_id: cli.id })
+
+  // autopromoção e promoção pelo adm, direto no banco
+  for (const k of ['apt', 'cli', 'eng', 'admA']) {
+    const me = { apt, cli, eng, admA }[k].id
+    const r = await u[k].c.from('profiles').update({ role: 'god', empresa_id: null }).eq('id', me).select('role')
+    check(`${k} não se promove a god por UPDATE direto`, !!r.error, r.error?.message?.slice(0, 70))
+  }
+  const promo = await u.admA.c.from('profiles').update({ role: 'god', empresa_id: null }).eq('id', eng.id).select('role')
+  check('adm não promove outro usuário a god por UPDATE direto', !!promo.error)
+  const troca = await u.admB.c.from('profiles').update({ empresa_id: empresa.id }).eq('id', eng.id).select('id')
+  check('adm de outra empresa não puxa usuário alheio', !troca.error && (troca.data ?? []).length === 0)
+  const nome = await u.admA.c.from('profiles').update({ nome: 'Engenheiro E2E (renomeado)' }).eq('id', eng.id).select('nome')
+  check('adm ainda edita o nome direto', !nome.error && nome.data?.[0]?.nome === 'Engenheiro E2E (renomeado)', nome.error?.message)
+
+  // views sem vazamento entre empresas
+  for (const v of ['vw_acompanhamento_curva_s', 'vw_acompanhamento_previsto_x_realizado']) {
+    const a = await u.admA.c.from(v).select('*').eq('obra_id', obraId).limit(5)
+    const b = await u.admB.c.from(v).select('*').eq('obra_id', obraId).limit(5)
+    check(`${v}: a empresa dona vê, a outra não`, (a.data ?? []).length > 0 && !b.error && (b.data ?? []).length === 0, `A=${a.data?.length} B=${b.data?.length} ${a.error?.message ?? ''}`)
+  }
+
+  // funções do app fechadas para anônimo
+  const anon = await novoCliente().rpc('campo_obras')
+  check('campo_obras recusa chamada anônima', !!anon.error, anon.error?.message?.slice(0, 60))
+
+  // engenheiro: libera e revoga obra do apontador, redefine a senha dele; não a de outros
+  const lib = await fnComo(u.eng.token, 'grant-obra-permissao', { obra_id: obraId, user_id: apt.id })
+  check('engenheiro libera a obra para o apontador', lib.status >= 200 && lib.status < 300, JSON.stringify(lib.j).slice(0, 100))
+  const vis = await u.eng.c.from('obra_permissoes').select('obra_id').eq('user_id', apt.id)
+  check('engenheiro vê as obras liberadas ao apontador', (vis.data ?? []).some((x) => x.obra_id === obraId), vis.error?.message)
+  const nova = 'Nova-senha-2026-x'
+  const red = await fnComo(u.eng.token, 'update-usuario', { id: apt.id, senha: nova })
+  check('engenheiro redefine a senha do apontador da obra dele', red.status === 200, JSON.stringify(red.j).slice(0, 100))
+  const comNova = await entrar(apt.email, nova)
+  check('apontador entra com a senha redefinida', !!comNova.token, comNova.erro ?? '')
+  const outra = await fnComo(u.eng.token, 'update-usuario', { id: admA.id, senha: nova })
+  check('engenheiro não redefine a senha de outro papel', outra.status === 403, String(outra.status))
+  const papel = await fnComo(u.eng.token, 'update-usuario', { id: apt.id, role: 'adm' })
+  check('engenheiro não muda papel pela função', papel.status === 403, String(papel.status))
+  const obrasApt = await comNova.c.rpc('campo_obras')
+  check('apontador liberado vê a obra no app', (obrasApt.data ?? []).some((o) => o.id === obraId), JSON.stringify(obrasApt.error ?? obrasApt.data).slice(0, 120))
+
+  // desativar: sessão aberta perde o acesso e o login é recusado; reativar devolve
+  const des = await fnComo(u.admA.token, 'update-usuario', { id: apt.id, ativo: false })
+  check('adm desativa o apontador', des.status === 200, JSON.stringify(des.j).slice(0, 100))
+  const aberta = await comNova.c.rpc('campo_obras')
+  check('sessão aberta do inativo não vê obras', !!aberta.error || (aberta.data ?? []).length === 0, JSON.stringify(aberta.error ?? aberta.data).slice(0, 100))
+  const bloqueado = await entrar(apt.email, nova)
+  check('inativo não consegue entrar', !bloqueado.token, bloqueado.erro ?? '')
+  await fnComo(u.admA.token, 'update-usuario', { id: apt.id, ativo: true })
+  const devolta = await entrar(apt.email, nova)
+  check('reativado entra de novo', !!devolta.token, devolta.erro ?? '')
+  const rev = await fnComo(u.eng.token, 'revoke-obra-permissao', { obra_id: obraId, user_id: apt.id })
+  const semObra = await devolta.c.rpc('campo_obras')
+  check('engenheiro revoga e o apontador deixa de ver a obra', rev.status === 200 && !(semObra.data ?? []).some((o) => o.id === obraId), JSON.stringify(rev.j).slice(0, 80))
+
+  // cliente e outra empresa
+  const cliOrc = await u.cli.c.from('item_orcamentario').select('id').eq('obra_id', obraId).limit(1)
+  check('cliente não lê o orçamento (preços)', (cliOrc.data ?? []).length === 0)
+  const bObra = await u.admB.c.from('obras').select('id').eq('id', obraId)
+  check('adm de outra empresa não vê a obra', (bObra.data ?? []).length === 0)
+  for (const k of Object.keys(u)) await u[k].c.auth.signOut()
+}
+
 // ── 9. Excluir obra inteira: as travas de exclusão (aditivo aplicado, linha de base, cadeia) não impedem ────────
 const recDireto = await sb.from('recurso').delete().eq('obra_id', obraTr.id)
 check('fora da exclusão da obra, recurso usado em composição continua protegido', !!recDireto.error, recDireto.error?.message?.slice(0, 90))

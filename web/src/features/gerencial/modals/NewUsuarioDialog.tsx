@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCreateUsuario, useEmpresas, useEngenheiros } from '../hooks'
 import { maskWhatsappBR } from '@/lib/format'
+import { gerarSenha } from './RedefinirSenhaDialog'
 import type { Role } from '@/types/auth'
 
 interface Props {
@@ -125,7 +126,11 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
         }
       }
       if (whatsapp.trim()) body.whatsapp = whatsapp.trim()
-      if (password.trim()) body.password = password.trim()
+      if (password.trim().length < 10) {
+        setError('Defina a senha inicial (mínimo de 10 caracteres).')
+        return
+      }
+      body.password = password.trim()
 
       const res = await create.mutateAsync(body)
       toast.success(`Usuário ${res.email} criado (${ROLE_LABEL[res.role as Role]}).`)
@@ -252,17 +257,24 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
           </div>
 
           <div>
-            <Label htmlFor="u-pwd">Senha inicial (opcional)</Label>
-            <Input
-              id="u-pwd"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Em branco envia convite por email"
-              minLength={10}
-            />
-            <div className="text-2xs text-text-dim font-mono mt-1">
-              Se preenchida, a senha precisa ter ≥ 10 caracteres.
+            <Label htmlFor="u-pwd">Senha inicial</Label>
+            <div className="flex gap-1.5">
+              <Input
+                id="u-pwd"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="mínimo de 10 caracteres"
+                minLength={10}
+                autoComplete="off"
+                className="font-mono"
+              />
+              <Button type="button" variant="secondary" onClick={() => setPassword(gerarSenha())}>
+                Gerar
+              </Button>
+            </div>
+            <div className="text-2xs text-text-muted mt-1">
+              Passe a senha ao usuário; ele entra com o e-mail e esta senha (no web ou no app de
+              campo).
             </div>
           </div>
         </DialogBody>

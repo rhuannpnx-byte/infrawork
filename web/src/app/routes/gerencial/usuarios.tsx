@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Building2, KeyRound, Plus, Pencil, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -11,6 +11,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { NewUsuarioDialog } from '@/features/gerencial/modals/NewUsuarioDialog'
 import { EditUsuarioDialog } from '@/features/gerencial/modals/EditUsuarioDialog'
 import { DeleteUsuarioDialog } from '@/features/gerencial/modals/DeleteUsuarioDialog'
+import { RedefinirSenhaDialog } from '@/features/gerencial/modals/RedefinirSenhaDialog'
+import { ObrasDoUsuarioDialog } from '@/features/gerencial/modals/ObrasDoUsuarioDialog'
 import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Role } from '@/types/auth'
@@ -47,6 +49,8 @@ export function UsuariosPage(): ReactNode {
   const [openNew, setOpenNew] = useState(false)
   const [editTarget, setEditTarget] = useState<UsuarioComEmpresa | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<UsuarioComEmpresa | null>(null)
+  const [senhaTarget, setSenhaTarget] = useState<UsuarioComEmpresa | null>(null)
+  const [obrasTarget, setObrasTarget] = useState<UsuarioComEmpresa | null>(null)
 
   const podeAcessar = role === 'god' || role === 'adm' || role === 'engenheiro'
   // Edição/exclusão: só God e Adm.
@@ -57,6 +61,12 @@ export function UsuariosPage(): ReactNode {
     podeGerenciar && !(role === 'adm' && u.role === 'god')
   const podeExcluirLinha = (u: UsuarioComEmpresa): boolean =>
     podeEditarLinha(u) && u.id !== callerId
+  /** Senha: quem edita; o engenheiro, a do seu apoio e a dos apontadores (o servidor confere as obras). */
+  const podeRedefinirSenha = (u: UsuarioComEmpresa): boolean =>
+    u.id !== callerId &&
+    (podeEditarLinha(u) ||
+      (role === 'engenheiro' &&
+        ((u.role === 'apoio' && u.engenheiro_id === callerId) || u.role === 'apontador')))
 
   const columns = useMemo<ColumnDef<UsuarioComEmpresa, unknown>[]>(
     () => [
@@ -177,17 +187,45 @@ export function UsuariosPage(): ReactNode {
         meta: { label: 'Criado em' },
         size: 110
       },
-      ...(podeGerenciar
+      ...(podeAcessar
         ? ([
             {
               id: 'acoes',
               header: '',
-              size: 90,
+              size: 130,
               enableSorting: false,
               cell: ({ row }) => {
                 const u = row.original
                 return (
                   <div className="flex items-center justify-end gap-1">
+                    {u.role === 'apontador' && podeRedefinirSenha(u) ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Obras liberadas"
+                        aria-label={`Obras liberadas para ${u.nome}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setObrasTarget(u)
+                        }}
+                      >
+                        <Building2 size={13} />
+                      </Button>
+                    ) : null}
+                    {podeRedefinirSenha(u) ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Redefinir senha"
+                        aria-label={`Redefinir senha de ${u.nome}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSenhaTarget(u)
+                        }}
+                      >
+                        <KeyRound size={13} />
+                      </Button>
+                    ) : null}
                     {podeEditarLinha(u) ? (
                       <Button
                         size="icon"
@@ -295,6 +333,16 @@ export function UsuariosPage(): ReactNode {
         open={!!editTarget}
         onOpenChange={(o) => !o && setEditTarget(null)}
         usuario={editTarget}
+      />
+      <ObrasDoUsuarioDialog
+        open={!!obrasTarget}
+        onOpenChange={(o) => !o && setObrasTarget(null)}
+        usuario={obrasTarget}
+      />
+      <RedefinirSenhaDialog
+        open={!!senhaTarget}
+        onOpenChange={(o) => !o && setSenhaTarget(null)}
+        usuario={senhaTarget}
       />
       <DeleteUsuarioDialog
         open={!!deleteTarget}

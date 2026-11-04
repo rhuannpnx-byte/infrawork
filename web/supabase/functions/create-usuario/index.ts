@@ -5,7 +5,7 @@
 //   role: 'god' | 'adm' | 'engenheiro' | 'apoio'
 //   empresa_id?: string   (obrigatório quando role != 'god'; força a empresa do caller p/ Adm/Eng)
 //   engenheiro_id?: string (obrigatório p/ role='apoio'; forçado a auth.uid() p/ Engenheiro)
-//   password?: string      (opcional; quando omitido envia invite por email)
+//   password: string       (obrigatória, ≥ 10; sem SMTP próprio o convite por e-mail não chega)
 // }
 //
 // Matriz aplicada:
@@ -117,12 +117,11 @@ Deno.serve(async (req) => {
 
   // ── cria o auth.user ─────────────────────────────────────────────────────
   let newUserId: string
-  // Se a senha veio preenchida no body mas é curta demais, rejeita explicitamente
-  // (em vez de virar convite silencioso, que confundia o usuário no front).
-  if (body.password !== undefined && body.password !== '') {
-    if (body.password.length < 10) {
-      return json({ error: 'Senha precisa ter ao menos 10 caracteres.' }, 400)
-    }
+  // Senha definida por quem cria (o convite por e-mail depende de SMTP próprio, ainda não configurado).
+  if (!body.password || body.password.length < 10) {
+    return json({ error: 'Defina uma senha inicial com ao menos 10 caracteres.' }, 400)
+  }
+  {
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password: body.password,
@@ -131,14 +130,6 @@ Deno.serve(async (req) => {
     })
     if (error || !data.user) {
       return json({ error: error?.message ?? 'Falha ao criar usuário no Auth' }, 400)
-    }
-    newUserId = data.user.id
-  } else {
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-      data: { nome }
-    })
-    if (error || !data.user) {
-      return json({ error: error?.message ?? 'Falha ao convidar usuário' }, 400)
     }
     newUserId = data.user.id
   }

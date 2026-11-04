@@ -241,6 +241,38 @@ async function recalcOneObra(
       else inseridos += count ?? slice.length
     }
   }
+
+  // Alertas silenciados (dentro do prazo) ou resolvidos à mão não voltam a abrir: o mesmo
+  // contexto_hash (tipo + contexto) recém-inserido como "aberto" sai.
+  {
+    const agora = new Date().toISOString()
+    const { data: calados } = await admin
+      .from('acompanhamento_alerta')
+      .select('contexto_hash, status, silenciado_ate, resolvido_automaticamente')
+      .eq('obra_id', obraId)
+      .neq('status', 'aberto')
+    const hashes = [
+      ...new Set(
+        (calados ?? [])
+          .filter((a) =>
+            a.status === 'silenciado'
+              ? !a.silenciado_ate || (a.silenciado_ate as string) > agora
+              : a.resolvido_automaticamente === false
+          )
+          .map((a) => a.contexto_hash as string)
+      )
+    ]
+    for (let i = 0; i < hashes.length; i += 200) {
+      const { count, error } = await admin
+        .from('acompanhamento_alerta')
+        .delete({ count: 'exact' })
+        .eq('obra_id', obraId)
+        .eq('status', 'aberto')
+        .in('contexto_hash', hashes.slice(i, i + 200))
+      if (error) erros.push(`calados: ${error.message}`)
+      else inseridos -= count ?? 0
+    }
+  }
   return { inseridos, resolvidos, total: novos.length, erros }
 }
 
@@ -268,6 +300,8 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false }
   })
 
+  // sem obra_id: o cron (service_role) e o god percorrem todas; os demais, só as obras da própria empresa
+  let soEmpresa: string | null = null
   if (!isServiceRole) {
     const ctx = await resolveCaller(req)
     if (ctx instanceof Response) return ctx
@@ -276,6 +310,9 @@ Deno.serve(async (req) => {
     if (body.obra_id) {
       const accErr = await assertObraAccess(ctx, body.obra_id, { write: false })
       if (accErr) return accErr
+    } else if (ctx.caller.role !== 'god') {
+      if (ctx.caller.role !== 'adm') return json({ error: 'Informe a obra' }, 400)
+      soEmpresa = ctx.caller.empresa_id
     }
   }
 
@@ -284,7 +321,9 @@ Deno.serve(async (req) => {
   if (body.obra_id) {
     obraIds = [body.obra_id]
   } else {
-    const { data } = await admin.from('obras').select('id').eq('ativa', true)
+    let q = admin.from('obras').select('id').eq('ativa', true)
+    if (soEmpresa) q = q.eq('empresa_id', soEmpresa)
+    const { data } = await q
     obraIds = (data ?? []).map((r) => r.id as string)
   }
 

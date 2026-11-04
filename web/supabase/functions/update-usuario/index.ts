@@ -6,10 +6,11 @@
 //   role?: 'god'|'adm'|'engenheiro'|'apoio'|'cliente'|'apontador'
 //   empresa_id?: string | null (só God; ignorado p/ Adm — fica na própria empresa)
 //   engenheiro_id?: string | null (obrigatório quando role final = 'apoio')
-//   ativo?: boolean
+//   ativo?: boolean            (false também bloqueia o login no Auth; true desbloqueia)
+//   senha?: string             (nova senha, ≥ 10 — redefinição pelo administrador)
 // }
 //
-// Quem pode: God e Adm.
+// Quem pode: God e Adm; Engenheiro só redefine a senha do seu apoio e dos apontadores das suas obras.
 //   God → edita qualquer usuário, qualquer campo.
 //   Adm → edita usuários da própria empresa; não mexe em God; não promove a God;
 //         empresa fica travada na própria.
@@ -28,6 +29,7 @@ type Body = {
   empresa_id?: string | null
   engenheiro_id?: string | null
   ativo?: boolean
+  senha?: string
 }
 
 /** Mantém só dígitos; string vazia vira null. */
@@ -45,7 +47,7 @@ Deno.serve(async (req) => {
   const ctx = await resolveCaller(req)
   if (ctx instanceof Response) return ctx
   const { caller, admin } = ctx
-  const roleErr = assertRole(caller, ['god', 'adm'])
+  const roleErr = assertRole(caller, ['god', 'adm', 'engenheiro'])
   if (roleErr) return roleErr
 
   let body: Body
@@ -65,6 +67,39 @@ Deno.serve(async (req) => {
     .eq('id', id)
     .single()
   if (alvoErr || !alvo) return json({ error: 'Usuário não encontrado' }, 404)
+
+  if (body.senha !== undefined && body.senha.length < 10) {
+    return json({ error: 'A senha precisa ter ao menos 10 caracteres.' }, 400)
+  }
+  const trocarSenha = async (): Promise<Response | null> => {
+    if (body.senha === undefined) return null
+    const { error } = await admin.auth.admin.updateUserById(id, { password: body.senha })
+    return error ? json({ error: 'Falha ao redefinir a senha', detalhe: error.message }, 400) : null
+  }
+
+  // ── Engenheiro: só a senha do seu apoio ou de apontador das obras dele ─────
+  if (caller.role === 'engenheiro') {
+    const outros = Object.keys(body).filter((k) => k !== 'id' && k !== 'senha')
+    if (outros.length || body.senha === undefined) {
+      return json({ error: 'Engenheiro só pode redefinir a senha' }, 403)
+    }
+    let pode = alvo.empresa_id === caller.empresa_id && alvo.role === 'apoio' && alvo.engenheiro_id === caller.id
+    if (!pode && alvo.empresa_id === caller.empresa_id && alvo.role === 'apontador') {
+      const { data: minhas } = await admin.from('obra_permissoes').select('obra_id').eq('user_id', caller.id)
+      const ids = (minhas ?? []).map((m: { obra_id: string }) => m.obra_id)
+      if (ids.length) {
+        const { count } = await admin
+          .from('obra_permissoes')
+          .select('obra_id', { count: 'exact', head: true })
+          .eq('user_id', id)
+          .in('obra_id', ids)
+        pode = (count ?? 0) > 0
+      }
+    }
+    if (!pode) return json({ error: 'Sem permissão sobre este usuário' }, 403)
+    const r = await trocarSenha()
+    return r ?? json({ ok: true }, 200)
+  }
 
   // ── escopo do Adm ────────────────────────────────────────────────────────
   if (caller.role === 'adm') {
@@ -140,6 +175,16 @@ Deno.serve(async (req) => {
     .single()
 
   if (updErr) return json({ error: 'Falha ao atualizar', detalhe: updErr.message }, 400)
+
+  // Desativar bloqueia o login (e a renovação da sessão) no Auth; reativar desbloqueia.
+  if (body.ativo !== undefined && !!body.ativo !== !!alvo.ativo) {
+    const { error: banErr } = await admin.auth.admin.updateUserById(id, {
+      ban_duration: body.ativo ? 'none' : '876000h'
+    })
+    if (banErr) return json({ error: 'Falha ao (des)bloquear no Auth', detalhe: banErr.message }, 400)
+  }
+  const erroSenha = await trocarSenha()
+  if (erroSenha) return erroSenha
 
   // Mantém o nome em sincronia no Auth (user_metadata) quando mudou.
   if (patch.nome) {
