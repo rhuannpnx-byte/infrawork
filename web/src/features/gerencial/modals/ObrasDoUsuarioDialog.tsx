@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -44,12 +44,25 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
     }
   })
   const lista = (obras.data ?? []).filter((o) => !usuario || o.empresa_id === usuario.empresa_id)
-  const ocupado = grant.isPending || revoke.isPending
+  // a caixa reflete o clique na hora; volta se o servidor recusar
+  const [desejado, setDesejado] = useState<Map<string, boolean>>(new Map())
+  const marcar = (obraId: string, v: boolean | null): void =>
+    setDesejado((m) => {
+      const n = new Map(m)
+      if (v === null) n.delete(obraId)
+      else n.set(obraId, v)
+      return n
+    })
 
   const alternar = (obraId: string, liberada: boolean): void => {
     if (!usuario) return
-    const fim = (): void => void qc.invalidateQueries({ queryKey: chave })
-    const erro = (e: Error): void => void toast.error(e.message)
+    marcar(obraId, !liberada)
+    const fim = (): void =>
+      void qc.invalidateQueries({ queryKey: chave }).then(() => marcar(obraId, null))
+    const erro = (e: Error): void => {
+      marcar(obraId, null)
+      toast.error(e.message)
+    }
     if (liberada)
       revoke.mutate({ obra_id: obraId, user_id: usuario.id }, { onSuccess: fim, onError: erro })
     else grant.mutate({ obra_id: obraId, user_id: usuario.id }, { onSuccess: fim, onError: erro })
@@ -72,7 +85,7 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
         ) : (
           <ul className="max-h-[50vh] divide-y divide-border overflow-y-auto rounded border border-border">
             {lista.map((o) => {
-              const liberada = perms.data?.has(o.id) ?? false
+              const liberada = desejado.get(o.id) ?? perms.data?.has(o.id) ?? false
               return (
                 <li key={o.id}>
                   <label className="flex h-9 cursor-pointer items-center gap-2.5 px-3 text-xs hover:bg-bg-hover">
@@ -80,7 +93,7 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
                       type="checkbox"
                       className="accent-[var(--accent)]"
                       checked={liberada}
-                      disabled={ocupado}
+                      disabled={desejado.has(o.id)}
                       onChange={() => alternar(o.id, liberada)}
                     />
                     <span className="w-20 shrink-0 font-mono text-text-muted">{o.codigo}</span>
