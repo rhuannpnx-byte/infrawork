@@ -33,9 +33,16 @@ export async function refreshCatalogo(obraId: string): Promise<boolean> {
   return true
 }
 
-/** Obras + catálogo da obra atual (e das demais, para o operador trocar de obra sem sinal). */
-export async function refreshAllCatalogs(): Promise<void> {
+let ultimoAt = 0
+
+/**
+ * Obras + catálogo da obra atual (e das demais, para o operador trocar de obra sem sinal).
+ * `seMaisAntigoQueMs`: o ciclo de envio (a cada 60 s) só renova se a última renovação passou desse prazo — o
+ * catálogo inteiro de cada obra custava dados móveis e bateria a cada minuto.
+ */
+export async function refreshAllCatalogs(opts?: { seMaisAntigoQueMs?: number }): Promise<void> {
   if (running) return running
+  if (opts?.seMaisAntigoQueMs && Date.now() - ultimoAt < opts.seMaisAntigoQueMs) return
   running = (async () => {
     await refreshObras()
     const atual = sessionStore.current()?.obraAtualId ?? null
@@ -50,6 +57,7 @@ export async function refreshAllCatalogs(): Promise<void> {
         console.warn('[catalogSync] catálogo da obra', id, 'falhou:', e)
       }
     }
+    ultimoAt = Date.now()
   })().finally(() => {
     running = null
   })

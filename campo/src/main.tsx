@@ -3,11 +3,15 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App } from './App'
+import { avisarNovaVersao } from '@/core/pwa/novaVersao'
 import './index.css'
 
 // Service Worker do PWA (app shell offline). Em dev fica desligado (vite.config).
 void import('virtual:pwa-register').then(({ registerSW }) => {
-  registerSW({ immediate: true })
+  const atualizar = registerSW({
+    immediate: true,
+    onNeedRefresh: () => avisarNovaVersao(atualizar),
+  })
 })
 
 // Cliente de queries global. staleTime conservador para catálogos (revalidação automática

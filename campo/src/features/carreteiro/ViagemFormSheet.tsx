@@ -24,7 +24,8 @@ interface Props {
   /** viagem em edição, ou o modelo da nova (serviço/origem/destino da anterior) */
   inicial: ViagemLocal
   nova: boolean
-  capacidade: number | null
+  /** capacidade do caminhão; a quantidade padrão usa a da unidade do serviço (m³ ou t) */
+  capacidade: { m3: number | null; t: number | null }
   onSave: (v: ViagemLocal) => void
   onDismiss: () => void
 }
@@ -36,15 +37,23 @@ interface Props {
  */
 export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, onDismiss }: Props) {
   const servicos = catalogo.servicos.filter((s) => s.modo_lancamento === 'viagens')
+  const capPara = (s: ServicoDto | undefined): number | null => {
+    const u = (s?.unidade ?? '').toLowerCase()
+    if (/^(t|ton)/.test(u)) return capacidade.t
+    if (/m³|m3/.test(u)) return capacidade.m3
+    return null
+  }
   const [servicoId, setServicoId] = useState(inicial.servicoId)
   const [origemId, setOrigemId] = useState(inicial.origemId)
   const [destinoId, setDestinoId] = useState(inicial.destinoId)
   const [estaca, setEstaca] = useState(inicial.estaca ?? '')
   const [horaCarga, setHoraCarga] = useState(inicial.horaCarga ?? '')
   const [horaDescarga, setHoraDescarga] = useState(inicial.horaDescarga ?? '')
-  const [qtd, setQtd] = useState(
-    inicial.quantidade > 0 ? String(inicial.quantidade) : capacidade ? String(capacidade) : '',
-  )
+  const [qtd, setQtd] = useState(() => {
+    if (inicial.quantidade > 0) return String(inicial.quantidade)
+    const c = capPara(servicos.find((s) => s.id === inicial.servicoId))
+    return c ? String(c) : ''
+  })
   const [matQtd, setMatQtd] = useState(
     inicial.materialQtd != null ? String(inicial.materialQtd) : '',
   )
@@ -204,6 +213,12 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           label={(s) => `${s.codigo} ${s.descricao}`}
           sublabel={(s) => s.unidade}
           onPick={(s) => {
+            // quantidade ainda no padrão do caminhão acompanha a unidade do novo serviço
+            const antes = capPara(servico)
+            if (qtd === '' || (antes != null && parseNum(qtd) === antes)) {
+              const c = capPara(s)
+              setQtd(c ? String(c) : '')
+            }
             setServicoId(s.id)
             setPicker(null)
           }}
@@ -219,8 +234,13 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           label={(l) => l.nome}
           sublabel={(l) => TIPO_LOCAL[l.tipo]}
           onPick={(l) => {
+            const o = picker === 'origem' ? l.id : origemId
+            const d = picker === 'destino' ? l.id : destinoId
             if (picker === 'origem') setOrigemId(l.id)
             else setDestinoId(l.id)
+            // DMT acompanha a rota da nova origem/destino (antes ficava o da viagem anterior)
+            const r = catalogo.rotas.find((x) => x.origem_id === o && x.destino_id === d)
+            setDmt(r ? String(r.dmt_km) : '')
             setEstaca('')
             setPicker(null)
           }}

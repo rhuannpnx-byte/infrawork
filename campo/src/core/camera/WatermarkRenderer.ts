@@ -17,6 +17,8 @@ import piexif, { type ExifIFD } from 'piexifjs'
 export interface WatermarkInput {
   blob: Blob
   data: string // ex: "23/05/2026 14:32"
+  /** momento da foto para o EXIF (galeria: o do arquivo); sem valor = agora */
+  quando?: Date
   servico?: string | null
   encarregado?: string | null
   equipe?: string | null
@@ -204,7 +206,7 @@ async function injectExif(blob: Blob, input: WatermarkInput): Promise<Blob> {
   zeroth[piexif.ImageIFD.Software] = 'InfraWork PWA'
 
   // DateTimeOriginal — formato EXIF "YYYY:MM:DD HH:MM:SS"
-  exif[piexif.ExifIFD.DateTimeOriginal] = toExifDateTime(new Date())
+  exif[piexif.ExifIFD.DateTimeOriginal] = toExifDateTime(input.quando ?? new Date())
 
   if (input.lat != null && input.lng != null) {
     gps[piexif.GPSIFD.GPSLatitudeRef] = input.lat >= 0 ? 'N' : 'S'

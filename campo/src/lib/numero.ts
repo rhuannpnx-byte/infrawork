@@ -6,8 +6,13 @@
  * PRIMEIRA vírgula como decimal; o resto vira separador de milhar.
  */
 export function formatNumberBR(raw: string): string {
-  // Substitui pontos por nada (assume que vieram como milhar) e tudo não
-  // dígito-ou-vírgula vira nada.
+  // Teclado sem vírgula: um ponto seguido de menos de 3 dígitos é decimal ("2.5" → 2,5); grupos de milhar
+  // sempre têm 3 dígitos ("1.234" continua mil duzentos e trinta e quatro).
+  if (!raw.includes(',')) {
+    const i = raw.lastIndexOf('.')
+    if (i !== -1 && raw.length - i - 1 < 3) raw = `${raw.slice(0, i)},${raw.slice(i + 1)}`
+  }
+  // Os demais pontos são milhar; tudo que não é dígito ou vírgula sai.
   let s = raw.replace(/\./g, '').replace(/[^\d,]/g, '')
   const firstComma = s.indexOf(',')
   if (firstComma !== -1) {

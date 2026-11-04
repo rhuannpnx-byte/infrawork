@@ -5,6 +5,7 @@ import { ApiError } from '@/core/api/fetchClient'
 import { sessionStore, useSession } from '@/core/auth/SessionStore'
 import { contarNaoEnviados } from '@/core/db/daos'
 import { deleteDatabase } from '@/core/db/dexie'
+import { CHAVE_RASCUNHO_PRODUCAO, useProducaoStore } from '@/features/producao/producaoStore'
 import { refreshAllCatalogs } from '@/core/sync/catalogSync'
 
 async function limparDadosLocais() {
@@ -19,6 +20,12 @@ async function limparDadosLocais() {
     await deleteDatabase()
   } catch (e) {
     console.warn('[auth] falha ao limpar o banco local:', e)
+  }
+  useProducaoStore.getState().reset()
+  try {
+    localStorage.removeItem(CHAVE_RASCUNHO_PRODUCAO)
+  } catch {
+    /* sem localStorage */
   }
 }
 

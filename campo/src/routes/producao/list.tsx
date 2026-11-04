@@ -144,7 +144,7 @@ export function ProducaoListRoute() {
         ) : sessoes.length === 0 && !rascunhoIsAtual ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-center">
-              <p className="font-medium text-on-surface">Nenhuma sessão hoje</p>
+              <p className="font-medium text-on-surface">Nenhuma sessão nos últimos 7 dias</p>
               <p className="mt-2 text-sm text-on-surface-dim">
                 Toque em "+ Nova sessão" para começar a apontar.
               </p>
@@ -193,7 +193,7 @@ function SessaoCard({
   const statusInfo: Record<SyncStatus, { label: string; cls: string }> = {
     PENDING: { label: 'pendente', cls: 'bg-warn/15 text-warn' },
     SYNCING: { label: 'enviando', cls: 'bg-info/15 text-info' },
-    SYNCED: { label: 'sincronizado', cls: 'bg-ok/15 text-ok' },
+    SYNCED: { label: 'enviada', cls: 'bg-ok/15 text-ok' },
     FAILED: { label: 'falhou', cls: 'bg-bad/15 text-bad' },
     REJEITADA: { label: 'recusada', cls: 'bg-bad/15 text-bad' },
   }

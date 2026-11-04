@@ -31,6 +31,15 @@ export function HomeRoute() {
   const sync = useSyncStatus()
   const [showPicker, setShowPicker] = useState(false)
   const [catalogError, setCatalogError] = useState<string | null>(null)
+  const [sincronizou, setSincronizou] = useState(false)
+  // espaço do aparelho: fotos pendentes ficam guardadas até subir
+  const [espaco, setEspaco] = useState<{ usado: number; total: number } | null>(null)
+  useEffect(() => {
+    void navigator.storage
+      ?.estimate?.()
+      .then((e) => e.quota && setEspaco({ usado: e.usage ?? 0, total: e.quota }))
+      .catch(() => undefined)
+  }, [outbox?.fotos])
 
   useEffect(() => {
     if (!authed) return
@@ -41,10 +50,18 @@ export function HomeRoute() {
     setCatalogError(null)
     try {
       await refreshAllCatalogs()
+      setSincronizou(true)
     } catch {
       setCatalogError('Sem conexão — usando os dados guardados no aparelho.')
     }
   }
+
+  // uma obra só liberada: já fica selecionada (o apontador não precisa escolher)
+  useEffect(() => {
+    if (!authed || session?.obraAtualId || obras?.length !== 1) return
+    sessionStore.patch({ obraAtualId: obras[0]!.id })
+    void refreshCatalogo(obras[0]!.id).catch(() => undefined)
+  }, [authed, session?.obraAtualId, obras])
 
   function selecionarObra(id: string) {
     sessionStore.patch({ obraAtualId: id })
@@ -62,7 +79,7 @@ export function HomeRoute() {
       <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-3 px-4 py-3">
           <img
-            src="/icon-source.png"
+            src="/icon-288.webp"
             alt="InfraWork"
             className="h-10 w-10 flex-shrink-0"
             decoding="async"
@@ -81,6 +98,12 @@ export function HomeRoute() {
           </div>
         </div>
         {catalogError && <div className="px-4 pb-2 text-xs text-warn">{catalogError}</div>}
+        {espaco && espaco.usado / espaco.total > 0.8 && (
+          <div className="px-4 pb-2 text-xs text-bad">
+            Pouco espaço no aparelho ({Math.round((100 * espaco.usado) / espaco.total)}% usado) — conecte à
+            internet para enviar as fotos pendentes.
+          </div>
+        )}
       </header>
 
       <div className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 pb-5 pt-5">
@@ -88,6 +111,7 @@ export function HomeRoute() {
           codigo={obraAtual?.codigo}
           nome={obraAtual?.nome}
           totalObras={obras?.length ?? 0}
+          sincronizou={sincronizou}
           onPick={() => setShowPicker(true)}
         />
 
@@ -177,7 +201,7 @@ export function HomeRoute() {
                 ? 'sincronizando…'
                 : 'sync pendente'}
           </span>
-          <span>InfraWork Campo v0.1.0</span>
+          <span>InfraWork Campo v{__APP_VERSION__}</span>
         </div>
       </footer>
 
@@ -205,11 +229,13 @@ function ObraAtualCard({
   codigo,
   nome,
   totalObras,
+  sincronizou,
   onPick,
 }: {
   codigo: string | undefined
   nome: string | undefined
   totalObras: number
+  sincronizou: boolean
   onPick: () => void
 }) {
   const temObra = codigo != null
@@ -243,7 +269,9 @@ function ObraAtualCard({
               ? nome
               : totalObras > 0
                 ? `${totalObras} obra(s) liberada(s)`
-                : 'Aguardando sincronização'}
+                : sincronizou
+                  ? 'Nenhuma obra liberada para você — peça ao engenheiro para liberar a obra.'
+                  : 'Aguardando sincronização'}
           </p>
         </div>
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-border-strong text-on-surface-dim transition-colors group-hover:border-accent/60 group-hover:text-accent">

@@ -19,8 +19,8 @@ export default defineConfig({
     react(),
     ...(https && !hasMkcert ? [basicSsl()] : []),
     VitePWA({
-      // autoUpdate: SW novo se auto-ativa (skipWaiting + clientsClaim no próprio SW).
-      registerType: 'autoUpdate',
+      // prompt: SW novo espera o operador tocar em "Atualizar" (NovaVersaoBanner)
+      registerType: 'prompt',
       strategies: 'injectManifest',
       srcDir: 'src/sw',
       filename: 'service-worker.ts',
@@ -38,6 +38,12 @@ export default defineConfig({
       manifest: false,
     }),
   ],
+  define: {
+    __APP_VERSION__: JSON.stringify(
+      `${JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version}` +
+        `+${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`,
+    ),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -54,7 +60,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
     target: 'es2022',
   },
 })

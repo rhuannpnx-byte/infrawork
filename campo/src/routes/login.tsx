@@ -48,7 +48,7 @@ export function LoginRoute() {
 
       {/* Hero — só o ícone glowing centralizado, sem wordmark embutido */}
       <header className="relative flex flex-col items-center px-6 pb-8 pt-12 pt-safe-plus-3">
-        <img src="/icon-source.png" alt="InfraWork" decoding="async" className="h-36 w-36" />
+        <img src="/icon-288.webp" alt="InfraWork" decoding="async" className="h-36 w-36" />
         <p className="mt-4 text-base font-medium tracking-wide text-on-surface">
           InfraWork
           <span className="text-on-surface-dim"> · Campo</span>

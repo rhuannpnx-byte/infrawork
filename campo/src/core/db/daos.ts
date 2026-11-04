@@ -85,6 +85,7 @@ export function useSessoesDaObra(obraId: string | null | undefined): SessaoProdu
         })
     }
     const out: SessaoProducao[] = []
+    const limite = new Date(Date.now() - 7 * 86_400_000).toLocaleDateString('sv-SE')
     for (const s of map.values()) {
       s.total = s.itens.length
       s.pendentes = s.itens.filter((i) => i.syncStatus !== 'SYNCED').length
@@ -102,7 +103,8 @@ export function useSessoesDaObra(obraId: string | null | undefined): SessaoProdu
             : s.itens.some((i) => i.syncStatus === 'PENDING')
               ? 'PENDING'
               : 'SYNCED'
-      if (s.pendentes > 0) out.push(s)
+      // pendentes sempre; enviadas dos últimos 7 dias também (o apontador reabre para corrigir um lançamento)
+      if (s.pendentes > 0 || s.dt >= limite) out.push(s)
     }
     return out.sort((a, b) =>
       a.dt !== b.dt

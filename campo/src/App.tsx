@@ -5,7 +5,6 @@ import { HomeRoute } from '@/routes/home'
 import { ProducaoListRoute } from '@/routes/producao/list'
 import { ProducaoSetupRoute } from '@/routes/producao/setup'
 import { ProducaoSessionRoute } from '@/routes/producao/session'
-import { ProducaoSuccessRoute } from '@/routes/producao/success'
 import { CarreteiroIndexRoute } from '@/routes/carreteiro/index'
 import { CarreteiroStep0Route } from '@/routes/carreteiro/step0'
 import { CarreteiroStep1Route } from '@/routes/carreteiro/step1'
@@ -15,9 +14,9 @@ import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { bootstrapAutoSave } from '@/features/carreteiro/draftCarreteiroRepo'
 import { FotosListRoute } from '@/routes/fotos/list'
 import { FotosCaptureRoute } from '@/routes/fotos/capture'
-import { InstallRoute } from '@/routes/install'
 import { useIsAuthenticated, useTokenValid } from '@/core/auth/SessionStore'
 import { ReauthBanner } from '@/features/auth/ReauthBanner'
+import { NovaVersaoBanner } from '@/features/common/NovaVersaoBanner'
 import { ligarRenovacaoDeToken } from '@/core/auth/authBridge'
 import { useForegroundSyncListeners } from '@/core/sync/foregroundSync'
 import { requestPersistentStorage } from '@/core/platform/persistStorage'
@@ -71,7 +70,7 @@ export function LoaderScreen({ label }: { label?: string } = {}) {
         {/* Wordmark com glow — peça única (icon + texto INFRAWORK).
             Largura responsiva, max-w pra não estourar em tablet. */}
         <img
-          src="/logo-wordmark-glow.png"
+          src="/logo-wordmark-glow-640.webp"
           alt="InfraWork"
           className="h-auto w-full max-w-[320px]"
           decoding="async"
@@ -118,6 +117,7 @@ export function App() {
 
   return (
     <>
+      <NovaVersaoBanner />
       <ReauthBanner />
       {authed && <ToastReconnected />}
       {authed && <IosInstallBanner />}
@@ -133,7 +133,6 @@ export function App() {
         <Route path="/producao" element={<ProducaoListRoute />} />
         <Route path="/producao/setup" element={<ProducaoSetupRoute />} />
         <Route path="/producao/session" element={<ProducaoSessionRoute />} />
-        <Route path="/producao/success" element={<ProducaoSuccessRoute />} />
         <Route path="/carreteiro" element={<CarreteiroIndexRoute />} />
         <Route path="/carreteiro/step0" element={<CarreteiroStep0Route />} />
         <Route path="/carreteiro/step1" element={<CarreteiroStep1Route />} />
@@ -141,7 +140,6 @@ export function App() {
         <Route path="/carreteiro/success" element={<CarreteiroSuccessRoute />} />
         <Route path="/fotos" element={<FotosListRoute />} />
         <Route path="/fotos/capture" element={<FotosCaptureRoute />} />
-        <Route path="/install" element={<InstallRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

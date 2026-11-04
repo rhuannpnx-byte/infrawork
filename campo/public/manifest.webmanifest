@@ -2,7 +2,7 @@
   "id": "/",
   "name": "InfraWork",
   "short_name": "InfraWork",
-  "description": "Apontamento de campo — Tecpav (SIGAOBRAS)",
+  "description": "Apontamento de campo do InfraWork Web: produção, viagens e fotos, mesmo sem sinal",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

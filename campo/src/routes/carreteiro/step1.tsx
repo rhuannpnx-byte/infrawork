@@ -28,7 +28,7 @@ export function CarreteiroStep1Route() {
   if (!ficha) return <Navigate to="/carreteiro" replace />
 
   const veiculo = catalogo?.veiculos.find((v) => v.id === ficha.veiculoId)
-  const capacidade = veiculo?.capacidade_m3 ?? null
+  const capacidade = { m3: veiculo?.capacidade_m3 ?? null, t: veiculo?.capacidade_t ?? null }
 
   function novaViagem() {
     const ult = ficha!.viagens[ficha!.viagens.length - 1]

@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { KeyRound } from 'lucide-react'
-import { useIsAuthenticated, useTokenValid } from '@/core/auth/SessionStore'
+import { useIsAuthenticated, useTokenRecusado } from '@/core/auth/SessionStore'
 
 /**
- * Faixa no topo quando o token venceu (JWT 12h) mas a sessão local continua.
+ * Faixa no topo quando o servidor recusou o token (401) mas a sessão local continua. Vencer pelo relógio estando
+ * offline não mostra a faixa: o Supabase renova o token sozinho quando a rede volta.
  *
  * O app é offline-first: token vencido NÃO derruba o operador para o login —
  * no campo, sem sinal, ele não conseguiria entrar de novo e perderia o acesso
@@ -12,11 +13,11 @@ import { useIsAuthenticated, useTokenValid } from '@/core/auth/SessionStore'
  */
 export function ReauthBanner() {
   const authed = useIsAuthenticated()
-  const tokenValid = useTokenValid()
+  const recusado = useTokenRecusado()
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  if (!authed || tokenValid || pathname === '/login') return null
+  if (!authed || !recusado || pathname === '/login') return null
 
   return (
     <div className="sticky top-0 z-40 border-b border-warn/40 bg-bg-elevated">

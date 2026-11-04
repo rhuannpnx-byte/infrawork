@@ -84,7 +84,10 @@ async function doSync(reason: string): Promise<void> {
     (prod?.rejected ?? 0) + (fichas.status === 'fulfilled' ? fichas.value.rejected : 0)
   if (recusados > 0)
     dispatchToast('bad', `${recusados} lançamento(s) recusado(s) — veja o motivo e corrija`)
-  refreshAllCatalogs().catch((e) => console.warn('[fgSync] catálogos falharam:', e))
+  const forcar = reason === 'mount' || reason === 'online' || reason.startsWith('manual')
+  refreshAllCatalogs({ seMaisAntigoQueMs: forcar ? 0 : 10 * 60_000 }).catch((e) =>
+    console.warn('[fgSync] catálogos falharam:', e),
+  )
 }
 
 function dispatchToast(kind: 'ok' | 'warn' | 'bad' | 'info', message: string) {

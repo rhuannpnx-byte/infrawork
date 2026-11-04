@@ -17,6 +17,6 @@ export default defineConfig({
   preset: minimalPreset,
   // Source InfraWork: PNG 1024×1024 com o monograma IW azul (viga I-beam com glow).
   // Antes era o favicon.svg do "M amarelo" — substituído na rebrand.
-  images: ['public/icon-source.png'],
+  images: ['assets/icon.png'],
   headLinkOptions: { preset: '2023' },
 })

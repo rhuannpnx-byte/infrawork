@@ -21,6 +21,8 @@ export interface SaveFotoInput {
   lat: number | null
   lng: number | null
   accuracy: number | null
+  /** quando a foto foi tirada (ISO); sem valor = agora */
+  capturedAt?: string
   fileBlob: Blob
   width: number | null
   height: number | null
@@ -52,7 +54,7 @@ export async function saveFoto(
     lat: input.lat,
     lng: input.lng,
     accuracy: input.accuracy,
-    capturedAt: new Date().toISOString(),
+    capturedAt: input.capturedAt ?? new Date().toISOString(),
     fileBlob: handle.kind === 'blob' ? handle.blob : null,
     mime: input.fileBlob.type || 'image/jpeg',
     sizeBytes: input.fileBlob.size,

@@ -1,3 +1,4 @@
+import { db } from '@/core/db/dexie'
 import { Navigate, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -23,7 +24,7 @@ import { cn } from '@/lib/cn'
  *
  *   - REMOVIDO: visualização de foto (thumbs + detalhe fullscreen). User
  *     pediu pra app focar SÓ no que falta enviar — fotos sincronizadas
- *     ficam no SIGA web e (no APK) também na galeria do telefone.
+ *     ficam no InfraWork Web (Acompanhamento › Fotos).
  *   - Cards verticais com status, metadados e ação retry/excluir.
  *   - Contador secundário "X já enviadas" pra dar feedback de progresso.
  *   - FAB central "Tirar foto" + botão "Sincronizar agora" no header.
@@ -95,7 +96,7 @@ export function FotosListRoute() {
               <p className="mt-6 inline-flex w-full items-center justify-center gap-1 text-center text-xs text-on-surface-dim">
                 <CheckCircle2 className="h-3 w-3 text-ok" />
                 {syncedCount} foto{syncedCount > 1 ? 's' : ''} já enviada
-                {syncedCount > 1 ? 's' : ''} no SIGA
+                {syncedCount > 1 ? 's' : ''} no InfraWork Web
               </p>
             )}
           </>
@@ -124,7 +125,7 @@ function EmptyState({ syncedCount }: { syncedCount: number }) {
         <p className="mt-4 font-medium text-on-surface">Tudo sincronizado</p>
         <p className="mt-2 text-sm text-on-surface-dim">
           {syncedCount > 0
-            ? `${syncedCount} foto${syncedCount > 1 ? 's' : ''} no SIGA. Toque na câmera pra registrar a próxima.`
+            ? `${syncedCount} foto${syncedCount > 1 ? 's' : ''} já no InfraWork Web. Toque na câmera pra registrar a próxima.`
             : 'Toque na câmera para registrar a primeira foto da obra.'}
         </p>
       </div>
@@ -171,7 +172,20 @@ function PendingFotoCard({ foto }: { foto: OutFoto }) {
           </p>
         )}
         {foto.syncStatus === 'FAILED' && foto.failureReason && (
-          <p className="mt-1 truncate text-[10px] text-bad">Erro: {foto.failureReason}</p>
+          <div className="mt-1.5 flex items-start gap-2">
+            <p className="min-w-0 flex-1 text-xs text-bad">Erro: {foto.failureReason}</p>
+            <button
+              type="button"
+              onClick={() =>
+                void db.out_foto
+                  .update(foto.id, { syncStatus: 'PENDING', lastSyncAttempt: 0 })
+                  .then(() => triggerForegroundSync('retry-foto', { ignoreCooldown: true }))
+              }
+              className="flex-shrink-0 rounded-md bg-surface-2 px-2 py-1 text-xs font-semibold text-accent"
+            >
+              Tentar agora
+            </button>
+          </div>
         )}
       </div>
       {foto.syncStatus !== 'SYNCING' && (

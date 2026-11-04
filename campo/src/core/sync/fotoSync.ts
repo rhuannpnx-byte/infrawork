@@ -13,6 +13,10 @@ import { handleFromFoto } from '@/core/storage/handleFromFoto'
  * Mais antigas primeiro; com rede boa a fila drena em ciclos seguidos.
  */
 const MAX_PER_RUN = 8
+/** espera antes de tentar de novo uma foto recusada: 1, 2, 4… min, até 6 h */
+export function esperaFalhaMs(tentativas: number): number {
+  return Math.min(60_000 * 2 ** Math.max(0, tentativas - 1), 6 * 3_600_000)
+}
 let runningPromise: Promise<PushSummary> | null = null
 
 export interface PushSummary {
@@ -39,6 +43,13 @@ export async function pushFotoOutbox(): Promise<PushSummary> {
 async function doPush(): Promise<PushSummary> {
   const summary: PushSummary = { attempted: 0, accepted: 0, failed: 0, errors: [] }
   await db.out_foto.where('syncStatus').equals('SYNCING').modify({ syncStatus: 'PENDING' })
+  // foto já registrada no servidor não precisa ocupar o aparelho
+  await db.out_foto
+    .where('syncStatus')
+    .equals('SYNCED')
+    .filter((f) => f.fileBlob != null)
+    .modify({ fileBlob: null })
+  const agora = Date.now()
   // a foto de um lançamento só sobe depois do lançamento (o registro liga pelo app_uuid)
   const prodPendentes = new Set(
     (await db.out_producao.where('syncStatus').noneOf(['SYNCED']).primaryKeys()) as string[],
@@ -47,6 +58,12 @@ async function doPush(): Promise<PushSummary> {
     await db.out_foto.where('syncStatus').anyOf('PENDING', 'FAILED').sortBy('capturedAt')
   )
     .filter((f) => !f.producaoId || !prodPendentes.has(f.producaoId))
+    // recusada: espera crescente entre as tentativas (antes reenviava a cada ciclo de 60 s)
+    .filter(
+      (f) =>
+        f.syncStatus !== 'FAILED' ||
+        agora - (f.lastSyncAttempt ?? 0) >= esperaFalhaMs(f.retryCount ?? 1),
+    )
     .slice(0, MAX_PER_RUN)
   if (pending.length === 0) return summary
   summary.attempted = pending.length
@@ -62,6 +79,7 @@ async function doPush(): Promise<PushSummary> {
         syncStatus: 'SYNCED',
         failureReason: null,
         lastSyncAttempt: Date.now(),
+        fileBlob: null,
       })
       summary.accepted += 1
     } catch (err) {

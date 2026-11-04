@@ -9,10 +9,8 @@ import { CacheFirst } from 'workbox-strategies'
 
 declare const self: ServiceWorkerGlobalScope
 
-// autoUpdate reforçado no próprio SW: assim que instalado, pula waiting e assume
-// o controle de todas as abas abertas. Sem isso, abas antigas continuariam servidas
-// pelo SW velho até o usuário fechar todas — o que é exatamente o bug original.
-self.skipWaiting()
+// Versão nova espera o operador tocar em "Atualizar" (mensagem SKIP_WAITING, abaixo) — antes pulava a espera
+// sozinha e o app recarregava no meio de um lançamento. Ao ativar, assume as abas abertas.
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })

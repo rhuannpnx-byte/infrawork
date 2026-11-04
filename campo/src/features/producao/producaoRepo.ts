@@ -8,7 +8,8 @@ import { triggerForegroundSync } from '@/core/sync/foregroundSync'
 
 /**
  * Grava os apontamentos da sessão no outbox (upsert pelo id — reabrir e finalizar de novo atualiza, não duplica)
- * e tenta enviar na hora.
+ * e tenta enviar na hora. Um apontamento já enviado e não alterado nesta sessão fica como está: reenviá-lo
+ * sobrescreveria a correção feita no web (ou recriaria o que o engenheiro excluiu).
  */
 export async function saveProducaoSession(
   session: ProducaoSessionState,
@@ -18,8 +19,17 @@ export async function saveProducaoSession(
   const user = sessionStore.current()
   if (!user) throw new Error('Sem sessão de usuário')
   const capturedAt = new Date().toISOString()
-  const entities = session.itens.map((d) => paraEntidade(d, session, user.userNome, capturedAt))
-  await db.out_producao.bulkPut(entities)
+  const novas = session.itens.map((d) => paraEntidade(d, session, user.userNome, capturedAt))
+  const atuais = await db.out_producao.bulkGet(novas.map((e) => e.id))
+  const entities = novas
+    .map((e, i) => {
+      const a = atuais[i]
+      if (!a) return e
+      if (a.syncStatus === 'SYNCED' && !mudou(a, e)) return null
+      return { ...e, capturedAt: a.capturedAt }
+    })
+    .filter((e): e is OutProducao => e !== null)
+  if (entities.length) await db.out_producao.bulkPut(entities)
   let pushResult: PushSummary | null = null
   try {
     pushResult = await pushProducaoOutbox()
@@ -59,7 +69,29 @@ export async function loadSessionItensAsDrafts(args: {
     posicaoFimM: r.posicaoFimM,
     materialQtd: r.materialQtd,
     obs: r.obs,
+    syncStatus: r.syncStatus,
+    failureReason: r.failureReason ?? null,
   }))
+}
+
+/** O que muda o lançamento no servidor. */
+function mudou(a: OutProducao, b: OutProducao): boolean {
+  const k = (o: OutProducao): string =>
+    JSON.stringify([
+      o.dt,
+      o.servicoId,
+      o.quantidade,
+      o.equipeId,
+      o.encarregadoId,
+      o.localId,
+      o.estacaInicial,
+      o.estacaFinal,
+      o.posicaoInicioM,
+      o.posicaoFimM,
+      o.materialQtd,
+      o.obs,
+    ])
+  return k(a) !== k(b)
 }
 
 /** Exclui um apontamento: se ainda não foi enviado sai da fila; se já foi, vai como exclusão no próximo envio. */

@@ -197,7 +197,7 @@ export function ProducaoSessionRoute() {
           locais={locais}
           initial={editingDraft}
           onSave={(draft) => {
-            store.addOrUpdateItem(draft)
+            store.addOrUpdateItem({ ...draft, syncStatus: undefined, failureReason: null })
             setEditingServico(null)
             setEditingDraft(null)
           }}
@@ -235,7 +235,10 @@ function ApontamentoCard({
   return (
     <div className="card-surface flex items-stretch overflow-hidden">
       <button type="button" onClick={onClick} className="min-w-0 flex-1 p-4 text-left">
-        <p className="truncate font-medium text-on-surface">{item.servico.descricao}</p>
+        <div className="flex items-start gap-2">
+          <p className="min-w-0 flex-1 truncate font-medium text-on-surface">{item.servico.descricao}</p>
+          <Situacao item={item} />
+        </div>
         <div className="mt-1 flex flex-wrap items-baseline gap-3">
           {item.qtd != null && (
             <span className="text-lg font-bold text-accent">
@@ -246,6 +249,11 @@ function ApontamentoCard({
             <span className="text-xs text-on-surface-dim">{tags.join('  ·  ')}</span>
           )}
         </div>
+        {item.syncStatus === 'REJEITADA' && item.failureReason ? (
+          <p className="mt-2 rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">
+            {item.failureReason} — toque para corrigir.
+          </p>
+        ) : null}
       </button>
       <button
         type="button"
@@ -256,5 +264,21 @@ function ApontamentoCard({
         <X className="h-5 w-5" />
       </button>
     </div>
+  )
+}
+
+function Situacao({ item }: { item: ApontamentoDraft }) {
+  const st = item.syncStatus
+  if (!st) return null
+  const [txt, cls] =
+    st === 'SYNCED'
+      ? ['enviado', 'bg-ok/15 text-ok']
+      : st === 'REJEITADA'
+        ? ['recusado', 'bg-bad/15 text-bad']
+        : ['na fila', 'bg-warn/15 text-warn']
+  return (
+    <span className={cn('flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold', cls)}>
+      {txt}
+    </span>
   )
 }

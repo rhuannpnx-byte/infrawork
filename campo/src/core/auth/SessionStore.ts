@@ -188,3 +188,12 @@ export function useTokenValid(): boolean {
   }, [])
   return s != null && s.expiresAtEpochMs > Date.now()
 }
+
+/**
+ * O servidor recusou o token (401) — só então é preciso entrar de novo. O token do Supabase dura 1 h e é renovado
+ * sozinho quando há rede; vencer pelo relógio estando offline não exige login (a renovação acontece ao voltar a rede).
+ */
+export function useTokenRecusado(): boolean {
+  const s = useSession()
+  return s != null && s.expiresAtEpochMs === 0
+}

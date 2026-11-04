@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { lerOrigemArquivo, type OrigemArquivo } from '@/lib/exifArquivo'
 import { Navigate, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -57,6 +58,10 @@ export function FotosCaptureRoute() {
   const [rawBlob, setRawBlob] = useState<Blob | null>(null)
   const [position, setPosition] = useState<FixedPosition | null>(null)
   const [geo, setGeo] = useState<GeoResult>({ status: 'pending' })
+  // foto da galeria: data/GPS do próprio arquivo (não a hora e o lugar de agora)
+  const [origem, setOrigem] = useState<OrigemArquivo | null>(null)
+  // sem fix bom em 20 s (ou GPS negado/indisponível) a foto pode sair sem coordenadas
+  const [semGps, setSemGps] = useState(false)
 
   // -------------------------------------------------------------------------
   //  Provider: native (Capacitor Camera plugin com correctOrientation=true)
@@ -72,6 +77,7 @@ export function FotosCaptureRoute() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [stream, setStream] = useState<CameraStream | null>(null)
+  const streamRef = useRef<CameraStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [shooting, setShooting] = useState(false)
 
@@ -114,6 +120,7 @@ export function FotosCaptureRoute() {
           s.stop()
           return
         }
+        streamRef.current = s
         setStream(s)
         if (videoRef.current) videoRef.current.srcObject = s.stream
       })
@@ -125,8 +132,22 @@ export function FotosCaptureRoute() {
     return () => {
       cancelled = true
       void releaseWakeLock(wakeLock)
+      // sair da tela (ou do modo câmera) desliga a câmera — antes ela ficava ligada em segundo plano
+      streamRef.current?.stop()
+      streamRef.current = null
     }
   }, [authed, mode, isNativeCamera])
+
+  useEffect(() => {
+    if (mode !== 'live') return
+    if (geo.status === 'denied' || geo.status === 'unavailable') {
+      setSemGps(true)
+      return
+    }
+    const t = setTimeout(() => setSemGps(true), 20_000)
+    return () => clearTimeout(t)
+  }, [mode, geo.status])
+  const podeFotografar = isUsablePosition(position) || semGps
 
   // Limpa stream quando sai do mode 'live'
   useEffect(() => {
@@ -182,16 +203,20 @@ export function FotosCaptureRoute() {
     }
   }
 
-  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
+    const o = await lerOrigemArquivo(file)
     stream?.stop()
     setStream(null)
+    setOrigem(o)
     setRawBlob(file)
     setMode('form')
   }
 
   function handleRetake() {
+    setOrigem(null)
     setRawBlob(null)
     setMode('live')
   }
@@ -226,7 +251,7 @@ export function FotosCaptureRoute() {
             </p>
           </div>
           {cameraError && <p className="text-sm text-bad">{cameraError}</p>}
-          <GpsGateMessage geo={geo} position={position} />
+          <GpsGateMessage geo={geo} position={position} semGps={semGps} />
         </div>
 
         <div className="border-t border-border px-4 py-3 pl-safe pr-safe pb-safe-plus-3">
@@ -288,12 +313,11 @@ export function FotosCaptureRoute() {
         <div className="flex flex-col items-center gap-2 bg-black/90 px-6 py-3 pl-safe pr-safe pb-safe-plus-3">
           {/* GATE: shutter só libera com GPS abaixo de N metros de precisão.
               Operador vê motivo claro pra espera + accuracy em tempo real. */}
-          <GpsGateMessage geo={geo} position={position} />
+          <GpsGateMessage geo={geo} position={position} semGps={semGps} />
           <div className="flex w-full items-center justify-center gap-8">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={!isUsablePosition(position)}
               className="rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Enviar foto da galeria"
             >
@@ -303,9 +327,9 @@ export function FotosCaptureRoute() {
             <button
               type="button"
               onClick={handleCapture}
-              disabled={!stream || shooting || !isUsablePosition(position)}
+              disabled={!stream || shooting || !podeFotografar}
               className="relative h-16 w-16 rounded-full border-4 border-white disabled:cursor-not-allowed disabled:opacity-30"
-              aria-label={isUsablePosition(position) ? 'Tirar foto' : 'Aguarde GPS'}
+              aria-label={podeFotografar ? 'Tirar foto' : 'Aguarde GPS'}
             >
               <span className="absolute inset-2 rounded-full bg-white" />
             </button>
@@ -318,8 +342,7 @@ export function FotosCaptureRoute() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
-          onChange={handleFileInput}
+          onChange={(e) => void handleFileInput(e)}
           className="hidden"
         />
       </main>
@@ -331,7 +354,16 @@ export function FotosCaptureRoute() {
   return (
     <FormMode
       rawBlob={rawBlob!}
-      position={position}
+      position={
+        origem
+          ? origem.lat != null && origem.lng != null
+            ? { lat: origem.lat, lng: origem.lng, accuracy: 0, capturedAt: origem.data.getTime() }
+            : null
+          : semGps && !isUsablePosition(position)
+            ? null
+            : position
+      }
+      dataFoto={origem?.data ?? null}
       obraId={session!.obraAtualId!}
       obraCodigo={obra?.codigo ?? '—'}
       onRetake={handleRetake}
@@ -348,13 +380,24 @@ export function FotosCaptureRoute() {
 interface FormModeProps {
   rawBlob: Blob
   position: FixedPosition | null
+  /** data em que a foto foi tirada (galeria); sem valor = agora */
+  dataFoto: Date | null
   obraId: string
   obraCodigo: string
   onRetake: () => void
   onSaved: () => void
 }
 
-function FormMode({ rawBlob, position, obraId, obraCodigo, onRetake, onSaved }: FormModeProps) {
+function FormMode({
+  rawBlob,
+  position,
+  dataFoto,
+  obraId,
+  obraCodigo,
+  onRetake,
+  onSaved,
+}: FormModeProps) {
+  const [quando] = useState(() => dataFoto ?? new Date())
   const catalogo = useCatalogo(obraId)
   const servicos = catalogo?.servicos ?? []
   const encarregados = catalogo?.encarregados ?? []
@@ -391,7 +434,8 @@ function FormMode({ rawBlob, position, obraId, obraCodigo, onRetake, onSaved }: 
         const { applyWatermark } = await import('@/core/camera/WatermarkRenderer')
         const stamped = await applyWatermark({
           blob: rawBlob,
-          data: formatBR(new Date()),
+          data: formatBR(quando),
+          quando,
           servico: servicoNome,
           encarregado: encarregadoNome,
           equipe: equipeNome,
@@ -417,7 +461,7 @@ function FormMode({ rawBlob, position, obraId, obraCodigo, onRetake, onSaved }: 
     }, 300)
 
     return () => clearTimeout(handle)
-  }, [rawBlob, servicoNome, encarregadoNome, equipeNome, position])
+  }, [rawBlob, servicoNome, encarregadoNome, equipeNome, position, quando])
 
   // Cleanup do URL ao desmontar
   useEffect(() => {
@@ -446,7 +490,8 @@ function FormMode({ rawBlob, position, obraId, obraCodigo, onRetake, onSaved }: 
         equipeNome,
         lat: position?.lat ?? null,
         lng: position?.lng ?? null,
-        accuracy: position?.accuracy ?? null,
+        accuracy: position?.accuracy || null,
+        capturedAt: quando.toISOString(),
         fileBlob: stampedBlob,
         width: dims.width,
         height: dims.height,
@@ -672,8 +717,25 @@ function GeoBadge({ geo }: { geo: GeoResult }) {
  *  - 50-150m → libera + aviso "precisão reduzida ±Xm"
  *  - ≤ 50m → some (operador pronto)
  */
-function GpsGateMessage({ geo, position }: { geo: GeoResult; position: FixedPosition | null }) {
+function GpsGateMessage({
+  geo,
+  position,
+  semGps,
+}: {
+  geo: GeoResult
+  position: FixedPosition | null
+  semGps: boolean
+}) {
   if (isAccurateEnough(position)) return null
+  if (semGps && !isUsablePosition(position)) {
+    return (
+      <p className="max-w-xs text-center text-xs text-warn">
+        {geo.status === 'denied'
+          ? 'GPS negado — a foto sai sem coordenadas (habilite a localização nas permissões).'
+          : 'Sem sinal de GPS — a foto sai sem coordenadas.'}
+      </p>
+    )
+  }
 
   // Tem fix utilizável (50-150m): aviso amarelo + libera shutter.
   if (isUsablePosition(position)) {
