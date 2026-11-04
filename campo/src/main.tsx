@@ -11,6 +11,24 @@ void import('virtual:pwa-register').then(({ registerSW }) => {
   const atualizar = registerSW({
     immediate: true,
     onNeedRefresh: () => avisarNovaVersao(atualizar),
+    // O navegador só procura SW novo ao navegar; o PWA instalado fica aberto por dias. Procura a cada hora e ao
+    // voltar para o app (no máximo a cada 10 min) — a faixa "Nova versão disponível" aparece sem reinstalar.
+    onRegisteredSW: (_url, reg) => {
+      if (!reg) return
+      let ultima = Date.now()
+      const procurar = () => {
+        if (!navigator.onLine || Date.now() - ultima < 10 * 60_000) return
+        ultima = Date.now()
+        void reg.update().catch(() => undefined)
+      }
+      setInterval(() => {
+        ultima = 0
+        procurar()
+      }, 60 * 60_000)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') procurar()
+      })
+    },
   })
 })
 
