@@ -1,0 +1,207 @@
+/**
+ * Casco das páginas do cronograma (Gantt, tempo-caminho, recursos): o plano escolhido da obra, o estado do cálculo
+ * do motor e o rodapé com início, término, prazo e avisos. Sem plano, o convite para criar um.
+ */
+import { useMemo, useState, type ReactNode } from 'react'
+import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { EmptyState } from '@/components/layout/EmptyState'
+import { PulseBlock } from '@/components/ui/PulseBlock'
+import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
+import { useAuthStore } from '@/stores/auth-store'
+import { cn } from '@/lib/utils'
+import { usePlanejamentoAtivo, usePlanejamentos } from '@/features/planejamento/hooks/planejamentos'
+import { NewPlanejamentoDialog } from '@/features/planejamento/modals/NewPlanejamentoDialog'
+import { useCalculoCronograma, type CalculoCronograma } from '../hooks/calculo'
+import { useCronogramaUi } from '../store'
+import { fmtDataLonga } from '../visoes/formato'
+import { isoParaSeg } from '../motor/tempo'
+
+export interface ContextoPlano {
+  obraId: string
+  calc: CalculoCronograma
+  somenteLeitura: boolean
+  baseline: boolean
+}
+
+interface Props {
+  obraId: string
+  obraNome: string
+  titulo: string
+  corpo: (c: ContextoPlano) => ReactNode
+}
+
+export function PaginaPlano({ obraId, obraNome, titulo, corpo }: Props): ReactNode {
+  const role = useAuthStore((s) => s.profile?.role ?? null)
+  const planoPorObra = useCronogramaUi((s) => s.planoPorObra)
+  const escolherPlano = useCronogramaUi((s) => s.escolherPlano)
+  const { data: planos = [], isLoading: carregandoPlanos } = usePlanejamentos(obraId)
+  const { data: ativo } = usePlanejamentoAtivo(obraId)
+  const escolhido = planoPorObra[obraId]
+  const planoId =
+    (escolhido && planos.some((p) => p.id === escolhido) ? escolhido : null) ??
+    ativo?.id ??
+    planos[0]?.id ??
+    null
+  const plano = planos.find((p) => p.id === planoId) ?? null
+  const calc = useCalculoCronograma(planoId)
+  const somenteLeitura = !plano || plano.is_baseline || role === 'apoio' || role === 'cliente'
+  const [novoPlano, setNovoPlano] = useState(false)
+
+  if (carregandoPlanos) return <PulseBlock h={480} className="m-4" />
+  if (!plano) {
+    return (
+      <div className="flex h-full flex-col">
+        <PageHeader title={titulo} subtitle={obraNome} />
+        <div className="flex flex-1 items-center justify-center">
+          <EmptyState
+            icon="calendar"
+            title="Nenhum plano nesta obra"
+            description="Crie um plano para programar as tarefas a partir dos serviços do orçamento."
+            action={
+              role === 'apoio' || role === 'cliente' ? undefined : (
+                <Button onClick={() => setNovoPlano(true)}>Criar plano</Button>
+              )
+            }
+          />
+        </div>
+        <NewPlanejamentoDialog
+          open={novoPlano}
+          onOpenChange={setNovoPlano}
+          obraId={obraId}
+          onCreated={(id) => escolherPlano(obraId, id)}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        title={titulo}
+        subtitle={obraNome}
+        actions={
+          <div className="flex items-center gap-2">
+            <EstadoCalculo calc={calc} />
+            <Select
+              value={plano.id}
+              onChange={(e) => escolherPlano(obraId, e.target.value)}
+              className="w-64"
+              aria-label="Plano"
+            >
+              {planos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                  {p.is_baseline
+                    ? p.vigente
+                      ? ' — linha de base vigente'
+                      : ' — linha de base'
+                    : ' — em edição'}
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
+      />
+      {calc.entrada ? (
+        <>
+          <div key={plano.id} className="flex min-h-0 flex-1 flex-col">
+            {corpo({ obraId, calc, somenteLeitura, baseline: plano.is_baseline })}
+          </div>
+          <RodapePlano calc={calc} />
+        </>
+      ) : calc.erro ? (
+        <div className="m-4 rounded border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
+          {calc.erro.message}
+        </div>
+      ) : (
+        <PulseBlock h={480} className="m-4" />
+      )}
+    </div>
+  )
+}
+
+export function EstadoCalculo({ calc }: { calc: CalculoCronograma }): ReactNode {
+  if (calc.erro)
+    return (
+      <span
+        className="flex items-center gap-1.5 rounded border border-danger/40 bg-danger/10 px-2 py-1 text-2xs text-danger"
+        title={calc.erro.message}
+      >
+        <AlertTriangle size={12} /> Erro no cálculo
+      </span>
+    )
+  if (calc.carregando || calc.calculando || calc.gravando || calc.previa)
+    return (
+      <span className="flex items-center gap-1.5 px-2 py-1 text-2xs text-text-muted">
+        <Loader2 size={12} className="animate-spin" />
+        {calc.gravando ? 'Gravando…' : calc.carregando ? 'Carregando…' : 'Calculando…'}
+      </span>
+    )
+  return (
+    <span
+      className="flex items-center gap-1.5 px-2 py-1 text-2xs text-text-dim"
+      title={calc.duracaoMs !== null ? `Cálculo em ${Math.round(calc.duracaoMs)} ms` : undefined}
+    >
+      <CheckCircle2 size={12} className={calc.gravado ? 'text-success' : 'text-warn'} />
+      {calc.gravado ? 'Cronograma em dia' : 'Aguardando gravação'}
+    </span>
+  )
+}
+
+function RodapePlano({ calc }: { calc: CalculoCronograma }): ReactNode {
+  const e = calc.entrada!
+  const r = calc.resultado
+  const nViol = useMemo(
+    () => [...(r?.tarefas.values() ?? [])].reduce((s, t) => s + (t.violacoes.length ? 1 : 0), 0),
+    [r]
+  )
+  const fora = useMemo(
+    () =>
+      e.tarefas.filter((t) => t.tipo_no === 'tarefa' && !t.is_indireto && !r?.tarefas.has(t.id))
+        .length,
+    [e, r]
+  )
+  const semProducao = useMemo(
+    () => [...(r?.tarefas.values() ?? [])].filter((t) => t.sem_producao).length,
+    [r]
+  )
+  const prazo = e.plano.prazo ? isoParaSeg(e.plano.prazo) : null
+  return (
+    <div className="flex shrink-0 items-center gap-4 border-t border-border bg-bg-panel px-3 py-1 text-2xs text-text-dim">
+      <span>
+        Início <span className="text-text-muted">{fmtDataLonga(isoParaSeg(e.plano.inicio))}</span>
+      </span>
+      <span>
+        Término{' '}
+        <span className="text-text-muted">{r?.fimProjeto ? fmtDataLonga(r.fimProjeto) : '—'}</span>
+      </span>
+      <span>
+        Prazo{' '}
+        <span
+          className={cn(
+            'text-text-muted',
+            prazo !== null && r?.fimProjeto && r.fimProjeto > prazo + 86400 && 'text-danger'
+          )}
+        >
+          {prazo !== null ? fmtDataLonga(prazo) : 'sem prazo'}
+        </span>
+      </span>
+      <span>{r?.tarefas.size ?? 0} tarefas no cálculo</span>
+      {nViol ? <span className="text-danger">⚑ {nViol} com violação</span> : null}
+      {semProducao ? <span className="text-warn">{semProducao} sem produção</span> : null}
+      {fora ? (
+        <span
+          className="text-warn"
+          title="Tarefas sem serviço com composição ficam fora do cálculo"
+        >
+          {fora} fora do cálculo
+        </span>
+      ) : null}
+      <span className="ml-auto">
+        {e.plano.modo === 'controle' ? 'Modo controle' : 'Modo programação'}
+      </span>
+    </div>
+  )
+}

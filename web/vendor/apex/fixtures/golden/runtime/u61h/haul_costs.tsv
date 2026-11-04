@@ -1,0 +1,105 @@
+# U-61h: Haul costs by source/destination do DynaRoad 5.5.2 em DEMO (D-029), modo Schedule, transcrito das capturas da
+# janela (analises/2026-10-11_dynaroad/evidencias/dinamico_2026-10-15/u61h/{es,ei,fr_es}/*_schedule_haulcosts_*.png), região pt-BR.
+# lado = src|dst; bloco = sum task; campos: total (com a unidade), hauled, unhauled, haul, unit, wdist;
+# band:<faixa> / pile:<faixa> = custo unitário|tamanho|custo total ("Hauls" / "Hauls from|to stockpiles").
+arquivo	lado	bloco	tipo	campo	valor
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	total	22.080 t
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	hauled	22.080
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	unhauled	0
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	haul	6.844,80
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	unit	0,31
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	wdist	275
+en/example_simple_road_project.dr5	src	Simple demo of basic features	Base Agg.	band:0 - 501	0,31|22.080|6.844,80
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	total	22.450 bcm
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	hauled	22.450
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	unhauled	0
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	haul	21.924,44
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	unit	0,98
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	wdist	406
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	band:0 - 250	0,77|8.178|6.296,89
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	band:250 - 500	1,01|9.000|9.090,00
+en/example_simple_road_project.dr5	src	Simple demo of basic features	RockCut	band:500 - 1.000	1,24|5.272|6.537,56
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	total	52.550 bcm
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	haul	33.748,00
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	unit	0,64
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	wdist	655
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	band:250 - 500	0,54|13.100|7.074,00
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	band:500 - 1.000	0,66|34.900|23.034,00
+en/example_simple_road_project.dr5	src	Simple demo of basic features	LandCut	band:1.000 - 2.000	0,80|4.550|3.640,00
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Base	total	9.200 ccm
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Base	haul	6.844,80
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Base	unit	0,74
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Base	wdist	275
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Crushing	total	22.080 t
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Crushing	hauled	22.080
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Crushing	unhauled	0
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Crushing	haul	6.296,89
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Crushing	unit	0,29
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Crushing	wdist	55
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Fill	total	58.000 ccm
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Fill	haul	37.188,31
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Fill	unit	0,64
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Fill	wdist	638
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Fill	band:250 - 500	0,57|18.550|10.514,31
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	total	17.386 ccm
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	hauled	17.386
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	unhauled	0
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	haul	12.187,24
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	unit	0,70
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	wdist	647
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	band:250 - 500	0,63|8.950|5.649,69
+en/example_simple_road_project.dr5	dst	Simple demo of basic features	Disposal area	band:500 - 1.000	0,78|8.436|6.537,56
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	total	50.554 bcm
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	hauled	49.219
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	unhauled	1.335
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	haul	27.803,09
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	unit	0,56
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	wdist	479
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	LandCut	band:500 - 1.000	0,66|22.844|15.077,04
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	total	11.718 t
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	hauled	11.718
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	unhauled	0
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	haul	4.687,20
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	unit	0,40
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	wdist	639
+en/example_interchange.dr5	src	Overview of an interchange construction schedule	Aggregate borrow	band:501 - 1.000	0,40|11.718|4.687,20
+en/example_interchange.dr5	src	Main and M3	LandCut	total	33.000 bcm
+en/example_interchange.dr5	src	Main and M3	LandCut	hauled	31.665
+en/example_interchange.dr5	src	Main and M3	LandCut	unhauled	1.335
+en/example_interchange.dr5	src	Main and M3	LandCut	haul	16.257,65
+en/example_interchange.dr5	src	Main and M3	LandCut	unit	0,51
+en/example_interchange.dr5	src	Main and M3	LandCut	wdist	368
+en/example_interchange.dr5	src	Main and M3	LandCut	band:250 - 500	0,54|14.375|7.762,50
+en/example_interchange.dr5	src	Ramps	LandCut	total	17.554 bcm
+en/example_interchange.dr5	src	Ramps	LandCut	haul	11.545,44
+en/example_interchange.dr5	src	Ramps	LandCut	wdist	681
+en/example_interchange.dr5	src	Ramps	LandCut	band:250 - 500	0,54|335|180,90
+en/example_interchange.dr5	src	Ramps	LandCut	band:500 - 1.000	0,66|17.219|11.364,54
+en/example_interchange.dr5	dst	Overview of an interchange construction schedule	Installation bed	total	2.200 ccm
+en/example_interchange.dr5	dst	Overview of an interchange construction schedule	Installation bed	haul	880,00
+en/example_interchange.dr5	dst	Overview of an interchange construction schedule	Installation bed	wdist	600
+en/example_interchange.dr5	dst	Overview of an interchange construction schedule	Fill	total	49.219 ccm
+en/example_interchange.dr5	dst	Overview of an interchange construction schedule	Fill	haul	27.803,09
+en/example_interchange.dr5	dst	Overview of an interchange construction schedule	Fill	wdist	479
+en/example_interchange.dr5	dst	Detours	Base	total	3.000 ccm
+en/example_interchange.dr5	dst	Detours	Base	haul	1.200,00
+en/example_interchange.dr5	dst	Detours	Base	wdist	735
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	total	22.080 t
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	hauled	42.024
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	unhauled	0
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	haul	6.844,80
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	unit	0,31
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	wdist	144
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	band:0 - 501	0,03|22.080|662,16
+fr/example_simple_road_project.dr5	src	Démo simple des fonctionnalités de base	Agrégat de base	pile:0 - 501	0,31|19.944|6.182,64
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Concassage	total	22.080 t
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Concassage	wdist	56
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Stock d'agrégat	total	19.944 t
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Stock d'agrégat	hauled	19.944
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Stock d'agrégat	unhauled	0
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Stock d'agrégat	haul	0,00
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Stock d'agrégat	wdist	0
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Stock d'agrégat	pile:0 - 501	0,00|19.944|0,00
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Dépôt	total	17.386 m3r
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Dépôt	unhauled	0
+fr/example_simple_road_project.dr5	dst	Démo simple des fonctionnalités de base	Dépôt	wdist	647

@@ -1,0 +1,34 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Build artifacts do vite-plugin-pwa
+sw.js
+sw.js.map
+workbox-*.js
+
+# mkcert dev certs (local — NÃO commitar)
+dev-cert.pem
+dev-key.pem
+
+.vercel
+.env*

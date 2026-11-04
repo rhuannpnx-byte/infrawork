@@ -1,0 +1,7 @@
+
+# tipos gerados do motor do ApeX (npm run typecheck)
+vendor/apex/.types/
+
+.vercel
+.env*
+!.env.example

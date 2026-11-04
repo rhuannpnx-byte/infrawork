@@ -1,0 +1,9 @@
+# Nada de credenciais nem do lado servidor no upload para a Vercel (as VITE_* vão como variáveis do projeto).
+# Padrões ancorados na raiz (/): sem a barra, "supabase/" pegaria também src/lib/supabase/.
+.env
+.env.*
+/supabase/
+/scripts/
+/docs/
+/dist/
+*.log

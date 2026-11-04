@@ -1,0 +1,410 @@
+{
+ "generator": "tools/oracle_dpl.py",
+ "files": [
+  {
+   "file": "de/default.dr5",
+   "sha256": "97feacebb9641854f87850f69bf5bad9d6ab1b90adbde4ca99011824b47ebadf",
+   "payload_len": 48813,
+   "payload_sha256": "b922dddc82d0260dad53c85d0f2da06a3ae20f572c71bcfd7ecc1f43632e52c3",
+   "fmt": 2051,
+   "client": 70018,
+   "objects": 377,
+   "fields": 2904,
+   "end": [
+    48805,
+    4294967295
+   ],
+   "canonical_sha256": "08e6d656cf83a5e20248f8758bb7793131c17a5984f89ff3f27036af6e8d6686"
+  },
+  {
+   "file": "de/example_area_construction.dr5",
+   "sha256": "20fa1c61f8f6a6c84c24f0b7311eb08c15ebf72900ff6fbd56b4543474ef8117",
+   "payload_len": 1217964,
+   "payload_sha256": "2000b0426650501454da93422b622fc58678bcab62fc755b81498465e1168535",
+   "fmt": 2051,
+   "client": 70017,
+   "objects": 1116,
+   "fields": 9930,
+   "end": [
+    1217956,
+    4294967295
+   ],
+   "canonical_sha256": "bdffc892d37101e9223ae63ac98109323e3f91751f569fb66641347c987af19d"
+  },
+  {
+   "file": "de/example_interchange.dr5",
+   "sha256": "72a4bfabcb7de7dc22114c3e8fb479d50871c0226a116ed719d26e3337a6f760",
+   "payload_len": 851778,
+   "payload_sha256": "787d3067d2c0d244fff908c77889f37319609a2ac2c516d13b87471a05e43318",
+   "fmt": 2051,
+   "client": 70017,
+   "objects": 1122,
+   "fields": 9813,
+   "end": [
+    851770,
+    4294967295
+   ],
+   "canonical_sha256": "071e36febf0832125224c1ab3655ce9c84dcc32ac5f61db32759f9e34847347a"
+  },
+  {
+   "file": "de/example_simple_road_project.dr5",
+   "sha256": "bdcef02cee48a1114e411753f80e1ef70e116b6abbca4a92fcbd3c0ac0cd9e34",
+   "payload_len": 357674,
+   "payload_sha256": "7c69fade2c32afc0e7ff831ffde4020c02c362ed2804b46e341a1a280fe72a61",
+   "fmt": 2051,
+   "client": 70017,
+   "objects": 525,
+   "fields": 4423,
+   "end": [
+    357666,
+    4294967295
+   ],
+   "canonical_sha256": "aaf04e8b27c602d53ad671b01339ab14fae7caede84ce983a4f61149ebdb8578"
+  },
+  {
+   "file": "de/tutorial-template.dr5",
+   "sha256": "9b079dced3b94648d54bba2e36b98f029e8c891548c6e4a554e446c31a2f3a71",
+   "payload_len": 51913,
+   "payload_sha256": "d63fcb2b5519a24d3690a5a13d6a1219ba132076cdca1aedbcd380fc25d19e57",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 442,
+   "fields": 3398,
+   "end": [
+    51905,
+    4294967295
+   ],
+   "canonical_sha256": "abc9ca01fd726d0d902a913b5a3952b1b2211de1c6da088870c29ae4a4d883e2"
+  },
+  {
+   "file": "en/default.dr5",
+   "sha256": "5ae33aeb21eb7c89e80be8894fd00cc46549f33ece63e6de7f4b1f3138e504fb",
+   "payload_len": 51913,
+   "payload_sha256": "2d53da65607bb14d2eb5bff6521c7a6d4c3cdc86890bf19e5a1fcf3ffc165cbe",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 442,
+   "fields": 3398,
+   "end": [
+    51905,
+    4294967295
+   ],
+   "canonical_sha256": "b0533b09221237f10cdb610db8a3a41c4079aa7955a1edb9f350c9be654404a7"
+  },
+  {
+   "file": "en/example_area_construction.dr5",
+   "sha256": "81b8888cf9ccbc9b332b83868636c8503b18c9e0cd19f886c7e81ea15af71a56",
+   "payload_len": 1096913,
+   "payload_sha256": "52baaa1462290665299b7e88507eb6cf9e07f164b732be8b65c1cfe39fb1a0b0",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1145,
+   "fields": 10148,
+   "end": [
+    1096905,
+    4294967295
+   ],
+   "canonical_sha256": "7d819e5aa0bfdc31b06fb999d9e2eba8eecb2273b4df27c76929c309fd2d9b7f"
+  },
+  {
+   "file": "en/example_interchange.dr5",
+   "sha256": "a5643d076d1708d2fb55b896c3040a76843609dbaeb8cba604f339d17f21cdb4",
+   "payload_len": 734299,
+   "payload_sha256": "bf7c09066907c8bf2c09f4f9f40a00cb603d9a0e74fdcb31176bd3395045549b",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1178,
+   "fields": 10260,
+   "end": [
+    734291,
+    4294967295
+   ],
+   "canonical_sha256": "db757284d85ed1daa966c2f92546d0a42c3dbe25b7f1d44f8b8e28a0d54f1bc8"
+  },
+  {
+   "file": "en/example_simple_road_project.dr5",
+   "sha256": "cb7920521847e78a03e9e3d397caa1ff87f3fee0f561ef5f243293c8e946bc64",
+   "payload_len": 243001,
+   "payload_sha256": "5c84869c7805b5b26d8301ab43402d113b54190bbb115d80362d6535a31bc825",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 577,
+   "fields": 4816,
+   "end": [
+    242993,
+    4294967295
+   ],
+   "canonical_sha256": "773527fe59987e99c4bc4610ecb6186ce7ad3771fdcb46948d32fb0f3e664368"
+  },
+  {
+   "file": "en/template-en-gb-imperial.dr5",
+   "sha256": "a6b2796d3cf837c5b4af5dc9ede8497ae996a275915584ae6fcfd1a343ef7947",
+   "payload_len": 47730,
+   "payload_sha256": "0d60728b394dea6db67c938bf20c1115ed234543e7f2cec95ec84e2154dc8269",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 396,
+   "fields": 3030,
+   "end": [
+    47722,
+    4294967295
+   ],
+   "canonical_sha256": "748ffe768bb057e9e96c26041f088ea8a38ed0ded6bfa21a6152e539cbff5dc6"
+  },
+  {
+   "file": "en/template-en-us-customary.dr5",
+   "sha256": "735bd533071ec3a65e2df0f4cdabecd1b6fe8592495997648cdb4f3cbe430fa8",
+   "payload_len": 47707,
+   "payload_sha256": "040d5fb2b3b62902b78a68fcd5be3f90c3d2b0723e45f73f3746c7654175a217",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 396,
+   "fields": 3030,
+   "end": [
+    47699,
+    4294967295
+   ],
+   "canonical_sha256": "809f2fb7ff72f70d66a51e37cafd479724fdd6ca3039f48325ddd83d311eff57"
+  },
+  {
+   "file": "en/tutorial-template.dr5",
+   "sha256": "9b079dced3b94648d54bba2e36b98f029e8c891548c6e4a554e446c31a2f3a71",
+   "payload_len": 51913,
+   "payload_sha256": "d63fcb2b5519a24d3690a5a13d6a1219ba132076cdca1aedbcd380fc25d19e57",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 442,
+   "fields": 3398,
+   "end": [
+    51905,
+    4294967295
+   ],
+   "canonical_sha256": "abc9ca01fd726d0d902a913b5a3952b1b2211de1c6da088870c29ae4a4d883e2"
+  },
+  {
+   "file": "fi/default.dr5",
+   "sha256": "e7745a369b3dbe059c562d8ae806261e5ef5135f808113a51e8dd26a06ebc912",
+   "payload_len": 75137,
+   "payload_sha256": "7b20eeeeeff3f1357399336d3a859a6c640311ece23662d97b69b5d875f574b2",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 624,
+   "fields": 4585,
+   "end": [
+    75129,
+    4294967295
+   ],
+   "canonical_sha256": "66d598878258786265ab5be2e28a085b5d94f53043507eb66d2b5143442009f4"
+  },
+  {
+   "file": "fi/example_area_construction.dr5",
+   "sha256": "29bd1ff75de5073221d7ae91aae16ed30d028cda9c9a65df49cbcf5031280010",
+   "payload_len": 1097763,
+   "payload_sha256": "d5e6a49c41307344a29835b9d88391d2093b35eddd2adb194cb71624ebaa8f6d",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1154,
+   "fields": 10220,
+   "end": [
+    1097755,
+    4294967295
+   ],
+   "canonical_sha256": "6d1f8f0bd6d4bdf34d458aa7f39086c272e0b0056125d0fc95635af5f6d8488f"
+  },
+  {
+   "file": "fi/example_interchange.dr5",
+   "sha256": "53beaadca6718c911299a220c625429ac8b8a7a1aec7593f5c7744d4a830978a",
+   "payload_len": 734056,
+   "payload_sha256": "30bf64ba153697c8dd7576bcab8395c21aab6f01c7fd16a54f396c3516fff8e0",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1178,
+   "fields": 10260,
+   "end": [
+    734048,
+    4294967295
+   ],
+   "canonical_sha256": "bfc8339585cd78419f30b94acea58aef4784abc79a6ef7b8a7b988fa1fa9d20f"
+  },
+  {
+   "file": "fi/example_simple_road_project.dr5",
+   "sha256": "8da4c1de5c7232811442c77cb43f298402ea373ca0961953db56fdc3b2955acb",
+   "payload_len": 242905,
+   "payload_sha256": "62d7141f9de062130457b8b00ad404d3fc37f3410763f7b655aec68c82cad70e",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 577,
+   "fields": 4816,
+   "end": [
+    242897,
+    4294967295
+   ],
+   "canonical_sha256": "ad0729766c6ea02acb501d89dab8fe6a0af3415f01302b551358b747f2fdf407"
+  },
+  {
+   "file": "fi/tutorial-template.dr5",
+   "sha256": "48f14947951fda81de9a749d1920ad4ac35f0e7a5af379bfede15e694c60a7ce",
+   "payload_len": 74785,
+   "payload_sha256": "7e2668c84131f94fcf9bed44b72908f988f420cf33ff512fae641cdc489665bc",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 624,
+   "fields": 4585,
+   "end": [
+    74777,
+    4294967295
+   ],
+   "canonical_sha256": "873dde9f656f6a1594daa6fcb14372c19b9c22f99ec7f81b06080541db67af8c"
+  },
+  {
+   "file": "fr/default.dr5",
+   "sha256": "188c590b5db4633da83d7d8003a88234c8389a0869c517c0df7d289870dd81e8",
+   "payload_len": 74585,
+   "payload_sha256": "93c47b72e073c3f4e4a559e6a11ff099a6a853c2996ebcccc2526812ca0e0f7c",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 556,
+   "fields": 4208,
+   "end": [
+    74577,
+    4294967295
+   ],
+   "canonical_sha256": "40c2f19d7ec5c336216139db499f4395221a69cde09ece76879edba7323fc5ee"
+  },
+  {
+   "file": "fr/example_area_construction.dr5",
+   "sha256": "db3c633d199d2541ea37780c3caba9d0f4d8e01a4b72fbb2458cbb235198f615",
+   "payload_len": 1099674,
+   "payload_sha256": "524b369f9293f4c1f1ed8edd6c9082e93baa6f8be492b98c3eef7100de021423",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1169,
+   "fields": 10359,
+   "end": [
+    1099666,
+    4294967295
+   ],
+   "canonical_sha256": "2fc6e59a64e8012e6b1921965102a26224f0ed09584fddc66fecb4449f23e8e9"
+  },
+  {
+   "file": "fr/example_interchange.dr5",
+   "sha256": "bacbcc1817f68fd4c7b2a0f4b90aed33e4b6622dc5ce01e4734e5d4e68f3945e",
+   "payload_len": 734299,
+   "payload_sha256": "6b48d4b766d539afca1bd399ff916b6436e8c6de30e09de23daa8d5b3816f669",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1178,
+   "fields": 10260,
+   "end": [
+    734291,
+    4294967295
+   ],
+   "canonical_sha256": "b536a938c4799206503725f13a32aac3f551aaa6394d2c0e89dabdfb25934db6"
+  },
+  {
+   "file": "fr/example_simple_road_project.dr5",
+   "sha256": "636558c9bde062433a9c18dc1d39ff5b7cde304d3c1834c87fa99a28a1fbbaac",
+   "payload_len": 247454,
+   "payload_sha256": "a0c6ecf62e039e4ba72467f80e0a61f90787218bd8b50743aa0301ac4f0e659c",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 605,
+   "fields": 5059,
+   "end": [
+    247446,
+    4294967295
+   ],
+   "canonical_sha256": "b1914f529e71f2a103ca4774ac17f22f3a40a4af096817647d02de15972f5e42"
+  },
+  {
+   "file": "fr/tutorial-template.dr5",
+   "sha256": "bb1a0e82e10345c215836a5ea4cd39c1d359888a1eb9c5a155f2a3be732482d1",
+   "payload_len": 74432,
+   "payload_sha256": "b3d57e13e15f8723b15b9693bce0ecc4349f7f28b163e16a94be307807a77363",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 556,
+   "fields": 4208,
+   "end": [
+    74424,
+    4294967295
+   ],
+   "canonical_sha256": "a2076e50a77aa834eb451d6aa945b1775d28a00cd0103922bd8a91a253b1d1f1"
+  },
+  {
+   "file": "sv/default.dr5",
+   "sha256": "e198bd6c80fb127b9fba45dada84df6a80a0d32423a0afe825f8483030468b4d",
+   "payload_len": 58873,
+   "payload_sha256": "44d776313777f8262a040b032a9e57a91a2349e4ad68c5ba8e593d35af43a7f5",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 483,
+   "fields": 3656,
+   "end": [
+    58865,
+    4294967295
+   ],
+   "canonical_sha256": "27cddf19896adc942648c9f8c8913c24c63c8a7a25e20ab481ff3ff923b54c78"
+  },
+  {
+   "file": "sv/example_area_construction.dr5",
+   "sha256": "ee55df609b02964b156e1534a39863b407b762289ebed8179adb566bfbe25d66",
+   "payload_len": 1097446,
+   "payload_sha256": "c08374605cf7e233b9117dd695c85b69906f61f5a54b080e7768ebf7149270b2",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1145,
+   "fields": 10148,
+   "end": [
+    1097438,
+    4294967295
+   ],
+   "canonical_sha256": "63cea7cb54ae9e810a4d10a56957229c64ae34cfbda1308b3ab1fe8f9470dc5c"
+  },
+  {
+   "file": "sv/example_interchange.dr5",
+   "sha256": "2e3b041e9fdf37803a22b6ca7d18e17c66c0983d4bfd86b28800c70875c7c507",
+   "payload_len": 734674,
+   "payload_sha256": "72de0d0be68bbbeaffa71e7991a9e467cd761b86b0412a3ad5b4438a8dddbeb3",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 1179,
+   "fields": 10266,
+   "end": [
+    734666,
+    4294967295
+   ],
+   "canonical_sha256": "0d401439542c1d9b6261032e6307bf70af54f037e0ef77da6a95664d0ec43dc2"
+  },
+  {
+   "file": "sv/example_simple_road_project.dr5",
+   "sha256": "350905a665497adeea5a0132548529ae86a851a64eb39ed9f9989f5f34290003",
+   "payload_len": 242941,
+   "payload_sha256": "5f44b6f5a7bf21ec347c6a381d574aa0e34263a33ebe2db94770f62aaf314548",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 577,
+   "fields": 4816,
+   "end": [
+    242933,
+    4294967295
+   ],
+   "canonical_sha256": "cb48c4392d66a53493d026bd96191f1196f6dcce90ad1e9977ff2da4a7d62ed7"
+  },
+  {
+   "file": "sv/tutorial-template.dr5",
+   "sha256": "8343d13f4c84e5777d4c05b470b9f316bef7ac67d90eb1850e10feb8d51fa788",
+   "payload_len": 81344,
+   "payload_sha256": "c9eeca95d39269166406c11eadfedbfd9ae7959b3491d8adc7ad19315af5d2d2",
+   "fmt": 2051,
+   "client": 80006,
+   "objects": 668,
+   "fields": 4953,
+   "end": [
+    81336,
+    4294967295
+   ],
+   "canonical_sha256": "23b8a50394b6b42f41761c29b0404915a86c722e0e24af0fefca70df13ef7912"
+  }
+ ]
+}

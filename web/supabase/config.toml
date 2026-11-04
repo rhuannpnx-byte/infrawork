@@ -1,0 +1,99 @@
+# Supabase local CLI config — projeto "infrawork-web" (web whitelabel)
+# https://supabase.com/docs/guides/cli/config
+#
+# Portas deslocadas (5532x) para coexistir com o stack local do app desktop
+# (`infrawork`, 5432x).
+
+project_id = "infrawork-web"
+
+[api]
+enabled = true
+port = 55321
+schemas = ["public", "graphql_public"]
+
+[db]
+port = 55322
+shadow_port = 55320
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = true
+port = 55323
+
+[inbucket]
+enabled = true
+port = 55324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = [
+  "http://localhost:5173"
+]
+jwt_expiry = 3600
+enable_signup = false
+
+[auth.email]
+enable_signup = true  # provedor e-mail ligado (no CLI, false desliga o login por senha); cadastro só via create-usuario
+double_confirm_changes = true
+enable_confirmations = false
+
+[edge_runtime]
+enabled = true
+
+[functions.me]
+verify_jwt = true
+
+[functions.create-empresa]
+verify_jwt = true
+
+[functions.create-usuario]
+verify_jwt = true
+
+[functions.update-usuario]
+verify_jwt = true
+
+[functions.delete-usuario]
+verify_jwt = true
+
+[functions.create-obra]
+verify_jwt = true
+
+[functions.delete-obra]
+verify_jwt = true
+
+[functions.set-obra-ativa]
+verify_jwt = true
+
+[functions.grant-obra-permissao]
+verify_jwt = true
+
+[functions.revoke-obra-permissao]
+verify_jwt = true
+
+[functions.import-orcamento]
+verify_jwt = true
+
+[functions.acompanhamento-alertas-recalcular]
+verify_jwt = true
+
+[functions.acompanhamento-dashboard-resumo]
+verify_jwt = true
+
+[functions.acompanhamento-fotos-listar]
+verify_jwt = true
+
+[functions.acompanhamento-foto-signed-url]
+verify_jwt = true
+
+[functions.acompanhamento-foto-signed-urls-batch]
+verify_jwt = true
+
+[functions.acompanhamento-foto-delete]
+verify_jwt = true

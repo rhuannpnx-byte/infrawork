@@ -1,0 +1,5 @@
+dist
+node_modules
+supabase/functions
+tsconfig.json
+tsconfig.*.json

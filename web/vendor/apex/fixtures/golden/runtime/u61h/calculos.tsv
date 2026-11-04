@@ -1,0 +1,24 @@
+# U-61h: Calculate hauls (13031 → Solve) e Pack schedule no DynaRoad 5.5.2 em DEMO (D-029), região pt-BR, transcritos
+# do Hauls by source (quantidade na unidade do bloco: PriceVector da origem; sem PriceVector = unidade de aterro) e da
+# Gantt (datas). Entradas montadas pelo ApeX: fixtures/golden/runtime/u61h/u61h_*.dr5 (cópias de
+# analises/2026-10-11_dynaroad/evidencias/dinamico_2026-10-15/u61h/entrada/). Capturas: …/u61h/{plan,plan2,pilha,pilha2,local}/.
+# caso: arquivo; calc: plan|schedule|schedule-alt1 (Maximum haul alternatives = 1); origem, destino, material, quantidade, unidade, distância
+caso	calc	origem	destino	material	quantidade	unidade	distancia
+u61h_plan	plan	Crusher C	Base B	AggA	3.600	ccm	1.099,5
+u61h_plan	plan	Cut R	Crusher C	Rock	3.462	bcm	200,5
+u61h_plan	plan	Cut S	Fill F	Soil	15.000	bcm	1.000
+u61h_plan	plan	Pit	Fill F	Borrow	2.632	bcm	1.650,5
+u61h_plan2	plan	Crusher C	Base B	AggB	3.600	ccm	1.099,5
+u61h_plan2	plan	Cut R	Crusher C	Rock	3.462	bcm	200,5
+u61h_plan2	plan	Cut S	Fill F	Soil	15.000	bcm	1.000
+u61h_plan2	plan	Pit	Fill F	Borrow	2.632	bcm	1.650,5
+u61h_pilha	schedule	Cut A	Deposit D	Soil	6.667	bcm	2.600,5
+u61h_pilha	schedule	Cut A	Fill B	Soil	13.333	bcm	2.000
+u61h_pilha2	schedule	Pile P	Fill B	Soil	3.600	ccm	1.299,5
+u61h_pilha2	schedule	Cut A	Deposit D	Soil	16.000	bcm	2.600,5
+u61h_pilha2	schedule	Cut A	Pile P	Soil	4.000	bcm	700,5
+u61h_pilha2	schedule-alt1	Pile P	Fill B	Soil	3.600	ccm	1.299,5
+u61h_pilha2	schedule-alt1	Cut A	Deposit D	Soil	16.000	bcm	2.600,5
+u61h_pilha2	schedule-alt1	Cut A	Pile P	Soil	4.000	bcm	700,5
+u61h_local	schedule	Cut A	Deposit D	Soil	16.444	bcm	2.600,5
+u61h_local	schedule	Cut A	Fill B	Soil	3.556	bcm	2.000

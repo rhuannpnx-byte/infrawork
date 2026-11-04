@@ -1,0 +1,62 @@
+# U-61h: ordem das linhas do Hauls by source (Schedule) no DynaRoad 5.5.2 em DEMO, transcrita das capturas
+# (analises/2026-10-11_dynaroad/evidencias/dinamico_2026-10-15/u61h/{ei,fr_es}/*_schedule_hauls_src_p*.png), região pt-BR.
+# S = título de sum task; P = PriceVector; W = work site de origem (distância ponderada); M = movimento (destino, distância).
+arquivo	tipo	texto	distancia
+en/example_interchange.dr5	S	Sum task: Main and M3
+en/example_interchange.dr5	P	Earth
+en/example_interchange.dr5	W	LandCut M3	258
+en/example_interchange.dr5	M	Fill M3 1	352,5
+en/example_interchange.dr5	M	Fill M3 2	192,5
+en/example_interchange.dr5	W	LandCut main road	547
+en/example_interchange.dr5	M	Fill main road	546,6
+en/example_interchange.dr5	S	Sum task: Ramps
+en/example_interchange.dr5	P	Earth
+en/example_interchange.dr5	W	LandCut R2	671
+en/example_interchange.dr5	M	Fill R1	687,5
+en/example_interchange.dr5	M	Fill R4	669
+en/example_interchange.dr5	W	LandCut R3	691
+en/example_interchange.dr5	M	Fill M3 2	400
+en/example_interchange.dr5	M	Fill R1	703
+en/example_interchange.dr5	S	Project summary: Overview of an interchange construction schedule
+en/example_interchange.dr5	P	Aggregate
+en/example_interchange.dr5	W	Aggregate borrow	639
+en/example_interchange.dr5	M	Base Detour	735
+en/example_interchange.dr5	M	Base main road	502
+en/example_interchange.dr5	M	Base R1	547,5
+en/example_interchange.dr5	M	Base R2	974
+en/example_interchange.dr5	M	Base R3	964,5
+en/example_interchange.dr5	M	Base R4	529
+en/example_interchange.dr5	M	Installation bed Slab1	600
+en/example_interchange.dr5	M	Installation bed Slab2	600
+en/example_interchange.dr5	M	Protective layer Slab1	600
+en/example_interchange.dr5	M	Protective layer Slab2	600
+en/example_interchange.dr5	P	Earth
+en/example_interchange.dr5	W	LandCut M3	258
+en/example_interchange.dr5	M	Fill M3 1	352,5
+en/example_interchange.dr5	M	Fill M3 2	192,5
+en/example_interchange.dr5	W	LandCut main road	547
+en/example_interchange.dr5	M	Fill main road	546,6
+en/example_interchange.dr5	W	LandCut R2	671
+en/example_interchange.dr5	M	Fill R1	687,5
+en/example_interchange.dr5	M	Fill R4	669
+en/example_interchange.dr5	W	LandCut R3	691
+en/example_interchange.dr5	M	Fill M3 2	400
+en/example_interchange.dr5	M	Fill R1	703
+fr/example_simple_road_project.dr5	W	Concassage	27
+fr/example_simple_road_project.dr5	M	Couche de base 1	274,5
+fr/example_simple_road_project.dr5	M	Stock d'agrégat	0
+fr/example_simple_road_project.dr5	W	Stock d'agrégat	274
+fr/example_simple_road_project.dr5	M	Couche de base 1	274,5
+fr/example_simple_road_project.dr5	P	Meuble
+fr/example_simple_road_project.dr5	W	Déblai meuble 1	536
+fr/example_simple_road_project.dr5	M	Remblai 1	536,2
+fr/example_simple_road_project.dr5	W	Déblai meuble 3	692
+fr/example_simple_road_project.dr5	M	Remblai 2	692,1
+fr/example_simple_road_project.dr5	W	Déblai meuble1 2	847
+fr/example_simple_road_project.dr5	M	Remblai 1	695
+fr/example_simple_road_project.dr5	M	Remblai 2	1.080
+fr/example_simple_road_project.dr5	P	Roche
+fr/example_simple_road_project.dr5	W	Déblai rocheux 1	406
+fr/example_simple_road_project.dr5	M	Concassage	55,5
+fr/example_simple_road_project.dr5	M	Dépôt	646,6
+fr/example_simple_road_project.dr5	M	Remblai 2	480

@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "useDefineForClassFields": true,
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@renderer/*": ["src/*"],
+      "@apex/dr5": ["vendor/apex/.types/dr5/src/index.d.ts"],
+      "@apex/model": ["vendor/apex/.types/model/src/index.d.ts"],
+      "@apex/calendar": ["vendor/apex/.types/calendar/src/index.d.ts"],
+      "@apex/lp": ["vendor/apex/.types/lp/src/index.d.ts"],
+      "@apex/engine": ["vendor/apex/.types/engine/src/index.d.ts"],
+      "@apex/mcp": ["vendor/apex/.types/mcp-obra/src/index.d.ts"],
+      "@apex/obra": ["vendor/apex/.types/obra/src/index.d.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -1,0 +1,21 @@
+# U-61h: datas da Gantt (Start time / Finish time, dd/MM/yy) e Resource priority do Task Properties no DynaRoad 5.5.2 em
+# DEMO, região pt-BR. caso: es_pack = en/example_simple_road_project depois de Project ▸ Pack schedule (36069);
+# u61h_pilha2 e u61h_local depois do Calculate hauls. Capturas: …/u61h/{pack_es,pilha2,local,taskprops}/.
+caso	tarefa	inicio	fim	prioridade
+es_pack	LandCut 1	20/07/16	22/08/16	120
+es_pack	LandCut 2	23/08/16	07/09/16
+es_pack	LandCut 3	07/09/16	30/09/16
+es_pack	RockCut	23/08/16	22/09/16	100
+es_pack	Fill 1	20/07/16	31/08/16
+es_pack	Fill 2	01/09/16	07/10/16	40
+es_pack	Bridge	20/07/16	06/12/16
+es_pack	Base	23/08/16	25/10/16	70
+es_pack	Paving	26/10/16	10/11/16
+es_pack	Finishing works	23/11/16	06/12/16
+u61h_pilha2	Fill B	26/04/27	14/05/27
+u61h_pilha2	Cut A	01/03/27	26/03/27
+u61h_pilha2	Pile P	01/03/27	30/12/27
+u61h_pilha2	Deposit D	01/03/27	30/12/27
+u61h_local	Fill B	30/03/27	19/04/27
+u61h_local	Cut A	01/03/27	26/03/27
+u61h_local	Deposit D	01/03/27	30/12/27

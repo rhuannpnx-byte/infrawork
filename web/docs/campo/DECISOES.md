@@ -1,0 +1,61 @@
+# Parametrização dos serviços, viagens e app de campo — decisões
+
+Migrações `20260701000033_papel_apontador.sql` e `20260701000034_parametrizacao_campo.sql`; app em `../campo`.
+
+## C-01 Parametrização por serviço do orçamento, fora da trava da cadeia
+
+A chave é o agrupador (`item_orcamentario` tipo `servico_grupo`) — é o que se lança e o que o cronograma controla.
+Tabela própria (`servico_parametro`) e não colunas em `servico`: a trava da cadeia (`trg_cadeia_trava`) bloquearia a
+edição com plano vigente, e parametrizar o lançamento não mexe em custo. Sem linha = padrão (quantidade, sem material,
+observação sim, local livre).
+
+## C-02 Material controlado e média por unidade produzida
+
+O material aplicado passa a apontar o recurso (`acompanhamento_producao_material.recurso_id`; nome/unidade ficam como
+retrato). A média é Σ material ÷ Σ produção dos lançamentos que informaram o material
+(`vw_servico_consumo_material`); a tela de parametrização mostra ao lado o previsto da composição
+(`consumo_material_por_unid` com fator/operação do vínculo serviço → CPU). A obrigatoriedade do material é conferida
+nas telas e na RPC do app; o banco não a exige num gatilho porque o web grava lançamento e materiais em duas chamadas.
+
+## C-03 Viagens viram a produção do dia no banco
+
+`viagem_ficha` (caminhão no dia) + `viagem`. O gatilho `fn_viagens_recompor` mantém uma produção `origem='viagens'`
+por (obra, dia, serviço, local) = Σ das viagens; faixa = mín–máx das estacas; material = Σ `material_qtd` (ou a própria
+quantidade quando a unidade do material é a do serviço). Assim cronograma, Curva-S, Previsto × Realizado e o controle
+por estaca não mudam. A produção das viagens só muda pelas viagens (lançar ou alterar à mão é recusado; exclusões em
+cascata passam). Serviço em modo viagens recusa lançamento manual.
+
+A estaca da viagem vale para a ponta que está na obra: o destino (aterro, base) ou, senão, a origem (corte da
+escavação). Uma descarga numa estaca só (faixa de comprimento zero) é apontada à tarefa cujo local contém o ponto
+(`repartirProducao`).
+
+## C-04 Viagens simples + DMT (sem as regras do SIGA)
+
+Do Monito ficaram as telas e o fluxo (cabeçalho → viagens → revisão; "nova viagem" repete o padrão do dia). Saíram
+contratos por caminhão, preço, garantia, DT calculado por estaca, ficha numerada e rodoviário/urbano. O DMT da viagem
+vem da rota cadastrada (`transporte_rota`) e pode ser editado.
+
+## C-05 Frota por empresa; origens e destinos por obra
+
+`frota_veiculo` é da empresa (o caminhão circula entre obras). `transporte_local` é da obra (jazida, usina, central,
+bota-fora, depósito, pista, outro) e pode apontar um local da obra (`trecho_id`) — na pista a viagem informa a estaca.
+
+## C-06 Papel apontador
+
+Novo valor do `role_enum` (migração isolada, exigência do `add value`). Permissão direta em `obra_permissoes` (adm
+libera; engenheiro libera apontadores nas obras em que ele tem permissão). Pode lançar (`pode_lancar_producao`), só
+altera o que criou, não lê orçamento nem planejamento, e o sistema web mostra "use o app de campo". No Storage só
+insere (sem `upsert`): reenviar uma foto cai em "já existe" e conta como enviada.
+
+## C-07 App de campo = cópia do Monito com outra camada de dados
+
+Ficaram PWA (service worker injectManifest, app shell offline), Dexie, filas, motor de envio em primeiro plano,
+câmera com marca d'água, GPS, componentes e visual. Saíram Capacitor/APK/OTA, Parte Diária e o background sync do
+service worker (com o Supabase o motor do app é dono das filas; todas as escritas são idempotentes). O catálogo é um
+snapshot por obra (`campo_catalogo`, sem preços), renovado quando a `versao` (hash) muda.
+
+## C-08 Divergências conhecidas
+
+- Encarregado e equipe não são vinculados entre si (no SIGA eram por projeto); o apontador escolhe livremente.
+- Mudar o modo de um serviço que já tem produção manual vale só para os lançamentos novos.
+- Parte Diária (horímetro de MVE/EPP) fica para uma próxima etapa.

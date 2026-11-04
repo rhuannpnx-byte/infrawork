@@ -1,0 +1,30 @@
+{
+  "//": "Motor do ApeX copiado: compila com as opções do repositório de origem (tsconfig.base.json do ApeX) e emite só as declarações em .types/, que o InfraWork lê pelos paths @apex/*. Os testes ficam fora (rodam no Vitest).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": ".types",
+    "rootDir": "packages",
+    "skipLibCheck": true,
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@apex/dr5": ["packages/dr5/src/index.ts"],
+      "@apex/model": ["packages/model/src/index.ts"],
+      "@apex/calendar": ["packages/calendar/src/index.ts"],
+      "@apex/lp": ["packages/lp/src/index.ts"],
+      "@apex/engine": ["packages/engine/src/index.ts"],
+      "@apex/mcp": ["packages/mcp-obra/src/index.ts"],
+      "@apex/obra": ["packages/obra/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src"]
+}

@@ -1,0 +1,91 @@
+/* ============================================================
+ * Tokens de cor — OKLCH canônico (tema escuro único, hue 255
+ * "console blue"), iguais ao InfraWork desktop.
+ * ============================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* Backgrounds — 8 camadas de luminosidade tintadas */
+  --bg: oklch(11% 0.005 255);
+  --bg-tabs: oklch(12% 0.006 255);
+  --bg-menu: oklch(13% 0.007 255);
+  --bg-rail: oklch(12% 0.006 255);
+  --bg-panel: oklch(15% 0.008 255);
+  --bg-elevated: oklch(18% 0.01 255);
+  --bg-hover: oklch(22% 0.012 255);
+  --bg-active: oklch(26% 0.013 255);
+
+  /* Borders */
+  --border: oklch(22% 0.011 255);
+  --border-strong: oklch(28% 0.013 255);
+  --border-accent: oklch(32% 0.015 255);
+
+  /* Text — 4 níveis, contraste validado contra bg-panel */
+  --text: oklch(92% 0.006 255); /* ~14:1 */
+  --text-muted: oklch(72% 0.01 255); /* ~7:1   */
+  --text-dim: oklch(58% 0.01 255); /* ~4.7:1 — limite WCAG AA */
+  --text-faint: oklch(38% 0.006 255); /* ~2:1 — decoração-only */
+
+  /* Accent (sobreposto pela marca) */
+  --brand-hue: 255;
+  --accent: oklch(67% 0.18 255);
+  --accent-hover: oklch(72% 0.16 255);
+  --accent-glow: oklch(67% 0.18 255 / 0.12);
+  --accent-glow-strong: oklch(67% 0.18 255 / 0.2);
+  --accent-line: oklch(67% 0.18 255 / 0.4);
+
+  /* Status semantic */
+  --success: oklch(78% 0.18 145);
+  --warn: oklch(82% 0.16 80);
+  --danger: oklch(70% 0.18 25);
+
+  /* Marco (milestone) — roxo distintivo */
+  --milestone: oklch(72% 0.18 305);
+
+  /* Plots/timeline — derivados dentro do sistema de luminosidade */
+  --mt-zebra: oklch(13.5% 0.007 255);
+  --mt-nao-trab: oklch(9.5% 0.005 255);
+  --mt-grid-minor: oklch(20% 0.01 255);
+  --mt-grid-major: oklch(29% 0.013 255);
+  --mt-cross: oklch(67% 0.18 255 / 0.55);
+
+  /* Identidade de módulo */
+  --module-orcamento: var(--accent);
+  --module-planejamento: oklch(85% 0.12 215);
+  --module-acompanhamento: var(--success);
+  --module-medicoes: var(--warn);
+  --module-suprimentos: oklch(74% 0.14 295);
+  --module-equipe: oklch(73% 0.16 350);
+  --module-documentos: oklch(70% 0.02 250);
+
+  /* Séries de gráfico (ordem estável) */
+  --chart-1: var(--accent);
+  --chart-2: var(--module-planejamento);
+  --chart-3: var(--success);
+  --chart-4: var(--warn);
+  --chart-5: var(--module-suprimentos);
+  --chart-6: var(--module-equipe);
+  --chart-teal: oklch(72% 0.1 195);
+  --chart-laranja: oklch(74% 0.16 50);
+
+  /* shadcn tokens mapeados pra paleta */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-panel);
+  --card-foreground: var(--text);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: oklch(12% 0.006 255);
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --accent-bg: var(--bg-hover);
+  --destructive: var(--danger);
+  --destructive-foreground: oklch(12% 0.006 255);
+  --input: var(--bg-elevated);
+  --ring: var(--accent);
+  --radius: 4px;
+}

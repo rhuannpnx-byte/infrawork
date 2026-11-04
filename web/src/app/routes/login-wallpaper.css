@@ -1,0 +1,423 @@
+/* ============================================================
+ * Wallpaper do login — curvas de nível animadas (canvas) + HUD técnico:
+ * grid, sweep, brackets, retícula com física de mola seguindo o cursor e
+ * leitura E/N/cota. Tudo escopado em `.login-wallpaper`.
+ * Cores = tokens do tema/marca (`--accent`, `--bg`, `--text*`).
+ * ============================================================ */
+.login-wallpaper {
+  position: absolute;
+  inset: 0;
+  --lock: 239, 68, 68; /* #ef4444 — estado "locked" (mouse pressionado) */
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.login-wallpaper .lw-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* tint + vinheta para legibilidade / coesão de marca */
+.login-wallpaper .lw-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(
+      circle at 50% 46%,
+      transparent 30%,
+      color-mix(in oklab, var(--bg) 55%, transparent) 78%,
+      color-mix(in oklab, var(--bg) 86%, transparent) 100%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg) 35%, transparent),
+      color-mix(in oklab, var(--bg) 25%, transparent)
+    );
+}
+
+/* HUD (não captura mouse: o mapa recebe o arraste) */
+.login-wallpaper .lw-pad {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.login-wallpaper .lw-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--accent) 75%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--accent) 75%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  background-position: -1px -1px;
+}
+
+.login-wallpaper .lw-sweep {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 55%;
+  top: -55%;
+  pointer-events: none;
+  opacity: 0.6;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--accent) 5%, transparent),
+    transparent
+  );
+  animation: lw-sweep 6s linear infinite;
+}
+.login-wallpaper .lw-pad.locked .lw-sweep {
+  background: linear-gradient(to bottom, transparent, rgba(var(--lock), 0.06), transparent);
+}
+@keyframes lw-sweep {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(290vh);
+  }
+}
+
+/* marcas de canto (registro) — margem única --lw-m nos 4 cantos */
+.login-wallpaper .lw-pad {
+  --lw-m: 24px;
+}
+.login-wallpaper .lw-bracket {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+  transition: border-color 0.3s;
+}
+.login-wallpaper .lw-pad.locked .lw-bracket {
+  border-color: rgba(var(--lock), 0.6);
+}
+.login-wallpaper .lw-bracket.tl {
+  top: var(--lw-m);
+  left: var(--lw-m);
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+.login-wallpaper .lw-bracket.tr {
+  top: var(--lw-m);
+  right: var(--lw-m);
+  border-top: 1px solid;
+  border-right: 1px solid;
+}
+.login-wallpaper .lw-bracket.bl {
+  bottom: var(--lw-m);
+  left: var(--lw-m);
+  border-bottom: 1px solid;
+  border-left: 1px solid;
+}
+.login-wallpaper .lw-bracket.br {
+  bottom: var(--lw-m);
+  right: var(--lw-m);
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+
+/* réguas graduadas no topo e à esquerda: traço a cada 46 px (= grade),
+ * traço maior a cada 230 px */
+.login-wallpaper .lw-regua {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.55;
+  --tick: color-mix(in oklab, var(--accent) 60%, transparent);
+}
+.login-wallpaper .lw-regua.topo {
+  top: var(--lw-m);
+  left: calc(var(--lw-m) + 30px);
+  right: calc(var(--lw-m) + 30px);
+  height: 8px;
+  background:
+    repeating-linear-gradient(to right, var(--tick) 0 1px, transparent 1px 230px) top / 100% 8px
+      no-repeat,
+    repeating-linear-gradient(to right, var(--tick) 0 1px, transparent 1px 46px) top / 100% 4px
+      no-repeat;
+}
+.login-wallpaper .lw-regua.esquerda {
+  left: var(--lw-m);
+  top: calc(var(--lw-m) + 30px);
+  bottom: calc(var(--lw-m) + 96px);
+  width: 8px;
+  background:
+    repeating-linear-gradient(to bottom, var(--tick) 0 1px, transparent 1px 230px) left / 8px 100%
+      no-repeat,
+    repeating-linear-gradient(to bottom, var(--tick) 0 1px, transparent 1px 46px) left / 4px 100%
+      no-repeat;
+}
+
+/* norte — canto superior direito, dentro da marca de registro */
+.login-wallpaper .lw-norte {
+  position: absolute;
+  top: calc(var(--lw-m) + 14px);
+  right: calc(var(--lw-m) + 14px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: color-mix(in oklab, var(--accent) 85%, transparent);
+}
+.login-wallpaper .lw-norte svg {
+  display: block;
+}
+
+.login-wallpaper .lw-ch-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  will-change: left;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--accent) 45%, transparent),
+    transparent
+  );
+}
+.login-wallpaper .lw-ch-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  will-change: top;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklab, var(--accent) 45%, transparent),
+    transparent
+  );
+}
+.login-wallpaper .lw-pad.locked .lw-ch-v {
+  background: linear-gradient(to bottom, transparent, rgba(var(--lock), 0.75), transparent);
+}
+.login-wallpaper .lw-pad.locked .lw-ch-h {
+  background: linear-gradient(to right, transparent, rgba(var(--lock), 0.75), transparent);
+}
+
+.login-wallpaper .lw-reticle {
+  position: absolute;
+  width: 0;
+  height: 0;
+  will-change: left, top;
+}
+.login-wallpaper .lw-reticle-inner {
+  position: relative;
+  width: 0;
+  height: 0;
+  transition: transform 0.12s ease-out;
+}
+.login-wallpaper .lw-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  transform: translate(-50%, -50%) scale(0);
+  transition:
+    transform 0.25s ease,
+    background 0.3s,
+    box-shadow 0.3s;
+}
+.login-wallpaper .lw-pad.active .lw-dot {
+  transform: translate(-50%, -50%) scale(1);
+}
+.login-wallpaper .lw-pad.locked .lw-dot {
+  background: #fff0f0;
+  box-shadow: 0 0 12px rgba(var(--lock), 0.9);
+}
+.login-wallpaper .lw-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  border: 1px solid color-mix(in oklab, var(--accent) 90%, transparent);
+  box-shadow: 0 0 16px color-mix(in oklab, var(--accent) 35%, transparent);
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.25s ease,
+    height 0.25s ease,
+    opacity 0.25s ease,
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+.login-wallpaper .lw-pad.active .lw-box {
+  width: 56px;
+  height: 56px;
+  opacity: 1;
+}
+.login-wallpaper .lw-pad.locked .lw-box {
+  width: 34px;
+  height: 34px;
+  border-color: rgba(var(--lock), 0.95);
+  box-shadow: 0 0 16px rgba(var(--lock), 0.4);
+}
+.login-wallpaper .lw-box i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-color: color-mix(in oklab, var(--accent) 95%, transparent);
+  transition: border-color 0.3s;
+}
+.login-wallpaper .lw-pad.locked .lw-box i {
+  border-color: #ffd7d7;
+}
+.login-wallpaper .lw-box .a {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+.login-wallpaper .lw-box .b {
+  top: -1px;
+  right: -1px;
+  border-top: 1px solid;
+  border-right: 1px solid;
+}
+.login-wallpaper .lw-box .c {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 1px solid;
+  border-left: 1px solid;
+}
+.login-wallpaper .lw-box .d {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+.login-wallpaper .lw-ping {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  border: 1px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+.login-wallpaper .lw-pad.active:not(.locked) .lw-ping {
+  animation: lw-ping 1.2s ease-out infinite;
+}
+@keyframes lw-ping {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.3);
+    opacity: 0;
+  }
+}
+
+/* coordenadas X / Y / Z (acima do rodapé do painel) */
+.login-wallpaper .lw-coords {
+  position: absolute;
+  left: calc(var(--lw-m) + 22px);
+  bottom: calc(var(--lw-m) + 20px);
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+.login-wallpaper .lw-coord {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.login-wallpaper .lw-coord .k {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: color-mix(in oklab, var(--accent) 85%, transparent);
+  font-weight: 600;
+}
+.login-wallpaper .lw-pad.locked .lw-coord .k {
+  color: rgba(var(--lock), 0.9);
+}
+.login-wallpaper .lw-coord .v {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 8px var(--bg);
+}
+.login-wallpaper .lw-coord .v small {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-left: 1px;
+}
+
+/* escala gráfica (barra alternada 0 · 50 · 100 m) */
+.login-wallpaper .lw-escala {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-bottom: 3px;
+}
+.login-wallpaper .lw-escala .barra {
+  display: flex;
+  height: 4px;
+  border: 1px solid color-mix(in oklab, var(--accent) 80%, transparent);
+}
+.login-wallpaper .lw-escala .barra i {
+  flex: 1;
+}
+.login-wallpaper .lw-escala .barra i:nth-child(odd) {
+  background: color-mix(in oklab, var(--accent) 80%, transparent);
+}
+.login-wallpaper .lw-escala .rotulos {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+/* cartão de login: "tremida" curta ao receber erro */
+@keyframes login-tremer {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+.login-tremer {
+  animation: login-tremer 0.36s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-tremer {
+    animation: none;
+  }
+}

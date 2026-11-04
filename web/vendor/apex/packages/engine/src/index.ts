@@ -1,0 +1,28 @@
+/** @apex/engine — motor de cálculo (U-05 em diante). */
+export { DBL_MAX, DistanceCalculator, DistanceCalculatorManager, isPermanent, NoRouteError, variantTiming, type GraphOptions, type LightNode, type LightPath } from "./distances.js";
+export { convCoeff, convertAmount, convertedPrice, CostError, destLandType, dstUnit, haulPrice, isDeliveryContract, isDestination, isSource, isSuitable, isSuitableMoveDestination, MASS_TYPE, massType, priceAtDistance, refinedTypeForMoveTo, refinedTypes, crusherRefinedTypes, refiningPrice, sourceLandType, srcUnit, unitOfType, unitPrice } from "./costs.js";
+export { findSlotImpl, ResourceUsage, SpanContainer, type Crew, type CrewItem, type Span } from "./leveling.js";
+export { packSchedule, type PackResult } from "./pack.js";
+export { applyAutoDependencies, intersect, planAutoDependencies, workSitesInOrder, type PlannedDependency } from "./autodeps.js";
+export { realDelay, spanDateAtStation, stationDelay, stationSpans, violations, type StationDateSpan, type Violation } from "./violations.js";
+export { setProjectWindow } from "./window.js";
+export { DEP, NULL_WORK_GROUP_RATE, Scheduler, setToBeginOfDay, setToEndOfDay, setToNextPossibleMorning, STRICT_CLASSES, SWGU, TimingError, type SchedulerOptions, type Site, type TimingResult, type WP } from "./timing.js";
+export { AmountTracker, buildModel, isChild, isDestinationAmount, isDestinationConstraint, isHaulPreventedAsExternal, isSourceAmount, makeHaulInfos, siteUnit, massEconomyAreasPostOrder, MAX_MOVE_DISTANCE_INIT, PlanError, planCandidates, planOptimize, type Chain, type HaulInfo, type PlanOptions, type PlanResult, type PlanZoneResult, type UniqueHaul } from "./plan.js";
+export { areEqual, chainAverageWithDates, destinationResourcePrice, isLessThanOrEqual, MAX_ALTERNATIVE_CHAINS_INIT, inOneLevel, pricePerHour, pricePerUnit, readWach, removeSchedMove, scheduleOptimize, tryToExtractChain, sourceResourcePrice, totalPrice, wpTimes, type Col, type SchedHaul, type ScheduleOptions, type ScheduleResult } from "./schedule.js";
+export { groupRateEntry, makeContainer, productionRate, RateTracker, selectedGroup, WachContainer, WachError, type WSpan } from "./wach.js";
+export { chainAverage, haulChainCandidates, isUnplausible, suitableHaulChains, type CandidateOptions } from "./plan.js";
+export { createManualMove, ManualMoveError, unmoved, type ManualMoveRequest } from "./manual.js";
+export { autoName, autoNameEverything, makeWSName, portionAtStation, combineWorkSites, removeMovesAt, setAmount, splitWorkSiteByAmounts, splitWorkSiteByStation, SplitError } from "./split.js";
+export { comparePlan, comparePlanWith, compareSchedule, compareScheduleWith, compareTiming, compareTimingWith, hasSavedMoves, OID_KEYS, type CompareKeys, type CompareOptions, type MoveComparison, type PairDiff, type TimingComparison } from "./compare.js";
+export { addWorkPlaceMass, DensityMap, integral, MassCurveError, type DensitySpan } from "./masscurve.js";
+export { HAUL_CLASS, HaulResourceError, isSuitablePath, maxDistance, nodeLocation, storedNode, transporterTable, vehiclesNeeded, wachAtDistance, type PathNodeLike } from "./haulres.js";
+export { actualProductionRate, actualsOf, addActual, controlDate, ControlError, forecast, forecastedProductionRate, forecastIntersectionStation, resourceLines, siteCalendar, type RateQuantity, type ResourceLine, haulClassMask, implementationDegree, implementedAmount, implementedTiming, implManager, isStarted, lockActuals, lockActualsIn, lockAsActual, massCurve, MODE, peakUsage, removeActual, resourceCost, resourceUsage, setControlDate, setFinished, totalHours, unlockAsActual, type ActualInput, type ForecastFront, type ForecastPlace, type ResourceUsageResult } from "./control.js";
+export { addUserDependency, DEFAULT_DEPENDENCY_ARGS, resetTimings, setBeginTime, setEndTime, setTasksBeginTime, siteSpan, timingBands, TIMING_EDIT_MESSAGES, TimingEditError, wouldCreateCycle, workPlacesOf, wpBegin, wpEnd, type DependencyArgs, type TimingBands } from "./settiming.js";
+export { ActualsContext, ActualsError, calculateTaskActuals, type TaskActuals } from "./actuals.js";
+export { determineNewCOGs, portionsByMass, splitAtCompletionBoundaries, splitWorkPlace, splitWorkPlaceAtWorkSitePortion } from "./split.js";
+export { PROJECT_CMD, removeAllLPMoves, removeAllSchedMoves, removeCalculatedHauls, renameTasksAutomatically } from "./projectcmds.js";
+export { type ActualHaulInput, addActualHaul, addActualHaulIn, addUtilization, createUtilizations, haulPartners, IMPL_MSG, IMPL_OP, ImplError, postponeRecreation, recreateUtilizations, removeActualHauls, removeActualHaulsIn, removeActualLPAndSchedMoves, removeActualsInTimeSpan, removeActualsInTimeSpanIn, removeAllActuals, removeAllActualsIn, removeEmptyActuals, removeImplementation, removeOtherActual, removeUtilization, utilizationInfos, utilizationsOf, utilizedAmount } from "./implmanager.js";
+export { fullTransactionDescription, HAUL_CALCULATION_ACTION, logicalCompare, makeUndoText, namePred, projectUndoText } from "./names.js";
+export { ceil64, doubleToInt64, floor64 } from "./tools.js";
+export { PACK_SCHEDULE_ACTION } from "./pack.js";
+export { deferTiming, postponeTiming } from "./postpone.js";

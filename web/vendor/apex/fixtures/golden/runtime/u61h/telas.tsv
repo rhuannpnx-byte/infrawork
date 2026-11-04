@@ -1,0 +1,40 @@
+# U-61h: textos de tela do DynaRoad 5.5.2 em DEMO (D-029), região pt-BR, transcritos das capturas.
+# suitable = Task Properties ▸ Hauls ▸ Suitable hauls (linha a linha, na ordem da grade): tarefa | destino | britagem | custo | distância;
+#   es_pack = en/example_simple_road_project depois do Pack schedule (Schedule); u61h_plan = depois do Calculate hauls (Plan).
+# rate = coluna Production rate da Gantt (es); usedby = coluna Used by de Locations/Intersections (es, ei = en/example_interchange).
+tipo	caso	objeto	valor
+suitable	es_pack	LandCut 1	Disposal area||US$1,78/ccm|2.200,5 m
+suitable	es_pack	LandCut 1	Fill 1||US$2,05/ccm|550 m
+suitable	es_pack	LandCut 1	Fill 2||?|?
+suitable	es_pack	RockCut	Base|Crushing|US$12,42/ccm|575 m
+suitable	es_pack	RockCut	Disposal area||US$1,88/ccm|655,5 m
+suitable	es_pack	RockCut	Fill 1||US$2,48/ccm|695 m
+suitable	es_pack	RockCut	Fill 2||US$2,49/ccm|780 m
+suitable	u61h_plan	Cut R	Base B|Crusher C|US$0,63/t|1.300 m
+suitable	u61h_plan	Cut S	Deposit||US$2,31/ccm|2.250,5 m
+suitable	u61h_plan	Cut S	Fill F||US$1,11/ccm|1.000 m
+rate	es	LandCut 1	100 bcm/h
+rate	es	Fill 1	100 ccm/h
+rate	es	Bridge	0 d/h
+rate	es	Base	20 ccm/h
+rate	es	Paving	500 m2/h
+rate	es	Finishing works	0 d/h
+rate	es	Disposal area	300 ccm/h
+rate	es	Crushing	Crushing: 500 t/h
+usedby	es	Bridge	Bridge
+usedby	ei	Detour	Base Detour, Dismantle Detour 2, Paving Detour, Dismantle Detour 1, 2 hauls
+usedby	ei	Existing	Traffic Existing
+usedby	ei	M3	LandCut M3, Fill M3 2, Fill M3 1, M3 Open, Traffic M3, 7 hauls
+usedby	ei	Main	Base main road, Fill main road, LandCut main road, Paving main road, Open to Traffic, Consolidation, Aggregate borrow, 35 hauls
+usedby	ei	R1	Fill R1, Paving R1, Base R1, 7 hauls
+usedby	ei	R3	Base R3, Paving R3, LandCut R3, 5 hauls
+usedby	ei	S8	Bridge S8
+usedby	ei	Slab1	Installation bed Slab1, Protective layer Slab1, Slab 1, Piling Slab1, 4 hauls
+usedby	ei	M3 ↔ Main	3 hauls
+usedby	ei	Main ↔ Detour	2 hauls
+usedby	ei	Main ↔ R1	7 hauls
+usedby	ei	Main ↔ R2	7 hauls
+usedby	ei	Main ↔ R4	4 hauls
+usedby	ei	Main ↔ S8
+usedby	ei	R3 ↔ Main	5 hauls
+usedby	ei	Slab1 ↔ Main	4 hauls

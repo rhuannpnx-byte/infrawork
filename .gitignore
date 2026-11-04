@@ -38,3 +38,9 @@ tmp-*.ts
 
 # artefato de build do agente (pode conter segredos)
 whatsapp-agent.tar.gz
+
+# Web (horus) - subprojeto web/
+web/supabase/.temp/
+web/supabase/.branches/
+web/tsconfig.tsbuildinfo
+web/.eslintcache
