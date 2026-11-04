@@ -3,6 +3,7 @@ import { db } from './dexie'
 import type {
   CatCatalogo,
   CatObra,
+  CatPainel,
   DraftFicha,
   OutFicha,
   OutFoto,
@@ -25,6 +26,14 @@ export function useObra(id: string | null | undefined): CatObra | undefined {
 export function useCatalogo(obraId: string | null | undefined): CatCatalogo | null | undefined {
   return useLiveQuery(
     async () => (obraId ? ((await db.cat_catalogo.get(obraId)) ?? null) : null),
+    [obraId],
+  )
+}
+
+/** Último retrato da visão estratégica da obra (`null` = ainda não baixado). */
+export function usePainel(obraId: string | null | undefined): CatPainel | null | undefined {
+  return useLiveQuery(
+    async () => (obraId ? ((await db.cat_painel.get(obraId)) ?? null) : null),
     [obraId],
   )
 }

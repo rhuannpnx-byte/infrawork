@@ -7,7 +7,7 @@ app de campo (celular): https://infrawork-campo.vercel.app
 
 1. **Gerencial › Usuários › Novo usuário**: e-mail, nome, papel e a **senha inicial** (botão **Gerar** cria uma fácil de
    ditar). Ainda não há envio de e-mail: passe o e-mail e a senha à pessoa.
-   - **Engenheiro**: planeja e acompanha as obras liberadas a ele.
+   - **Engenheiro**: planeja e acompanha as obras liberadas a ele (no app, também a Visão estratégica).
    - **Apoio**: ajuda um engenheiro (lê o planejamento, lança produção).
    - **Apontador**: só usa o app de campo.
    - **Cliente**: acompanha o avanço, sem ver preços.
@@ -46,6 +46,11 @@ app de campo (celular): https://infrawork-campo.vercel.app
 - **Fotos**: com GPS quando houver; sem sinal de GPS a foto sai sem coordenadas.
 - **Escritório**: Acompanhamento › Produção, Previsto × Realizado, Dashboard, Fotos & Mapa. Correções feitas no web
   não são desfeitas pelo celular.
+- **Visão estratégica (engenheiro, adm)**: no app, o cartão **Visão estratégica** abre o resumo da obra (avanço
+  físico × esperado, valor executado × previsto, curva S), a lista de **Serviços** (atrasados primeiro, com o detalhe
+  de cada um) e **Equipes** (quem lançou hoje e quem trabalhou na semana e ainda não lançou). Sem sinal, mostra os
+  dados da última atualização com a data; tocar em atualizar com internet traz os lançamentos novos. Apontadores e
+  apoio não veem essa área.
 - **Atualização do app**: aparece a faixa "Nova versão disponível — Atualizar"; nada lançado se perde ao atualizar.
 
 ## Ainda não disponível

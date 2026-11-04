@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginRoute } from '@/routes/login'
 import { HomeRoute } from '@/routes/home'
@@ -14,7 +14,8 @@ import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { bootstrapAutoSave } from '@/features/carreteiro/draftCarreteiroRepo'
 import { FotosListRoute } from '@/routes/fotos/list'
 import { FotosCaptureRoute } from '@/routes/fotos/capture'
-import { useIsAuthenticated, useTokenValid } from '@/core/auth/SessionStore'
+import { useIsAuthenticated, useSession, useTokenValid } from '@/core/auth/SessionStore'
+import { podeVerPainel } from '@/features/painel/papel'
 import { ReauthBanner } from '@/features/auth/ReauthBanner'
 import { NovaVersaoBanner } from '@/features/common/NovaVersaoBanner'
 import { ligarRenovacaoDeToken } from '@/core/auth/authBridge'
@@ -34,6 +35,32 @@ import { IosInstallBanner } from '@/features/install/IosInstallBanner'
  *  - SW auto-update — autoUpdate + skipWaiting/clientsClaim.
  *  - Routing com guard de auth no nível das rotas (sem flash de login pós-login).
  */
+
+// Visão estratégica: carregada sob demanda (o apontador nunca baixa esse código para a memória; o service worker
+// guarda o arquivo para abrir sem sinal).
+const PainelResumoRoute = lazy(() =>
+  import('@/routes/painel/resumo').then((m) => ({ default: m.PainelResumoRoute })),
+)
+const PainelServicosRoute = lazy(() =>
+  import('@/routes/painel/servicos').then((m) => ({ default: m.PainelServicosRoute })),
+)
+const PainelServicoRoute = lazy(() =>
+  import('@/routes/painel/servico').then((m) => ({ default: m.PainelServicoRoute })),
+)
+const PainelEquipesRoute = lazy(() =>
+  import('@/routes/painel/equipes').then((m) => ({ default: m.PainelEquipesRoute })),
+)
+
+/** Só engenheiro, adm e god entram na visão estratégica; os demais voltam para o início (o servidor também trava). */
+function RequirePainel({ children }: { children: ReactNode }) {
+  const authed = useIsAuthenticated()
+  const session = useSession()
+  if (!authed) return <Navigate to="/login" replace />
+  if (!podeVerPainel(session?.role)) return <Navigate to="/" replace />
+  return (
+    <Suspense fallback={<LoaderScreen label="Abrindo a visão estratégica…" />}>{children}</Suspense>
+  )
+}
 
 function useReady(): boolean {
   const [ready, setReady] = useState(false)
@@ -140,6 +167,38 @@ export function App() {
         <Route path="/carreteiro/success" element={<CarreteiroSuccessRoute />} />
         <Route path="/fotos" element={<FotosListRoute />} />
         <Route path="/fotos/capture" element={<FotosCaptureRoute />} />
+        <Route
+          path="/painel"
+          element={
+            <RequirePainel>
+              <PainelResumoRoute />
+            </RequirePainel>
+          }
+        />
+        <Route
+          path="/painel/servicos"
+          element={
+            <RequirePainel>
+              <PainelServicosRoute />
+            </RequirePainel>
+          }
+        />
+        <Route
+          path="/painel/servicos/:id"
+          element={
+            <RequirePainel>
+              <PainelServicoRoute />
+            </RequirePainel>
+          }
+        />
+        <Route
+          path="/painel/equipes"
+          element={
+            <RequirePainel>
+              <PainelEquipesRoute />
+            </RequirePainel>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

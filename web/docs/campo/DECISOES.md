@@ -59,3 +59,20 @@ snapshot por obra (`campo_catalogo`, sem preços), renovado quando a `versao` (h
 - Encarregado e equipe não são vinculados entre si (no SIGA eram por projeto); o apontador escolhe livremente.
 - Mudar o modo de um serviço que já tem produção manual vale só para os lançamentos novos.
 - Parte Diária (horímetro de MVE/EPP) fica para uma próxima etapa.
+
+## C-09 Visão estratégica no app (supervisor)
+
+Quem vê: **engenheiro, adm e god** (o "supervisor" é o engenheiro no app; sem papel novo). Apontador e apoio ficam só
+com o lançamento; o cliente continua sem acesso ao app. A área some da home para os demais e as rotas `/painel*`
+redirecionam, mas a trava de verdade é no servidor (`campo_assert_painel`: papel + `pode_ver_acompanhamento`), porque
+o papel guardado no aparelho pode estar desatualizado.
+
+Os dados vêm de um retrato agregado por RPC (`campo_painel`, migração 0037): avanço físico e esperado, valor
+agregado, curva S semanal, serviços, equipes, encarregados e os 30 últimos lançamentos (~17 KB por obra, sem linhas
+cruas). O valor executado e o previsto seguem a mesma regra do Valor Agregado do web (`valor-agregado-calc.ts`:
+preço do dia com reajuste prospectivo, sem agregar acima da quantidade do contrato), portada para SQL em
+`fn_valor_servico_em`; a paridade é conferida pelo e2e (seção 12).
+
+Offline: o último retrato fica no aparelho (`cat_painel`, só regravado quando a `versao` muda) e abre sem sinal com a
+data dos dados; amarelo depois de 24 h. Renova ao abrir o app, ao voltar a rede, ao tocar em Atualizar e, no ciclo
+comum, no máximo a cada 5 min — só da obra atual. Perder o acesso apaga o retrato daquela obra.

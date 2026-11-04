@@ -1,5 +1,6 @@
 import { BUCKET_FOTOS, supabase } from '@/core/supabase'
 import type {
+  PainelDto,
   CatalogoDto,
   FichaDto,
   FotoMetaDto,
@@ -91,6 +92,8 @@ export const catalogEndpoints = {
   /** Catálogo da obra (serviços parametrizados, equipes, encarregados, locais, frota, origens/destinos, rotas). */
   catalogo: (obraId: string) =>
     rpc<CatalogoDto>('campo_catalogo', { _obra_id: obraId }, PRAZO_LEITURA),
+  /** Visão estratégica da obra (só god, adm e engenheiro — o servidor confere). */
+  painel: (obraId: string) => rpc<PainelDto>('campo_painel', { _obra_id: obraId }, PRAZO_LEITURA),
 }
 
 export const syncEndpoints = {

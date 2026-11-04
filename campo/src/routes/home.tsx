@@ -11,13 +11,16 @@ import { servicosPorModo, useCatalogo, useObra, useObras, useOutboxCounts } from
 import { useSyncStatus } from '@/core/sync/useSyncStatus'
 import { refreshAllCatalogs, refreshCatalogo } from '@/core/sync/catalogSync'
 import { cn } from '@/lib/cn'
+import { PainelHomeCard } from '@/features/painel/PainelHomeCard'
+import { podeVerPainel } from '@/features/painel/papel'
 
 /**
  * Home — hub do app de campo.
  *  1. Barra: logo + operador + sync + sair
  *  2. Obra atual (abre a escolha da obra)
  *  3. Pendências de envio e situação dos dados offline da obra
- *  4. Módulos: Produção, Viagens, Fotos
+ *  4. Visão estratégica (só engenheiro, adm e god)
+ *  5. Módulos: Produção, Viagens, Fotos
  */
 export function HomeRoute() {
   const authed = useIsAuthenticated()
@@ -100,8 +103,8 @@ export function HomeRoute() {
         {catalogError && <div className="px-4 pb-2 text-xs text-warn">{catalogError}</div>}
         {espaco && espaco.usado / espaco.total > 0.8 && (
           <div className="px-4 pb-2 text-xs text-bad">
-            Pouco espaço no aparelho ({Math.round((100 * espaco.usado) / espaco.total)}% usado) — conecte à
-            internet para enviar as fotos pendentes.
+            Pouco espaço no aparelho ({Math.round((100 * espaco.usado) / espaco.total)}% usado) —
+            conecte à internet para enviar as fotos pendentes.
           </div>
         )}
       </header>
@@ -114,6 +117,14 @@ export function HomeRoute() {
           sincronizou={sincronizou}
           onPick={() => setShowPicker(true)}
         />
+
+        {podeVerPainel(session?.role) && (
+          <PainelHomeCard
+            obraId={session?.obraAtualId}
+            enabled={temObra}
+            onClick={() => navigate('/painel')}
+          />
+        )}
 
         {outbox && (outbox.total > 0 || outbox.recusados > 0) && (
           <div className="flex items-center gap-2 px-1 text-xs text-on-surface-dim">

@@ -3,6 +3,7 @@ import { pushProducaoOutbox } from './producaoSync'
 import { pushFichaOutbox } from './fichaSync'
 import { pushFotoOutbox } from './fotoSync'
 import { refreshAllCatalogs } from './catalogSync'
+import { refreshPainelDaObraAtual } from './painelSync'
 import { isBackendReachable } from '@/core/network/onlineProbe'
 import { sessionStore } from '@/core/auth/SessionStore'
 
@@ -88,6 +89,8 @@ async function doSync(reason: string): Promise<void> {
   refreshAllCatalogs({ seMaisAntigoQueMs: forcar ? 0 : 10 * 60_000 }).catch((e) =>
     console.warn('[fgSync] catálogos falharam:', e),
   )
+  // visão estratégica (engenheiro/adm/god): retrato da obra atual, no máximo a cada 5 min
+  refreshPainelDaObraAtual(forcar).catch((e) => console.warn('[fgSync] painel falhou:', e))
 }
 
 function dispatchToast(kind: 'ok' | 'warn' | 'bad' | 'info', message: string) {

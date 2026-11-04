@@ -1,4 +1,4 @@
-import type { CatalogoDto, ObraDto } from '@/types/dtos'
+import type { CatalogoDto, ObraDto, PainelDto } from '@/types/dtos'
 
 /**
  * Entidades do banco local (IndexedDB via Dexie).
@@ -9,11 +9,17 @@ import type { CatalogoDto, ObraDto } from '@/types/dtos'
  *  - out_ficha      fichas de viagens do dia com as viagens embutidas (um envio = uma ficha)
  *  - out_foto       fotos com o JPEG (marca d'água já queimada)
  *  - draft_ficha    fichas em andamento (várias em paralelo; sobrevivem a recarregar o app)
+ *  - cat_painel     último retrato da visão estratégica por obra (`campo_painel`; só god/adm/engenheiro)
  */
 
 export type SyncStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED' | 'REJEITADA'
 
 export type CatObra = ObraDto
+
+export interface CatPainel extends PainelDto {
+  obraId: string
+  fetchedAt: number
+}
 
 export interface CatCatalogo extends CatalogoDto {
   obraId: string

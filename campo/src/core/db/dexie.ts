@@ -1,5 +1,13 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { CatCatalogo, CatObra, DraftFicha, OutFicha, OutFoto, OutProducao } from './entities'
+import type {
+  CatCatalogo,
+  CatObra,
+  CatPainel,
+  DraftFicha,
+  OutFicha,
+  OutFoto,
+  OutProducao,
+} from './entities'
 
 /**
  * Banco local do app de campo (IndexedDB). Convenções:
@@ -15,6 +23,7 @@ class CampoDatabase extends Dexie {
   out_ficha!: EntityTable<OutFicha, 'id'>
   out_foto!: EntityTable<OutFoto, 'id'>
   draft_ficha!: EntityTable<DraftFicha, 'id'>
+  cat_painel!: EntityTable<CatPainel, 'obraId'>
 
   constructor() {
     super('infrawork_campo')
@@ -26,6 +35,8 @@ class CampoDatabase extends Dexie {
       out_foto: '&id, syncStatus, obraId, capturedAt, producaoId',
       draft_ficha: '&id, obraId, dt, lastUpdatedAt',
     })
+    // v2: retrato da visão estratégica (só leitura; as filas de envio não mudam)
+    this.version(2).stores({ cat_painel: '&obraId' })
   }
 }
 

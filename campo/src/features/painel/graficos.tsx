@@ -1,0 +1,179 @@
+import { cn } from '@/lib/cn'
+import { TOM_FUNDO, type Tom } from './lib'
+
+/**
+ * Gráficos da visão estratégica em SVG/HTML feitos à mão — sem biblioteca de gráficos (tudo vai para o cache
+ * offline de todos os aparelhos, inclusive dos apontadores que nunca abrem o painel).
+ */
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0))
+
+/** Barra de avanço: preenchido = realizado; traço vertical = esperado hoje. */
+export function BarraAvanco({
+  real,
+  esperado,
+  tom = 'accent',
+  className,
+}: {
+  real: number | null | undefined
+  esperado?: number | null
+  tom?: Tom
+  className?: string
+}) {
+  const r = clamp01(Number(real ?? 0))
+  const e = esperado == null ? null : clamp01(Number(esperado))
+  return (
+    <div
+      className={cn('relative h-2 w-full overflow-hidden rounded-sm bg-bg-elevated', className)}
+      role="img"
+      aria-label={`Realizado ${Math.round(r * 100)}%${e != null ? `, esperado ${Math.round(e * 100)}%` : ''}`}
+    >
+      <div className={cn('h-full rounded-sm', TOM_FUNDO[tom])} style={{ width: `${r * 100}%` }} />
+      {e != null && (
+        <div
+          className="absolute inset-y-[-2px] w-[2px] bg-on-surface"
+          style={{ left: `calc(${e * 100}% - 1px)` }}
+          aria-hidden
+        />
+      )}
+    </div>
+  )
+}
+
+/** Curva-S semanal acumulada: planejado (tracejado) × realizado (azul), com a linha de hoje. */
+export function CurvaS({
+  pontos,
+  idxHoje,
+  altura = 150,
+}: {
+  pontos: { s: string; p: number | null; r: number | null }[]
+  idxHoje: number
+  altura?: number
+}) {
+  const W = 320
+  const H = altura
+  const pad = { l: 30, r: 8, t: 8, b: 18 }
+  if (pontos.length < 2) {
+    return (
+      <p className="py-6 text-center text-xs text-on-surface-muted">
+        Curva disponível quando houver linha de base com cronograma calculado.
+      </p>
+    )
+  }
+  const maxY = Math.max(1, ...pontos.map((p) => Math.max(p.p ?? 0, p.r ?? 0)))
+  const x = (i: number) => pad.l + (i / (pontos.length - 1)) * (W - pad.l - pad.r)
+  const y = (v: number) => pad.t + (1 - v / maxY) * (H - pad.t - pad.b)
+  const linha = (k: 'p' | 'r') =>
+    pontos
+      .map((p, i) => (p[k] == null ? null : `${x(i).toFixed(1)},${y(p[k]!).toFixed(1)}`))
+      .filter(Boolean)
+      .join(' ')
+  const ano = (s: string) => s.slice(2, 4)
+  const mes = (s: string) => `${s.slice(5, 7)}/${ano(s)}`
+  const ultimoReal = [...pontos].reverse().find((p) => p.r != null)
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="h-auto w-full"
+      role="img"
+      aria-label="Curva S: planejado e realizado acumulados"
+    >
+      {[0, 0.25, 0.5, 0.75, 1].map((g) => (
+        <g key={g}>
+          <line
+            x1={pad.l}
+            x2={W - pad.r}
+            y1={y(g * maxY)}
+            y2={y(g * maxY)}
+            stroke="#1b1e26"
+            strokeWidth={1}
+          />
+          <text x={pad.l - 4} y={y(g * maxY) + 3} textAnchor="end" fontSize={8} fill="#5b626c">
+            {Math.round(g * maxY * 100)}%
+          </text>
+        </g>
+      ))}
+      <text x={pad.l} y={H - 4} fontSize={8} fill="#5b626c">
+        {mes(pontos[0]!.s)}
+      </text>
+      <text x={W - pad.r} y={H - 4} fontSize={8} fill="#5b626c" textAnchor="end">
+        {mes(pontos[pontos.length - 1]!.s)}
+      </text>
+      {idxHoje >= 0 && (
+        <g>
+          <line
+            x1={x(idxHoje)}
+            x2={x(idxHoje)}
+            y1={pad.t}
+            y2={H - pad.b}
+            stroke="#5b626c"
+            strokeDasharray="2 3"
+          />
+          <text
+            x={x(idxHoje) + 3}
+            y={pad.t + 8}
+            fontSize={8}
+            fill="#9aa1ab"
+            textAnchor={idxHoje > pontos.length * 0.8 ? 'end' : 'start'}
+            dx={idxHoje > pontos.length * 0.8 ? -6 : 0}
+          >
+            hoje
+          </text>
+        </g>
+      )}
+      <polyline
+        points={linha('p')}
+        fill="none"
+        stroke="#9aa1ab"
+        strokeWidth={1.5}
+        strokeDasharray="4 3"
+      />
+      <polyline points={linha('r')} fill="none" stroke="#4d8eff" strokeWidth={2} />
+      {ultimoReal && (
+        <circle cx={x(pontos.indexOf(ultimoReal))} cy={y(ultimoReal.r!)} r={3} fill="#4d8eff" />
+      )}
+    </svg>
+  )
+}
+
+/** Produção dos últimos 14 dias (o último é hoje). */
+export function Barras14({ valores, unidade }: { valores: number[]; unidade?: string | null }) {
+  const vs = valores.map((v) => Number(v ?? 0))
+  const max = Math.max(...vs, 0)
+  const W = 280
+  const H = 64
+  const gap = 3
+  const bw = (W - gap * (vs.length - 1)) / Math.max(vs.length, 1)
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H + 12}`}
+      className="h-auto w-full"
+      role="img"
+      aria-label={`Produção dos últimos ${vs.length} dias${unidade ? ` em ${unidade}` : ''}`}
+    >
+      {vs.map((v, i) => {
+        const h = max > 0 ? Math.max(v > 0 ? 2 : 0, (v / max) * H) : 0
+        const hoje = i === vs.length - 1
+        return (
+          <g key={i}>
+            <rect
+              x={i * (bw + gap)}
+              y={H - h}
+              width={bw}
+              height={h}
+              rx={1.5}
+              fill={hoje ? '#4d8eff' : '#4d8eff80'}
+            />
+            {v === 0 && <rect x={i * (bw + gap)} y={H - 1} width={bw} height={1} fill="#2a2f3a" />}
+          </g>
+        )
+      })}
+      <text x={0} y={H + 10} fontSize={8} fill="#5b626c">
+        {vs.length} dias atrás
+      </text>
+      <text x={W} y={H + 10} fontSize={8} fill="#9aa1ab" textAnchor="end">
+        hoje
+      </text>
+    </svg>
+  )
+}

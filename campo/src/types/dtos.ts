@@ -169,3 +169,104 @@ export interface FotoMetaDto {
   height: number | null
   obs: string | null
 }
+
+// ── Visão estratégica (campo_painel) — só god, adm e engenheiro ─────────────────────────────────────────────────
+export type StatusServico =
+  | 'sem_plano'
+  | 'nao_iniciado'
+  | 'concluido'
+  | 'em_andamento'
+  | 'atrasado'
+  | 'em_risco'
+  | 'no_prazo'
+  | 'adiantado'
+
+export interface PainelServicoDto {
+  id: string
+  codigo: string
+  descricao: string
+  unidade: string | null
+  qtd_plan: number | null
+  qtd_real: number
+  pct_avanco: number | null
+  pct_esperado: number | null
+  status: StatusServico
+  desvio_dias: number | null
+  inicio: string | null
+  fim: string | null
+  ritmo_plan: number | null
+  media_7d: number | null
+  /** produção dos últimos 14 dias (o último é hoje) */
+  dias14: number[]
+  valor_executado: number
+  valor_previsto: number
+  excedente_qtd: number | null
+}
+
+export interface PainelServicoEquipeDto {
+  id: string
+  codigo: string | null
+  descricao: string | null
+  unidade: string | null
+  hoje: number | null
+  d7: number | null
+  d30: number | null
+  dias: number
+  aderencia?: number | null
+}
+
+export interface PainelEquipeDto {
+  id: string | null
+  nome: string
+  lancou_hoje: boolean
+  ativa_semana: boolean
+  dias_30d: number
+  registros_7d: number
+  ultimo: string | null
+  servicos: PainelServicoEquipeDto[] | null
+}
+
+export interface PainelDto {
+  versao: string
+  gerado_em: string
+  hoje: string
+  obra: { id: string; codigo: string; nome: string }
+  referencia: { nome: string; vigente: boolean } | null
+  resumo: {
+    avanco: number | null
+    esperado: number | null
+    registros_hoje: number
+    registros_7d: number
+    registros_30d: number
+    servicos_hoje: number
+    servicos_7d: number
+    dias_30d: number
+    equipes_hoje: number
+    equipes_7d: number
+    ultimo_lancamento: string | null
+  }
+  financeiro: {
+    contrato: number
+    servicos: number
+    executado: number
+    executado_mes: number
+    previsto: number
+    servicos_alem_contrato: number
+  }
+  curva: { s: string; p: number | null; r: number | null }[]
+  servicos: PainelServicoDto[]
+  equipes: PainelEquipeDto[]
+  encarregados: PainelEquipeDto[]
+  ultimos: {
+    data: string
+    codigo: string | null
+    descricao: string | null
+    qtd: number
+    unidade: string | null
+    equipe: string | null
+    encarregado: string | null
+    estacas: string | null
+    origem: string
+    por: string | null
+  }[]
+}
