@@ -49,7 +49,7 @@ export function FleethubIntegracao({
       {
         onSuccess: (r) =>
           void toast.success(
-            `FleetHub: ${r.novos ?? 0} novo(s), ${r.atualizados ?? 0} atualizado(s), ${r.inativados ?? 0} inativado(s).`
+            `FleetHub: ${r.novos ?? 0} novo(s), ${r.atualizados ?? 0} atualizado(s), ${r.inativados ?? 0} inativado(s)${r.capacidades != null ? `, ${r.capacidades} com cubagem` : ''}.`
           ),
         onError: (e) => void toast.error(e.message)
       }
@@ -104,7 +104,7 @@ export function FleethubIntegracao({
               {ultima.ok === null
                 ? ' · em andamento'
                 : ultima.ok
-                  ? ` · ${ultima.novos} novo(s) · ${ultima.atualizados} atualizado(s) · ${ultima.inativados} inativado(s)`
+                  ? ` · ${ultima.novos} novo(s) · ${ultima.atualizados} atualizado(s) · ${ultima.inativados} inativado(s)${ultima.capacidades != null ? ` · ${ultima.capacidades} com cubagem` : ''}`
                   : ` · falhou: ${ultima.mensagem ?? ''}`}
             </p>
           ) : null}

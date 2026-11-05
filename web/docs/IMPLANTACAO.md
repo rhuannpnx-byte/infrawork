@@ -31,8 +31,10 @@ app de campo (celular): https://infrawork-campo.vercel.app
 7. **Acompanhamento › Equipes & Encarregados** e, se houver transporte, **Acompanhamento › Origens e destinos**.
 8. **Frota**: em **Gerencial › Frota**, se a empresa usa a FleetHub, o adm toca em **Conectar FleetHub** e digita o
    e-mail e a senha de lá (o login é testado e a senha fica cifrada no servidor); depois **Sincronizar agora** (também
-   roda sozinho às 5h). Sem FleetHub, cadastre os veículos em **Cadastro manual**. Vêm os caminhões, carretas, pipas e as escavadeiras/carregadeiras ativos. Preencha a **capacidade (m³/t)** de um
-   caminhão e use o ícone de copiar para aplicar ao mesmo modelo. Em **Gerencial › Obras › (obra) › Editar dados**,
+   roda sozinho às 5h). Sem FleetHub, cadastre os veículos em **Cadastro manual**. Vêm os caminhões, carretas, pipas e as escavadeiras/carregadeiras ativos, com a
+   **cubagem (m³)** do campo Capacidade da FleetHub (selo FH; só muda lá). Onde a FleetHub está em toneladas, vazia ou
+   sem sentido (⚠ com o valor de lá), corrija na FleetHub ou digite a capacidade aqui e use o ícone de copiar para
+   aplicar ao mesmo modelo. Em **Gerencial › Obras › (obra) › Editar dados**,
    marque a(s) **Obra(s) na FleetHub**: as viagens da obra passam a mostrar só esses veículos.
 
 ## 3. Apontadores

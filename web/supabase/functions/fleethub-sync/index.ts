@@ -7,12 +7,16 @@ import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import {
+  cubagemM3,
   ehPaginaDeLogin,
   equipamentosDeCarga,
   extrairToken,
   FormatoFleetHubError,
+  parseCapacidade,
   parseEquipamentos,
   parseObras,
+  temCubagem,
+  textoCapacidade,
   type EquipamentoFleet,
 } from '../_shared/fleethub-parse.ts'
 
@@ -20,6 +24,12 @@ const BASE = (Deno.env.get('FLEETHUB_BASE_URL') ?? 'https://fleethub.app.br').re
 const INTERVALO_MANUAL_MS = 5 * 60_000
 const PRAZO_MS = 60_000
 const UA = 'InfraWork-Frota/1.0'
+const LEITURAS_SIMULTANEAS = 10
+
+interface Cubagem {
+  texto: string | null
+  m3: number | null
+}
 
 class Sessao {
   private jar = new Map<string, string>()
@@ -93,14 +103,50 @@ async function lerFleetHub(email: string, senha: string) {
   const ativos = parseEquipamentos(htmlAtivos)
   const transf = parseEquipamentos(htmlTransf)
   const obras = parseObras(htmlAtivos)
-  await sair(s, htmlAtivos)
-  if (ativos.length === 0) throw new FormatoFleetHubError('FleetHub devolveu a lista de equipamentos vazia')
+  if (ativos.length === 0) {
+    await sair(s, htmlAtivos)
+    throw new FormatoFleetHubError('FleetHub devolveu a lista de equipamentos vazia')
+  }
   const status = new Map<number, string>()
   for (const e of ativos) status.set(e.fleet_id, 'Ativo')
   for (const e of transf) status.set(e.fleet_id, 'Em transferência')
   const todos = new Map<number, EquipamentoFleet>()
   for (const e of [...ativos, ...transf]) todos.set(e.fleet_id, e)
-  return { equipamentos: [...todos.values()], status, obras }
+  const equipamentos = [...todos.values()]
+  const cubagens = await lerCubagens(s, equipamentosDeCarga(equipamentos).filter(temCubagem))
+  await sair(s, htmlAtivos)
+  return { equipamentos, status, obras, cubagens }
+}
+
+/**
+ * Capacidade (cubagem) de cada veículo, lida da página de edição — só GET, o formulário nunca é enviado.
+ * Sem acesso a essa página (usuário sem permissão), devolve `null` e a capacidade fica como está no InfraWork;
+ * uma página que falhe sozinha só deixa aquele veículo de fora.
+ */
+async function lerCubagens(s: Sessao, lista: EquipamentoFleet[]): Promise<Map<number, Cubagem> | null> {
+  const out = new Map<number, Cubagem>()
+  const fila = [...lista]
+  let semAcesso = false
+  const trabalhador = async () => {
+    while (fila.length && !semAcesso) {
+      const e = fila.shift()!
+      try {
+        const r = await s.req(`/equipamento/editar/${e.fleet_id}`)
+        const html = await r.text()
+        if (r.status === 403 || r.status === 302 || ehPaginaDeLogin(html)) {
+          semAcesso = true
+          return
+        }
+        if (r.status !== 200) continue
+        const { valor, unidade } = parseCapacidade(html)
+        out.set(e.fleet_id, { texto: textoCapacidade(valor, unidade), m3: cubagemM3(valor, unidade) })
+      } catch {
+        // página que não abriu ou mudou: o veículo fica com a capacidade que já tem
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: LEITURAS_SIMULTANEAS }, trabalhador))
+  return semAcesso ? null : out
 }
 
 async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<ReturnType<typeof lerFleetHub>>) {
@@ -141,12 +187,13 @@ async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<Ret
       fleet_status: dados.status.get(e.fleet_id) ?? 'Ativo',
       ativo: true,
       sincronizado_em: agora,
+      ...camposCubagem(dados.cubagens?.get(e.fleet_id)),
     }
     const atual = porFleet.get(e.fleet_id) ?? (porPrefixo.get(e.codigo)?.origem === 'manual' ? porPrefixo.get(e.codigo) : undefined)
     const ocupado = porPrefixo.get(e.codigo)
     const prefixo = ocupado && ocupado.id !== atual?.id ? `${e.codigo}-${e.fleet_id}` : e.codigo
     if (atual) atualizar.push({ id: atual.id, campos: { ...campos, prefixo } })
-    else novos.push({ ...campos, empresa_id: empresa, prefixo, tipo: e.tipo_infrawork, proprietario: 'proprio' })
+    else novos.push({ capacidade_fleethub: false, fleet_capacidade: null, ...campos, empresa_id: empresa, prefixo, tipo: e.tipo_infrawork, proprietario: 'proprio' })
   }
   if (novos.length) {
     const { error } = await admin.from('frota_veiculo').insert(novos)
@@ -167,7 +214,22 @@ async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<Ret
       .in('id', sair.map((v) => v.id))
     if (error) throw error
   }
-  return { lidos: dados.equipamentos.length, novos: novos.length, atualizados: atualizar.length, inativados: sair.length, obras: dados.obras.length }
+  return {
+    lidos: dados.equipamentos.length,
+    novos: novos.length,
+    atualizados: atualizar.length,
+    inativados: sair.length,
+    obras: dados.obras.length,
+    capacidades: dados.cubagens ? [...dados.cubagens.values()].filter((c) => c.m3 !== null).length : null,
+  }
+}
+
+/** Cubagem válida em m³ passa a valer no InfraWork; sem ela, a capacidade digitada aqui volta a ser editável. */
+function camposCubagem(c: Cubagem | undefined): Record<string, unknown> {
+  if (!c) return {}
+  return c.m3 !== null
+    ? { fleet_capacidade: c.texto, capacidade_m3: c.m3, capacidade_fleethub: true }
+    : { fleet_capacidade: c.texto, capacidade_fleethub: false }
 }
 
 const textoErro = (e: unknown): string =>

@@ -82,8 +82,14 @@ comum, no máximo a cada 5 min — só da obra atual. Perder o acesso apaga o re
 A FleetHub não tem API: a função `fleethub-sync` entra com a conta da empresa e lê a página de Equipamentos
 (só leitura; Ativo e Em transferência). Entram os equipamentos de transporte de carga e as máquinas de carga
 (escavadeira, retroescavadeira, carregadeira). A FleetHub é dona de código, placa, marca, modelo, ano, obra e status; o
-InfraWork, de capacidade, proprietário, fornecedor e tipo (gatilho impede editar o resto). Quem some da FleetHub é
+InfraWork, de proprietário, fornecedor e tipo (gatilho impede editar o resto). Quem some da FleetHub é
 inativado, nunca apagado. Formato inesperado ou lista vazia abortam a rodada sem mexer na frota.
+
+Cubagem (0041): a rodada abre a página de edição de cada veículo com caçamba ou tanque (GET; o formulário nunca é
+enviado) e lê o campo Capacidade (texto livre + unidade salva). Vira `capacidade_m3` (`capacidade_fleethub`, só muda
+lá) quando é m³ ou sem unidade (litros ÷ 1000) e fica entre 2 e 60 m³; toneladas, vazio ou lixo ("1", "*.*") não
+contam e a capacidade digitada no InfraWork vale. O texto original fica em `fleet_capacidade`. Cavalo mecânico e
+máquinas de carga não são lidos. Sem acesso à página de edição, a capacidade não é tocada.
 
 O vínculo obra ↔ obra FleetHub é feito no InfraWork (`obra_fleet_obra`); com ele, viagens (web e app) mostram só os
 veículos dessas obras e os manuais (`veiculos_da_obra`). A viagem registra a máquina que carregou (`carregador_id`).

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cubagemM3,
   equipamentosDeCarga,
   extrairToken,
   FormatoFleetHubError,
   parseEquipamentos,
+  parseCapacidade,
   parseObras,
+  temCubagem,
+  textoCapacidade,
   tipoInfraWork
 } from '../../../supabase/functions/_shared/fleethub-parse'
 
@@ -81,5 +85,54 @@ describe('página de equipamentos da FleetHub', () => {
       /Colunas da FleetHub mudaram/
     )
     expect(parseEquipamentos(pagina('<tr><td colspan="9">Nenhum registro</td></tr>'))).toEqual([])
+  })
+})
+
+describe('cubagem da FleetHub', () => {
+  const editar = (valor: string, unidade: string): string => `
+    <label id="capacidade_label">Capacidade *</label>
+    <div class="input-group" id="capacidade_group" data-unidade-salva="${unidade}">
+      <input id="capacidade" list="capacidades" type="text" class="form-control" name="capacidade" value="${valor}" maxlength="21">
+      <datalist id="capacidades"><option value="99"></option></datalist>
+    </div>`
+
+  it('lê valor e unidade salva da página de edição', () => {
+    expect(parseCapacidade(editar('15.98', 'm³'))).toEqual({ valor: '15.98', unidade: 'm³' })
+    expect(parseCapacidade(editar('14 M&sup3;', ''))).toEqual({ valor: '14 M³', unidade: '' })
+    expect(() => parseCapacidade('<html>login</html>')).toThrow(FormatoFleetHubError)
+  })
+
+  it('converte para m³ só quando dá para confiar', () => {
+    expect(cubagemM3('16,12', 'm³')).toBe(16.12)
+    expect(cubagemM3('15.98', '')).toBe(15.98)
+    expect(cubagemM3('14 M³', '')).toBe(14)
+    expect(cubagemM3('12M³', '')).toBe(12)
+    expect(cubagemM3('14 M/3', '')).toBe(14)
+    expect(cubagemM3('20.000 L', '')).toBe(20)
+    expect(cubagemM3('20000', 'L')).toBe(20)
+    expect(cubagemM3('10.000 LITROS', '')).toBe(10)
+    // toneladas não viram cubagem
+    expect(cubagemM3('15.98', 'ton')).toBeNull()
+    expect(cubagemM3('18.08 TON', '')).toBeNull()
+    // lixo e valores fora de 2–60 m³
+    expect(cubagemM3('1', '')).toBeNull()
+    expect(cubagemM3('0', '')).toBeNull()
+    expect(cubagemM3('139', '')).toBeNull()
+    expect(cubagemM3('*.*', '')).toBeNull()
+    expect(cubagemM3('', '')).toBeNull()
+    expect(cubagemM3('15,07', 'L')).toBeNull()
+  })
+
+  it('texto como aparece na FleetHub', () => {
+    expect(textoCapacidade('15.98', 'ton')).toBe('15.98 ton')
+    expect(textoCapacidade('20.000 L', 'L')).toBe('20.000 L')
+    expect(textoCapacidade('  ', 'm³')).toBeNull()
+  })
+
+  it('cavalo mecânico e máquinas de carga não têm cubagem', () => {
+    expect(temCubagem({ tipo: 'CAMINHÃO BASCULANTE', tipo_infrawork: 'basculante' })).toBe(true)
+    expect(temCubagem({ tipo: 'CAMINHAO PIPA', tipo_infrawork: 'pipa' })).toBe(true)
+    expect(temCubagem({ tipo: 'CAVALO MECÂNICO', tipo_infrawork: 'carreta' })).toBe(false)
+    expect(temCubagem({ tipo: 'PÁ CARREGADEIRA', tipo_infrawork: 'carregadeira' })).toBe(false)
   })
 })

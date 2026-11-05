@@ -278,17 +278,38 @@ function Inner(): ReactNode {
                     />
                   </td>
                   <td className="px-2 py-1">
-                    <Input
-                      key={`${v.id}-${v.capacidade_m3}`}
-                      defaultValue={txt(v.capacidade_m3)}
-                      inputMode="decimal"
-                      aria-label="Capacidade m³"
-                      onBlur={(e) => {
-                        const x = parseQtd(e.target.value)
-                        if (x !== v.capacidade_m3) set(v, { capacidade_m3: x })
-                      }}
-                      className="h-7 w-20 text-right font-mono text-xs"
-                    />
+                    {v.capacidade_fleethub ? (
+                      <span
+                        className="flex w-20 items-center justify-end gap-1 px-1 font-mono"
+                        title={`Cubagem da FleetHub (${v.fleet_capacidade ?? ''}) — altere lá e sincronize`}
+                        data-testid="cap-fleethub"
+                      >
+                        {txt(v.capacidade_m3)}
+                        <span className="rounded bg-accent/15 px-1 text-2xs text-accent">FH</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Input
+                          key={`${v.id}-${v.capacidade_m3}`}
+                          defaultValue={txt(v.capacidade_m3)}
+                          inputMode="decimal"
+                          aria-label="Capacidade m³"
+                          onBlur={(e) => {
+                            const x = parseQtd(e.target.value)
+                            if (x !== v.capacidade_m3) set(v, { capacidade_m3: x })
+                          }}
+                          className="h-7 w-20 text-right font-mono text-xs"
+                        />
+                        {v.fleet_capacidade ? (
+                          <span
+                            className="text-2xs text-warn"
+                            title={`Na FleetHub está "${v.fleet_capacidade}", que não é uma cubagem em m³ — corrija lá ou informe aqui`}
+                          >
+                            ⚠
+                          </span>
+                        ) : null}
+                      </span>
+                    )}
                   </td>
                   <td className="px-2 py-1 text-center">
                     <input
@@ -305,7 +326,7 @@ function Inner(): ReactNode {
                       {v.modelo && v.capacidade_m3 !== null ? (
                         <button
                           type="button"
-                          title={`Aplicar esta capacidade a todos os ${v.modelo}`}
+                          title={`Aplicar esta capacidade aos ${v.modelo} sem cubagem da FleetHub`}
                           onClick={() => copiarParaModelo(v)}
                           className="text-text-dim hover:text-accent"
                         >

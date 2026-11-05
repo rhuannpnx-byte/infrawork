@@ -46,6 +46,10 @@ export interface Veiculo {
   proprietario: 'proprio' | 'terceiro'
   fornecedor: string | null
   capacidade_m3: number | null
+  /** capacidade como está na FleetHub (valor + unidade), mesmo quando não vira m³ */
+  fleet_capacidade: string | null
+  /** capacidade_m3 veio da FleetHub (só muda lá) */
+  capacidade_fleethub: boolean
   ativo: boolean
   origem: 'manual' | 'fleethub'
   fleet_id: number | null
@@ -71,6 +75,7 @@ export interface FleetSyncExecucao {
   novos: number
   atualizados: number
   inativados: number
+  capacidades: number | null
 }
 
 export type TipoLocalTransporte =
@@ -234,6 +239,7 @@ export function useAplicarCapacidadeModelo(): ReturnType<
         .update(cap)
         .eq('empresa_id', empresa_id)
         .eq('modelo', modelo)
+        .eq('capacidade_fleethub', false)
         .select('id')
       if (error) throw new Error(error.message)
       return data?.length ?? 0
@@ -306,7 +312,9 @@ export function useUltimaSyncFleet(
     queryFn: async () => {
       const { data, error } = await sb()
         .from('fleet_sync_execucao')
-        .select('iniciado_em, terminado_em, ok, mensagem, novos, atualizados, inativados')
+        .select(
+          'iniciado_em, terminado_em, ok, mensagem, novos, atualizados, inativados, capacidades'
+        )
         .eq('empresa_id', empresaId!)
         .order('iniciado_em', { ascending: false })
         .limit(1)
@@ -349,7 +357,7 @@ type AcaoFleet =
 /** Conectar (testa o login e guarda a senha no servidor), desconectar ou sincronizar a frota. */
 export function useFleethub(): ReturnType<
   typeof useMutation<
-    { novos?: number; atualizados?: number; inativados?: number },
+    { novos?: number; atualizados?: number; inativados?: number; capacidades?: number | null },
     Error,
     AcaoFleet
   >

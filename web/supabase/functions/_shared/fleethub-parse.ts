@@ -76,10 +76,19 @@ export function tipoInfraWork(tipoFleet: string): TipoInfraWork | null {
   return TIPOS_CARGA[normalizar(tipoFleet)] ?? null
 }
 
-const ENTIDADES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
+const ENTIDADES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  sup2: '²',
+  sup3: '³',
+}
 
 export function decodificar(s: string): string {
-  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (m, e: string) => {
     if (e[0] === '#') {
       const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
       return Number.isFinite(n) ? String.fromCodePoint(n) : m
@@ -155,6 +164,70 @@ export function parseObras(html: string): ObraFleet[] {
     if (Number.isInteger(id) && id > 0 && nome) out.push({ fleet_id: id, nome })
   }
   return out
+}
+
+/** Campo Capacidade da página de edição (/equipamento/editar/{id}): texto digitado e unidade salva. */
+export function parseCapacidade(html: string): { valor: string; unidade: string } {
+  const input = html.match(/<input\b[^>]*\bname="capacidade"[^>]*>/i)?.[0]
+  if (!input) throw new FormatoFleetHubError('Campo Capacidade não encontrado na página do equipamento')
+  const valor = decodificar(input.match(/\bvalue="([^"]*)"/i)?.[1] ?? '').trim()
+  const unidade = decodificar(html.match(/\bdata-unidade-salva="([^"]*)"/i)?.[1] ?? '').trim()
+  return { valor, unidade }
+}
+
+/** Tipos cuja Capacidade na FleetHub não é cubagem (cavalo: tração). */
+const SEM_CUBAGEM = new Set(['CAVALO MECANICO'])
+
+/** Equipamento cuja página de edição vale ler para a cubagem (transporte, menos cavalo e máquinas de carga). */
+export function temCubagem(e: { tipo: string; tipo_infrawork: TipoInfraWork }): boolean {
+  return !TIPOS_MAQUINA_DE_CARGA.includes(e.tipo_infrawork) && !SEM_CUBAGEM.has(normalizar(e.tipo))
+}
+
+type Unidade = 'm3' | 't' | 'l' | 'desconhecida' | null
+
+function unidadeDe(s: string): Unidade {
+  const u = normalizar(s).replace(/³/g, '3').replace(/[\s.]/g, '')
+  if (!u) return null
+  if (/^(M|M3|M\/3|MT|MTS|METROS?(CUBICOS?)?)$/.test(u)) return 'm3'
+  if (/^(T|TN|TON|TONS|TONELADAS?)$/.test(u)) return 't'
+  if (/^(L|LT|LTS|LITROS?)$/.test(u)) return 'l'
+  return 'desconhecida'
+}
+
+/** "16,12" → 16.12; "20.000" → 20000; "15.98" → 15.98. */
+function numero(s: string): number | null {
+  let t = s.replace(/[.,]$/, '')
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.')
+  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '')
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
+}
+
+export const CUBAGEM_MIN_M3 = 2
+export const CUBAGEM_MAX_M3 = 60
+
+/**
+ * Cubagem em m³ a partir do campo da FleetHub, ou `null` quando não dá para confiar: unidade em toneladas,
+ * texto sem número ou valor fora de 2–60 m³ (ex.: "1", "0", "*.*"). Sem unidade, o número é tomado como m³;
+ * litros viram m³ (÷ 1000). A unidade salva no formulário vale mais que a escrita junto do número.
+ */
+export function cubagemM3(valor: string, unidadeSalva: string): number | null {
+  const m = valor.match(/\d[\d.,]*/)
+  if (!m) return null
+  const n = numero(m[0])
+  if (n === null) return null
+  const u = unidadeDe(unidadeSalva) ?? unidadeDe(valor.slice((m.index ?? 0) + m[0].length))
+  const m3 = u === 'm3' || u === null ? n : u === 'l' ? n / 1000 : null
+  if (m3 === null || m3 < CUBAGEM_MIN_M3 || m3 > CUBAGEM_MAX_M3) return null
+  return Math.round(m3 * 100) / 100
+}
+
+/** Texto da capacidade como aparece na FleetHub ("15.98 ton"), ou `null` se o campo está vazio. */
+export function textoCapacidade(valor: string, unidade: string): string | null {
+  const v = valor.trim()
+  if (!v) return null
+  const u = unidade.trim()
+  return u && !normalizar(v).endsWith(normalizar(u)) ? `${v} ${u}` : v
 }
 
 /** Só os equipamentos de transporte de carga e as máquinas de carga, com o tipo InfraWork. */
