@@ -96,7 +96,7 @@ function Inner(): ReactNode {
         title="Frota"
         subtitle="Caminhões e máquinas de carga usados no registro de viagens."
       />
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="shrink-0 px-4 pt-4">
         <FleethubIntegracao empresaId={empresaId} podeGerenciar={podeGerenciar} />
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -157,13 +157,12 @@ function Inner(): ReactNode {
             {lista.length} de {frota.length}
           </span>
         </div>
+      </div>
 
-        <table
-          className="w-full min-w-[1100px] border-collapse rounded border border-border bg-bg-panel text-xs"
-          data-testid="tabela-frota"
-        >
-          <thead>
-            <tr className="border-b border-border text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
+      <div className="mx-4 min-h-0 flex-1 overflow-auto rounded border border-border bg-bg-panel">
+        <table className="w-full min-w-[1100px] border-collapse text-xs" data-testid="tabela-frota">
+          <thead className="sticky top-0 z-10 bg-bg-panel shadow-[inset_0_-1px_0_var(--border-strong)]">
+            <tr className="text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
               <th className="px-3 py-2 font-normal">Código</th>
               <th className="px-2 py-2 font-normal">Placa</th>
               <th className="px-2 py-2 font-normal">Tipo</th>
@@ -341,7 +340,10 @@ function Inner(): ReactNode {
             ) : null}
           </tbody>
         </table>
-        <p className="mt-4 text-2xs font-mono uppercase tracking-wider text-text-dim">
+      </div>
+
+      <div className="shrink-0 px-4 pb-4 pt-3">
+        <p className="text-2xs font-mono uppercase tracking-wider text-text-dim">
           Cadastro manual (veículos fora da FleetHub)
         </p>
         <form
@@ -372,17 +374,19 @@ function Inner(): ReactNode {
             placeholder="Placa"
             className="h-7 w-32 font-mono text-xs"
           />
-          <Select
-            value={novo.tipo}
-            onChange={(e) => setNovo({ ...novo, tipo: e.target.value as TipoVeiculo })}
-            className="h-7 w-36 text-xs"
-          >
-            {TIPOS.map((t) => (
-              <option key={t} value={t}>
-                {TIPO_VEICULO_LABEL[t]}
-              </option>
-            ))}
-          </Select>
+          <div className="w-36">
+            <Select
+              value={novo.tipo}
+              onChange={(e) => setNovo({ ...novo, tipo: e.target.value as TipoVeiculo })}
+              className="h-7 text-xs"
+            >
+              {TIPOS.map((t) => (
+                <option key={t} value={t}>
+                  {TIPO_VEICULO_LABEL[t]}
+                </option>
+              ))}
+            </Select>
+          </div>
           <Button size="sm" type="submit">
             <Plus size={12} /> Incluir veículo
           </Button>
