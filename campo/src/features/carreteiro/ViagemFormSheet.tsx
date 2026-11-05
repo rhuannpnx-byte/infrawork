@@ -25,8 +25,8 @@ interface Props {
   /** viagem em edição, ou o modelo da nova (serviço/origem/destino da anterior) */
   inicial: ViagemLocal
   nova: boolean
-  /** capacidade do caminhão; a quantidade padrão usa a da unidade do serviço (m³ ou t) */
-  capacidade: { m3: number | null; t: number | null }
+  /** capacidade do caminhão em m³; vira a quantidade padrão quando o serviço é medido em m³ */
+  capacidade: number | null
   onSave: (v: ViagemLocal) => void
   onDismiss: () => void
 }
@@ -40,9 +40,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   const servicos = catalogo.servicos.filter((s) => s.modo_lancamento === 'viagens')
   const capPara = (s: ServicoDto | undefined): number | null => {
     const u = (s?.unidade ?? '').toLowerCase()
-    if (/^(t|ton)/.test(u)) return capacidade.t
-    if (/m³|m3/.test(u)) return capacidade.m3
-    return null
+    return /m³|m3/.test(u) ? capacidade : null
   }
   const [servicoId, setServicoId] = useState(inicial.servicoId)
   const [origemId, setOrigemId] = useState(inicial.origemId)

@@ -58,7 +58,7 @@ function Inner(): ReactNode {
         (!filtroObra ||
           (filtroObra === 'manual' ? v.origem === 'manual' : v.fleet_obra_id === filtroObra)) &&
         (!filtroTipo || v.tipo === filtroTipo) &&
-        (!semCapacidade || (v.capacidade_m3 === null && v.capacidade_t === null)) &&
+        (!semCapacidade || v.capacidade_m3 === null) &&
         (!t || `${v.prefixo} ${v.placa ?? ''} ${v.modelo ?? ''}`.toLowerCase().includes(t))
     )
   }, [frota, busca, filtroObra, filtroTipo, semCapacidade, mostrarInativos])
@@ -79,8 +79,7 @@ function Inner(): ReactNode {
       {
         empresa_id: v.empresa_id,
         modelo: v.modelo,
-        capacidade_m3: v.capacidade_m3,
-        capacidade_t: v.capacidade_t
+        capacidade_m3: v.capacidade_m3
       },
       {
         onSuccess: (n) => void toast.success(`Capacidade aplicada a ${n} veículo(s) ${v.modelo}.`),
@@ -171,7 +170,6 @@ function Inner(): ReactNode {
               <th className="px-2 py-2 font-normal">Propriedade</th>
               <th className="px-2 py-2 font-normal">Fornecedor</th>
               <th className="px-2 py-2 font-normal">Cap. m³</th>
-              <th className="px-2 py-2 font-normal">Cap. t</th>
               <th className="px-2 py-2 font-normal">Ativo</th>
               <th className="w-14" />
             </tr>
@@ -279,21 +277,19 @@ function Inner(): ReactNode {
                       className="h-7 text-xs"
                     />
                   </td>
-                  {(['capacidade_m3', 'capacidade_t'] as const).map((k) => (
-                    <td key={k} className="px-2 py-1">
-                      <Input
-                        key={`${v.id}-${v[k]}`}
-                        defaultValue={txt(v[k])}
-                        inputMode="decimal"
-                        aria-label={k === 'capacidade_m3' ? 'Capacidade m³' : 'Capacidade t'}
-                        onBlur={(e) => {
-                          const x = parseQtd(e.target.value)
-                          if (x !== v[k]) set(v, { [k]: x })
-                        }}
-                        className="h-7 w-20 text-right font-mono text-xs"
-                      />
-                    </td>
-                  ))}
+                  <td className="px-2 py-1">
+                    <Input
+                      key={`${v.id}-${v.capacidade_m3}`}
+                      defaultValue={txt(v.capacidade_m3)}
+                      inputMode="decimal"
+                      aria-label="Capacidade m³"
+                      onBlur={(e) => {
+                        const x = parseQtd(e.target.value)
+                        if (x !== v.capacidade_m3) set(v, { capacidade_m3: x })
+                      }}
+                      className="h-7 w-20 text-right font-mono text-xs"
+                    />
+                  </td>
                   <td className="px-2 py-1 text-center">
                     <input
                       type="checkbox"
@@ -306,7 +302,7 @@ function Inner(): ReactNode {
                   </td>
                   <td className="px-1">
                     <span className="flex items-center gap-2">
-                      {v.modelo && (v.capacidade_m3 !== null || v.capacidade_t !== null) ? (
+                      {v.modelo && v.capacidade_m3 !== null ? (
                         <button
                           type="button"
                           title={`Aplicar esta capacidade a todos os ${v.modelo}`}
@@ -333,7 +329,7 @@ function Inner(): ReactNode {
             })}
             {!lista.length && !isLoading ? (
               <tr>
-                <td colSpan={11} className="px-3 py-4 text-text-dim">
+                <td colSpan={10} className="px-3 py-4 text-text-dim">
                   {frota.length ? 'Nenhum veículo neste filtro.' : 'Nenhum veículo cadastrado.'}
                 </td>
               </tr>

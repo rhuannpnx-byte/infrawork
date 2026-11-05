@@ -93,9 +93,9 @@ const frota = await q('frota_veiculo', (t) =>
   t
     .upsert(
       [
-        { empresa_id: obra.empresa_id, prefixo: 'CB-01', placa: 'QWE1A23', tipo: 'basculante', modelo: 'Volvo FMX 460', proprietario: 'proprio', capacidade_m3: 12, capacidade_t: 24 },
-        { empresa_id: obra.empresa_id, prefixo: 'CB-02', placa: 'RTY4B56', tipo: 'basculante', modelo: 'Scania P360', proprietario: 'terceiro', fornecedor: 'Transportes Silva', capacidade_m3: 14, capacidade_t: 28 },
-        { empresa_id: obra.empresa_id, prefixo: 'CR-01', placa: 'UIO7C89', tipo: 'carreta', modelo: 'Mercedes Actros', proprietario: 'proprio', capacidade_m3: 20, capacidade_t: 35 }
+        { empresa_id: obra.empresa_id, prefixo: 'CB-01', placa: 'QWE1A23', tipo: 'basculante', modelo: 'Volvo FMX 460', proprietario: 'proprio', capacidade_m3: 12 },
+        { empresa_id: obra.empresa_id, prefixo: 'CB-02', placa: 'RTY4B56', tipo: 'basculante', modelo: 'Scania P360', proprietario: 'terceiro', fornecedor: 'Transportes Silva', capacidade_m3: 14 },
+        { empresa_id: obra.empresa_id, prefixo: 'CR-01', placa: 'UIO7C89', tipo: 'carreta', modelo: 'Mercedes Actros', proprietario: 'proprio', capacidade_m3: 20 }
       ],
       { onConflict: 'empresa_id,prefixo' }
     )

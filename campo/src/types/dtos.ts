@@ -65,7 +65,6 @@ export interface VeiculoDto {
   modelo: string | null
   proprietario: 'proprio' | 'terceiro'
   capacidade_m3: number | null
-  capacidade_t: number | null
 }
 
 export interface OrigemDestinoDto {

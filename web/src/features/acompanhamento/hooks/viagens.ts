@@ -46,7 +46,6 @@ export interface Veiculo {
   proprietario: 'proprio' | 'terceiro'
   fornecedor: string | null
   capacidade_m3: number | null
-  capacidade_t: number | null
   ativo: boolean
   origem: 'manual' | 'fleethub'
   fleet_id: number | null
@@ -146,8 +145,7 @@ const num = (v: unknown): number | null => (v === null || v === undefined ? null
 // ─── frota ──────────────────────────────────────────────────────────────────
 const veiculoDe = (v: Record<string, unknown>): Veiculo => ({
   ...(v as unknown as Veiculo),
-  capacidade_m3: num(v.capacidade_m3),
-  capacidade_t: num(v.capacidade_t)
+  capacidade_m3: num(v.capacidade_m3)
 })
 
 export function useFrota(
@@ -225,7 +223,6 @@ export function useAplicarCapacidadeModelo(): ReturnType<
       empresa_id: string
       modelo: string
       capacidade_m3: number | null
-      capacidade_t: number | null
     }
   >
 > {
