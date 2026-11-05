@@ -25,6 +25,8 @@ import { TabPill } from '@/components/ui/TabPill'
 import { useTrechosQuantidadeTemplatesAtuais } from '@/features/planejamento/hooks/trechos'
 import { useItensSincronizaveis } from '@/features/planejamento/hooks/tarefas'
 import { useCriarTarefaIndireta } from '@/features/planejamento/hooks/indireto-config'
+import { IndiretoCampos } from './IndiretoCampos'
+import { FORM_INDIRETO_PADRAO, inputDoForm, type FormIndireto } from './indireto-form'
 import { segmentosDoTemplate } from '@/features/planejamento/lib/trecho'
 import {
   faixasDeDivisao,
@@ -116,9 +118,11 @@ function Conteudo({
   const [sel, setSel] = useState<Map<string, LinhaManual>>(new Map())
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [formInd, setFormInd] = useState<FormIndireto>(FORM_INDIRETO_PADRAO)
 
   const itens = itensQ.data ?? []
   const diretos = useMemo(() => itens.filter((i) => !i.indireto_id), [itens])
+  const nIndSel = [...sel.keys()].filter((id) => itens.find((x) => x.id === id)?.indireto_id).length
   const segsPorTrecho = useMemo(() => {
     const m = new Map<string, SegmentoValores[]>()
     for (const t of e.trechos) m.set(t.id, segmentosDoTemplate(templates.get(t.id)))
@@ -370,6 +374,8 @@ function Conteudo({
       })
     }
     if (!diretas.length && !indiretas.length) return setErro('Escolha ao menos um serviço.')
+    const cfgInd = indiretas.length ? inputDoForm(formInd) : null
+    if (typeof cfgInd === 'string') return setErro(cfgInd)
     setSalvando(true)
     try {
       if (diretas.length)
@@ -379,7 +385,7 @@ function Conteudo({
         await criarIndireta.mutateAsync({
           planejamento_id: planoId,
           item_orcamentario_id: item,
-          config: { custo_periodicidade: 'mes', receita_modo: 'mesma_logica_custo' },
+          config: cfgInd!,
           parent_id: pai || null,
           ordem: ordem++
         })
@@ -416,7 +422,7 @@ function Conteudo({
           </TabPill>
         </div>
       </DialogHeader>
-      <DialogBody className="space-y-3">
+      <DialogBody className="max-h-[72vh] space-y-3 overflow-y-auto">
         <DialogErrorBanner message={erro} />
         <div className="flex items-end gap-3 flex-wrap">
           <Campo rotulo="Tarefa-resumo de destino" className="w-72">
@@ -789,6 +795,17 @@ function Conteudo({
             </table>
           </div>
         )}
+        {aba !== 'quantidades' && nIndSel > 0 ? (
+          <div className="rounded border border-border bg-bg-panel p-3">
+            <p className="mb-3 text-xs text-text-muted">
+              {nIndSel === 1
+                ? 'Parâmetros do indireto selecionado'
+                : `Parâmetros dos ${nIndSel} indiretos selecionados`}{' '}
+              (podem ser mudados depois, na aba Indireto da tarefa).
+            </p>
+            <IndiretoCampos valor={formInd} onMudar={setFormInd} obraId={obraId} />
+          </div>
+        ) : null}
       </DialogBody>
       <DialogFooter>
         <span className="mr-auto text-2xs text-text-dim">

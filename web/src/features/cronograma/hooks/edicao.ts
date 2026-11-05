@@ -479,6 +479,34 @@ export function useSalvarEquipesTarefa(): ReturnType<
   })
 }
 
+/**
+ * Parâmetros do indireto. A tabela deles não sobe o dados_rev; tocar a tarefa sobe (gatilho), e assim um cálculo
+ * em andamento com a configuração anterior é recusado na gravação.
+ */
+export function useSalvarIndireto(): ReturnType<
+  typeof useMutation<
+    void,
+    Error,
+    { planejamentoId: string; tarefaId: string; config: Record<string, unknown> }
+  >
+> {
+  const depois = useDepois()
+  return useMutation({
+    mutationFn: async ({ tarefaId, config }) => {
+      await ok(
+        sb().rpc('atualizar_tarefa_indireta', { p_tarefa_id: tarefaId, p_indireto_config: config })
+      )
+      await ok(
+        sb()
+          .from('planejamento_tarefa')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', tarefaId)
+      )
+    },
+    onSettled: (_d, _e, v) => depois(v.planejamentoId)
+  })
+}
+
 // ── dependências ────────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface CamposDependencia {

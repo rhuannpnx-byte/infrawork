@@ -316,7 +316,8 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
             taxa_percentual:
               typeof cfg.taxa_regime_id === 'string'
                 ? (taxaPct.get(cfg.taxa_regime_id) ?? null)
-                : null
+                : null,
+            taxa_regime_id: typeof cfg.taxa_regime_id === 'string' ? cfg.taxa_regime_id : null
           }
         : null
       const locais: LocalEntrada[] = ((t.locais as Record<string, unknown>[] | null) ?? []).map(

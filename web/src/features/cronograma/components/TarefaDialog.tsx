@@ -8,6 +8,7 @@
  * - Equipes: composição (equipe do motor, produtividade da composição) × número de equipes e as equipes nomeadas (recursos
  *   identificados: a mesma equipe não trabalha em duas tarefas ao mesmo tempo).
  * - Dependências: predecessoras e sucessoras (do usuário editáveis; as derivadas dos serviços, só leitura).
+ * - Indireto (tarefas de custo indireto): periodicidade do custo, receita, folgas da janela e taxas.
  * - Aparência e comentário.
  */
 import { useMemo, useState, type ReactNode } from 'react'
@@ -38,6 +39,7 @@ import {
   useComandoVisao,
   useExcluirDependencias,
   useSalvarEquipesTarefa,
+  useSalvarIndireto,
   useSalvarLocais,
   type CamposTarefa,
   type LocalInput
@@ -56,9 +58,13 @@ import {
   textoEstaca
 } from '../visoes/formato'
 import { Caixa, Campo, Secao } from './campos'
+import { IndiretoCampos } from './IndiretoCampos'
+import { configDoForm, formDoConfig, mesmoForm } from './indireto-form'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { fmtBRL } from '@/lib/money'
 import { doInputDataHora, lerNumero, paraInputDataHora } from './campos-util'
 
-type Aba = 'geral' | 'locais' | 'equipes' | 'dependencias' | 'aparencia' | 'comentario'
+type Aba = 'geral' | 'indireto' | 'locais' | 'equipes' | 'dependencias' | 'aparencia' | 'comentario'
 
 interface Props {
   calc: CalculoCronograma
@@ -141,6 +147,8 @@ function Conteudo({
   const atualizar = useAtualizarTarefa()
   const salvarLocais = useSalvarLocais()
   const salvarEquipes = useSalvarEquipesTarefa()
+  const salvarIndireto = useSalvarIndireto()
+  const obraId = useCurrentScope().obraId
   const comando = useComandoVisao()
   const excluirDeps = useExcluirDependencias()
 
@@ -183,6 +191,8 @@ function Conteudo({
   const [cor, setCor] = useState(t.exib?.aparencia?.cor ?? '')
   const [rotulo, setRotulo] = useState(t.exib?.aparencia?.rotulo !== false)
   const [notas, setNotas] = useState(t.exib?.notas ?? '')
+  const [ind, setInd] = useState(() => formDoConfig(t.indireto))
+  const resInd = calc.resultado?.indiretos.find((x) => x.tarefa_id === t.id)
 
   const corPadrao = (t.servico_id && cores.get(t.servico_id)) || 'oklch(67% 0.17 255)'
   const n = Math.max(1, Math.round(lerNumero(qtdEquipes) ?? t.qtd_equipes))
@@ -296,7 +306,7 @@ function Conteudo({
     // início movido: o início desejado (tarefa deixa de ser ASAP, como no arraste)
     const novoInicio = inicio && inicio !== inicioAtual ? doInputDataHora(inicio) : null
     if (novoInicio) Object.assign(campos, { inicio_em: novoInicio, asap: false })
-    if (!locais.length) {
+    if (!locais.length && !t.is_indireto) {
       const q = lerNumero(qtdSemLocal)
       if (t.servico_id && !t.is_indireto && (q === null || q <= 0))
         return setErro('Informe a quantidade da tarefa.')
@@ -310,6 +320,14 @@ function Conteudo({
     const locaisMudaram = !mesmosLocais(ls, locaisDoFormInicial())
     const equipesMudaram = [...nomeadas].sort().join() !== [...t.equipes_ids].sort().join()
     const fimMudou = !!fim && fim !== fimAtual
+    const cfgInd =
+      t.is_indireto && t.indireto && !mesmoForm(ind, formDoConfig(t.indireto))
+        ? configDoForm(ind)
+        : null
+    if (typeof cfgInd === 'string') {
+      setAba('indireto')
+      return setErro(cfgInd)
+    }
 
     setSalvando(true)
     try {
@@ -326,6 +344,12 @@ function Conteudo({
         await atualizar.mutateAsync({ planejamentoId: planoId, id: t.id, campos })
       if (locaisMudaram)
         await salvarLocais.mutateAsync({ planejamentoId: planoId, tarefaId: t.id, locais: ls })
+      if (cfgInd)
+        await salvarIndireto.mutateAsync({
+          planejamentoId: planoId,
+          tarefaId: t.id,
+          config: cfgInd
+        })
       if (equipesMudaram)
         await salvarEquipes.mutateAsync({
           planejamentoId: planoId,
@@ -382,6 +406,7 @@ function Conteudo({
           {(
             [
               ['geral', 'Geral'],
+              ...(t.is_indireto ? ([['indireto', 'Indireto']] as [Aba, string][]) : []),
               ['locais', `Locais (${locais.length})`],
               ['equipes', 'Equipes'],
               [
@@ -1070,6 +1095,31 @@ function Conteudo({
           </div>
         ) : null}
 
+        {aba === 'indireto' ? (
+          <div className="space-y-4">
+            <IndiretoCampos
+              valor={ind}
+              onMudar={setInd}
+              obraId={obraId}
+              ro={ro}
+              custoPeriodo={fmtBRL(t.indireto?.custo_unitario ?? t.custo_unitario_item ?? 0)}
+            />
+            {resInd ? (
+              <Secao titulo="Resultado do cálculo">
+                <div className="grid grid-cols-4 gap-3 text-xs">
+                  <Resumo rotulo="Períodos" valor={fmtNum(resInd.periodos, 'auto')} />
+                  <Resumo rotulo="Custo" valor={fmtBRL(resInd.custo_total)} />
+                  <Resumo rotulo="Receita" valor={fmtBRL(resInd.receita_total)} />
+                  <Resumo rotulo="Taxas" valor={fmtBRL(resInd.custo_taxas)} />
+                </div>
+                <p className="text-2xs text-text-dim">
+                  Valores do cálculo atual; mudanças nos parâmetros entram depois de salvar.
+                </p>
+              </Secao>
+            ) : null}
+          </div>
+        ) : null}
+
         {aba === 'aparencia' ? (
           <div className="max-w-md space-y-4">
             <Campo rotulo="Cor da barra">
@@ -1150,4 +1200,13 @@ function trocar<T>(l: T[], a: number, b: number): T[] {
   const out = [...l]
   ;[out[a], out[b]] = [out[b]!, out[a]!]
   return out
+}
+
+function Resumo({ rotulo, valor }: { rotulo: string; valor: string }): ReactNode {
+  return (
+    <div className="rounded border border-border bg-bg px-2 py-1.5">
+      <div className="text-2xs font-mono uppercase tracking-wider text-text-dim">{rotulo}</div>
+      <div className="font-mono text-text">{valor}</div>
+    </div>
+  )
 }

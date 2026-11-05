@@ -150,6 +150,7 @@ export interface IndiretoConfig {
   aplica_taxas: boolean
   /** percentual total do regime de taxas (decimal: 0,1508 = 15,08 %) */
   taxa_percentual: number | null
+  taxa_regime_id?: string | null
 }
 
 export type TipoDependencia = 'FS' | 'SS' | 'FF' | 'SF' | 'EST'
