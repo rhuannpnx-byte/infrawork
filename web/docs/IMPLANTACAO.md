@@ -24,7 +24,9 @@ app de campo (celular): https://infrawork-campo.vercel.app
    da prévia para editar.
 4. **Planejamento › Locais**: o eixo da obra (estaca inicial e final) e as áreas.
 5. **Cronograma**: tarefas e dependências; o cálculo roda ao abrir a tela.
-6. **Planejamento › Planos e linhas de base › Travar como linha de base** (com **Tornar vigente**). Sem linha de base
+6. No **Cronograma**, com o plano em edição aberto e o cálculo em dia, **Travar como linha de base** (com **Tornar
+   vigente**). O seletor do plano, no topo, alterna entre o plano em edição e as linhas de base; com uma linha de base
+   aberta, a faixa de somente leitura oferece editar a partir dela, tornar vigente e restaurar. Sem linha de base
    vigente o acompanhamento não tem previsto — as telas avisam.
 7. **Acompanhamento › Equipes & Encarregados** e, se houver transporte, **Acompanhamento › Origens e destinos**.
 8. **Frota**: em **Gerencial › Frota**, se a empresa usa a FleetHub, o adm toca em **Conectar FleetHub** e digita o

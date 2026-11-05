@@ -21,10 +21,10 @@ export function AvisoSemLinhaDeBase({ obraId }: { obraId: string }): ReactNode {
       </span>
       <button
         type="button"
-        onClick={() => void navigate({ to: '/planejamento/revisoes' })}
+        onClick={() => void navigate({ to: '/planejamento/cronograma' })}
         className="shrink-0 rounded border border-warn/50 px-2 py-1 font-medium hover:bg-warn/15"
       >
-        Planos e linhas de base
+        Abrir o cronograma
       </button>
     </div>
   )

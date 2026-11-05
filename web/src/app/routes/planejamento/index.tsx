@@ -99,7 +99,7 @@ function PlanejamentoIndexInner(): ReactNode {
                 ? '1 plano em edição'
                 : 'Sem plano em edição'
             }
-            onClick={() => navigate({ to: '/planejamento/revisoes' })}
+            onClick={() => navigate({ to: '/planejamento/cronograma' })}
           />
           <Card
             icon={<TrendingUp size={16} />}

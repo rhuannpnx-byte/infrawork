@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
+import { FaixaLinhaBase, SeletorPlano } from './planos/PlanosControle'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { usePlanejamentoAtivo, usePlanejamentos } from '@/features/planejamento/hooks/planejamentos'
@@ -46,7 +46,8 @@ export function PaginaPlano({ obraId, obraNome, titulo, corpo }: Props): ReactNo
     null
   const plano = planos.find((p) => p.id === planoId) ?? null
   const calc = useCalculoCronograma(planoId)
-  const somenteLeitura = !plano || plano.is_baseline || role === 'apoio' || role === 'cliente'
+  const podeGerir = role !== null && role !== 'apoio' && role !== 'cliente'
+  const somenteLeitura = !plano || plano.is_baseline || !podeGerir
   const [novoPlano, setNovoPlano] = useState(false)
 
   if (carregandoPlanos) return <PulseBlock h={480} className="m-4" />
@@ -84,26 +85,25 @@ export function PaginaPlano({ obraId, obraNome, titulo, corpo }: Props): ReactNo
         actions={
           <div className="flex items-center gap-2">
             <EstadoCalculo calc={calc} />
-            <Select
-              value={plano.id}
-              onChange={(e) => escolherPlano(obraId, e.target.value)}
-              className="w-64"
-              aria-label="Plano"
-            >
-              {planos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                  {p.is_baseline
-                    ? p.vigente
-                      ? ' — linha de base vigente'
-                      : ' — linha de base'
-                    : ' — em edição'}
-                </option>
-              ))}
-            </Select>
+            <SeletorPlano
+              obraId={obraId}
+              planos={planos}
+              plano={plano}
+              podeGerir={podeGerir}
+              onEscolher={(id) => escolherPlano(obraId, id)}
+            />
           </div>
         }
       />
+      {plano.is_baseline ? (
+        <FaixaLinhaBase
+          obraId={obraId}
+          plano={plano}
+          planos={planos}
+          podeGerir={podeGerir}
+          onEscolher={(id) => escolherPlano(obraId, id)}
+        />
+      ) : null}
       {calc.entrada ? (
         <>
           <div key={plano.id} className="flex min-h-0 flex-1 flex-col">

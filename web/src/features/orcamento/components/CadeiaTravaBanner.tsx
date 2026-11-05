@@ -20,9 +20,9 @@ export function CadeiaTravaBanner({ obraId }: { obraId: string }): ReactNode {
       <button
         type="button"
         className="shrink-0 underline hover:no-underline"
-        onClick={() => navigate({ to: '/planejamento/revisoes' })}
+        onClick={() => navigate({ to: '/planejamento/cronograma' })}
       >
-        Planos e linhas de base
+        Linhas de base no cronograma
       </button>
     </div>
   )

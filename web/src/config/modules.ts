@@ -205,17 +205,6 @@ export const MODULES: ModuleConfig[] = [
             requiresObra: true
           }
         ]
-      },
-      {
-        title: 'PLANOS',
-        items: [
-          {
-            icon: 'history',
-            label: 'Planos e linhas de base',
-            route: '/planejamento/revisoes',
-            requiresObra: true
-          }
-        ]
       }
     ]
   },

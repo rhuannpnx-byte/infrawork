@@ -38,7 +38,6 @@ import { PlanejamentoCalendarioPage } from '@/app/routes/planejamento/calendario
 import { PlanejamentoEquipesPage } from '@/app/routes/planejamento/equipes'
 import { PlanejamentoCurvaSPage } from '@/app/routes/planejamento/curva-s'
 import { PlanejamentoCompararPage } from '@/app/routes/planejamento/comparar'
-import { PlanejamentoRevisoesPage } from '@/app/routes/planejamento/revisoes'
 import { PlanejamentoRevisaoDetalhePage } from '@/app/routes/planejamento/revisao-detalhe'
 import { PlanejamentoTrechosPage } from '@/app/routes/planejamento/trechos'
 import { AcompanhamentoIndex } from '@/app/routes/acompanhamento'
@@ -266,7 +265,9 @@ function buildRouteTree() {
     createRoute({
       getParentRoute: () => planejamentoLayout,
       path: 'revisoes',
-      component: PlanejamentoRevisoesPage
+      beforeLoad: () => {
+        throw redirect({ to: '/planejamento/cronograma' })
+      }
     }),
     createRoute({
       getParentRoute: () => planejamentoLayout,

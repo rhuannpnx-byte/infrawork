@@ -48,9 +48,12 @@ export function Popover({
       setPos({ top, left })
     }
     update()
+    // a primeira medida usa a largura padrão; com o menu montado, recalcula com a largura real
+    const raf = requestAnimationFrame(update)
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)
     return () => {
+      cancelAnimationFrame(raf)
       window.removeEventListener('resize', update)
       window.removeEventListener('scroll', update, true)
     }
