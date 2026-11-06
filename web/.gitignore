@@ -5,3 +5,6 @@ vendor/apex/.types/
 .vercel
 .env*
 !.env.example
+
+# bundles do MCP (gerados no build)
+mcp/dist/

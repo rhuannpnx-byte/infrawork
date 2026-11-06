@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react'
-import { Search, Star, ChevronDown, LogOut, User, Building2, Folder } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Search, Star, ChevronDown, LogOut, User, Building2, Folder, KeyRound } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -7,6 +7,7 @@ import { useEmpresas } from '@/features/gerencial/hooks'
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '@/components/ui/dropdown'
 import { cn } from '@/lib/utils'
 import infraworkIcon from '@/assets/infrawork-icon.png'
+import { TokensIADialog } from '@/features/gerencial/modals/TokensIADialog'
 
 /**
  * Barra de título (estilo VSCode), unificando marca, busca, seletor de
@@ -135,6 +136,7 @@ export function UserMenu(): ReactNode {
   const profile = useAuthStore((s) => s.profile)
   const empresa = useAuthStore((s) => s.empresa)
   const signOut = useAuthStore((s) => s.signOut)
+  const [tokensAberto, setTokensAberto] = useState(false)
 
   if (!profile) return null
 
@@ -146,33 +148,39 @@ export function UserMenu(): ReactNode {
     .toUpperCase()
 
   return (
-    <Dropdown
-      align="end"
-      trigger={
-        <button
-          type="button"
-          className="h-6 px-1.5 rounded border border-border-strong bg-bg-elevated hover:border-border-accent flex items-center gap-1.5 text-text"
-          aria-label="Menu do usuário"
-        >
-          <span className="w-4 h-4 rounded-full bg-accent text-bg flex items-center justify-center text-[8px] font-bold uppercase">
-            {initials || <User size={9} />}
-          </span>
-          <span className="text-text-muted">{profile.role}</span>
-          <ChevronDown size={10} className="text-text-dim" />
-        </button>
-      }
-    >
-      <DropdownLabel>{profile.nome}</DropdownLabel>
-      <div className="px-2 pb-1 text-2xs font-mono text-text-dim truncate max-w-[220px]">
-        {profile.email}
-      </div>
-      <div className="px-2 pb-1 text-2xs font-mono text-text-muted">
-        {empresa ? empresa.nome : 'Acesso global'}
-      </div>
-      <DropdownSeparator />
-      <DropdownItem variant="danger" onClick={() => void signOut()}>
-        <LogOut size={11} /> Sair
-      </DropdownItem>
-    </Dropdown>
+    <>
+      <Dropdown
+        align="end"
+        trigger={
+          <button
+            type="button"
+            className="h-6 px-1.5 rounded border border-border-strong bg-bg-elevated hover:border-border-accent flex items-center gap-1.5 text-text"
+            aria-label="Menu do usuário"
+          >
+            <span className="w-4 h-4 rounded-full bg-accent text-bg flex items-center justify-center text-[8px] font-bold uppercase">
+              {initials || <User size={9} />}
+            </span>
+            <span className="text-text-muted">{profile.role}</span>
+            <ChevronDown size={10} className="text-text-dim" />
+          </button>
+        }
+      >
+        <DropdownLabel>{profile.nome}</DropdownLabel>
+        <div className="px-2 pb-1 text-2xs font-mono text-text-dim truncate max-w-[220px]">
+          {profile.email}
+        </div>
+        <div className="px-2 pb-1 text-2xs font-mono text-text-muted">
+          {empresa ? empresa.nome : 'Acesso global'}
+        </div>
+        <DropdownSeparator />
+        <DropdownItem onClick={() => setTokensAberto(true)}>
+          <KeyRound size={11} /> Conectar IA (MCP)
+        </DropdownItem>
+        <DropdownItem variant="danger" onClick={() => void signOut()}>
+          <LogOut size={11} /> Sair
+        </DropdownItem>
+      </Dropdown>
+      <TokensIADialog open={tokensAberto} onOpenChange={setTokensAberto} />
+    </>
   )
 }

@@ -42,8 +42,8 @@ export async function parseKmzOrKml(file: File): Promise<ParsedKmlResult> {
 
   const kmlText = await readAsKmlText(file)
   const doc = new DOMParser().parseFromString(kmlText, 'application/xml')
-  const parserError = doc.querySelector('parsererror')
-  if (parserError) {
+  // getElementsByTagName (e não querySelector): o mesmo parser roda no Node (MCP, via @xmldom/xmldom)
+  if (doc.getElementsByTagName('parsererror').length > 0) {
     throw new Error('Arquivo invalido: XML malformado.')
   }
 

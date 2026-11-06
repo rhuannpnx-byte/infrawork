@@ -1,0 +1,28 @@
+# InfraWork — instruções para agentes
+
+## MCP do InfraWork Web — sempre adaptado ao sistema
+
+O `web/` tem um servidor MCP (`web/mcp/`, publicado em `https://infrawork-web.vercel.app/mcp`) que deixa qualquer
+LLM operar o sistema como o usuário. **Toda mudança no web ou no banco precisa vir com o MCP adaptado no mesmo
+trabalho** — não é tarefa opcional nem para depois.
+
+Ao mexer em qualquer um destes pontos:
+
+- migração (`web/supabase/migrations/`): tabela, view, coluna, RPC, regra de gatilho;
+- Edge Function (`web/supabase/functions/`);
+- hook ou lib que grava dados no web (`web/src/features/**/hooks/`, `web/src/lib/`), parsers de planilha, motor do
+  cronograma, cálculos de medição;
+
+faça também:
+
+1. Ajuste ou crie a ferramenta em `web/mcp/ferramentas/` (campos, ações, descrição e o `cobre` com as tabelas/RPCs/
+   Edge Functions que ela usa). Mantenha no máximo 40 ferramentas: prefira nova `acao` numa ferramenta existente.
+2. Se a regra de negócio mudou, atualize o guia (`web/mcp/guia.ts`) e, se for o caso, os prompts (`web/mcp/prompts.ts`).
+3. O que não deve passar pela IA vai para `web/mcp/cobertura.ts` com o motivo.
+4. Rode `npm test` no `web/` — `mcp/cobertura.test.ts` falha se algo do banco ficou sem ferramenta ou sem motivo, ou
+   se uma ferramenta chama RPC com parâmetro que não existe.
+5. Para mudanças de fluxo, rode o e2e do MCP no stack local: `npm run mcp:build:local` e
+   `E2E_EMAIL=… E2E_PASSWORD=… node mcp/e2e-mcp.mjs` (e acrescente o caso novo nele).
+6. O bundle do MCP é gerado no `npm run build` e vai junto no deploy do web.
+
+Detalhes (conexão dos clientes, login OAuth/token, ferramentas): `web/docs/MCP.md`.

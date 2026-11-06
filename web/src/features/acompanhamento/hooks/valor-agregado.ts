@@ -23,6 +23,104 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Leitura usada pela tela e pelo MCP. */
+export async function carregarCurvaSDia(obraId: string): Promise<CurvaSDiaRow[]> {
+  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
+  // a API devolve no máximo 1000 linhas por chamada: pagina (a CO.081 já passa de 1800)
+  const out: CurvaSDiaRow[] = []
+  const passo = 1000
+  for (let de = 0; ; de += passo) {
+    const { data, error } = await supabase
+      .from('vw_acompanhamento_curva_s')
+      .select('item_orcamentario_id, data, planejado_dia, realizado_dia')
+      .eq('obra_id', obraId)
+      .order('item_orcamentario_id')
+      .order('data')
+      .range(de, de + passo - 1)
+    if (error) throw error
+    out.push(...((data ?? []) as unknown as CurvaSDiaRow[]))
+    if (!data || data.length < passo) break
+  }
+  return out
+}
+
+/** Leitura usada pela tela e pelo MCP. */
+export async function carregarEapGrupos(obraId: string): Promise<EapGrupo[]> {
+  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
+  const [itensRes, alocRes] = await Promise.all([
+    supabase
+      .from('item_orcamentario')
+      .select(
+        'id, codigo, descricao, tipo, quantidade, venda_unitaria, quantidade_referencia, unidade, unidade_referencia, custo_unitario_calc'
+      )
+      .eq('obra_id', obraId)
+      .in('tipo', ['servico_grupo', 'receita'])
+      .order('codigo', { ascending: true }),
+    supabase.from('item_orc_alocacao').select('grupo_id, receita_id, fracao').eq('obra_id', obraId)
+  ])
+  if (itensRes.error) throw itensRes.error
+  if (alocRes.error) throw alocRes.error
+  const itens = itensRes.data ?? []
+  const receitas = new Map(
+    itens.filter((i) => i.tipo === 'receita').map((r) => [r.id as string, r])
+  )
+  const alocs = alocRes.data ?? []
+  return itens
+    .filter((i) => i.tipo === 'servico_grupo')
+    .map((g) => ({
+      id: g.id as string,
+      codigo: (g.codigo as string) ?? '',
+      descricao: (g.descricao as string) ?? '',
+      quantidade_referencia: Number(g.quantidade_referencia ?? 0),
+      unidade_referencia: (g.unidade_referencia as string) ?? '',
+      custo_unitario: Number(g.custo_unitario_calc ?? 0),
+      filhos: alocs
+        .filter((a) => a.grupo_id === g.id && receitas.has(a.receita_id as string))
+        .map((a) => {
+          const c = receitas.get(a.receita_id as string)!
+          return {
+            id: c.id as string,
+            codigo: (c.codigo as string) ?? '',
+            descricao: (c.descricao as string) ?? '',
+            unidade: (c.unidade as string) ?? '',
+            quantidade: Number(c.quantidade ?? 0) * Number(a.fracao ?? 0),
+            venda_unitaria: Number(c.venda_unitaria ?? 0)
+          }
+        })
+        .sort((x, y) => x.codigo.localeCompare(y.codigo, 'pt-BR', { numeric: true }))
+    }))
+}
+
+/** Leitura usada pela tela e pelo MCP. */
+export async function carregarHistoricoPrecos(obraId: string): Promise<HistoricoPrecos> {
+  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
+  const [rj, it] = await Promise.all([
+    supabase
+      .from('orcamento_reajuste')
+      .select('id, data')
+      .eq('obra_id', obraId)
+      .eq('status', 'aplicado'),
+    supabase
+      .from('orcamento_reajuste_item')
+      .select('reajuste_id, receita_id, preco_antes')
+      .eq('obra_id', obraId)
+      .not('preco_antes', 'is', null)
+  ])
+  if (rj.error) throw rj.error
+  if (it.error) throw it.error
+  const dataDe = new Map((rj.data ?? []).map((r) => [r.id as string, r.data as string]))
+  const m: HistoricoPrecos = new Map()
+  for (const i of it.data ?? []) {
+    const data = dataDe.get(i.reajuste_id as string)
+    if (!data) continue
+    const arr = m.get(i.receita_id as string) ?? []
+    arr.push({ data, preco_antes: Number(i.preco_antes) })
+    m.set(i.receita_id as string, arr)
+  }
+  for (const arr of m.values()) arr.sort((a, b) => (a.data < b.data ? -1 : 1))
+  return m
+}
+
 /** Produção real/planejada por item/dia (vw_acompanhamento_curva_s). */
 function useCurvaSDia(
   obraId: string | null | undefined
@@ -31,25 +129,7 @@ function useCurvaSDia(
     queryKey: ['acompanhamento', 'valor-agregado', 'curva-s-dia', obraId],
     enabled: !!obraId,
     staleTime: 30_000,
-    queryFn: async (): Promise<CurvaSDiaRow[]> => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-      // a API devolve no máximo 1000 linhas por chamada: pagina (a CO.081 já passa de 1800)
-      const out: CurvaSDiaRow[] = []
-      const passo = 1000
-      for (let de = 0; ; de += passo) {
-        const { data, error } = await supabase
-          .from('vw_acompanhamento_curva_s')
-          .select('item_orcamentario_id, data, planejado_dia, realizado_dia')
-          .eq('obra_id', obraId!)
-          .order('item_orcamentario_id')
-          .order('data')
-          .range(de, de + passo - 1)
-        if (error) throw error
-        out.push(...((data ?? []) as unknown as CurvaSDiaRow[]))
-        if (!data || data.length < passo) break
-      }
-      return out
-    }
+    queryFn: () => carregarCurvaSDia(obraId!)
   })
 }
 
@@ -65,54 +145,7 @@ export function useEapGrupos(
     queryKey: ['acompanhamento', 'valor-agregado', 'eap', obraId],
     enabled: !!obraId,
     staleTime: 60_000,
-    queryFn: async (): Promise<EapGrupo[]> => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-      const [itensRes, alocRes] = await Promise.all([
-        supabase
-          .from('item_orcamentario')
-          .select(
-            'id, codigo, descricao, tipo, quantidade, venda_unitaria, quantidade_referencia, unidade, unidade_referencia, custo_unitario_calc'
-          )
-          .eq('obra_id', obraId!)
-          .in('tipo', ['servico_grupo', 'receita'])
-          .order('codigo', { ascending: true }),
-        supabase
-          .from('item_orc_alocacao')
-          .select('grupo_id, receita_id, fracao')
-          .eq('obra_id', obraId!)
-      ])
-      if (itensRes.error) throw itensRes.error
-      if (alocRes.error) throw alocRes.error
-      const itens = itensRes.data ?? []
-      const receitas = new Map(
-        itens.filter((i) => i.tipo === 'receita').map((r) => [r.id as string, r])
-      )
-      const alocs = alocRes.data ?? []
-      return itens
-        .filter((i) => i.tipo === 'servico_grupo')
-        .map((g) => ({
-          id: g.id as string,
-          codigo: (g.codigo as string) ?? '',
-          descricao: (g.descricao as string) ?? '',
-          quantidade_referencia: Number(g.quantidade_referencia ?? 0),
-          unidade_referencia: (g.unidade_referencia as string) ?? '',
-          custo_unitario: Number(g.custo_unitario_calc ?? 0),
-          filhos: alocs
-            .filter((a) => a.grupo_id === g.id && receitas.has(a.receita_id as string))
-            .map((a) => {
-              const c = receitas.get(a.receita_id as string)!
-              return {
-                id: c.id as string,
-                codigo: (c.codigo as string) ?? '',
-                descricao: (c.descricao as string) ?? '',
-                unidade: (c.unidade as string) ?? '',
-                quantidade: Number(c.quantidade ?? 0) * Number(a.fracao ?? 0),
-                venda_unitaria: Number(c.venda_unitaria ?? 0)
-              }
-            })
-            .sort((x, y) => x.codigo.localeCompare(y.codigo, 'pt-BR', { numeric: true }))
-        }))
-    }
+    queryFn: () => carregarEapGrupos(obraId!)
   })
 }
 
@@ -124,34 +157,7 @@ export function useHistoricoPrecos(
     queryKey: ['acompanhamento', 'valor-agregado', 'historico-precos', obraId],
     enabled: !!obraId,
     staleTime: 60_000,
-    queryFn: async (): Promise<HistoricoPrecos> => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-      const [rj, it] = await Promise.all([
-        supabase
-          .from('orcamento_reajuste')
-          .select('id, data')
-          .eq('obra_id', obraId!)
-          .eq('status', 'aplicado'),
-        supabase
-          .from('orcamento_reajuste_item')
-          .select('reajuste_id, receita_id, preco_antes')
-          .eq('obra_id', obraId!)
-          .not('preco_antes', 'is', null)
-      ])
-      if (rj.error) throw rj.error
-      if (it.error) throw it.error
-      const dataDe = new Map((rj.data ?? []).map((r) => [r.id as string, r.data as string]))
-      const m: HistoricoPrecos = new Map()
-      for (const i of it.data ?? []) {
-        const data = dataDe.get(i.reajuste_id as string)
-        if (!data) continue
-        const arr = m.get(i.receita_id as string) ?? []
-        arr.push({ data, preco_antes: Number(i.preco_antes) })
-        m.set(i.receita_id as string, arr)
-      }
-      for (const arr of m.values()) arr.sort((a, b) => (a.data < b.data ? -1 : 1))
-      return m
-    }
+    queryFn: () => carregarHistoricoPrecos(obraId!)
   })
 }
 

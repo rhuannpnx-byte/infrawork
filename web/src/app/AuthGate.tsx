@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { LoginPage, RedefinirSenhaPage } from './routes/LoginPage'
+import { OAuthConsentimento, PEDIDO_OAUTH } from './OAuthConsentimento'
 
 export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   const status = useAuthStore((s) => s.status)
@@ -27,6 +28,10 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
 
   if (recuperacaoSenha) {
     return <RedefinirSenhaPage />
+  }
+
+  if (PEDIDO_OAUTH) {
+    return <OAuthConsentimento authorizationId={PEDIDO_OAUTH} />
   }
 
   // apontador: só o app de campo

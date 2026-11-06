@@ -50,5 +50,10 @@ export default defineConfig(
       ]
     }
   },
+  {
+    // MCP: as ferramentas devolvem JSON livre para a IA (o contrato é o inputSchema de cada uma)
+    files: ['mcp/**/*.{ts,mjs}'],
+    rules: { '@typescript-eslint/explicit-function-return-type': 'off' }
+  },
   eslintConfigPrettier
 )
