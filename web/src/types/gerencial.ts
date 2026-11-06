@@ -16,7 +16,7 @@ export interface UsuarioRow {
   empresa_id: string | null
   engenheiro_id: string | null
   ativo: boolean
-  /** Número de WhatsApp (dígitos, formato internacional). Foundation do RAG. */
+  /** Número de WhatsApp de contato (dígitos, formato internacional). */
   whatsapp: string | null
   created_at: string
 }

@@ -2,9 +2,8 @@
 // Body: { obra_id: string, ativa: boolean }
 // Permissão: God (qualquer empresa) ou Adm (na sua empresa).
 //
-// Desabilitar (ativa=false) faz a obra sumir da seleção no app e do contexto do
-// agente WhatsApp (ver /me e whatsapp-agent identidade). Não apaga nada — é
-// reversível. Exclusão definitiva é a edge delete-obra.
+// Desabilitar (ativa=false) faz a obra sumir da seleção no web e no app. Não apaga
+// nada — é reversível. Exclusão definitiva é a edge delete-obra.
 
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, assertSameEmpresa, resolveCaller } from '../_shared/auth.ts'

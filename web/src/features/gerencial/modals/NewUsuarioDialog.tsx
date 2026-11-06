@@ -252,7 +252,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
               inputMode="tel"
             />
             <div className="text-2xs text-text-dim font-mono mt-1">
-              Com DDI e DDD. Usado para casar mensagens do WhatsApp ao usuário.
+              Com DDI e DDD. Número de contato do usuário.
             </div>
           </div>
 

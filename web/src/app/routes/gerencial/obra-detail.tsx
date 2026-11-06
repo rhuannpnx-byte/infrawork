@@ -121,7 +121,7 @@ export function ObraDetailPage(): ReactNode {
                     toast.success(
                       r.ativa
                         ? `Obra ${obra.codigo} reabilitada.`
-                        : `Obra ${obra.codigo} desabilitada — não aparece mais para seleção nem no agente do WhatsApp.`
+                        : `Obra ${obra.codigo} desabilitada — não aparece mais para seleção.`
                     )
                   )
                   .catch((e) => toast.error(e instanceof Error ? e.message : 'Falha ao atualizar'))
@@ -157,8 +157,8 @@ export function ObraDetailPage(): ReactNode {
           <div className="rounded border border-warn/40 bg-warn/10 px-4 py-2.5 text-xs flex items-center gap-2">
             <PowerOff size={14} className="text-warn shrink-0" />
             <span className="text-warn">
-              Obra <strong>desabilitada</strong> — não aparece para seleção no app nem no contexto
-              do agente do WhatsApp. Use <strong>Reabilitar</strong> para voltar a usá-la.
+              Obra <strong>desabilitada</strong> — não aparece para seleção no web nem no app. Use{' '}
+              <strong>Reabilitar</strong> para voltar a usá-la.
             </span>
           </div>
         ) : null}
