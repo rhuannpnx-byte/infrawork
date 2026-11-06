@@ -177,8 +177,8 @@ function Inner(): ReactNode {
       { header: 'Material', numFmt: '#,##0.00' },
       { header: 'DMT (km)', numFmt: '#,##0.0' },
       { header: 'NF/ticket' },
-      { header: 'Km inicial', numFmt: '#,##0.0' },
-      { header: 'Km final', numFmt: '#,##0.0' }
+      { header: 'Hodômetro inicial (km)', numFmt: '#,##0.0' },
+      { header: 'Hodômetro final (km)', numFmt: '#,##0.0' }
     ],
     linhas: visiveis.map((r) => [
       fmtBR(r.ficha.data),

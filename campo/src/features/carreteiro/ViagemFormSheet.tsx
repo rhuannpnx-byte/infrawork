@@ -4,7 +4,7 @@ import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
 import { parseNum } from '@/lib/numero'
-import { estacaFinalTexto, estacaInicialTexto, estacaParaMetros } from '@/lib/estaca'
+import { estacaFinalTexto, estacaInicialTexto, estacaParaMetros, nomePosicao } from '@/lib/estaca'
 import { formatNumero } from '@/lib/datas'
 import type { ViagemLocal } from '@/core/db/entities'
 import type { CatalogoDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
@@ -87,7 +87,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
       posicaoM = estacaParaMetros(eixo, estaca)
       if (posicaoM == null)
         return setErro(
-          `Estaca "${estaca}" inválida (${estacaInicialTexto(eixo)} – ${estacaFinalTexto(eixo)}).`,
+          `${nomePosicao(eixo)} "${estaca}" inválido (${estacaInicialTexto(eixo)} – ${estacaFinalTexto(eixo)}).`,
         )
     }
     const m = parseNum(matQtd)
@@ -173,7 +173,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           )}
           {eixo && (
             <LabeledInput
-              label={`Estaca de ${pontaNaPista} (${eixo.nome})`}
+              label={`${nomePosicao(eixo)} de ${pontaNaPista} (${eixo.nome})`}
               value={estaca}
               onChange={setEstaca}
               placeholder={`${estacaInicialTexto(eixo)} – ${estacaFinalTexto(eixo)}`}

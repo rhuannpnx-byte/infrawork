@@ -31,6 +31,20 @@ export const estacaFinalTexto = (t: LocalDto): string => {
   return c > 0 ? formatMarcadorCompacto(c, ctxLocal(t)) || '—' : '—'
 }
 
+/** Nome da posição no eixo conforme a unidade do local: "Estaca", "Km", "Posição (m)" ou a unidade própria. */
+export function nomePosicao(t: LocalDto): string {
+  switch (t.unidade_espaco_padrao) {
+    case 'km':
+      return 'Km'
+    case 'm':
+      return 'Posição (m)'
+    case 'custom':
+      return t.unidade_custom_label?.trim() || 'Posição'
+    default:
+      return 'Estaca'
+  }
+}
+
 export function rotuloLocal(t: LocalDto): string {
   return t.tipo === 'area'
     ? `Área ${t.nome}`
@@ -51,17 +65,18 @@ export function resolverLocal(t: LocalDto | null, ini: string, fim: string): Loc
   if (!t) return { ok: true, trechoId: null, inicioM: null, fimM: null }
   if (t.tipo === 'area') return { ok: true, trechoId: t.id, inicioM: null, fimM: null }
   const faixa = `${estacaInicialTexto(t)} – ${estacaFinalTexto(t)}`
+  const nome = nomePosicao(t)
   if (!ini.trim() || !fim.trim())
-    return { ok: false, erro: `Informe as estacas inicial e final (${faixa}).` }
+    return { ok: false, erro: `Informe ${nome} inicial e final (${faixa}).` }
   const a = estacaParaMetros(t, ini)
   const b = estacaParaMetros(t, fim)
   if (a === null)
-    return { ok: false, erro: `Estaca inicial "${ini}" inválida ou fora de ${t.nome} (${faixa}).` }
+    return { ok: false, erro: `${nome} inicial "${ini}" inválido ou fora de ${t.nome} (${faixa}).` }
   if (b === null)
-    return { ok: false, erro: `Estaca final "${fim}" inválida ou fora de ${t.nome} (${faixa}).` }
+    return { ok: false, erro: `${nome} final "${fim}" inválido ou fora de ${t.nome} (${faixa}).` }
   const i = Math.min(a, b)
   const f = Math.max(a, b)
-  if (!(f > i)) return { ok: false, erro: 'A estaca final precisa ser diferente da inicial.' }
+  if (!(f > i)) return { ok: false, erro: `${nome} final precisa ser diferente do inicial.` }
   return {
     ok: true,
     trechoId: t.id,

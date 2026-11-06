@@ -47,8 +47,8 @@ async function doPush(): Promise<PushSummary> {
   await db.out_foto
     .where('syncStatus')
     .equals('SYNCED')
-    .filter((f) => f.fileBlob != null)
-    .modify({ fileBlob: null })
+    .filter((f) => f.fileBlob != null || f.fileData != null)
+    .modify({ fileBlob: null, fileData: null })
   const agora = Date.now()
   // a foto de um lançamento só sobe depois do lançamento (o registro liga pelo app_uuid)
   const prodPendentes = new Set(
@@ -80,6 +80,7 @@ async function doPush(): Promise<PushSummary> {
         failureReason: null,
         lastSyncAttempt: Date.now(),
         fileBlob: null,
+        fileData: null,
       })
       summary.accepted += 1
     } catch (err) {

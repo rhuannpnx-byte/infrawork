@@ -423,6 +423,7 @@ function FormMode({
   const [stampedUrl, setStampedUrl] = useState<string | null>(null)
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null)
   const [rendering, setRendering] = useState(false)
+  const [erroAoSalvar, setErroAoSalvar] = useState(false)
   const renderSeqRef = useRef(0)
 
   // Re-renderiza watermark sempre que metadados mudam (debounced)
@@ -479,6 +480,7 @@ function FormMode({
     if (!stampedBlob || !dims) return
     setSaving(true)
     setError(null)
+    setErroAoSalvar(false)
     try {
       await saveFoto({
         obraId,
@@ -501,6 +503,7 @@ function FormMode({
       })
       onSaved()
     } catch (e) {
+      setErroAoSalvar(true)
       setError(e instanceof Error ? e.message : 'Falha ao salvar')
     } finally {
       setSaving(false)
@@ -544,7 +547,9 @@ function FormMode({
         <div className="mx-auto max-w-2xl space-y-3 p-4">
           {error && (
             <div className="rounded-lg bg-bad/15 p-3 text-sm text-bad">
-              <p className="font-medium">Erro ao renderizar</p>
+              <p className="font-medium">
+                {erroAoSalvar ? 'Erro ao salvar' : 'Erro ao renderizar'}
+              </p>
               <p className="mt-1 text-xs opacity-90">{error}</p>
               <Button variant="outline" size="sm" onClick={onRetake} className="mt-2">
                 <RotateCcw className="mr-1 h-4 w-4" />

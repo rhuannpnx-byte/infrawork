@@ -136,6 +136,9 @@ export interface OutFoto {
   lng: number | null
   accuracy: number | null
   capturedAt: string
+  /** JPEG em bytes. O Chrome do Android às vezes não grava Blob no IndexedDB ("Error preparing Blob/File data"). */
+  fileData?: ArrayBuffer | null
+  /** fotos gravadas antes de `fileData` */
   fileBlob?: Blob | null
   mime: string
   sizeBytes: number

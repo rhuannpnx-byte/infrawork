@@ -4,7 +4,13 @@ import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
 import { parseNum } from '@/lib/numero'
-import { estacaFinalTexto, estacaInicialTexto, resolverLocal, rotuloLocal } from '@/lib/estaca'
+import {
+  estacaFinalTexto,
+  estacaInicialTexto,
+  nomePosicao,
+  resolverLocal,
+  rotuloLocal,
+} from '@/lib/estaca'
 import type { LocalDto, ServicoDto } from '@/types/dtos'
 import { novoApontamento, type ApontamentoDraft } from './producaoStore'
 
@@ -129,13 +135,13 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
           {local?.tipo === 'eixo' && (
             <div className="grid grid-cols-2 gap-3">
               <LabeledInput
-                label="Estaca inicial *"
+                label={`${nomePosicao(local)} inicial *`}
                 value={estIni}
                 onChange={setEstIni}
                 placeholder={estacaInicialTexto(local)}
               />
               <LabeledInput
-                label="Estaca final *"
+                label={`${nomePosicao(local)} final *`}
                 value={estFim}
                 onChange={setEstFim}
                 placeholder={estacaFinalTexto(local)}

@@ -13,7 +13,7 @@ import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
 import { ehMaquinaDeCarga } from '@/lib/frota'
 import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
 
-/** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado, equipe e km. */
+/** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado, equipe e hodômetro do caminhão. */
 export function CarreteiroStep0Route() {
   const authed = useIsAuthenticated()
   const navigate = useNavigate()
@@ -33,7 +33,7 @@ export function CarreteiroStep0Route() {
     const a = parseNum(kmIni)
     const b = parseNum(kmFim)
     if (a != null && b != null && b < a)
-      return setErro('O km final não pode ser menor que o inicial.')
+      return setErro('O hodômetro final não pode ser menor que o inicial.')
     setCab({ kmInicial: a, kmFinal: b })
     navigate('/carreteiro/step1')
   }
@@ -109,8 +109,8 @@ export function CarreteiroStep0Route() {
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <NumericField label="Km inicial" value={kmIni} onChange={setKmIni} />
-          <NumericField label="Km final" value={kmFim} onChange={setKmFim} />
+          <NumericField label="Hodômetro inicial (km)" value={kmIni} onChange={setKmIni} />
+          <NumericField label="Hodômetro final (km)" value={kmFim} onChange={setKmFim} />
         </div>
         {erro && <p className="text-sm text-bad">{erro}</p>}
       </div>

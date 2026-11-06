@@ -187,7 +187,10 @@ function Inner(): ReactNode {
               className="flex items-center gap-2 border-t border-border px-3 py-2"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (!novo.nome.trim()) return
+                if (!novo.nome.trim()) {
+                  toast.error('Informe o nome do local.')
+                  return
+                }
                 salvarLocal.mutate(
                   {
                     obra_id: obraId,
@@ -199,7 +202,7 @@ function Inner(): ReactNode {
                 )
               }}
             >
-              <div className="min-w-0 flex-1">
+              <div className="min-w-[8rem] flex-1">
                 <Input
                   value={novo.nome}
                   onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
@@ -207,29 +210,37 @@ function Inner(): ReactNode {
                   className="h-7 text-xs"
                 />
               </div>
-              <Select
-                value={novo.tipo}
-                onChange={(e) => setNovo({ ...novo, tipo: e.target.value as TipoLocalTransporte })}
-                className="h-7 w-36 text-xs"
-              >
-                {TIPOS.map((t) => (
-                  <option key={t} value={t}>
-                    {TIPO_LOCAL_LABEL[t]}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                value={novo.trecho}
-                onChange={(e) => setNovo({ ...novo, trecho: e.target.value })}
-                className="h-7 w-40 text-xs"
-              >
-                <option value="">local da obra: —</option>
-                {trechos.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
-                  </option>
-                ))}
-              </Select>
+              <div className="w-32 shrink-0">
+                <Select
+                  value={novo.tipo}
+                  onChange={(e) =>
+                    setNovo({ ...novo, tipo: e.target.value as TipoLocalTransporte })
+                  }
+                  className="h-7 text-xs"
+                  aria-label="Tipo do novo local"
+                >
+                  {TIPOS.map((t) => (
+                    <option key={t} value={t}>
+                      {TIPO_LOCAL_LABEL[t]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="w-40 shrink-0">
+                <Select
+                  value={novo.trecho}
+                  onChange={(e) => setNovo({ ...novo, trecho: e.target.value })}
+                  className="h-7 text-xs"
+                  aria-label="Local da obra do novo local"
+                >
+                  <option value="">local da obra: —</option>
+                  {trechos.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
+                    </option>
+                  ))}
+                </Select>
+              </div>
               <Button size="sm" type="submit">
                 <Plus size={12} /> Incluir
               </Button>
@@ -309,7 +320,10 @@ function Inner(): ReactNode {
               onSubmit={(e) => {
                 e.preventDefault()
                 const dmt = parseQtd(rota.dmt)
-                if (!rota.origem || !rota.destino || dmt == null) return
+                if (!rota.origem || !rota.destino || dmt == null) {
+                  toast.error('Escolha a origem e o destino e informe o DMT em km.')
+                  return
+                }
                 salvarRota.mutate(
                   {
                     obra_id: obraId,

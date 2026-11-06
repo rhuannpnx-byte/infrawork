@@ -332,7 +332,7 @@ function Form({
               </Select>
             </div>
             <div>
-              <Label>Km inicial</Label>
+              <Label>Hodômetro inicial (km)</Label>
               <Input
                 inputMode="decimal"
                 value={kmIni}
@@ -341,7 +341,7 @@ function Form({
               />
             </div>
             <div>
-              <Label>Km final</Label>
+              <Label>Hodômetro final (km)</Label>
               <Input
                 inputMode="decimal"
                 value={kmFim}

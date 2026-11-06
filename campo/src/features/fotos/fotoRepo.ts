@@ -4,7 +4,6 @@ import { uuidv7 } from '@/lib/uuidv7'
 import type { OutFoto } from '@/core/db/entities'
 import { pushFotoOutbox, type PushSummary } from '@/core/sync/fotoSync'
 import { triggerForegroundSync } from '@/core/sync/foregroundSync'
-import { photoStorage } from '@/core/storage'
 
 /** Grava uma foto (marca d'água queimada e GPS no EXIF) na fila e tenta enviar. */
 export interface SaveFotoInput {
@@ -38,7 +37,7 @@ export async function saveFoto(
   const empresaId = obra?.empresa_id ?? user.empresaId
   if (!empresaId) throw new Error('Obra sem empresa — atualize os dados da obra')
   const id = uuidv7()
-  const handle = await photoStorage().save(input.fileBlob, id)
+  const fileData = await input.fileBlob.arrayBuffer()
   const entity: OutFoto = {
     id,
     obraId: input.obraId,
@@ -55,7 +54,8 @@ export async function saveFoto(
     lng: input.lng,
     accuracy: input.accuracy,
     capturedAt: input.capturedAt ?? new Date().toISOString(),
-    fileBlob: handle.kind === 'blob' ? handle.blob : null,
+    fileData,
+    fileBlob: null,
     mime: input.fileBlob.type || 'image/jpeg',
     sizeBytes: input.fileBlob.size,
     width: input.width,
@@ -81,10 +81,5 @@ export async function deleteFoto(id: string): Promise<void> {
   if (!foto) return
   if (foto.syncStatus === 'SYNCING') throw new Error('Foto em envio, aguarde')
   if (foto.syncStatus === 'SYNCED') throw new Error('Foto já enviada — exclua pelo sistema web')
-  try {
-    if (foto.fileBlob) await photoStorage().delete({ kind: 'blob', blob: foto.fileBlob })
-  } catch (e) {
-    console.warn('[fotoRepo.deleteFoto] limpeza falhou:', e)
-  }
   await db.out_foto.delete(id)
 }
