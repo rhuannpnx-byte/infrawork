@@ -397,7 +397,11 @@ function FormInner({
             <Label>Equipe</Label>
             <select
               value={equipeId}
-              onChange={(e) => setEquipeId(e.target.value)}
+              onChange={(e) => {
+                setEquipeId(e.target.value)
+                const enc = equipes.find((eq) => eq.id === e.target.value)?.encarregado_id
+                if (enc && encarregados.some((en) => en.id === enc)) setEncarregadoId(enc)
+              }}
               className={campo}
             >
               <option value="">Sem equipe</option>

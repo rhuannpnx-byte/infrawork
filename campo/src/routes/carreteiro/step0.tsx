@@ -11,6 +11,7 @@ import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
 import { ehMaquinaDeCarga } from '@/lib/frota'
+import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
 
 /** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado, equipe e km. */
 export function CarreteiroStep0Route() {
@@ -163,7 +164,20 @@ export function CarreteiroStep0Route() {
           ]}
           label={(e) => (e.apelido ? `${e.nome} (${e.apelido})` : e.nome)}
           onPick={(e) => {
-            setCab({ encarregadoId: e.id || null, encarregadoNome: e.id ? e.nome : null })
+            const id = e.id || null
+            const todas = catalogo?.equipes ?? []
+            const lista = equipesDoEncarregado(todas, id)
+            const unica = temEquipesVinculadas(todas, id) && lista.length === 1 ? lista[0]! : null
+            const manter = lista.some((q) => q.id === ficha.equipeId)
+            setCab({
+              encarregadoId: id,
+              encarregadoNome: id ? e.nome : null,
+              ...(unica
+                ? { equipeId: unica.id, equipeNome: unica.nome }
+                : manter
+                  ? {}
+                  : { equipeId: null, equipeNome: null }),
+            })
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}
@@ -173,7 +187,10 @@ export function CarreteiroStep0Route() {
         <PickerSheet
           open
           title="Equipe"
-          items={[{ id: '', nome: '— sem equipe —' }, ...(catalogo?.equipes ?? [])]}
+          items={[
+            { id: '', nome: '— sem equipe —' },
+            ...equipesDoEncarregado(catalogo?.equipes ?? [], ficha.encarregadoId),
+          ]}
           label={(e) => e.nome}
           onPick={(e) => {
             setCab({ equipeId: e.id || null, equipeNome: e.id ? e.nome : null })

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { EQUIPE_TIPOS, EQUIPE_CORES_PADRAO } from '@/types/planejamento'
 import { useCreateEquipe } from '../hooks/equipes'
+import { EncarregadoSelect } from '../components/EncarregadoSelect'
 
 interface Props {
   open: boolean
@@ -26,6 +27,7 @@ export function NewEquipeDialog({ open, onOpenChange, obraId }: Props): ReactNod
   const [tipo, setTipo] = useState<string>(EQUIPE_TIPOS[0])
   const [tipoCustom, setTipoCustom] = useState('')
   const [cor, setCor] = useState<string>(EQUIPE_CORES_PADRAO[0])
+  const [encarregadoId, setEncarregadoId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const reset = (): void => {
@@ -33,6 +35,7 @@ export function NewEquipeDialog({ open, onOpenChange, obraId }: Props): ReactNod
     setTipo(EQUIPE_TIPOS[0])
     setTipoCustom('')
     setCor(EQUIPE_CORES_PADRAO[0])
+    setEncarregadoId('')
     setError(null)
   }
 
@@ -46,7 +49,13 @@ export function NewEquipeDialog({ open, onOpenChange, obraId }: Props): ReactNod
       return
     }
     try {
-      await create.mutateAsync({ obra_id: obraId, nome: nome.trim(), tipo: tipoFinal.trim(), cor })
+      await create.mutateAsync({
+        obra_id: obraId,
+        nome: nome.trim(),
+        tipo: tipoFinal.trim(),
+        cor,
+        encarregado_id: encarregadoId || null
+      })
       toast.success(`Equipe "${nome}" criada.`)
       reset()
       onOpenChange(false)
@@ -110,6 +119,8 @@ export function NewEquipeDialog({ open, onOpenChange, obraId }: Props): ReactNod
               />
             ) : null}
           </div>
+
+          <EncarregadoSelect obraId={obraId} value={encarregadoId} onChange={setEncarregadoId} />
 
           <div>
             <Label>Cor</Label>

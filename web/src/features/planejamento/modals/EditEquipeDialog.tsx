@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { EQUIPE_TIPOS, EQUIPE_CORES_PADRAO, type Equipe } from '@/types/planejamento'
 import { useUpdateEquipe, useDeleteEquipe } from '../hooks/equipes'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
+import { EncarregadoSelect } from '../components/EncarregadoSelect'
 
 interface Props {
   open: boolean
@@ -30,6 +31,7 @@ export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNo
   const [tipoCustom, setTipoCustom] = useState('')
   const [cor, setCor] = useState(EQUIPE_CORES_PADRAO[0])
   const [ativo, setAtivo] = useState(true)
+  const [encarregadoId, setEncarregadoId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNo
       setTipoCustom(isPadrao ? '' : equipe.tipo)
       setCor(equipe.cor)
       setAtivo(equipe.ativo)
+      setEncarregadoId(equipe.encarregado_id ?? '')
       setError(null)
     }
   }, [equipe, open])
@@ -58,7 +61,8 @@ export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNo
         nome: nome.trim(),
         tipo: tipoFinal.trim(),
         cor,
-        ativo
+        ativo,
+        encarregado_id: encarregadoId || null
       })
       toast.success('Equipe atualizada.')
       onOpenChange(false)
@@ -134,6 +138,12 @@ export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNo
               />
             ) : null}
           </div>
+
+          <EncarregadoSelect
+            obraId={equipe.obra_id}
+            value={encarregadoId}
+            onChange={setEncarregadoId}
+          />
 
           <div>
             <Label>Cor</Label>

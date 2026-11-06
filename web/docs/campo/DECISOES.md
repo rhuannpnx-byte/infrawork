@@ -56,7 +56,9 @@ snapshot por obra (`campo_catalogo`, sem preços), renovado quando a `versao` (h
 
 ## C-08 Divergências conhecidas
 
-- Encarregado e equipe não são vinculados entre si (no SIGA eram por projeto); o apontador escolhe livremente.
+- Encarregado tem N equipes (`equipe.encarregado_id`, mesma obra). Na sessão de produção o app pede o encarregado
+  primeiro e lista só as equipes dele (uma só já vem escolhida); encarregado sem equipe vinculada vê as equipes sem
+  encarregado. Na ficha de viagem e na foto o encarregado continua opcional, com a mesma lista de equipes.
 - Mudar o modo de um serviço que já tem produção manual vale só para os lançamentos novos.
 - Parte Diária (horímetro de MVE/EPP) fica para uma próxima etapa.
 

@@ -9,10 +9,12 @@ import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
 import { useProducaoStore } from '@/features/producao/producaoStore'
 import { loadSessionItensAsDrafts } from '@/features/producao/producaoRepo'
+import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
+import type { EncarregadoDto } from '@/types/dtos'
 
 /**
- * Nova sessão de produção: a obra (escolhida no Home), o dia (hoje ou ontem), o encarregado e a equipe.
- * Encarregado e equipe valem para todos os apontamentos da sessão.
+ * Nova sessão de produção: a obra (escolhida no Home), o dia (hoje ou ontem), o encarregado e depois uma das equipes
+ * dele. Encarregado e equipe valem para todos os apontamentos da sessão.
  */
 export function ProducaoSetupRoute() {
   const authed = useIsAuthenticated()
@@ -35,7 +37,21 @@ export function ProducaoSetupRoute() {
   if (!session?.obraAtualId) return <Navigate to="/" replace />
 
   const encarregados = catalogo?.encarregados ?? []
-  const equipes = catalogo?.equipes ?? []
+  const todasEquipes = catalogo?.equipes ?? []
+  const exigeEncarregado = encarregados.length > 0
+  const semEncarregado = exigeEncarregado && !store.encarregadoId
+  const equipes = equipesDoEncarregado(todasEquipes, store.encarregadoId)
+
+  function escolherEncarregado(e: EncarregadoDto) {
+    const id = e.id || null
+    store.setEncarregado(id, id ? e.nome : null)
+    const lista = equipesDoEncarregado(todasEquipes, id)
+    if (temEquipesVinculadas(todasEquipes, id) && lista.length === 1) {
+      store.setEquipe(lista[0]!.id, lista[0]!.nome)
+    } else if (store.equipeId && !lista.some((q) => q.id === store.equipeId)) {
+      store.setEquipe(null, null)
+    }
+  }
   const existente =
     store.obraId != null
       ? (sessoes ?? []).find(
@@ -118,7 +134,16 @@ export function ProducaoSetupRoute() {
           label="EQUIPE"
           value={store.equipeNome ?? 'Selecionar…'}
           onClick={() => setPicker('equipe')}
-          hint={equipes.length === 0 ? 'Sem equipes cadastradas na obra' : undefined}
+          disabled={semEncarregado}
+          hint={
+            semEncarregado
+              ? 'Escolha o encarregado primeiro'
+              : todasEquipes.length === 0
+                ? 'Sem equipes cadastradas na obra'
+                : store.encarregadoId && !temEquipesVinculadas(todasEquipes, store.encarregadoId)
+                  ? 'Encarregado sem equipes vinculadas — mostrando as equipes sem encarregado'
+                  : undefined
+          }
         />
         {catalogo === null && (
           <div className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm text-on-surface">
@@ -153,7 +178,7 @@ export function ProducaoSetupRoute() {
         <Button
           variant="primary"
           size="lg"
-          disabled={store.obraId == null || !catalogo}
+          disabled={store.obraId == null || !catalogo || semEncarregado}
           onClick={() => navigate('/producao/session')}
           className="w-full"
         >
@@ -165,10 +190,10 @@ export function ProducaoSetupRoute() {
         <PickerSheet
           open
           title="Encarregado"
-          items={[{ id: '', nome: '— sem encarregado —', apelido: null }, ...encarregados]}
+          items={encarregados}
           label={(e) => (e.apelido ? `${e.nome} (${e.apelido})` : e.nome)}
           onPick={(e) => {
-            store.setEncarregado(e.id || null, e.id ? e.nome : null)
+            escolherEncarregado(e)
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}
@@ -188,7 +213,9 @@ export function ProducaoSetupRoute() {
           }}
           onDismiss={() => setPicker(null)}
           searchHint="Buscar equipe"
-          emptyMessage="Sem equipes na obra"
+          emptyMessage={
+            store.encarregadoId ? 'Nenhuma equipe deste encarregado' : 'Sem equipes na obra'
+          }
         />
       )}
     </main>

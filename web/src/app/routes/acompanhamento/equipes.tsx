@@ -43,6 +43,12 @@ function Inner(): ReactNode {
   const [editEq, setEditEq] = useState<Equipe | null>(null)
   const [novoEnc, setNovoEnc] = useState(false)
   const [editEnc, setEditEnc] = useState<Encarregado | null>(null)
+  const nomeEnc = new Map(encarregados.map((en) => [en.id, en.nome]))
+  const equipesDe = new Map<string, Equipe[]>()
+  for (const e of equipes) {
+    if (!e.encarregado_id || !e.ativo) continue
+    equipesDe.set(e.encarregado_id, [...(equipesDe.get(e.encarregado_id) ?? []), e])
+  }
 
   // Resumo de produção por equipe (todas as datas), vindo da view de produtividade.
   const resumoEquipe = new Map<
@@ -66,7 +72,7 @@ function Inner(): ReactNode {
       />
       <div className="flex-1 overflow-auto p-5 grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
         {/* Equipes */}
-        <section className="rounded border border-border bg-bg-panel overflow-hidden">
+        <section className="min-w-0 rounded border border-border bg-bg-panel overflow-x-auto">
           <header className="px-3 py-2 border-b border-border flex items-center justify-between">
             <h3 className="text-xs font-semibold text-text inline-flex items-center gap-1.5">
               <Users size={12} /> Equipes
@@ -95,12 +101,13 @@ function Inner(): ReactNode {
             <table className="w-full text-xs">
               <thead className="text-text-dim font-mono uppercase text-2xs bg-bg">
                 <tr className="border-b border-border">
-                  <th className="text-left px-3 py-2">Equipe</th>
-                  <th className="text-left px-3 py-2">Tipo</th>
-                  <th className="text-right px-3 py-2">Lançamentos</th>
-                  <th className="text-left px-3 py-2">Último</th>
-                  <th className="text-left px-3 py-2">Status</th>
-                  <th className="px-3 py-2 w-10" />
+                  <th className="text-left px-2 py-2">Equipe</th>
+                  <th className="text-left px-2 py-2">Tipo</th>
+                  <th className="text-left px-2 py-2">Encarregado</th>
+                  <th className="text-right px-2 py-2">Lançamentos</th>
+                  <th className="text-left px-2 py-2">Último</th>
+                  <th className="text-left px-2 py-2">Status</th>
+                  <th className="px-2 py-2 w-10" />
                 </tr>
               </thead>
               <tbody>
@@ -108,24 +115,27 @@ function Inner(): ReactNode {
                   const r = resumoEquipe.get(e.id)
                   return (
                     <tr key={e.id} className="border-b border-border/40 hover:bg-bg-hover">
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2">
                         <EquipeChip nome={e.nome} cor={e.cor} />
                       </td>
-                      <td className="px-3 py-2 font-mono text-text-muted">{e.tipo}</td>
-                      <td className="px-3 py-2 font-mono text-text-muted text-right">
+                      <td className="px-2 py-2 font-mono text-text-muted">{e.tipo}</td>
+                      <td className="px-2 py-2 text-text-muted whitespace-nowrap">
+                        {e.encarregado_id ? (nomeEnc.get(e.encarregado_id) ?? '—') : '—'}
+                      </td>
+                      <td className="px-2 py-2 font-mono text-text-muted text-right">
                         {r ? formatNumber(r.registros, 0) : '0'}
                       </td>
-                      <td className="px-3 py-2 font-mono text-text-dim">
+                      <td className="px-2 py-2 font-mono text-text-dim">
                         {r?.ultima ? fmtBR(r.ultima) : '—'}
                       </td>
-                      <td className="px-3 py-2 font-mono">
+                      <td className="px-2 py-2 font-mono">
                         {e.ativo ? (
                           <span className="text-success">Ativa</span>
                         ) : (
                           <span className="text-text-dim">Inativa</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-2 py-2 text-right">
                         {!readOnlyEquipes ? (
                           <button
                             type="button"
@@ -145,7 +155,7 @@ function Inner(): ReactNode {
         </section>
 
         {/* Encarregados */}
-        <section className="rounded border border-border bg-bg-panel overflow-hidden">
+        <section className="min-w-0 rounded border border-border bg-bg-panel overflow-x-auto">
           <header className="px-3 py-2 border-b border-border flex items-center justify-between">
             <h3 className="text-xs font-semibold text-text inline-flex items-center gap-1.5">
               <HardHat size={12} /> Encarregados
@@ -164,6 +174,7 @@ function Inner(): ReactNode {
                 <tr className="border-b border-border">
                   <th className="text-left px-3 py-2">Nome</th>
                   <th className="text-left px-3 py-2">Apelido</th>
+                  <th className="text-left px-3 py-2">Equipes</th>
                   <th className="text-left px-3 py-2">Telefone</th>
                   <th className="text-left px-3 py-2">Status</th>
                   <th className="px-3 py-2 w-10" />
@@ -174,6 +185,14 @@ function Inner(): ReactNode {
                   <tr key={en.id} className="border-b border-border/40 hover:bg-bg-hover">
                     <td className="px-3 py-2 text-text">{en.nome}</td>
                     <td className="px-3 py-2 text-text-muted">{en.apelido ?? '—'}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {(equipesDe.get(en.id) ?? []).map((q) => (
+                          <EquipeChip key={q.id} nome={q.nome} cor={q.cor} />
+                        ))}
+                        {equipesDe.has(en.id) ? null : <span className="text-text-dim">—</span>}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 font-mono text-text-muted">{en.telefone ?? '—'}</td>
                     <td className="px-3 py-2 font-mono">
                       {en.ativo ? (

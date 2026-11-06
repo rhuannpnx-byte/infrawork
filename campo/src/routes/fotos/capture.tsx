@@ -31,6 +31,7 @@ import { releaseWakeLock, requestScreenWakeLock } from '@/core/platform/wakeLock
 import { useCatalogo, useObra } from '@/core/db/daos'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { cn } from '@/lib/cn'
+import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
 import { saveFoto } from '@/features/fotos/fotoRepo'
 
 /**
@@ -401,7 +402,7 @@ function FormMode({
   const catalogo = useCatalogo(obraId)
   const servicos = catalogo?.servicos ?? []
   const encarregados = catalogo?.encarregados ?? []
-  const equipes = catalogo?.equipes ?? []
+  const todasEquipes = catalogo?.equipes ?? []
 
   const [servicoId, setServicoId] = useState<string | null>(null)
   const [servicoNome, setServicoNome] = useState<string | null>(null)
@@ -409,6 +410,7 @@ function FormMode({
   const [encarregadoNome, setEncarregadoNome] = useState<string | null>(null)
   const [equipeId, setEquipeId] = useState<string | null>(null)
   const [equipeNome, setEquipeNome] = useState<string | null>(null)
+  const equipes = equipesDoEncarregado(todasEquipes, encarregadoId)
   const [obs, setObs] = useState('')
 
   const [picker, setPicker] = useState<'servico' | 'encarregado' | 'equipe' | null>(null)
@@ -651,6 +653,14 @@ function FormMode({
           onPick={(e) => {
             setEncarregadoId(e.id)
             setEncarregadoNome(e.nome)
+            const lista = equipesDoEncarregado(todasEquipes, e.id)
+            if (temEquipesVinculadas(todasEquipes, e.id) && lista.length === 1) {
+              setEquipeId(lista[0]!.id)
+              setEquipeNome(lista[0]!.nome)
+            } else if (equipeId && !lista.some((q) => q.id === equipeId)) {
+              setEquipeId(null)
+              setEquipeNome(null)
+            }
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}

@@ -28,7 +28,9 @@ app de campo (celular): https://infrawork-campo.vercel.app
    vigente**). O seletor do plano, no topo, alterna entre o plano em edição e as linhas de base; com uma linha de base
    aberta, a faixa de somente leitura oferece editar a partir dela, tornar vigente e restaurar. Sem linha de base
    vigente o acompanhamento não tem previsto — as telas avisam.
-7. **Acompanhamento › Equipes & Encarregados** e, se houver transporte, **Acompanhamento › Origens e destinos**.
+7. **Acompanhamento › Equipes & Encarregados**: cadastre as equipes e depois os encarregados, marcando no encarregado
+   as **Equipes** dele (ou escolha o **Encarregado** no cadastro da equipe). No app, o apontador escolhe o encarregado e
+   vê só as equipes dele. Se houver transporte, **Acompanhamento › Origens e destinos**.
 8. **Frota**: em **Gerencial › Frota**, se a empresa usa a FleetHub, o adm toca em **Conectar FleetHub** e digita o
    e-mail e a senha de lá (o login é testado e a senha fica cifrada no servidor); depois **Sincronizar agora** (também
    roda sozinho às 5h). Sem FleetHub, cadastre os veículos em **Cadastro manual**. Vêm os caminhões, carretas, pipas e as escavadeiras/carregadeiras ativos, com a

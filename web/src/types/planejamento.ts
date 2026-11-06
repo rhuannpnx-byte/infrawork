@@ -118,6 +118,8 @@ export interface Equipe {
   ordem: number
   /** Equipe de sistema (ex.: "Indireto") — não aparece nas lanes. */
   is_sistema?: boolean
+  /** Encarregado responsável (um encarregado tem N equipes). */
+  encarregado_id: string | null
   created_at: string
   created_by: string | null
 }

@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import type { Encarregado } from '@/types/acompanhamento'
-import { useCreateEncarregado, useUpdateEncarregado } from '../../hooks/lancamento'
+import { useCreateEncarregado, useEncarregados, useUpdateEncarregado } from '../../hooks/lancamento'
+import { useEquipes, useVincularEquipesEncarregado } from '@/features/planejamento/hooks/equipes'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface Props {
   open: boolean
@@ -56,7 +58,23 @@ function FormDialog({
   const [telefone, setTelefone] = useState(encarregado?.telefone ?? '')
   const [ativo, setAtivo] = useState(encarregado?.ativo ?? true)
   const [error, setError] = useState<string | null>(null)
-  const pending = create.isPending || update.isPending
+  const role = useAuthStore((s) => s.profile?.role ?? null)
+  const podeVincular = role === 'god' || role === 'adm' || role === 'engenheiro'
+  const vincular = useVincularEquipesEncarregado()
+  const { data: equipes = [], isSuccess: equipesProntas } = useEquipes(obraId)
+  const { data: todos = [] } = useEncarregados(obraId, true)
+  const [marcadas, setMarcadas] = useState<Set<string> | null>(null)
+  const daquele = encarregado ? equipes.filter((q) => q.encarregado_id === encarregado.id) : []
+  const selecionadas = marcadas ?? new Set(daquele.map((q) => q.id))
+  const nomeEnc = new Map(todos.map((en) => [en.id, en.nome]))
+  const pending = create.isPending || update.isPending || vincular.isPending
+
+  const alternar = (id: string): void => {
+    const s = new Set(selecionadas)
+    if (s.has(id)) s.delete(id)
+    else s.add(id)
+    setMarcadas(s)
+  }
 
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
@@ -66,14 +84,25 @@ function FormDialog({
       return
     }
     try {
+      let id: string
       if (encarregado) {
         await update.mutateAsync({ id: encarregado.id, nome, apelido, telefone, ativo })
-        toast.success('Encarregado atualizado.')
+        id = encarregado.id
       } else {
         const novo = await create.mutateAsync({ obra_id: obraId, nome, apelido, telefone })
-        toast.success(`Encarregado "${novo.nome}" criado.`)
+        id = novo.id
         onCreated?.(novo)
       }
+      if (podeVincular && marcadas) {
+        await vincular.mutateAsync({
+          obra_id: obraId,
+          encarregado_id: id,
+          equipe_ids: [...marcadas]
+        })
+      }
+      toast.success(
+        encarregado ? 'Encarregado atualizado.' : `Encarregado "${nome.trim()}" criado.`
+      )
       onOpenChange(false)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Falha ao salvar'
@@ -124,6 +153,50 @@ function FormDialog({
               />
             </div>
           </div>
+          {podeVincular && equipesProntas ? (
+            <div>
+              <Label>Equipes</Label>
+              {equipes.length === 0 ? (
+                <p className="text-2xs text-text-dim">Nenhuma equipe ativa na obra.</p>
+              ) : (
+                <div
+                  className="max-h-44 overflow-auto rounded border border-border divide-y divide-border/40"
+                  data-testid="enc-equipes"
+                >
+                  {equipes.map((q) => {
+                    const outro =
+                      q.encarregado_id && q.encarregado_id !== encarregado?.id
+                        ? nomeEnc.get(q.encarregado_id)
+                        : null
+                    return (
+                      <label
+                        key={q.id}
+                        className="flex items-center gap-2 px-2 py-1.5 text-xs text-text cursor-pointer hover:bg-bg-hover"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selecionadas.has(q.id)}
+                          onChange={() => alternar(q.id)}
+                          className="accent-[var(--accent)]"
+                        />
+                        <span className="w-2 h-2 rounded-sm" style={{ background: q.cor }} />
+                        <span className="flex-1 truncate">{q.nome}</span>
+                        {outro && !selecionadas.has(q.id) ? (
+                          <span className="text-2xs text-text-dim">com {outro}</span>
+                        ) : null}
+                        {outro && selecionadas.has(q.id) ? (
+                          <span className="text-2xs text-warn">sai de {outro}</span>
+                        ) : null}
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+              <p className="mt-1 text-2xs text-text-dim">
+                No app de campo, depois de escolher o encarregado aparecem só as equipes dele.
+              </p>
+            </div>
+          ) : null}
           {encarregado ? (
             <label className="flex items-center gap-2 text-xs text-text cursor-pointer">
               <input

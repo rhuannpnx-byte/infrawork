@@ -42,6 +42,11 @@ export interface EncarregadoDto extends NomeDto {
   apelido: string | null
 }
 
+export interface EquipeDto extends NomeDto {
+  /** Encarregado da equipe (ausente em catálogos antigos). */
+  encarregado_id?: string | null
+}
+
 /** Local da obra: eixo (com estaqueamento) ou área. */
 export interface LocalDto {
   id: string
@@ -85,7 +90,7 @@ export interface CatalogoDto {
   versao: string
   obra: ObraDto
   servicos: ServicoDto[]
-  equipes: NomeDto[]
+  equipes: EquipeDto[]
   encarregados: EncarregadoDto[]
   locais: LocalDto[]
   veiculos: VeiculoDto[]
