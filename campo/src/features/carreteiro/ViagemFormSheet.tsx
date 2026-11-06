@@ -6,7 +6,7 @@ import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features
 import { parseNum } from '@/lib/numero'
 import { estacaFinalTexto, estacaInicialTexto, estacaParaMetros, nomePosicao } from '@/lib/estaca'
 import { formatNumero } from '@/lib/datas'
-import { calcularDmt, pedeEstaca, quantidadeDaViagem, type LocalDmt } from '@/lib/dmt'
+import { calcularDmt, pedeEstaca, type LocalDmt } from '@/lib/dmt'
 import type { ViagemLocal } from '@/core/db/entities'
 import type { CatalogoDto, LocalDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
 import { ehMaquinaDeCarga, rotuloVeiculo } from '@/lib/frota'
@@ -27,7 +27,7 @@ interface Props {
   /** viagem em edição, ou o modelo da nova (serviço/origem/destino da anterior) */
   inicial: ViagemLocal
   nova: boolean
-  /** capacidade do caminhão em m³; é o volume padrão quando o serviço é medido por volume */
+  /** capacidade do caminhão em m³ (só como referência ao lado da quantidade) */
   capacidade: number | null
   onSave: (v: ViagemLocal) => void
   onDismiss: () => void
@@ -37,8 +37,8 @@ const txt = (n: number | null | undefined): string => (n != null ? String(n) : '
 
 /**
  * Uma viagem: serviço (lançado por viagens), origem e destino, a estaca de carga e/ou de descarga quando a ponta é a
- * pista, horários, volume da caçamba (padrão = capacidade do caminhão) ou peso do ticket conforme a medição do serviço,
- * material quando a unidade difere e NF/ticket. A DMT aparece calculada (pelo eixo ou distância fixa do par) e pode
+ * pista, horários, quantidade na unidade do serviço (o apontador aplica o empolamento/densidade dele), material quando
+ * a unidade difere e NF/ticket (obrigatório quando o serviço é medido por peso). A DMT aparece calculada (pelo eixo ou distância fixa do par) e pode
  * ser ajustada; o banco recalcula ao sincronizar.
  */
 export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, onDismiss }: Props) {
@@ -50,8 +50,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   const [estacaDescarga, setEstacaDescarga] = useState(inicial.estacaDescarga ?? '')
   const [horaCarga, setHoraCarga] = useState(inicial.horaCarga ?? '')
   const [horaDescarga, setHoraDescarga] = useState(inicial.horaDescarga ?? '')
-  const [volume, setVolume] = useState(txt(inicial.volumeM3))
-  const [peso, setPeso] = useState(txt(inicial.pesoT))
+  const [qtd, setQtd] = useState(inicial.quantidade > 0 ? String(inicial.quantidade) : '')
   const [matQtd, setMatQtd] = useState(txt(inicial.materialQtd))
   const [dmtManual, setDmtManual] = useState(!!inicial.dmtManual)
   const [dmt, setDmt] = useState(inicial.dmtManual ? txt(inicial.dmtKm) : '')
@@ -97,13 +96,6 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
     rotas: catalogo.rotas,
     tipoTrecho,
   })
-  const qtd = quantidadeDaViagem({
-    medicao: porPeso ? 'peso' : 'volume',
-    fator: Number(servico?.fator_viagem ?? 1),
-    volume: porPeso ? null : parseNum(volume),
-    peso: porPeso ? parseNum(peso) : null,
-    capacidade,
-  })
   const pedeMaterial =
     !!servico?.controla_material &&
     (servico.material?.unidade ?? '').toLowerCase() !== (servico.unidade ?? '').toLowerCase()
@@ -125,12 +117,8 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           ? `${nomePosicao(eixoDescarga)} de descarga "${estacaDescarga}" inválido (${faixa(eixoDescarga)}).`
           : `Informe ${nomePosicao(eixoDescarga).toLowerCase()} de descarga.`,
       )
-    if (qtd.quantidade == null)
-      return setErro(
-        porPeso
-          ? 'Informe o peso líquido do ticket (t).'
-          : 'Informe o volume da caçamba (o caminhão não tem capacidade cadastrada).',
-      )
+    const q = parseNum(qtd)
+    if (q == null || q <= 0) return setErro('Informe a quantidade da viagem.')
     if (porPeso && !nf.trim()) return setErro('Informe o ticket da balança.')
     const ajustada = parseNum(dmt)
     if (dmtManual && (ajustada == null || ajustada < 0))
@@ -150,9 +138,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
       destinoNome: destino.nome,
       horaCarga: horaCarga || null,
       horaDescarga: horaDescarga || null,
-      quantidade: qtd.quantidade,
-      volumeM3: porPeso ? null : qtd.bruto,
-      pesoT: porPeso ? qtd.bruto : null,
+      quantidade: q,
       materialQtd: pedeMaterial ? m : null,
       dmtKm: dmtManual ? ajustada : calc.km,
       dmtManual,
@@ -252,26 +238,10 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
             <TimeField label="Hora carga" value={horaCarga} onChange={setHoraCarga} />
             <TimeField label="Hora descarga" value={horaDescarga} onChange={setHoraDescarga} />
           </div>
-          {porPeso ? (
-            <NumericField label="Peso líquido do ticket (t) *" value={peso} onChange={setPeso} />
-          ) : (
-            <NumericField
-              label={`Volume na caçamba (m³)${capacidade != null ? ` · caminhão ${formatNumero(capacidade, 1)}` : ' *'}`}
-              value={volume}
-              onChange={setVolume}
-            />
-          )}
-          <ReadOnlyRow
-            label={`QUANTIDADE (${unidadeServico})`}
-            value={
-              qtd.quantidade != null
-                ? `${formatNumero(qtd.quantidade, 2)}${
-                    Number(servico?.fator_viagem ?? 1) !== 1
-                      ? ` (${formatNumero(qtd.bruto ?? 0, 2)} ${qtd.unidadeBruta} × ${formatNumero(Number(servico?.fator_viagem), 4)})`
-                      : ''
-                  }`
-                : '—'
-            }
+          <NumericField
+            label={`Quantidade (${unidadeServico}) *${capacidade != null && !porPeso ? ` · caçamba ${formatNumero(capacidade, 1)} m³` : ''}`}
+            value={qtd}
+            onChange={setQtd}
           />
           {servico?.controla_material &&
             (pedeMaterial ? (

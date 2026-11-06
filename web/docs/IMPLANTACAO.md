@@ -19,9 +19,9 @@ app de campo (celular): https://infrawork-campo.vercel.app
 
 1. **Orçamento**: planilha importada e cada serviço ligado à sua composição (é a composição que dá a produção por dia).
 2. **Planejamento › Parametrização**: como cada serviço é lançado no campo (quantidade ou viagens), se controla material,
-   se exige local e estacas. Nos serviços por viagens, a **Medição da viagem**: volume (m³ da caçamba; sem valor vale a
-   capacidade do caminhão) ou peso (t do ticket, que passa a ser obrigatório), e o fator para a unidade do serviço
-   (argila medida no corte com caçamba solta: 0,8; CBUQ em t: 1; CBUQ em m³: 1 ÷ 2,4).
+   se exige local e estacas. Nos serviços por viagens, a **Medição da viagem**: volume ou peso (por peso, o ticket da
+   balança passa a ser obrigatório). A quantidade de cada viagem é lançada na unidade do serviço: o sistema não aplica
+   empolamento nem densidade, quem lança converte pela regra dele.
 3. **Planejamento › Calendário**: semana de trabalho, feriados ("Nacionais") e dias parados — clique ou arraste nos dias
    da prévia para editar.
 4. **Planejamento › Locais**: o eixo da obra (estaca inicial e final) e as áreas.
@@ -59,15 +59,15 @@ app de campo (celular): https://infrawork-campo.vercel.app
   andamento fica salva no celular mesmo se o app fechar. Lançamento recusado aparece em vermelho com o motivo — tocar,
   corrigir, finalizar de novo.
 - **Viagens**: ficha do caminhão do dia e as viagens: origem e destino, estaca de carga e/ou de descarga quando a
-  ponta é a pista, volume da caçamba ou peso do ticket (conforme o serviço) e a máquina que carregou. A DMT e a
-  quantidade aparecem calculadas; a DMT pode ser ajustada na viagem (fica marcada como ajustada, com a calculada ao
-  lado). Não há hodômetro.
+  ponta é a pista, a quantidade (na unidade do serviço; a cubagem do caminhão aparece como referência), o ticket
+  quando o serviço é por peso e a máquina que carregou. A DMT aparece calculada e pode ser ajustada na viagem (fica
+  marcada como ajustada, com a calculada ao lado). Não há hodômetro.
 - **Fotos**: com GPS quando houver; sem sinal de GPS a foto sai sem coordenadas.
 - **Escritório**: Acompanhamento › Produção, Previsto × Realizado, Dashboard, Fotos & Mapa. Correções feitas no web
   não são desfeitas pelo celular.
 - **Medição**: Acompanhamento › Valor Agregado › Exportar .xlsx. Nos serviços lançados por viagens, a memória de
   cálculo é o quadro de distribuição das viagens (origem → destino com as estacas de carga e de descarga, nº de
-  viagens, volume/peso lançado, volume medido, DMT, momento e faixa de DMT), com o resumo por faixa e a relação viagem
+  viagens, quantidade, DMT, momento e faixa de DMT), com o resumo por faixa e a relação viagem
   a viagem (com a origem de cada DMT: pelo eixo, distância fixa ou ajustada).
 - **Visão estratégica (engenheiro, adm)**: no app, o cartão **Visão estratégica** abre o resumo da obra (avanço
   físico × esperado, valor executado × previsto, curva S), a lista de **Serviços** (atrasados primeiro, com o detalhe

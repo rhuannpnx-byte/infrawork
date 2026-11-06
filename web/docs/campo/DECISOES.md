@@ -107,7 +107,7 @@ Credenciais por empresa: o adm conecta pela tela; a função testa o login e gra
 guarda só o e-mail e a referência). Só o serviço lê a senha (`fleethub_credencial`, service_role); o cron percorre as
 empresas conectadas. Empresa sem FleetHub cadastra a frota à mão.
 
-## C-11 Viagens: DMT pelo eixo, medição por volume ou peso, sem hodômetro (0048)
+## C-11 Viagens: DMT pelo eixo, quantidade lançada, sem hodômetro (0048, 0049)
 
 DMT = acesso(origem) + |estaca de carga − estaca de descarga| + acesso(destino), no mesmo trecho. Local **pista**
 (corte/aterro) entra com a estaca da própria viagem; os demais (jazida, **caixa de empréstimo**, bota-fora, usina,
@@ -119,10 +119,12 @@ calculada é guardada ao lado (`dmt_calculada_km`); `dmt_origem` diz de onde vei
 Origem e destino passam a ser obrigatórios. O local da produção continua sendo a ponta na pista (destino quando os dois
 são), para a recomposição por dia/serviço/local/equipe/encarregado.
 
-Medição por serviço (`servico_parametro.medicao_viagem`): **volume** (m³ da caçamba; sem valor, a capacidade do
-caminhão) ou **peso** (t do ticket; ticket obrigatório). `fator_viagem` converte para a unidade do serviço
-(empolamento, densidade); a viagem guarda o bruto (`volume_m3`/`peso_t`) e a produção recebe o convertido.
+Medição por serviço (`servico_parametro.medicao_viagem`): **volume** ou **peso**; por peso o ticket da balança é
+obrigatório. A quantidade da viagem é a que o apontador lança, na unidade do serviço. A 0048 tinha um fator
+(empolamento/densidade) convertendo volume da caçamba ou peso do ticket; a 0049 tirou: o fator varia por material e
+por ensaio, não dá para premissar — quem lança converte pela regra dele. Sem preenchimento automático pela cubagem do
+caminhão (ela aparece só como referência).
 
 O hodômetro saiu do app e do web: não entra na produção nem na medição (as colunas `km_inicial`/`km_final` ficam no
-banco, sem uso). O app e o web mostram a DMT e a quantidade antes de gravar (`lib/dmt.ts`, mesma regra do banco, cópia
+banco, sem uso). O app e o web mostram a DMT antes de gravar (`lib/dmt.ts`, mesma regra do banco, cópia
 nos dois projetos); quem vale é o cálculo do banco.

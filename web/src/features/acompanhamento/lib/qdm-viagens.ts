@@ -1,6 +1,6 @@
 // Quadro de distribuição das viagens (como um QDM de terraplenagem): memória de medição dos serviços lançados por
 // viagens. Uma linha por origem → destino → DMT (com as estacas de carga e de descarga), resumo por faixa de DMT e a
-// relação das viagens com o volume/peso lançado e de onde veio a DMT (pelo eixo, distância fixa ou ajustada).
+// relação das viagens com de onde veio a DMT (pelo eixo, distância fixa ou ajustada).
 
 import type { EapFilhoReceita, EapGrupo } from './valor-agregado-calc'
 
@@ -35,10 +35,8 @@ export interface ViagemExport {
   destino: string
   carga: PontoViagem | null
   descarga: PontoViagem | null
-  /** na unidade do serviço (já com o fator) */
+  /** na unidade do serviço */
   quantidade: number
-  volumeM3: number | null
-  pesoT: number | null
   dmtKm: number | null
   dmtOrigem: OrigemDmt | null
   dmtCalculadaKm: number | null
@@ -52,8 +50,6 @@ export interface LinhaQuadro {
   estacasDescarga: string
   faixa: string
   viagens: number
-  /** volume da caçamba (m³) ou peso do ticket (t), conforme a medição */
-  bruto: number | null
   volume: number
   dmtKm: number | null
   momento: number | null
@@ -77,7 +73,6 @@ export interface RelacaoViagem {
   estacaCarga: string
   destino: string
   estacaDescarga: string
-  bruto: number | null
   volume: number
   dmtKm: number | null
   /** pelo eixo, distância fixa ou ajustada (com a calculada) */
@@ -88,8 +83,6 @@ export interface RelacaoViagem {
 
 export interface QuadroViagens {
   unidadeVolume: string
-  /** unidade do valor bruto lançado: m³ (caçamba) ou t (ticket) */
-  unidadeBruta: 'm³' | 't'
   linhas: LinhaQuadro[]
   total: {
     viagens: number
@@ -149,10 +142,6 @@ function estacasDe(
   return partes.join('; ')
 }
 
-const brutoDe = (v: ViagemExport): number | null => v.pesoT ?? v.volumeM3
-const somaBruto = (vs: ViagemExport[]): number | null =>
-  vs.some((v) => brutoDe(v) != null) ? vs.reduce((a, v) => a + (brutoDe(v) ?? 0), 0) : null
-
 /**
  * Quadro de distribuição das viagens para um filho de um agregador lançado por viagens. A quantidade do filho segue
  * a regra proporcional da Medição (volume ÷ quantidade do serviço × quantidade contratual do filho). Quando a
@@ -202,7 +191,6 @@ export function montarQuadroViagens(input: {
       ),
       faixa: faixaDmt(dmt),
       viagens: vs.length,
-      bruto: somaBruto(vs),
       volume,
       dmtKm: dmt,
       momento: dmt == null ? null : volume * dmt,
@@ -228,7 +216,6 @@ export function montarQuadroViagens(input: {
       estacasDescarga: '',
       faixa: SEM_DMT,
       viagens: 0,
-      bruto: null,
       volume: sobra,
       dmtKm: null,
       momento: null,
@@ -261,7 +248,6 @@ export function montarQuadroViagens(input: {
     estacaCarga: estacasDe([v.carga], formatarPosicao),
     destino: v.destino,
     estacaDescarga: estacasDe([v.descarga], formatarPosicao),
-    bruto: brutoDe(v),
     volume: v.quantidade,
     dmtKm: v.dmtKm,
     dmtCalculo:
@@ -276,7 +262,6 @@ export function montarQuadroViagens(input: {
 
   return {
     unidadeVolume: grupo.unidade_referencia,
-    unidadeBruta: viagens.some((v) => v.pesoT != null) ? 't' : 'm³',
     linhas,
     total: {
       viagens: viagens.length,

@@ -51,7 +51,8 @@ export const PROMPTS: Prompt[] = [
       `Para ${obra(a)}, no dia ${a.data ?? '(pergunte a data)'}: confira os locais (estaca e distância do ` +
       `acesso) e as distâncias fixas (transporte.listar) e a medição de cada serviço (parametros_servico.listar: ` +
       `volume ou peso). Registre as fichas (viagens.salvar, uma por veículo), com a estaca de carga/descarga ` +
-      `quando a ponta é pista e o ticket quando é por peso. Mostre a DMT calculada de cada viagem ` +
+      `quando a ponta é pista, a quantidade que o usuário informar (na unidade do serviço, sem aplicar ` +
+      `empolamento por conta própria) e o ticket quando é por peso. Mostre a DMT calculada de cada viagem ` +
       `(viagens.listar) e a produção resultante (producao.listar).`
   },
   {

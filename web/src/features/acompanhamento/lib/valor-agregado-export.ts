@@ -262,8 +262,6 @@ interface ViagemRow {
   ficha_id: string
   ordem: number
   quantidade: number | string
-  volume_m3: number | string | null
-  peso_t: number | string | null
   dmt_km: number | string | null
   dmt_calculada_km: number | string | null
   dmt_origem: OrigemDmt | null
@@ -310,7 +308,7 @@ export async function carregarViagensExport(
       const { data, error } = await sb
         .from('viagem')
         .select(
-          'id, item_orcamentario_id, data, ficha_id, ordem, quantidade, volume_m3, peso_t, dmt_km, ' +
+          'id, item_orcamentario_id, data, ficha_id, ordem, quantidade, dmt_km, ' +
             'dmt_calculada_km, dmt_origem, nf_ticket, estaca_carga_m, estaca_descarga_m, origem_id, destino_id, ' +
             'origem:transporte_local!viagem_origem_id_fkey(nome, trecho_id), ' +
             'destino:transporte_local!viagem_destino_id_fkey(nome, trecho_id), ' +
@@ -357,8 +355,6 @@ export async function carregarViagensExport(
       carga: ponto(v.origem?.trecho_id, numOuNull(v.estaca_carga_m)),
       descarga: ponto(v.destino?.trecho_id, numOuNull(v.estaca_descarga_m)),
       quantidade: Number(v.quantidade) || 0,
-      volumeM3: numOuNull(v.volume_m3),
-      pesoT: numOuNull(v.peso_t),
       dmtKm: numOuNull(v.dmt_km),
       dmtOrigem: v.dmt_origem,
       dmtCalculadaKm: numOuNull(v.dmt_calculada_km),

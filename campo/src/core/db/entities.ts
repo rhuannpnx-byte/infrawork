@@ -72,11 +72,8 @@ export interface ViagemLocal {
   destinoNome: string | null
   horaCarga: string | null
   horaDescarga: string | null
-  /** na unidade do serviço (bruto × fator); o banco recalcula */
+  /** na unidade do serviço, como o apontador lançou */
   quantidade: number
-  /** valor lançado: volume da caçamba (m³) ou peso do ticket (t), conforme a medição do serviço */
-  volumeM3?: number | null
-  pesoT?: number | null
   materialQtd: number | null
   /** DMT efetiva mostrada no app (calculada, ou a ajustada quando dmtManual) */
   dmtKm: number | null

@@ -397,14 +397,13 @@ try {
   )
 
   // ── 6. Transporte e viagens ────────────────────────────────────────────────────────────────────
-  // medição por volume com empolamento 0,8; DMT pelo eixo (acesso + estacas) e por distância fixa
+  // quantidade lançada pelo usuário; DMT pelo eixo (acesso + estacas) e por distância fixa; peso exige ticket
   await chamar('parametros_servico', {
     acao: 'salvar',
     obra_id: O,
     item_orcamentario_id: sEsc.id,
     modo_lancamento: 'viagens',
-    medicao_viagem: 'volume',
-    fator_viagem: 0.8
+    medicao_viagem: 'volume'
   })
   const pista = await chamar('transporte', {
     acao: 'salvar_local',
@@ -449,7 +448,7 @@ try {
     obra_id: O,
     data: ontem,
     viagens: [
-      { item_orcamentario_id: sEsc.id, origem_id: jaz.id, destino_id: bf.id, volume_m3: 15 }
+      { item_orcamentario_id: sEsc.id, origem_id: jaz.id, destino_id: bf.id, quantidade: 12 }
     ]
   })
   check(
@@ -471,7 +470,7 @@ try {
         origem_id: jaz.id,
         destino_id: pista.id,
         estaca_descarga_m: 3000,
-        volume_m3: 15
+        quantidade: 12
       },
       // corte 1500 → aterro 2700: 1,2 km
       {
@@ -480,7 +479,7 @@ try {
         destino_id: pista.id,
         estaca_carga_m: 1500,
         estaca_descarga_m: 2700,
-        volume_m3: 15
+        quantidade: 12
       },
       // caixa de empréstimo (0,3 km na estaca 4000) → aterro 3500: 0,8 km
       {
@@ -488,7 +487,7 @@ try {
         origem_id: caixa.id,
         destino_id: pista.id,
         estaca_descarga_m: 3500,
-        volume_m3: 15
+        quantidade: 12
       },
       // corte 1000 → bota-fora pela distância fixa
       {
@@ -496,14 +495,40 @@ try {
         origem_id: pista.id,
         destino_id: bf.id,
         estaca_carga_m: 1000,
-        volume_m3: 15
+        quantidade: 12
       }
     ]
   })
+  await chamar('parametros_servico', {
+    acao: 'salvar',
+    obra_id: O,
+    item_orcamentario_id: sEsc.id,
+    medicao_viagem: 'peso'
+  })
+  const semTicket = await tentar('viagens', {
+    acao: 'salvar',
+    obra_id: O,
+    data: ontem,
+    viagens: [
+      {
+        item_orcamentario_id: sEsc.id,
+        origem_id: pista.id,
+        destino_id: pista.id,
+        estaca_carga_m: 100,
+        estaca_descarga_m: 200,
+        quantidade: 20
+      }
+    ]
+  })
+  check(
+    'serviço medido por peso exige o ticket',
+    semTicket.erro && /ticket/.test(semTicket.texto),
+    semTicket.texto.slice(0, 120)
+  )
   const pv = await chamar('producao', { acao: 'listar', obra_id: O, item_orcamentario_id: sEsc.id })
   const somaPv = pv.reduce((t, x) => t + Number(x.qtd ?? x.quantidade), 0)
   check(
-    'viagens viram produção com equipe (4 × 15 m³ × 0,8 = 48)',
+    'viagens viram produção com equipe (4 × 12 = 48)',
     Math.abs(somaPv - 48) < 1e-6 && pv.every((x) => x.equipe_id === eqA.id),
     JSON.stringify(pv.map((x) => [x.qtd ?? x.quantidade, x.equipe_id, x.posicao_inicio_m]))
   )

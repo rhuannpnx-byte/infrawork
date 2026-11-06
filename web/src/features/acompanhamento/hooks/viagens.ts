@@ -126,8 +126,6 @@ export interface Viagem {
   posicao_fim_m: number | null
   estaca_carga_m: number | null
   estaca_descarga_m: number | null
-  volume_m3: number | null
-  peso_t: number | null
   dmt_calculada_km: number | null
   dmt_manual: boolean
   dmt_origem: 'geometria' | 'rota' | 'manual' | null
@@ -513,8 +511,6 @@ export function useFichasViagens(
             posicao_fim_m: num(v.posicao_fim_m),
             estaca_carga_m: num(v.estaca_carga_m),
             estaca_descarga_m: num(v.estaca_descarga_m),
-            volume_m3: num(v.volume_m3),
-            peso_t: num(v.peso_t),
             dmt_calculada_km: num(v.dmt_calculada_km)
           }))
           .sort((a, b) => a.ordem - b.ordem)
@@ -535,8 +531,7 @@ export type ViagemInput = Pick<
   | 'nf_ticket'
   | 'estaca_carga_m'
   | 'estaca_descarga_m'
-  | 'volume_m3'
-  | 'peso_t'
+  | 'quantidade'
   | 'dmt_manual'
   | 'obs'
   | 'carregador_id'

@@ -31,10 +31,8 @@ export interface ServicoDto {
   material_obrigatorio: boolean
   habilita_obs: boolean
   exige_local: boolean
-  /** viagem medida pelo volume da caçamba ou pelo peso do ticket (ausente em catálogos antigos = volume) */
+  /** viagem medida por volume ou por peso (peso exige o ticket); ausente em catálogos antigos = volume */
   medicao_viagem?: 'volume' | 'peso'
-  /** bruto (m³ ou t) → unidade do serviço */
-  fator_viagem?: number
 }
 
 export interface NomeDto {
@@ -145,10 +143,8 @@ export interface ViagemDto {
   destino_id: string | null
   hora_carga: string | null
   hora_descarga: string | null
-  /** o banco recalcula pelo volume/peso × fator; vai só quando não há bruto (registro antigo) */
-  quantidade: number | null
-  volume_m3: number | null
-  peso_t: number | null
+  /** na unidade do serviço, como o apontador lançou */
+  quantidade: number
   material_qtd: number | null
   /** só com dmt_manual; senão o banco calcula */
   dmt_km: number | null

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcularDmt, pedeEstaca, quantidadeDaViagem, type LocalDmt } from './dmt'
+import { calcularDmt, pedeEstaca, type LocalDmt } from './dmt'
 
 const EIXO = 'eixo-1'
 const AREA = 'area-1'
@@ -53,46 +53,5 @@ describe('DMT geométrica (mesma regra do banco)', () => {
     expect(dmt(jazida, pista, null, null).motivo).toBe('Informe a estaca de descarga.')
     expect(pedeEstaca(pista, tipoTrecho)).toBe(true)
     expect(pedeEstaca(L({ id: 'PA', tipo: 'pista', trecho_id: AREA }), tipoTrecho)).toBe(false)
-  })
-})
-
-describe('quantidade da viagem', () => {
-  it('volume com empolamento; sem volume usa a capacidade', () => {
-    expect(
-      quantidadeDaViagem({
-        medicao: 'volume',
-        fator: 0.8,
-        volume: null,
-        peso: null,
-        capacidade: 14
-      })
-    ).toEqual({
-      bruto: 14,
-      quantidade: 11.2,
-      unidadeBruta: 'm³'
-    })
-    expect(
-      quantidadeDaViagem({ medicao: 'volume', fator: 0.8, volume: 12, peso: null, capacidade: 14 })
-        .quantidade
-    ).toBe(9.6)
-  })
-  it('peso pelo ticket com densidade', () => {
-    expect(
-      quantidadeDaViagem({ medicao: 'peso', fator: 1, volume: null, peso: 28.4, capacidade: 14 })
-        .quantidade
-    ).toBe(28.4)
-    expect(
-      quantidadeDaViagem({
-        medicao: 'peso',
-        fator: 1 / 2.4,
-        volume: null,
-        peso: 24,
-        capacidade: null
-      }).quantidade
-    ).toBe(10)
-    expect(
-      quantidadeDaViagem({ medicao: 'peso', fator: 1, volume: null, peso: null, capacidade: 14 })
-        .quantidade
-    ).toBeNull()
   })
 })

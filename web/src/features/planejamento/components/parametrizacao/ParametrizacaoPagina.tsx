@@ -1,7 +1,7 @@
 /**
  * Parametrização dos serviços — antes do cronograma: como cada serviço do orçamento é lançado no campo (app de campo e
- * Lançar produção). Por serviço: modo (quantidade ou viagens; a viagem medida por volume da caçamba ou peso do ticket, com o
- * fator que converte para a unidade do serviço), material controlado (qual material e unidade; o sistema
+ * Lançar produção). Por serviço: modo (quantidade ou viagens; a viagem medida por volume ou por peso, que exige o
+ * ticket), material controlado (qual material e unidade; o sistema
  * grava o material aplicado e calcula a média por unidade produzida), observação e local obrigatório.
  */
 import { useMemo, useState, type ReactNode } from 'react'
@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatNumber } from '@/lib/format/number'
-import { parseQtd } from '@/features/acompanhamento/lib/parse-qtd'
 import { cn } from '@/lib/utils'
 import { useComposicoesServicos } from '@/features/cronograma/hooks/composicoes'
 import {
@@ -148,10 +147,9 @@ export function ParametrizacaoPagina({
                 (cada viagem com origem e destino; a produção do dia é a soma das viagens).
               </p>
               <p>
-                <strong className="text-text">Medição da viagem</strong>: por volume (m³ da caçamba;
-                sem valor, a capacidade do caminhão) ou por peso (t do ticket, que passa a ser
-                obrigatório). O fator converte para a unidade do serviço: argila medida no corte com
-                caçamba solta → 0,8 (empolamento de 25%); CBUQ em t → 1; CBUQ em m³ → 1 ÷ 2,4.
+                <strong className="text-text">Medição da viagem</strong>: por volume ou por peso (o
+                ticket da balança passa a ser obrigatório). A quantidade da viagem é lançada na
+                unidade do serviço; empolamento e densidade ficam com quem lança.
               </p>
               <p>
                 <strong className="text-text">Material</strong>: o lançamento passa a pedir a
@@ -193,7 +191,7 @@ export function ParametrizacaoPagina({
                     <th className="px-2 py-2 font-normal">Lançamento</th>
                     <th
                       className="px-2 py-2 font-normal"
-                      title="Como a viagem é medida e o fator para a unidade do serviço"
+                      title="Volume ou peso (peso exige o ticket da balança)"
                     >
                       Medição da viagem
                     </th>
@@ -324,27 +322,9 @@ function Linha({
               <option value="volume">Volume</option>
               <option value="peso">Peso</option>
             </Select>
-            <span className="text-2xs text-text-dim">
-              1 {p.medicao_viagem === 'peso' ? 't' : 'm³'} =
-            </span>
-            <Input
-              key={p.fator_viagem}
-              defaultValue={String(p.fator_viagem).replace('.', ',')}
-              disabled={ro}
-              inputMode="decimal"
-              title={
-                p.medicao_viagem === 'peso'
-                  ? 'Densidade: t do ticket → unidade do serviço (em m³, use 1 ÷ densidade)'
-                  : 'Empolamento: m³ da caçamba → unidade do serviço'
-              }
-              onBlur={(e) => {
-                const v = parseQtd(e.target.value)
-                if (v == null || v <= 0) return void toast.error('Fator inválido.')
-                if (v !== p.fator_viagem) set({ fator_viagem: v })
-              }}
-              className="h-7 w-20 text-right font-mono text-xs"
-            />
-            <span className="font-mono text-2xs text-text-dim">{s.unidade ?? 'un'}</span>
+            {p.medicao_viagem === 'peso' ? (
+              <span className="text-2xs text-text-dim">ticket obrigatório</span>
+            ) : null}
           </div>
         ) : (
           <span className="text-2xs text-text-dim">—</span>

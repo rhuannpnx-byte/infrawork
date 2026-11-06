@@ -1,5 +1,5 @@
 /**
- * DMT e quantidade de uma viagem — a mesma regra do banco (fn_viagem_antes, migração 0048), para mostrar antes de
+ * DMT de uma viagem — a mesma regra do banco (fn_viagem_antes, migração 0048), para mostrar antes de
  * salvar. O banco recalcula e é quem vale. Cópia idêntica em campo/src/lib/dmt.ts (mesmos testes).
  *
  * DMT = acesso(origem) + |estaca de carga − estaca de descarga| + acesso(destino), pelo eixo do trecho. Local na pista
@@ -79,37 +79,5 @@ export function calcularDmt(a: {
     km: null,
     via: null,
     motivo: `Sem DMT de "${o.nome}" para "${d.nome}": cadastre a estaca de acesso dos locais (no mesmo trecho) ou a distância fixa do par.`
-  }
-}
-
-export type MedicaoViagem = 'volume' | 'peso'
-
-/** Quantidade na unidade do serviço a partir do valor bruto (volume da caçamba ou peso do ticket) × fator. */
-export function quantidadeDaViagem(a: {
-  medicao: MedicaoViagem
-  fator: number
-  volume: number | null
-  peso: number | null
-  capacidade: number | null
-}): { bruto: number | null; quantidade: number | null; unidadeBruta: 'm³' | 't' } {
-  const fator = a.fator > 0 ? a.fator : 1
-  if (a.medicao === 'peso') {
-    const bruto = a.peso != null && a.peso > 0 ? a.peso : null
-    return {
-      bruto,
-      quantidade: bruto == null ? null : Math.round(bruto * fator * 1e4) / 1e4,
-      unidadeBruta: 't'
-    }
-  }
-  const v =
-    a.volume != null && a.volume > 0
-      ? a.volume
-      : a.capacidade != null && a.capacidade > 0
-        ? a.capacidade
-        : null
-  return {
-    bruto: v,
-    quantidade: v == null ? null : Math.round(v * fator * 1e4) / 1e4,
-    unidadeBruta: 'm³'
   }
 }

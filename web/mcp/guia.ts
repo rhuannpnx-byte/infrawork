@@ -43,10 +43,11 @@ violada — repasse-as ao usuário em vez de tentar contornar.
   acesso do destino, pelo eixo do mesmo trecho. Local pista entra com a estaca da viagem (estaca_carga_m /
   estaca_descarga_m); jazida, caixa de empréstimo, bota-fora etc. entram com estaca_acesso_m + distancia_acesso_km
   do cadastro (transporte). A distância fixa do par (transporte.rota) prevalece — use para pares fora do eixo.
-  Sem nenhum dos dois, o banco recusa. DMT ajustada (dmt_manual) guarda a calculada ao lado. Quantidade = bruto ×
-  fator do serviço: volume da caçamba (padrão = capacidade do caminhão) ou peso do ticket (ticket obrigatório),
-  conforme parametros_servico.medicao_viagem. Não há hodômetro. A medição desses serviços sai como quadro de
-  distribuição (origem → destino com as estacas, volume/peso, DMT, momento).
+  Sem nenhum dos dois, o banco recusa. DMT ajustada (dmt_manual) guarda a calculada ao lado. A quantidade é a que
+  o usuário informa, na unidade do serviço: o sistema não aplica empolamento nem densidade (variam por material e
+  ensaio) — pergunte, não presuma. Serviço medido por peso (parametros_servico.medicao_viagem) exige o ticket.
+  Não há hodômetro. A medição desses serviços sai como quadro de distribuição (origem → destino com as estacas,
+  DMT, momento).
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.
 
 ## Como usar as ferramentas

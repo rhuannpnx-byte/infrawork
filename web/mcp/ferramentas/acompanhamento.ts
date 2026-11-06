@@ -242,9 +242,8 @@ export const parametrosServico = ferramenta({
   descricao:
     'Como cada serviço é lançado no app de campo e no web: modo_lancamento quantidade | viagens (a produção ' +
     'vem das fichas de viagem), controle de material (recurso, unidade, obrigatório), observação e se exige ' +
-    'local (trecho + estacas). Nas viagens: medicao_viagem volume (m³ da caçamba; sem valor, a capacidade do ' +
-    'caminhão) | peso (t do ticket, ticket obrigatório) e fator_viagem, que converte o bruto para a unidade do ' +
-    'serviço (argila no corte com caçamba solta 0,8; CBUQ em t 1; CBUQ em m³ 1/2,4). ' +
+    'local (trecho + estacas). Nas viagens: medicao_viagem volume | peso (peso exige o ticket da balança); a ' +
+    'quantidade da viagem é lançada na unidade do serviço (empolamento e densidade ficam com quem lança). ' +
     'acao: listar | salvar (um serviço por vez).',
   entrada: {
     acao: z.enum(['listar', 'salvar']),
@@ -257,8 +256,7 @@ export const parametrosServico = ferramenta({
     material_obrigatorio: z.boolean().optional(),
     habilita_obs: z.boolean().optional(),
     exige_local: z.boolean().optional(),
-    medicao_viagem: z.enum(['volume', 'peso']).optional(),
-    fator_viagem: z.number().positive().optional().describe('bruto (m³ ou t) → unidade do serviço')
+    medicao_viagem: z.enum(['volume', 'peso']).optional()
   },
   cobre: { tabelas: ['servico_parametro'] },
   async executar(a) {
@@ -277,7 +275,6 @@ export const parametrosServico = ferramenta({
       habilita_obs: true,
       exige_local: false,
       medicao_viagem: 'volume',
-      fator_viagem: 1,
       ...(atual ?? {}),
       item_orcamentario_id: id,
       obra_id: a.obra_id
@@ -290,8 +287,7 @@ export const parametrosServico = ferramenta({
       'material_obrigatorio',
       'habilita_obs',
       'exige_local',
-      'medicao_viagem',
-      'fator_viagem'
+      'medicao_viagem'
     ] as const)
       if (a[k] !== undefined) p[k] = a[k]
     if (!p.controla_material) {
@@ -438,18 +434,10 @@ const VIAGEM = z.object({
     .nullable()
     .optional()
     .describe('metros no trecho; obrigatória quando o destino é pista (eixo)'),
-  volume_m3: z
+  quantidade: z
     .number()
     .positive()
-    .nullable()
-    .optional()
-    .describe('medição por volume: m³ da caçamba (vazio = capacidade do caminhão da ficha)'),
-  peso_t: z
-    .number()
-    .positive()
-    .nullable()
-    .optional()
-    .describe('medição por peso: t líquidas do ticket (exige nf_ticket)'),
+    .describe('na unidade do serviço, já com o empolamento/densidade que o usuário aplica'),
   material_qtd: z.number().nullable().optional(),
   dmt_manual: z
     .boolean()
@@ -468,8 +456,8 @@ export const viagens = ferramenta({
   titulo: 'Fichas de viagem (transporte)',
   descricao:
     'Ficha diária de um veículo com as viagens. Cada viagem: origem e destino (obrigatórios), estaca de carga ' +
-    'e/ou descarga quando a ponta é pista, volume ou peso conforme a medição do serviço (parametros_servico). ' +
-    'O banco calcula a quantidade (bruto × fator) e a DMT (distância fixa do par; senão pelo eixo: acessos + ' +
+    'e/ou descarga quando a ponta é pista e a quantidade na unidade do serviço (por peso, o ticket é ' +
+    'obrigatório). O banco calcula a DMT (distância fixa do par; senão pelo eixo: acessos + ' +
     'diferença das estacas; dmt_origem rota | geometria | manual) e recusa a viagem sem DMT possível. A ' +
     'produção dos serviços por viagens é recomposta: uma por dia, serviço, local (a ponta na pista), equipe e ' +
     'encarregado (da ficha). acao: listar (período) | salvar (cria ou substitui a ficha inteira; id novo = ' +

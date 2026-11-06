@@ -37,8 +37,6 @@ const v = (p: Partial<ViagemExport>): ViagemExport => ({
   carga: { trechoId: 't1', trechoNome: 'Eixo', m: 200 },
   descarga: { trechoId: 't1', trechoNome: 'Eixo', m: 800 },
   quantidade: 10,
-  volumeM3: 12.5,
-  pesoT: null,
   dmtKm: 0.5,
   dmtOrigem: 'geometria',
   dmtCalculadaKm: 0.5,
@@ -79,8 +77,7 @@ describe('montarQuadroViagens', () => {
       carga: null,
       dmtKm: null,
       dmtOrigem: null,
-      quantidade: 12,
-      volumeM3: 15
+      quantidade: 12
     }),
     v({ itemId: 'outro', quantidade: 999 })
   ]
@@ -98,18 +95,16 @@ describe('montarQuadroViagens', () => {
         l.origem,
         l.destino,
         l.viagens,
-        l.bruto,
         l.volume,
         l.estacasCarga,
         l.estacasDescarga,
         l.faixa
       ])
     ).toEqual([
-      ['Corte E10', 'Aterro E40', 2, 25, 20, 'E10', 'E40 a E41', '400 a 600 m'],
-      ['Corte E10', 'Bota-fora', 1, 12.5, 10, 'E10', '', '2.000 a 3.000 m'],
-      ['Jazida Km 8', 'Aterro E40', 1, 15, 12, '', 'E40', SEM_DMT]
+      ['Corte E10', 'Aterro E40', 2, 20, 'E10', 'E40 a E41', '400 a 600 m'],
+      ['Corte E10', 'Bota-fora', 1, 10, 'E10', '', '2.000 a 3.000 m'],
+      ['Jazida Km 8', 'Aterro E40', 1, 12, '', 'E40', SEM_DMT]
     ])
-    expect(q.unidadeBruta).toBe('m³')
     expect(q.relacao.map((r) => r.dmtCalculo)).toEqual([
       'pelo eixo',
       'distância fixa',
@@ -148,18 +143,14 @@ describe('montarQuadroViagens', () => {
     expect(q.total.qtd).toBeCloseTo((50 / 1000) * 2000)
   })
 
-  it('DMT ajustada mostra a calculada; peso vira a unidade bruta', () => {
+  it('DMT ajustada mostra a calculada', () => {
     const q = montarQuadroViagens({
       grupo,
       filho,
-      viagens: [
-        v({ dmtKm: 9.1, dmtOrigem: 'manual', dmtCalculadaKm: 7.5, volumeM3: null, pesoT: 28.4 })
-      ],
+      viagens: [v({ dmtKm: 9.1, dmtOrigem: 'manual', dmtCalculadaKm: 7.5 })],
       producaoPeriodo: 10,
       formatarPosicao: fmt
     })
-    expect(q.unidadeBruta).toBe('t')
     expect(q.relacao[0].dmtCalculo).toBe('ajustada (calculada 7,5 km)')
-    expect(q.relacao[0].bruto).toBe(28.4)
   })
 })

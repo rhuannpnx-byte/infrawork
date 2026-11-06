@@ -46,9 +46,7 @@ export function CarreteiroStep1Route() {
         destinoNome: ult?.destinoNome ?? null,
         horaCarga: null,
         horaDescarga: null,
-        quantidade: 0,
-        volumeM3: ult?.volumeM3 ?? null,
-        pesoT: null,
+        quantidade: ult?.quantidade ?? 0,
         materialQtd: null,
         dmtKm: null,
         nfTicket: null,
@@ -122,11 +120,6 @@ export function CarreteiroStep1Route() {
                   <p className="mt-0.5 font-bold text-accent">
                     {formatNumero(v.quantidade, 2)} {v.unidade ?? ''}
                     <span className="text-xs font-normal text-on-surface-dim">
-                      {v.pesoT != null
-                        ? ` · ${formatNumero(v.pesoT, 2)} t`
-                        : v.volumeM3 != null
-                          ? ` · ${formatNumero(v.volumeM3, 2)} m³`
-                          : ''}
                       {v.dmtKm != null
                         ? ` · DMT ${formatNumero(v.dmtKm, 2)} km${v.dmtManual ? ' (ajustada)' : ''}`
                         : ''}

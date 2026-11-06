@@ -1,7 +1,7 @@
 /**
  * Ficha de viagens de um veículo no dia: cabeçalho (data, veículo, motorista, encarregado, equipe) e uma linha por
- * viagem. A nova viagem repete serviço, origem, destino e máquina de carga da anterior. A DMT e a quantidade aparecem
- * calculadas (lib/dmt, a mesma regra do banco); o banco recalcula ao gravar e recompõe a produção do dia.
+ * viagem. A nova viagem repete serviço, origem, destino, quantidade e máquina de carga da anterior. A DMT aparece
+ * calculada (lib/dmt, a mesma regra do banco); o banco recalcula ao gravar e recompõe a produção do dia.
  */
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -42,7 +42,7 @@ import {
   type FichaInput,
   type FichaViagens
 } from '../../hooks/viagens'
-import { calcularDmt, pedeEstaca, quantidadeDaViagem } from '../../lib/dmt'
+import { calcularDmt, pedeEstaca } from '../../lib/dmt'
 import { parseQtd } from '../../lib/parse-qtd'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 
@@ -55,8 +55,8 @@ interface LinhaViagem {
   estacaDescarga: string
   horaCarga: string
   horaDescarga: string
-  /** volume (m³) ou peso (t), conforme a medição do serviço */
-  bruto: string
+  /** na unidade do serviço */
+  qtd: string
   mat: string
   dmtManual: boolean
   dmt: string
@@ -177,7 +177,6 @@ function Form({
     (ficha?.viagens ?? []).map((v) => {
       const ec = eixoDaPonta(v.origem_id ?? '')
       const ed = eixoDaPonta(v.destino_id ?? '')
-      const peso = parametroDe(parametros, v.item_orcamentario_id).medicao_viagem === 'peso'
       return {
         id: v.id,
         item: v.item_orcamentario_id,
@@ -187,7 +186,7 @@ function Form({
         estacaDescarga: ed ? formatMarcador(v.estaca_descarga_m, ctxObraTrecho(ed)) : '',
         horaCarga: v.hora_carga?.slice(0, 5) ?? '',
         horaDescarga: v.hora_descarga?.slice(0, 5) ?? '',
-        bruto: txtNum(peso ? v.peso_t : v.volume_m3),
+        qtd: txtNum(v.quantidade),
         mat: txtNum(v.material_qtd),
         dmtManual: v.dmt_manual,
         dmt: v.dmt_manual ? txtNum(v.dmt_km) : '',
@@ -213,7 +212,7 @@ function Form({
           estacaDescarga: ult?.estacaDescarga ?? '',
           horaCarga: '',
           horaDescarga: '',
-          bruto: ult?.bruto ?? '',
+          qtd: ult?.qtd ?? '',
           mat: '',
           dmtManual: false,
           dmt: '',
@@ -225,12 +224,11 @@ function Form({
   const setLinha = (i: number, patch: Partial<LinhaViagem>): void =>
     setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)))
 
-  /** DMT e quantidade da linha, como o banco vai calcular */
+  /** DMT da linha, como o banco vai calcular */
   const calculo = (
     l: LinhaViagem
   ): {
     dmt: ReturnType<typeof calcularDmt>
-    qtd: ReturnType<typeof quantidadeDaViagem>
     par: ReturnType<typeof parametroDe>
   } => {
     const par = parametroDe(parametros, l.item)
@@ -243,18 +241,11 @@ function Form({
         estacaDescarga: lerEstaca(l.estacaDescarga, eixoDaPonta(l.destino)),
         rotas,
         tipoTrecho
-      }),
-      qtd: quantidadeDaViagem({
-        medicao: par.medicao_viagem,
-        fator: par.fator_viagem,
-        volume: par.medicao_viagem === 'volume' ? parseQtd(l.bruto) : null,
-        peso: par.medicao_viagem === 'peso' ? parseQtd(l.bruto) : null,
-        capacidade
       })
     }
   }
 
-  const total = linhas.reduce((s, l) => s + (calculo(l).qtd.quantidade ?? 0), 0)
+  const total = linhas.reduce((s, l) => s + (parseQtd(l.qtd) ?? 0), 0)
 
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
@@ -272,20 +263,15 @@ function Form({
       const pd = lerEstaca(l.estacaDescarga, ed)
       if (ec && pc === null) return setErro(`Viagem ${n}: informe a estaca de carga.`)
       if (ed && pd === null) return setErro(`Viagem ${n}: informe a estaca de descarga.`)
-      const { dmt, qtd, par } = calculo(l)
-      if (qtd.quantidade === null)
-        return setErro(
-          par.medicao_viagem === 'peso'
-            ? `Viagem ${n}: informe o peso líquido do ticket (t).`
-            : `Viagem ${n}: informe o volume da caçamba (o caminhão não tem capacidade cadastrada).`
-        )
+      const { dmt, par } = calculo(l)
+      const q = parseQtd(l.qtd)
+      if (q === null || q <= 0) return setErro(`Viagem ${n}: informe a quantidade.`)
       if (par.medicao_viagem === 'peso' && !l.nf.trim())
         return setErro(`Viagem ${n}: informe o ticket da balança.`)
       const manual = l.dmtManual ? parseQtd(l.dmt) : null
       if (l.dmtManual && (manual === null || manual < 0))
         return setErro(`Viagem ${n}: informe a DMT ajustada (km).`)
       if (!l.dmtManual && dmt.km === null) return setErro(`Viagem ${n}: ${dmt.motivo}`)
-      const bruto = parseQtd(l.bruto)
       viagens.push({
         id: l.id,
         item_orcamentario_id: l.item,
@@ -293,8 +279,7 @@ function Form({
         destino_id: l.destino,
         hora_carga: l.horaCarga || null,
         hora_descarga: l.horaDescarga || null,
-        volume_m3: par.medicao_viagem === 'volume' ? bruto : null,
-        peso_t: par.medicao_viagem === 'peso' ? bruto : null,
+        quantidade: q,
         material_qtd: parseQtd(l.mat),
         dmt_manual: l.dmtManual,
         dmt_km: l.dmtManual ? manual : null,
@@ -452,10 +437,10 @@ function Form({
                   <th className="w-24 px-2 py-1.5 font-normal">Carga</th>
                   <th className="w-24 px-2 py-1.5 font-normal">Descarga</th>
                   <th
-                    className="w-32 px-2 py-1.5 font-normal"
-                    title="Volume da caçamba (m³) ou peso do ticket (t), conforme a parametrização do serviço"
+                    className="w-28 px-2 py-1.5 font-normal"
+                    title="Na unidade do serviço, já com o empolamento ou a densidade que você aplica"
                   >
-                    Volume / peso
+                    Qtd
                   </th>
                   <th className="w-24 px-2 py-1.5 font-normal">Material</th>
                   <th className="w-32 px-2 py-1.5 font-normal">DMT km</th>
@@ -465,7 +450,7 @@ function Form({
               </thead>
               <tbody>
                 {linhas.map((l, i) => {
-                  const { par, dmt, qtd } = calculo(l)
+                  const { par, dmt } = calculo(l)
                   const sv = servicos.find((s) => s.id === l.item)
                   const pedeMaterial =
                     par.controla_material &&
@@ -559,19 +544,17 @@ function Form({
                       <td className="px-2 py-1">
                         <Input
                           inputMode="decimal"
-                          value={l.bruto}
-                          onChange={(e) => setLinha(i, { bruto: e.target.value })}
-                          placeholder={peso ? 't' : capacidade ? `${txtNum(capacidade)} m³` : 'm³'}
-                          aria-label={peso ? 'Peso do ticket (t)' : 'Volume da caçamba (m³)'}
+                          value={l.qtd}
+                          onChange={(e) => setLinha(i, { qtd: e.target.value })}
+                          placeholder={sv?.unidade ?? ''}
+                          aria-label="Quantidade"
                           className={`${campo} font-mono`}
                         />
-                        <div className="mt-0.5 font-mono text-2xs text-text-dim">
-                          {qtd.quantidade !== null
-                            ? `= ${formatNumber(qtd.quantidade, 2)} ${sv?.unidade ?? ''}`
-                            : peso
-                              ? 'peso do ticket'
-                              : 'volume'}
-                        </div>
+                        {capacidade && !peso ? (
+                          <div className="mt-0.5 font-mono text-2xs text-text-dim">
+                            caçamba {txtNum(capacidade)} m³
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-2 py-1">
                         {pedeMaterial ? (

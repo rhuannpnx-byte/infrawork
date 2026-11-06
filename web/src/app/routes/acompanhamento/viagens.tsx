@@ -47,8 +47,6 @@ interface LinhaTabela {
   destino: string
   estacaCarga: string
   estacaDescarga: string
-  /** volume (m³) ou peso (t) lançado */
-  bruto: string
   unidade: string
 }
 
@@ -96,12 +94,6 @@ function Inner(): ReactNode {
     const t = trechos.find((x) => x.id === l?.trecho_id)
     return t && m !== null ? formatMarcadorCompacto(m, ctxObraTrecho(t)) : ''
   }
-  const bruto = (v: Viagem): string =>
-    v.peso_t !== null
-      ? `${formatNumber(v.peso_t, 2)} t`
-      : v.volume_m3 !== null
-        ? `${formatNumber(v.volume_m3, 2)} m³`
-        : ''
   const podeEditar = (f: FichaViagens): boolean =>
     role === 'god' ||
     role === 'adm' ||
@@ -120,7 +112,6 @@ function Inner(): ReactNode {
       destino: nomeLocal(v.destino_id),
       estacaCarga: estaca(v.origem_id, v.estaca_carga_m),
       estacaDescarga: estaca(v.destino_id, v.estaca_descarga_m),
-      bruto: bruto(v),
       unidade: unidade(v.item_orcamentario_id)
     }))
   )
@@ -155,7 +146,6 @@ function Inner(): ReactNode {
       accessorFn: (r) =>
         [r.v.hora_carga?.slice(0, 5), r.v.hora_descarga?.slice(0, 5)].filter(Boolean).join(' → ')
     },
-    { header: 'Volume / peso', accessorKey: 'bruto' },
     {
       header: 'Qtd',
       accessorFn: (r) => r.v.quantidade,
@@ -208,8 +198,6 @@ function Inner(): ReactNode {
       { header: 'Estaca de descarga' },
       { header: 'Hora carga' },
       { header: 'Hora descarga' },
-      { header: 'Volume (m³)', numFmt: '#,##0.00' },
-      { header: 'Peso (t)', numFmt: '#,##0.00' },
       { header: 'Quantidade', numFmt: '#,##0.00' },
       { header: 'Unid.' },
       { header: 'Material', numFmt: '#,##0.00' },
@@ -230,8 +218,6 @@ function Inner(): ReactNode {
       r.estacaDescarga,
       r.v.hora_carga?.slice(0, 5) ?? '',
       r.v.hora_descarga?.slice(0, 5) ?? '',
-      r.v.volume_m3,
-      r.v.peso_t,
       r.v.quantidade,
       r.unidade,
       r.v.material_qtd,

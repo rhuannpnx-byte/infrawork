@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 
 export type ModoLancamento = 'quantidade' | 'viagens'
-/** Viagem medida pelo volume da caçamba (m³) ou pelo peso do ticket (t); o fator converte para a unidade do serviço. */
+/** Viagem medida por volume ou por peso (peso exige o ticket da balança); a quantidade é lançada na unidade do serviço. */
 export type MedicaoViagem = 'volume' | 'peso'
 
 export interface ServicoParametro {
@@ -19,7 +19,6 @@ export interface ServicoParametro {
   habilita_obs: boolean
   exige_local: boolean
   medicao_viagem: MedicaoViagem
-  fator_viagem: number
 }
 
 export const PARAMETRO_PADRAO: Omit<ServicoParametro, 'item_orcamentario_id'> = {
@@ -30,8 +29,7 @@ export const PARAMETRO_PADRAO: Omit<ServicoParametro, 'item_orcamentario_id'> = 
   material_obrigatorio: true,
   habilita_obs: true,
   exige_local: false,
-  medicao_viagem: 'volume',
-  fator_viagem: 1
+  medicao_viagem: 'volume'
 }
 
 export interface ServicoParametrizavel {
@@ -112,16 +110,11 @@ export function useParametrosServicos(
       const { data, error } = await sb()
         .from('servico_parametro')
         .select(
-          'item_orcamentario_id, modo_lancamento, controla_material, material_recurso_id, material_unidade, material_obrigatorio, habilita_obs, exige_local, medicao_viagem, fator_viagem'
+          'item_orcamentario_id, modo_lancamento, controla_material, material_recurso_id, material_unidade, material_obrigatorio, habilita_obs, exige_local, medicao_viagem'
         )
         .eq('obra_id', obraId!)
       if (error) throw error
-      return new Map(
-        (data ?? []).map((p) => [
-          p.item_orcamentario_id as string,
-          { ...(p as ServicoParametro), fator_viagem: Number(p.fator_viagem ?? 1) }
-        ])
-      )
+      return new Map(((data ?? []) as ServicoParametro[]).map((p) => [p.item_orcamentario_id, p]))
     }
   })
 }
