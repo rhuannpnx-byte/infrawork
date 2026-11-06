@@ -59,6 +59,8 @@ snapshot por obra (`campo_catalogo`, sem preços), renovado quando a `versao` (h
 - Encarregado tem N equipes (`equipe.encarregado_id`, mesma obra). Na sessão de produção o app pede o encarregado
   primeiro e lista só as equipes dele (uma só já vem escolhida); encarregado sem equipe vinculada vê as equipes sem
   encarregado. Na ficha de viagem e na foto o encarregado continua opcional, com a mesma lista de equipes.
+- A produção gerada pelas viagens é uma por (dia, serviço, local, equipe, encarregado): equipe e encarregado vêm da
+  ficha (copiados em cada viagem) e não se editam na produção.
 - Mudar o modo de um serviço que já tem produção manual vale só para os lançamentos novos.
 - Parte Diária (horímetro de MVE/EPP) fica para uma próxima etapa.
 
