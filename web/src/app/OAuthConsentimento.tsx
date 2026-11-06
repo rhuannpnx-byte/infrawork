@@ -5,59 +5,83 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 
 /**
- * Consentimento do OAuth (MCP): o Supabase Auth manda o usuário para /oauth/consentir?authorization_id=… quando um
- * cliente (Claude.ai, ChatGPT…) pede acesso. O pedido é lido no carregamento do módulo — antes do url-sync
- * reescrever a URL das abas.
+ * Consentimento do login OAuth do MCP do InfraWork (o próprio MCP é o servidor de autorização — mcp/oauth.ts).
+ * O cliente (Claude.ai, ChatGPT…) abre /oauth/autorizar?response_type=code&client_id=…&redirect_uri=…&state=…
+ * &code_challenge=…&code_challenge_method=S256. Com o usuário logado, "Permitir" emite o código (RPC
+ * mcp_oauth_autorizar) e volta ao cliente. O pedido é lido no carregamento do módulo — antes do url-sync das abas.
  */
-export const PEDIDO_OAUTH: string | null = (() => {
-  if (typeof window === 'undefined') return null
-  if (!window.location.pathname.startsWith('/oauth/consentir')) return null
-  return new URLSearchParams(window.location.search).get('authorization_id')
-})()
-
-interface Detalhes {
-  client: { name: string; uri?: string; logo_uri?: string }
-  scope?: string
-  user?: { email: string }
+export interface PedidoOAuth {
+  response_type: string
+  client_id: string
+  redirect_uri: string
+  state: string | null
+  code_challenge: string
+  code_challenge_method: string
+  scope: string | null
 }
 
-export function OAuthConsentimento({ authorizationId }: { authorizationId: string }): ReactNode {
+export const PEDIDO_OAUTH: PedidoOAuth | null = (() => {
+  if (typeof window === 'undefined') return null
+  if (!window.location.pathname.startsWith('/oauth/autorizar')) return null
+  const q = new URLSearchParams(window.location.search)
+  return {
+    response_type: q.get('response_type') ?? '',
+    client_id: q.get('client_id') ?? '',
+    redirect_uri: q.get('redirect_uri') ?? '',
+    state: q.get('state'),
+    code_challenge: q.get('code_challenge') ?? '',
+    code_challenge_method: q.get('code_challenge_method') ?? '',
+    scope: q.get('scope')
+  }
+})()
+
+function voltar(p: PedidoOAuth, params: Record<string, string>): void {
+  const u = new URL(p.redirect_uri)
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v)
+  if (p.state) u.searchParams.set('state', p.state)
+  u.searchParams.set('iss', window.location.origin)
+  window.location.href = u.toString()
+}
+
+export function OAuthConsentimento({ pedido }: { pedido: PedidoOAuth }): ReactNode {
   const profile = useAuthStore((s) => s.profile)
   const signOut = useAuthStore((s) => s.signOut)
-  const [det, setDet] = useState<Detalhes | null>(null)
+  const [cliente, setCliente] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
     if (!supabase) return
-    void supabase.auth.oauth.getAuthorizationDetails(authorizationId).then(({ data, error }) => {
-      if (error || !data)
-        return setErro(
-          /disabled/i.test(error?.message ?? '')
-            ? 'O login de IAs (OAuth) ainda não foi ligado no servidor do InfraWork.'
-            : (error?.message ?? 'Pedido de acesso não encontrado.')
-        )
-      if ('redirect_url' in data && data.redirect_url) {
-        window.location.href = data.redirect_url
-        return
-      }
-      setDet(data as unknown as Detalhes)
-    })
-  }, [authorizationId])
+    if (pedido.response_type !== 'code')
+      return setErro('Pedido inválido: response_type precisa ser "code".')
+    if (pedido.code_challenge_method !== 'S256' || pedido.code_challenge.length < 43)
+      return setErro('Pedido inválido: o aplicativo precisa usar PKCE (S256).')
+    void supabase
+      .rpc('mcp_oauth_cliente_info', {
+        _client_id: pedido.client_id,
+        _redirect_uri: pedido.redirect_uri
+      })
+      .then(({ data, error }) => {
+        if (error) setErro(error.message)
+        else setCliente((data as { nome: string }).nome)
+      })
+  }, [pedido])
 
-  async function responder(permitir: boolean): Promise<void> {
+  async function permitir(): Promise<void> {
     if (!supabase) return
     setEnviando(true)
-    const api = supabase.auth.oauth
-    const { data, error } = permitir
-      ? await api.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
-      : await api.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
-    if (error || !data?.redirect_url) {
+    const { data, error } = await supabase.rpc('mcp_oauth_autorizar', {
+      _client_id: pedido.client_id,
+      _redirect_uri: pedido.redirect_uri,
+      _code_challenge: pedido.code_challenge,
+      _escopo: pedido.scope
+    })
+    if (error) {
       setEnviando(false)
-      setErro(error?.message ?? 'Não foi possível responder ao pedido.')
+      setErro(error.message)
       return
     }
-    window.location.href = data.redirect_url
+    voltar(pedido, { code: data as string })
   }
 
   return (
@@ -70,32 +94,34 @@ export function OAuthConsentimento({ authorizationId }: { authorizationId: strin
           <p className="text-danger" data-testid="oauth-erro">
             {erro}
           </p>
-        ) : !det ? (
+        ) : !cliente ? (
           <p className="text-text-muted">Carregando o pedido…</p>
         ) : (
           <>
             <p className="text-text">
-              <strong>{det.client.name}</strong> quer acessar o InfraWork como{' '}
-              <strong>{profile?.nome ?? det.user?.email}</strong> (
-              {profile?.email ?? det.user?.email}
-              ).
+              <strong data-testid="oauth-cliente">{cliente}</strong> quer acessar o InfraWork como{' '}
+              <strong>{profile?.nome}</strong> ({profile?.email}).
             </p>
             <p className="text-text-muted">
               A IA poderá ler e alterar o que você pode ler e alterar no InfraWork (orçamento,
               planejamento, acompanhamento), sempre com as suas permissões. Ações que apagam ou
               mexem em muita coisa pedem confirmação. Você pode revogar o acesso a qualquer momento
-              no próprio cliente.
+              no menu do usuário › Conectar IA.
             </p>
-            {det.client.uri ? (
-              <p className="font-mono text-2xs text-text-dim">{det.client.uri}</p>
-            ) : null}
+            <p className="break-all font-mono text-2xs text-text-dim">
+              Retorno: {pedido.redirect_uri}
+            </p>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" disabled={enviando} onClick={() => void responder(false)}>
+              <Button
+                variant="secondary"
+                disabled={enviando}
+                onClick={() => voltar(pedido, { error: 'access_denied' })}
+              >
                 Negar
               </Button>
               <Button
                 disabled={enviando}
-                onClick={() => void responder(true)}
+                onClick={() => void permitir()}
                 data-testid="oauth-permitir"
               >
                 Permitir

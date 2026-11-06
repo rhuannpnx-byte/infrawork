@@ -24,11 +24,20 @@ pode ser revogado). O banco guarda só o hash.
 
 ## Como funciona o login
 
-- **OAuth 2.1:** o servidor de autorização é o Supabase Auth (Servidor OAuth com registro dinâmico de clientes). O MCP
-  publica `/.well-known/oauth-protected-resource` e responde 401 com `WWW-Authenticate` quando falta o token. A tela de
-  consentimento é `/oauth/consentir` no web. O token recebido é o JWT do próprio usuário.
+- **OAuth 2.1 (próprio do InfraWork, nada para ligar no Supabase):** o MCP é o servidor de autorização
+  (`web/mcp/oauth.ts`).
+  - Metadados: `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` (e
+    `openid-configuration`).
+  - Registro dinâmico de clientes: `POST /oauth/registrar` (clientes públicos; redirect https, localhost ou esquema de
+    app).
+  - Consentimento: a tela `/oauth/autorizar` do web (o usuário entra com a conta do InfraWork e clica em Permitir; a
+    RPC `mcp_oauth_autorizar` emite o código, uso único, 5 min).
+  - Troca e renovação: `POST /oauth/token` (PKCE S256 obrigatório; acesso `iwk_…` de 1 h; renovação `iwr_…` de 90 dias,
+    trocada a cada uso).
+  - Os logins aparecem na lista de tokens do usuário (menu › Conectar IA), marcados como "login", e podem ser
+    revogados ali.
 - **Token pessoal:** o servidor valida o hash em `mcp_token` e abre a sessão do dono (link mágico gerado e verificado
-  no servidor, com a service key só no servidor da Vercel). A sessão fica em cache e é renovada.
+  no servidor, com a service key só no servidor da Vercel). Os tokens de acesso do OAuth usam o mesmo caminho.
 - Em todos os casos o MCP fala com o banco como o usuário: o RLS e as regras (travas de LB e aditivo, rateio, produção,
   viagens) valem igual ao web, e as mensagens de erro do banco chegam à IA.
 
@@ -66,12 +75,11 @@ prompts `montar_obra`, `importar_orcamento`, `planejar_quantidades`, `lancar_via
 3. **E2E do MCP** (stack local): `npm run mcp:build:local` e
    `E2E_EMAIL=… E2E_PASSWORD=… node mcp/e2e-mcp.mjs` — monta uma obra do zero só pelas ferramentas e confere os
    números (custo da composição, rateio, datas do cronograma, LB, produção, viagens, medição/QDM, papéis, exclusão).
+   Login OAuth: `node mcp/e2e-oauth.mjs` (com o web em 5174) — registro, consentimento, PKCE, renovação e revogação.
 4. **Publicação:** o bundle é gerado no `npm run build` (`node mcp/build.mjs`) e vai junto no deploy do web.
 
 ## Publicação (uma vez)
 
-- Migração `20260701000046_mcp_token.sql` no Supabase.
-- Supabase › Authentication › OAuth Server: ligar, permitir registro dinâmico de clientes e apontar a URL de
-  autorização para `https://infrawork-web.vercel.app/oauth/consentir`.
-- Vercel (projeto infrawork-web): variável secreta `SUPABASE_SERVICE_ROLE_KEY` (só servidor; usada para o token
-  pessoal).
+- Migrações `20260701000046_mcp_token.sql` e `20260701000047_mcp_oauth.sql` no Supabase.
+- Vercel (projeto infrawork-web): variável secreta `SUPABASE_SERVICE_ROLE_KEY` (só servidor; a chave `service_role`
+  — a "secret" nova vem mascarada pela API de chaves).

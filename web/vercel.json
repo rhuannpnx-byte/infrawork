@@ -4,6 +4,22 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/oauth/registrar",
+      "destination": "/api/mcp?oauth=registrar"
+    },
+    {
+      "source": "/oauth/token",
+      "destination": "/api/mcp?oauth=token"
+    },
+    {
+      "source": "/.well-known/openid-configuration",
+      "destination": "/api/mcp?wk=as"
+    },
+    {
+      "source": "/.well-known/openid-configuration/:caminho*",
+      "destination": "/api/mcp?wk=as"
+    },
+    {
       "source": "/mcp",
       "destination": "/api/mcp"
     },

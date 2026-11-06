@@ -14,12 +14,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth-store'
 import {
   MCP_URL,
   useCriarTokenIA,
   useRevogarTokenIA,
   useStatusMcp,
+  validade,
   type Estado
 } from '../hooks/mcp'
 
@@ -87,9 +87,8 @@ function Instrucoes({
   const avisoOauth =
     oauth === 'off' ? (
       <p className="text-warn">
-        O login OAuth ainda não está ligado no servidor: este cliente só conecta depois que o
-        administrador ligar o Servidor OAuth no Supabase. Enquanto isso, use um cliente com token
-        (Claude Code, Cursor, n8n).
+        O login por conta não respondeu agora — confira se o servidor MCP está no ar (botão
+        Verificar). Enquanto isso, use um cliente com token (Claude Code, Cursor, n8n).
       </p>
     ) : null
   switch (cliente) {
@@ -177,7 +176,6 @@ export function TokensIADialog({
   open: boolean
   onOpenChange: (v: boolean) => void
 }): ReactNode {
-  const role = useAuthStore((s) => s.profile?.role ?? null)
   const { status, recarregar } = useStatusMcp()
   const criar = useCriarTokenIA()
   const revogar = useRevogarTokenIA()
@@ -221,11 +219,9 @@ export function TokensIADialog({
       estado: status.oauth,
       texto:
         status.oauth === 'ok'
-          ? 'Ligado (Claude.ai, ChatGPT)'
+          ? 'Disponível (Claude.ai, ChatGPT)'
           : status.oauth === 'off'
-            ? role === 'god' || role === 'adm'
-              ? 'Desligado — ligar no Supabase'
-              : 'Desligado'
+            ? 'Sem resposta'
             : 'Verificando…'
     },
     {
@@ -367,10 +363,17 @@ export function TokensIADialog({
               ) : (
                 status.ativos.map((t) => (
                   <tr key={t.id}>
-                    <td className="py-1.5 text-text">{t.nome}</td>
+                    <td className="py-1.5 text-text">
+                      {t.nome}
+                      {t.tipo === 'oauth' ? (
+                        <span className="ml-1.5 rounded bg-accent/15 px-1 text-2xs text-accent">
+                          login
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="py-1.5 font-mono text-text-muted">{t.prefixo}…</td>
                     <td className="py-1.5 text-text-muted">{dataBR(t.criado_em)}</td>
-                    <td className="py-1.5 text-text-muted">{dataBR(t.expira_em)}</td>
+                    <td className="py-1.5 text-text-muted">{dataBR(validade(t))}</td>
                     <td className="py-1.5 text-text-muted">{dataBR(t.ultimo_uso_em)}</td>
                     <td className="py-1.5 text-right">
                       <Button

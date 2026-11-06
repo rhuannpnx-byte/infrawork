@@ -92,6 +92,8 @@ export const NAO_LEGIVEIS: Record<string, string> = {
   fleethub_config: 'credencial da FleetHub (só o status de conexão aparece pela ferramenta frota)',
   mcp_token: 'hash dos tokens pessoais (gerenciados no web)',
   orcamento_recalculo_pendente: 'fila interna de recálculo (sem acesso do usuário)',
+  mcp_oauth_cliente: 'clientes OAuth do próprio MCP (infraestrutura de login)',
+  mcp_oauth_codigo: 'códigos de autorização OAuth (infraestrutura de login)',
   cpu_snapshot:
     'legado: imutável, o web não usa mais (as LBs congelam em planejamento_lb_premissa)',
   planejamento_baseline_snapshot: 'legado, sem uso no web',
@@ -108,7 +110,9 @@ export const TABELAS_IGNORADAS: Record<string, string> = {
   equipe_produtividade: 'o web não grava (só leitura pela consultar)',
   fleethub_config: 'credencial da FleetHub: só pela tela do web (nunca passa pela IA)',
   mcp_token: 'tokens pessoais: criados e revogados só na tela do web',
-  orcamento_recalculo_pendente: 'fila interna do banco (processada por recalcular_orcamento)'
+  orcamento_recalculo_pendente: 'fila interna do banco (processada por recalcular_orcamento)',
+  mcp_oauth_cliente: 'registro dinâmico de clientes OAuth (servidor do MCP, /oauth/registrar)',
+  mcp_oauth_codigo: 'códigos OAuth (tela de consentimento do web e /oauth/token)'
 }
 
 /** RPCs que as ferramentas acionam por outro caminho (Edge Function ou módulo do web), com o caminho. */
@@ -199,7 +203,9 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   fleethub_credencial: 'credencial da FleetHub: só a Edge Function lê',
   fleethub_remover_credencial: 'credencial da FleetHub: só pela tela do web',
   mcp_token_criar: 'tokens pessoais: só pela tela do web',
-  mcp_token_revogar: 'tokens pessoais: só pela tela do web'
+  mcp_token_revogar: 'tokens pessoais: só pela tela do web',
+  mcp_oauth_cliente_info: 'login OAuth: tela de consentimento do web',
+  mcp_oauth_autorizar: 'login OAuth: tela de consentimento do web'
 }
 
 /** Edge Functions que nenhuma ferramenta chama, com o motivo. */

@@ -1,6 +1,6 @@
 /**
- * MCP do InfraWork (IAs conectadas ao sistema): endereço, status do servidor e do login OAuth e os tokens pessoais
- * do usuário. Usado no menu do usuário e na janela "Conectar IA".
+ * MCP do InfraWork (IAs conectadas ao sistema): endereço, status do servidor e do login OAuth (servido pelo próprio
+ * MCP) e os tokens do usuário — pessoais e os dos logins OAuth. Usado no menu do usuário e na janela "Conectar IA".
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -13,6 +13,9 @@ export interface TokenIA {
   expira_em: string | null
   ultimo_uso_em: string | null
   revogado_em: string | null
+  /** pessoal (gerado aqui) ou oauth (login de um aplicativo, renovado sozinho) */
+  tipo: 'pessoal' | 'oauth'
+  refresh_expira_em: string | null
 }
 
 export type Estado = 'ok' | 'off' | 'verificando'
@@ -50,12 +53,17 @@ async function alcanca(
   }
 }
 
-const ativo = (t: TokenIA): boolean =>
-  !t.revogado_em && (!t.expira_em || new Date(t.expira_em).getTime() > Date.now())
+/** Validade que importa ao usuário: a do token pessoal, ou a da renovação no login OAuth. */
+export const validade = (t: TokenIA): string | null =>
+  t.tipo === 'oauth' ? t.refresh_expira_em : t.expira_em
+
+const ativo = (t: TokenIA): boolean => {
+  const v = validade(t)
+  return !t.revogado_em && (!v || new Date(v).getTime() > Date.now())
+}
 
 export function useStatusMcp(): { status: StatusMcp; recarregar: () => void } {
   const base = MCP_URL.replace(/\/mcp$/, '')
-  const supa = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ''
   const servidor = useQuery({
     queryKey: [...CHAVE, 'servidor', base],
     staleTime: 60_000,
@@ -64,14 +72,13 @@ export function useStatusMcp(): { status: StatusMcp; recarregar: () => void } {
       alcanca(`${base}/.well-known/oauth-protected-resource`, (j) => typeof j.resource === 'string')
   })
   const oauth = useQuery({
-    queryKey: [...CHAVE, 'oauth', supa],
+    queryKey: [...CHAVE, 'oauth', base],
     staleTime: 60_000,
     retry: false,
-    enabled: !!supa,
     queryFn: () =>
       alcanca(
-        `${supa}/.well-known/oauth-authorization-server/auth/v1`,
-        (j) => !!j.authorization_endpoint
+        `${base}/.well-known/oauth-authorization-server`,
+        (j) => !!j.authorization_endpoint && !!j.registration_endpoint
       )
   })
   const tokens = useQuery({
@@ -80,7 +87,9 @@ export function useStatusMcp(): { status: StatusMcp; recarregar: () => void } {
     queryFn: async (): Promise<TokenIA[]> => {
       const { data, error } = await sb()
         .from('mcp_token')
-        .select('id, nome, prefixo, criado_em, expira_em, ultimo_uso_em, revogado_em')
+        .select(
+          'id, nome, prefixo, criado_em, expira_em, ultimo_uso_em, revogado_em, tipo, refresh_expira_em'
+        )
         .order('criado_em', { ascending: false })
       if (error) throw error
       return data as TokenIA[]

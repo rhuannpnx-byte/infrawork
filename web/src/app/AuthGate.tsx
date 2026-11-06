@@ -31,7 +31,7 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   }
 
   if (PEDIDO_OAUTH) {
-    return <OAuthConsentimento authorizationId={PEDIDO_OAUTH} />
+    return <OAuthConsentimento pedido={PEDIDO_OAUTH} />
   }
 
   // apontador: só o app de campo
