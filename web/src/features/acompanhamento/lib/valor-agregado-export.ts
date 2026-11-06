@@ -6,8 +6,12 @@
 import { adminApi } from '@/lib/supabase/functions'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
+import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
+import { formatMarcadorCompacto } from '@/lib/format/posicao'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
+import type { ObraTrecho } from '@/types/gerencial'
 import type { EapGrupo, CurvaSDiaRow } from './valor-agregado-calc'
+import { montarQuadroViagens, type QuadroViagens, type ViagemExport } from './qdm-viagens'
 
 export interface MemoriaDiaExport {
   data: string
@@ -40,6 +44,15 @@ export interface MemoriaServicoExport {
   qtdContratual: number
   vendaUnitaria: number
   dias: MemoriaDiaExport[]
+  /** Serviço lançado por viagens: a memória é o quadro de distribuição das viagens. */
+  qdm?: QuadroViagens
+}
+
+/** Viagens do período e os serviços lançados por viagens (memória em forma de QDM). */
+export interface ViagensExport {
+  itens: Set<string>
+  viagens: ViagemExport[]
+  formatarPosicao: (trechoId: string, metros: number) => string
 }
 
 export interface FotoExportItem {
@@ -70,7 +83,8 @@ export function montarMemoriasFilhos(
   materialPorId: Map<string, string>,
   servicoItemId: string | null,
   de: string,
-  ate: string
+  ate: string,
+  viagens?: ViagensExport
 ): MemoriaServicoExport[] {
   // Produção diária do agregador (mesma fonte da Medição) dentro do período.
   const aggDia = new Map<string, Map<string, number>>()
@@ -142,6 +156,8 @@ export function montarMemoriasFilhos(
     if (!diaMap || diaMap.size === 0 || g.quantidade_referencia <= 0) continue
     const datas = [...diaMap.keys()].sort()
     const ctxItem = ctx.get(g.id)
+    const porViagens = viagens?.itens.has(g.id) ?? false
+    const producaoPeriodo = [...diaMap.values()].reduce((a, q) => a + q, 0)
     for (const f of g.filhos) {
       const dias: MemoriaDiaExport[] = datas.map((data) => {
         const aggQtd = diaMap.get(data) ?? 0
@@ -173,7 +189,17 @@ export function montarMemoriasFilhos(
         agregadorUnidade: g.unidade_referencia,
         qtdContratual: f.quantidade,
         vendaUnitaria: f.venda_unitaria,
-        dias
+        dias,
+        qdm:
+          porViagens && viagens
+            ? montarQuadroViagens({
+                grupo: g,
+                filho: f,
+                viagens: viagens.viagens,
+                producaoPeriodo,
+                formatarPosicao: viagens.formatarPosicao
+              })
+            : undefined
       })
     }
   }
@@ -221,6 +247,107 @@ export async function carregarMateriaisProducao(
     out.set(r.producao_id, prev ? `${prev}; ${rotulo}` : rotulo)
   }
   return out
+}
+
+interface ViagemRow {
+  id: string
+  item_orcamentario_id: string
+  data: string
+  ficha_id: string
+  ordem: number
+  quantidade: number | string
+  dmt_km: number | string | null
+  nf_ticket: string | null
+  trecho_id: string | null
+  posicao_inicio_m: number | string | null
+  posicao_fim_m: number | string | null
+  origem_id: string | null
+  destino_id: string | null
+  origem: { nome: string } | null
+  destino: { nome: string } | null
+  ficha: {
+    motorista: string | null
+    veiculo: { prefixo: string | null; placa: string | null } | null
+    equipe: { nome: string } | null
+  } | null
+}
+
+const numOuNull = (v: number | string | null | undefined): number | null =>
+  v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v)
+
+/** Viagens do período, os serviços parametrizados por viagens e o formatador de estaca dos locais da obra. */
+export async function carregarViagensExport(
+  obraId: string,
+  de: string,
+  ate: string
+): Promise<ViagensExport> {
+  const vazio: ViagensExport = { itens: new Set(), viagens: [], formatarPosicao: () => '' }
+  if (!SUPABASE_ENABLED || !supabase) return vazio
+  const { data: params, error: e1 } = await supabase
+    .from('servico_parametro')
+    .select('item_orcamentario_id')
+    .eq('obra_id', obraId)
+    .eq('modo_lancamento', 'viagens')
+  if (e1) throw e1
+  const itens = new Set((params ?? []).map((p) => p.item_orcamentario_id as string))
+  if (itens.size === 0) return vazio
+
+  const [viagensRes, trechosRes] = await Promise.all([
+    supabase
+      .from('viagem')
+      .select(
+        'id, item_orcamentario_id, data, ficha_id, ordem, quantidade, dmt_km, nf_ticket, trecho_id, ' +
+          'posicao_inicio_m, posicao_fim_m, origem_id, destino_id, ' +
+          'origem:transporte_local!viagem_origem_id_fkey(nome), ' +
+          'destino:transporte_local!viagem_destino_id_fkey(nome), ' +
+          'ficha:viagem_ficha!inner(motorista, veiculo:frota_veiculo(prefixo, placa), equipe:equipe(nome))'
+      )
+      .eq('obra_id', obraId)
+      .gte('data', de)
+      .lte('data', ate)
+      .limit(50_000),
+    supabase.from('obra_trecho').select('*').eq('obra_id', obraId)
+  ])
+  if (viagensRes.error) throw viagensRes.error
+  if (trechosRes.error) throw trechosRes.error
+  const trechos = new Map(
+    ((trechosRes.data ?? []) as unknown as ObraTrecho[]).map((t) => [t.id, t])
+  )
+
+  const viagens: ViagemExport[] = ((viagensRes.data ?? []) as unknown as ViagemRow[]).map((v) => {
+    const t = v.trecho_id ? trechos.get(v.trecho_id) : undefined
+    const vei = v.ficha?.veiculo
+    return {
+      id: v.id,
+      itemId: v.item_orcamentario_id,
+      data: v.data,
+      fichaId: v.ficha_id,
+      ordem: v.ordem,
+      veiculo: vei ? [vei.prefixo, vei.placa].filter(Boolean).join(' · ') : '',
+      motorista: v.ficha?.motorista ?? '',
+      equipe: v.ficha?.equipe?.nome ?? '',
+      origemId: v.origem_id,
+      origem: v.origem?.nome ?? '—',
+      destinoId: v.destino_id,
+      destino: v.destino?.nome ?? '—',
+      trechoId: v.trecho_id,
+      trechoNome: t?.nome ?? '',
+      trechoArea: t?.tipo === 'area',
+      posIni: numOuNull(v.posicao_inicio_m),
+      posFim: numOuNull(v.posicao_fim_m),
+      quantidade: Number(v.quantidade) || 0,
+      dmtKm: numOuNull(v.dmt_km),
+      nfTicket: v.nf_ticket ?? ''
+    }
+  })
+  return {
+    itens,
+    viagens,
+    formatarPosicao: (trechoId, metros) => {
+      const t = trechos.get(trechoId)
+      return t ? formatMarcadorCompacto(metros, ctxObraTrecho(t)) : ''
+    }
+  }
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {

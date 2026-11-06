@@ -33,13 +33,22 @@ function useCurvaSDia(
     staleTime: 30_000,
     queryFn: async (): Promise<CurvaSDiaRow[]> => {
       if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-      const { data, error } = await supabase
-        .from('vw_acompanhamento_curva_s')
-        .select('item_orcamentario_id, data, planejado_dia, realizado_dia')
-        .eq('obra_id', obraId!)
-        .limit(20_000)
-      if (error) throw error
-      return (data ?? []) as unknown as CurvaSDiaRow[]
+      // a API devolve no máximo 1000 linhas por chamada: pagina (a CO.081 já passa de 1800)
+      const out: CurvaSDiaRow[] = []
+      const passo = 1000
+      for (let de = 0; ; de += passo) {
+        const { data, error } = await supabase
+          .from('vw_acompanhamento_curva_s')
+          .select('item_orcamentario_id, data, planejado_dia, realizado_dia')
+          .eq('obra_id', obraId!)
+          .order('item_orcamentario_id')
+          .order('data')
+          .range(de, de + passo - 1)
+        if (error) throw error
+        out.push(...((data ?? []) as unknown as CurvaSDiaRow[]))
+        if (!data || data.length < passo) break
+      }
+      return out
     }
   })
 }

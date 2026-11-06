@@ -56,6 +56,9 @@ app de campo (celular): https://infrawork-campo.vercel.app
 - **Fotos**: com GPS quando houver; sem sinal de GPS a foto sai sem coordenadas.
 - **Escritório**: Acompanhamento › Produção, Previsto × Realizado, Dashboard, Fotos & Mapa. Correções feitas no web
   não são desfeitas pelo celular.
+- **Medição**: Acompanhamento › Valor Agregado › Exportar .xlsx. Nos serviços lançados por viagens, a memória de
+  cálculo é o quadro de distribuição das viagens (origem → destino, estacas, nº de viagens, volume, DMT, momento e
+  faixa de DMT), com o resumo por faixa e a relação viagem a viagem. Cadastre a DMT de cada rota em Origens e destinos.
 - **Visão estratégica (engenheiro, adm)**: no app, o cartão **Visão estratégica** abre o resumo da obra (avanço
   físico × esperado, valor executado × previsto, curva S), a lista de **Serviços** (atrasados primeiro, com o detalhe
   de cada um), **Produção** (mapa de calor da produção diária por serviço, encarregado e equipe) e **Equipes** (quem lançou hoje e quem trabalhou na semana e ainda não lançou). Sem sinal, mostra os

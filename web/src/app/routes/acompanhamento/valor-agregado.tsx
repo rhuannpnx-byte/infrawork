@@ -20,7 +20,8 @@ import {
 import {
   montarMemoriasFilhos,
   carregarFotosExport,
-  carregarMateriaisProducao
+  carregarMateriaisProducao,
+  carregarViagensExport
 } from '@/features/acompanhamento/lib/valor-agregado-export'
 import { CurvaSValorAgregado } from '@/features/acompanhamento/components/valor-agregado/CurvaSValorAgregado'
 import { PlanejadoProjetadoPorServico } from '@/features/acompanhamento/components/valor-agregado/PlanejadoProjetadoPorServico'
@@ -86,7 +87,10 @@ function ValorAgregadoInner(): ReactNode {
     if (medicao.length === 0) return
     setExportando(true)
     try {
-      const materialPorId = await carregarMateriaisProducao(obraId, de, ate)
+      const [materialPorId, viagens] = await Promise.all([
+        carregarMateriaisProducao(obraId, de, ate),
+        carregarViagensExport(obraId, de, ate)
+      ])
       const memorias = montarMemoriasFilhos(
         grupos,
         curvaSRows,
@@ -94,7 +98,8 @@ function ValorAgregadoInner(): ReactNode {
         materialPorId,
         servicoItemId,
         de,
-        ate
+        ate,
+        viagens
       )
       const fotos = await carregarFotosExport(obraId, de, ate)
       const dmy = (s: string): string => {

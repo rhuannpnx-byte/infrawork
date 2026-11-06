@@ -6,6 +6,7 @@
 
 import ExcelJS from 'exceljs'
 import { XLSX_MIME } from '@/lib/files/download'
+import type { QuadroViagens } from '@/features/acompanhamento/lib/qdm-viagens'
 
 export interface MedicaoExportRow {
   tipo: 'servico' | 'indireto'
@@ -52,6 +53,8 @@ export interface MemoriaServico {
   qtdContratual: number
   vendaUnitaria: number
   dias: MemoriaDia[]
+  /** Serviço lançado por viagens: a memória é o quadro de distribuição das viagens. */
+  qdm?: QuadroViagens
 }
 
 export interface FotoExport {
@@ -215,6 +218,10 @@ function abaMemoria(
   m: MemoriaServico,
   usados: Set<string>
 ): void {
+  if (m.qdm) {
+    abaQuadroViagens(wb, p, m, m.qdm, usados)
+    return
+  }
   const ws = wb.addWorksheet(sanitizeSheetName(m.codigo, usados))
   ws.columns = [
     { key: 'data', width: 12 },
@@ -301,6 +308,156 @@ function abaMemoria(
   tr.getCell(6).font = { bold: true }
 
   ws.views = [{ state: 'frozen', ySplit: headerRow }]
+}
+
+// ─── Aba por serviço lançado por viagens: quadro de distribuição (QDM) ─────────
+function tituloSecao(ws: ExcelJS.Worksheet, r: number, texto: string): void {
+  ws.mergeCells(r, 1, r, 11)
+  ws.getCell(r, 1).value = texto
+  ws.getCell(r, 1).font = { bold: true, size: 12 }
+}
+
+function abaQuadroViagens(
+  wb: ExcelJS.Workbook,
+  p: MedicaoExportPayload,
+  m: MemoriaServico,
+  q: QuadroViagens,
+  usados: Set<string>
+): void {
+  const ws = wb.addWorksheet(sanitizeSheetName(m.codigo, usados))
+  ws.columns = [
+    { width: 24 },
+    { width: 24 },
+    { width: 22 },
+    { width: 18 },
+    { width: 18 },
+    { width: 22 },
+    { width: 22 },
+    { width: 14 },
+    { width: 12 },
+    { width: 16 },
+    { width: 18 }
+  ]
+  const un = q.unidadeVolume || '—'
+  const ini = escreverCabecalho(
+    ws,
+    p.obraNome,
+    p.periodoLabel,
+    'Memória de cálculo — quadro de distribuição das viagens',
+    `Serviço (filho): ${m.codigo} — ${m.descricao}`
+  )
+  ws.mergeCells(ini, 1, ini, 11)
+  ws.getCell(ini, 1).value =
+    `Agregador: ${m.agregadorCodigo} — ${m.agregadorDescricao}` +
+    `   •   Qtd contratual: ${m.qtdContratual} ${m.unidade || ''}` +
+    `   •   Venda unit.: ${m.vendaUnitaria}`
+  ws.getCell(ini, 1).font = { italic: true, color: { argb: 'FF666666' } }
+
+  // 1. Quadro de distribuição: origem → destino → DMT
+  let r = ini + 2
+  tituloSecao(ws, r++, 'Quadro de distribuição das viagens')
+  const hq = ws.getRow(r++)
+  ;[
+    'Origem',
+    'Destino',
+    'Estacas',
+    'Faixa de DMT',
+    'Nº de viagens',
+    `Volume (${un})`,
+    'DMT (km)',
+    `Momento (${un}·km)`,
+    `Qtd medida (${m.unidade || '—'})`,
+    'Valor medido'
+  ].forEach((h, i) => (hq.getCell(i + 1).value = h))
+  estilizarHeaderRow(hq, 4)
+  for (const l of q.linhas) {
+    const row = ws.getRow(r++)
+    row.getCell(1).value = l.origem
+    row.getCell(2).value = l.destino
+    row.getCell(3).value = l.estacas
+    row.getCell(4).value = l.faixa
+    row.getCell(5).value = l.viagens
+    row.getCell(6).value = l.volume
+    row.getCell(6).numFmt = NUM
+    row.getCell(7).value = l.dmtKm
+    row.getCell(7).numFmt = '#,##0.000'
+    row.getCell(8).value = l.momento
+    row.getCell(8).numFmt = NUM
+    row.getCell(9).value = l.qtd
+    row.getCell(9).numFmt = NUM
+    row.getCell(10).value = l.valor
+    row.getCell(10).numFmt = MOEDA
+  }
+  const tq = ws.getRow(r++)
+  ws.mergeCells(tq.number, 1, tq.number, 4)
+  tq.getCell(1).value = 'Total (DMT médio ponderado pelo volume)'
+  tq.getCell(5).value = q.total.viagens
+  tq.getCell(6).value = q.total.volume
+  tq.getCell(6).numFmt = NUM
+  tq.getCell(7).value = q.total.dmtMedioKm
+  tq.getCell(7).numFmt = '#,##0.000'
+  tq.getCell(8).value = q.total.momento
+  tq.getCell(8).numFmt = NUM
+  tq.getCell(9).value = q.total.qtd
+  tq.getCell(9).numFmt = NUM
+  tq.getCell(10).value = q.total.valor
+  tq.getCell(10).numFmt = MOEDA
+  tq.eachCell((c) => (c.font = { bold: true }))
+
+  // 2. Resumo por faixa de DMT
+  r++
+  tituloSecao(ws, r++, 'Resumo por faixa de DMT')
+  const hf = ws.getRow(r++)
+  ;['Faixa de DMT', `Volume (${un})`, `Momento (${un}·km)`, '% do volume'].forEach(
+    (h, i) => (hf.getCell(i + 1).value = h)
+  )
+  estilizarHeaderRow(hf, 1)
+  for (const f of q.porFaixa) {
+    const row = ws.getRow(r++)
+    row.getCell(1).value = f.faixa
+    row.getCell(2).value = f.volume
+    row.getCell(2).numFmt = NUM
+    row.getCell(3).value = f.momento
+    row.getCell(3).numFmt = NUM
+    row.getCell(4).value = f.pct
+    row.getCell(4).numFmt = PCT
+  }
+
+  // 3. Relação das viagens
+  r++
+  tituloSecao(ws, r++, `Relação das viagens (${q.relacao.length})`)
+  const hr = ws.getRow(r++)
+  ;[
+    'Data',
+    'Veículo',
+    'Motorista',
+    'Equipe',
+    'Origem',
+    'Destino',
+    'Estaca',
+    `Volume (${un})`,
+    'DMT (km)',
+    `Momento (${un}·km)`,
+    'NF/ticket'
+  ].forEach((h, i) => (hr.getCell(i + 1).value = h))
+  estilizarHeaderRow(hr, 7)
+  for (const v of q.relacao) {
+    const row = ws.getRow(r++)
+    row.getCell(1).value = v.data
+    row.getCell(2).value = v.veiculo
+    row.getCell(3).value = v.motorista
+    row.getCell(4).value = v.equipe
+    row.getCell(5).value = v.origem
+    row.getCell(6).value = v.destino
+    row.getCell(7).value = v.estaca
+    row.getCell(8).value = v.volume
+    row.getCell(8).numFmt = NUM
+    row.getCell(9).value = v.dmtKm
+    row.getCell(9).numFmt = '#,##0.000'
+    row.getCell(10).value = v.momento
+    row.getCell(10).numFmt = NUM
+    row.getCell(11).value = v.nfTicket
+  }
 }
 
 // ─── Aba Fotos: relatório fotográfico ────────────────────────────────────────
