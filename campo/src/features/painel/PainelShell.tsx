@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, NavLink, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, ListChecks, RefreshCw, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, Flame, ListChecks, RefreshCw, Users } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useSession } from '@/core/auth/SessionStore'
 import { useObra, usePainel } from '@/core/db/daos'
@@ -12,7 +12,7 @@ import { idadeDados } from './lib'
 
 /**
  * Moldura das telas da visão estratégica: cabeçalho (voltar, título, Atualizar), faixa com a data do retrato
- * (amarela quando passou de 24 h), abas de baixo (Resumo · Serviços · Equipes) e os estados sem dados.
+ * (amarela quando passou de 24 h), abas de baixo (Resumo · Serviços · Produção · Equipes) e os estados sem dados.
  * Ao abrir, renova o retrato se tiver mais de 1 min; o botão força.
  */
 export function PainelShell({
@@ -159,6 +159,7 @@ function AbasPainel() {
   const abas = [
     { to: '/painel', label: 'Resumo', icon: BarChart3, end: true },
     { to: '/painel/servicos', label: 'Serviços', icon: ListChecks, end: false },
+    { to: '/painel/producao', label: 'Produção', icon: Flame, end: false },
     { to: '/painel/equipes', label: 'Equipes', icon: Users, end: false },
   ]
   return (

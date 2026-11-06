@@ -231,6 +231,18 @@ export interface PainelEquipeDto {
   servicos: PainelServicoEquipeDto[] | null
 }
 
+/** Produção dos últimos 90 dias somada por dia, serviço, equipe e encarregado (mapa de calor). */
+export interface PainelProducaoDto {
+  desde: string
+  dias: { d: string; s: string; e: string | null; n: string | null; q: number }[]
+  servicos: Record<
+    string,
+    { codigo: string | null; descricao: string | null; unidade: string | null }
+  >
+  equipes: Record<string, string>
+  encarregados: Record<string, string>
+}
+
 export interface PainelDto {
   versao: string
   gerado_em: string
@@ -262,6 +274,8 @@ export interface PainelDto {
   servicos: PainelServicoDto[]
   equipes: PainelEquipeDto[]
   encarregados: PainelEquipeDto[]
+  /** ausente nos retratos guardados antes da 0045 */
+  producao?: PainelProducaoDto
   ultimos: {
     data: string
     codigo: string | null

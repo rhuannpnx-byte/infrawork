@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { formatBR } from '@/lib/datas'
 import { cn } from '@/lib/cn'
 import type { CatPainel } from '@/core/db/entities'
@@ -81,7 +81,18 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
         )}
       </Secao>
 
-      <Secao titulo="Ritmo">
+      <Secao
+        titulo="Ritmo"
+        acao={
+          <Link
+            to={`/painel/producao?servico=${s.id}`}
+            className="text-xs text-accent"
+            data-testid="servico-dia-a-dia"
+          >
+            Ver dia a dia
+          </Link>
+        }
+      >
         <div className="grid grid-cols-2 gap-3">
           <Kpi
             valor={<span className={TOM_TEXTO[tomRitmo]}>{qtd(media, s.unidade)}</span>}

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/cn'
 import { TOM_FUNDO, type Tom } from './lib'
+import { diaDaSemana, nivelCalor, qtdCurta } from './producao'
 
 /**
  * Gráficos da visão estratégica em SVG/HTML feitos à mão — sem biblioteca de gráficos (tudo vai para o cache
@@ -175,5 +176,83 @@ export function Barras14({ valores, unidade }: { valores: number[]; unidade?: st
         hoje
       </text>
     </svg>
+  )
+}
+
+const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+const ALFA_CALOR = [0, 0.2, 0.42, 0.68, 1]
+
+/**
+ * Mapa de calor da produção diária (mesmo desenho da Performance do web): uma semana por linha, cor mais forte
+ * quanto mais perto do maior dia do período. Toque num dia para ver o detalhe.
+ */
+export function MapaCalor({
+  porDia,
+  dias,
+  max,
+  selecionado,
+  onSelecionar,
+}: {
+  porDia: Map<string, number>
+  dias: string[]
+  max: number
+  selecionado: string | null
+  onSelecionar: (dia: string) => void
+}) {
+  const vazias = dias.length ? diaDaSemana(dias[0]!) : 0
+  return (
+    <div>
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center font-mono text-[10px] text-on-surface-muted">
+        {SEMANA.map((l, i) => (
+          <div key={i}>{l}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1" data-testid="mapa-calor">
+        {Array.from({ length: vazias }, (_, i) => (
+          <div key={`v${i}`} className="aspect-square" />
+        ))}
+        {dias.map((d) => {
+          const q = porDia.get(d) ?? 0
+          const n = nivelCalor(q, max)
+          const forte = n >= 3
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onSelecionar(d)}
+              data-dia={d}
+              data-qtd={q}
+              aria-label={`${d.split('-').reverse().join('/')}: ${q > 0 ? qtdCurta(q) : 'sem produção'}`}
+              aria-pressed={selecionado === d}
+              className={cn(
+                'relative flex aspect-square items-center justify-center overflow-hidden rounded-sm',
+                n === 0 && 'bg-bg-elevated',
+                selecionado === d && 'ring-2 ring-on-surface',
+              )}
+              style={n > 0 ? { background: `rgba(74, 222, 128, ${ALFA_CALOR[n]})` } : undefined}
+            >
+              <span
+                className={cn(
+                  'absolute left-1 top-0.5 font-mono text-[8px] leading-none',
+                  forte ? 'text-black/55' : 'text-on-surface-muted',
+                )}
+              >
+                {Number(d.slice(8, 10))}
+              </span>
+              {q > 0 && (
+                <span
+                  className={cn(
+                    'font-mono text-[11px] font-semibold leading-none tabular',
+                    forte ? 'text-black/80' : 'text-on-surface',
+                  )}
+                >
+                  {qtdCurta(q)}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

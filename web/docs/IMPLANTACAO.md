@@ -58,7 +58,7 @@ app de campo (celular): https://infrawork-campo.vercel.app
   não são desfeitas pelo celular.
 - **Visão estratégica (engenheiro, adm)**: no app, o cartão **Visão estratégica** abre o resumo da obra (avanço
   físico × esperado, valor executado × previsto, curva S), a lista de **Serviços** (atrasados primeiro, com o detalhe
-  de cada um) e **Equipes** (quem lançou hoje e quem trabalhou na semana e ainda não lançou). Sem sinal, mostra os
+  de cada um), **Produção** (mapa de calor da produção diária por serviço, encarregado e equipe) e **Equipes** (quem lançou hoje e quem trabalhou na semana e ainda não lançou). Sem sinal, mostra os
   dados da última atualização com a data; tocar em atualizar com internet traz os lançamentos novos. Apontadores e
   apoio não veem essa área.
 - **Atualização do app**: aparece a faixa "Nova versão disponível — Atualizar"; nada lançado se perde ao atualizar.

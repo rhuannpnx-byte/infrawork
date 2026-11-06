@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { formatBR } from '@/lib/datas'
 import { cn } from '@/lib/cn'
@@ -75,7 +75,12 @@ function Equipes({ p }: { p: CatPainel }) {
       ) : (
         <ul className="space-y-2" data-testid="painel-equipes">
           {ordenada.map((e) => (
-            <CartaoEquipe key={e.id ?? `sem-${e.nome}`} e={e} comAderencia={aba === 'equipes'} />
+            <CartaoEquipe
+              key={e.id ?? `sem-${e.nome}`}
+              e={e}
+              comAderencia={aba === 'equipes'}
+              filtro={aba === 'equipes' ? 'equipe' : 'encarregado'}
+            />
           ))}
         </ul>
       )}
@@ -83,7 +88,15 @@ function Equipes({ p }: { p: CatPainel }) {
   )
 }
 
-function CartaoEquipe({ e, comAderencia }: { e: PainelEquipeDto; comAderencia: boolean }) {
+function CartaoEquipe({
+  e,
+  comAderencia,
+  filtro,
+}: {
+  e: PainelEquipeDto
+  comAderencia: boolean
+  filtro: 'equipe' | 'encarregado'
+}) {
   const [aberto, setAberto] = useState(false)
   const servicos = [...(e.servicos ?? [])].sort((a, b) => Number(b.d30 ?? 0) - Number(a.d30 ?? 0))
   return (
@@ -175,6 +188,12 @@ function CartaoEquipe({ e, comAderencia }: { e: PainelEquipeDto; comAderencia: b
               </tbody>
             </table>
           )}
+          <Link
+            to={`/painel/producao?${filtro}=${e.id ?? 'sem'}`}
+            className="mt-2 inline-block text-xs text-accent"
+          >
+            Ver produção dia a dia
+          </Link>
         </div>
       )}
     </li>

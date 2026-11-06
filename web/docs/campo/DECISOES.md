@@ -77,6 +77,11 @@ cruas). O valor executado e o previsto seguem a mesma regra do Valor Agregado do
 preço do dia com reajuste prospectivo, sem agregar acima da quantidade do contrato), portada para SQL em
 `fn_valor_servico_em`; a paridade é conferida pelo e2e (seção 12).
 
+A aba **Produção** traz o mapa de calor da produção diária (o mesmo da Performance do web), com filtro de serviço,
+encarregado e equipe e o detalhe de quem produziu em cada dia. Para isso o retrato leva a produção dos últimos 90 dias
+somada por (dia, serviço, equipe, encarregado), com os nomes (migração 0045; `campo_painel` passou a envolver a
+antiga `campo_painel_base`).
+
 Offline: o último retrato fica no aparelho (`cat_painel`, só regravado quando a `versao` muda) e abre sem sinal com a
 data dos dados; amarelo depois de 24 h. Renova ao abrir o app, ao voltar a rede, ao tocar em Atualizar e, no ciclo
 comum, no máximo a cada 5 min — só da obra atual. Perder o acesso apaga o retrato daquela obra.

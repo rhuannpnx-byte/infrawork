@@ -47,6 +47,9 @@ const PainelServicosRoute = lazy(() =>
 const PainelServicoRoute = lazy(() =>
   import('@/routes/painel/servico').then((m) => ({ default: m.PainelServicoRoute })),
 )
+const PainelProducaoRoute = lazy(() =>
+  import('@/routes/painel/producao').then((m) => ({ default: m.PainelProducaoRoute })),
+)
 const PainelEquipesRoute = lazy(() =>
   import('@/routes/painel/equipes').then((m) => ({ default: m.PainelEquipesRoute })),
 )
@@ -188,6 +191,14 @@ export function App() {
           element={
             <RequirePainel>
               <PainelServicoRoute />
+            </RequirePainel>
+          }
+        />
+        <Route
+          path="/painel/producao"
+          element={
+            <RequirePainel>
+              <PainelProducaoRoute />
             </RequirePainel>
           }
         />
