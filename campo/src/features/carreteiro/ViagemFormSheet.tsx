@@ -1,17 +1,19 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
 import { parseNum } from '@/lib/numero'
 import { estacaFinalTexto, estacaInicialTexto, estacaParaMetros, nomePosicao } from '@/lib/estaca'
 import { formatNumero } from '@/lib/datas'
+import { calcularDmt, pedeEstaca, quantidadeDaViagem, type LocalDmt } from '@/lib/dmt'
 import type { ViagemLocal } from '@/core/db/entities'
-import type { CatalogoDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
+import type { CatalogoDto, LocalDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
 import { ehMaquinaDeCarga, rotuloVeiculo } from '@/lib/frota'
 
 const TIPO_LOCAL: Record<OrigemDestinoDto['tipo'], string> = {
   jazida: 'Jazida',
+  caixa_emprestimo: 'Caixa de empréstimo',
   usina: 'Usina',
   central: 'Central de concreto',
   bota_fora: 'Bota-fora',
@@ -25,38 +27,34 @@ interface Props {
   /** viagem em edição, ou o modelo da nova (serviço/origem/destino da anterior) */
   inicial: ViagemLocal
   nova: boolean
-  /** capacidade do caminhão em m³; vira a quantidade padrão quando o serviço é medido em m³ */
+  /** capacidade do caminhão em m³; é o volume padrão quando o serviço é medido por volume */
   capacidade: number | null
   onSave: (v: ViagemLocal) => void
   onDismiss: () => void
 }
 
+const txt = (n: number | null | undefined): string => (n != null ? String(n) : '')
+
 /**
- * Uma viagem: serviço (lançado por viagens), origem, destino, estaca quando uma das pontas é a pista (eixo),
- * horários, quantidade (na unidade do serviço; padrão = capacidade do caminhão), material quando a unidade difere,
- * DMT (padrão = rota cadastrada) e NF/ticket.
+ * Uma viagem: serviço (lançado por viagens), origem e destino, a estaca de carga e/ou de descarga quando a ponta é a
+ * pista, horários, volume da caçamba (padrão = capacidade do caminhão) ou peso do ticket conforme a medição do serviço,
+ * material quando a unidade difere e NF/ticket. A DMT aparece calculada (pelo eixo ou distância fixa do par) e pode
+ * ser ajustada; o banco recalcula ao sincronizar.
  */
 export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, onDismiss }: Props) {
   const servicos = catalogo.servicos.filter((s) => s.modo_lancamento === 'viagens')
-  const capPara = (s: ServicoDto | undefined): number | null => {
-    const u = (s?.unidade ?? '').toLowerCase()
-    return /m³|m3/.test(u) ? capacidade : null
-  }
   const [servicoId, setServicoId] = useState(inicial.servicoId)
   const [origemId, setOrigemId] = useState(inicial.origemId)
   const [destinoId, setDestinoId] = useState(inicial.destinoId)
-  const [estaca, setEstaca] = useState(inicial.estaca ?? '')
+  const [estacaCarga, setEstacaCarga] = useState(inicial.estacaCarga ?? '')
+  const [estacaDescarga, setEstacaDescarga] = useState(inicial.estacaDescarga ?? '')
   const [horaCarga, setHoraCarga] = useState(inicial.horaCarga ?? '')
   const [horaDescarga, setHoraDescarga] = useState(inicial.horaDescarga ?? '')
-  const [qtd, setQtd] = useState(() => {
-    if (inicial.quantidade > 0) return String(inicial.quantidade)
-    const c = capPara(servicos.find((s) => s.id === inicial.servicoId))
-    return c ? String(c) : ''
-  })
-  const [matQtd, setMatQtd] = useState(
-    inicial.materialQtd != null ? String(inicial.materialQtd) : '',
-  )
-  const [dmt, setDmt] = useState(inicial.dmtKm != null ? String(inicial.dmtKm) : '')
+  const [volume, setVolume] = useState(txt(inicial.volumeM3))
+  const [peso, setPeso] = useState(txt(inicial.pesoT))
+  const [matQtd, setMatQtd] = useState(txt(inicial.materialQtd))
+  const [dmtManual, setDmtManual] = useState(!!inicial.dmtManual)
+  const [dmt, setDmt] = useState(inicial.dmtManual ? txt(inicial.dmtKm) : '')
   const [nf, setNf] = useState(inicial.nfTicket ?? '')
   const [carregadorId, setCarregadorId] = useState(inicial.carregadorId ?? null)
   const maquinas = catalogo.veiculos.filter(ehMaquinaDeCarga)
@@ -65,14 +63,47 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   const [erro, setErro] = useState<string | null>(null)
 
   const servico: ServicoDto | undefined = servicos.find((s) => s.id === servicoId)
+  const porPeso = servico?.medicao_viagem === 'peso'
   const origem = catalogo.origens_destinos.find((l) => l.id === origemId) ?? null
   const destino = catalogo.origens_destinos.find((l) => l.id === destinoId) ?? null
-  // a estaca vale para a ponta que está na pista: o destino (aterro, base) ou, senão, a origem (corte)
-  const eixoDe = (l: OrigemDestinoDto | null) =>
-    catalogo.locais.find((t) => t.id === l?.trecho_id && t.tipo === 'eixo') ?? null
-  const eixo = eixoDe(destino) ?? eixoDe(origem)
-  const pontaNaPista = eixoDe(destino) ? 'descarga' : 'carga'
-  const rota = catalogo.rotas.find((r) => r.origem_id === origemId && r.destino_id === destinoId)
+  const tipoTrecho = (id: string): 'eixo' | 'area' | null =>
+    catalogo.locais.find((t) => t.id === id)?.tipo ?? null
+  const paraDmt = (l: OrigemDestinoDto | null): LocalDmt | null =>
+    l && {
+      id: l.id,
+      nome: l.nome,
+      tipo: l.tipo,
+      trecho_id: l.trecho_id,
+      estaca_acesso_m: l.estaca_acesso_m ?? null,
+      distancia_acesso_km: l.distancia_acesso_km ?? 0,
+    }
+  /** eixo da ponta na pista (pede a estaca da viagem) */
+  const eixoDa = (l: OrigemDestinoDto | null): LocalDto | null =>
+    l && pedeEstaca(paraDmt(l), tipoTrecho)
+      ? (catalogo.locais.find((t) => t.id === l.trecho_id) ?? null)
+      : null
+  const eixoCarga = eixoDa(origem)
+  const eixoDescarga = eixoDa(destino)
+  const metros = (eixo: LocalDto | null, t: string): number | null =>
+    eixo && t.trim() ? estacaParaMetros(eixo, t) : null
+  const pc = metros(eixoCarga, estacaCarga)
+  const pd = metros(eixoDescarga, estacaDescarga)
+
+  const calc = calcularDmt({
+    origem: paraDmt(origem),
+    destino: paraDmt(destino),
+    estacaCarga: pc,
+    estacaDescarga: pd,
+    rotas: catalogo.rotas,
+    tipoTrecho,
+  })
+  const qtd = quantidadeDaViagem({
+    medicao: porPeso ? 'peso' : 'volume',
+    fator: Number(servico?.fator_viagem ?? 1),
+    volume: porPeso ? null : parseNum(volume),
+    peso: porPeso ? parseNum(peso) : null,
+    capacidade,
+  })
   const pedeMaterial =
     !!servico?.controla_material &&
     (servico.material?.unidade ?? '').toLowerCase() !== (servico.unidade ?? '').toLowerCase()
@@ -80,16 +111,31 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   function salvar() {
     setErro(null)
     if (!servico) return setErro('Escolha o serviço.')
-    const q = parseNum(qtd)
-    if (q == null || q <= 0) return setErro('Informe a quantidade da viagem.')
-    let posicaoM: number | null = null
-    if (eixo && estaca.trim()) {
-      posicaoM = estacaParaMetros(eixo, estaca)
-      if (posicaoM == null)
-        return setErro(
-          `${nomePosicao(eixo)} "${estaca}" inválido (${estacaInicialTexto(eixo)} – ${estacaFinalTexto(eixo)}).`,
-        )
-    }
+    if (!origem || !destino) return setErro('Escolha a origem e o destino.')
+    const faixa = (e: LocalDto): string => `${estacaInicialTexto(e)} – ${estacaFinalTexto(e)}`
+    if (eixoCarga && pc == null)
+      return setErro(
+        estacaCarga.trim()
+          ? `${nomePosicao(eixoCarga)} de carga "${estacaCarga}" inválido (${faixa(eixoCarga)}).`
+          : `Informe ${nomePosicao(eixoCarga).toLowerCase()} de carga.`,
+      )
+    if (eixoDescarga && pd == null)
+      return setErro(
+        estacaDescarga.trim()
+          ? `${nomePosicao(eixoDescarga)} de descarga "${estacaDescarga}" inválido (${faixa(eixoDescarga)}).`
+          : `Informe ${nomePosicao(eixoDescarga).toLowerCase()} de descarga.`,
+      )
+    if (qtd.quantidade == null)
+      return setErro(
+        porPeso
+          ? 'Informe o peso líquido do ticket (t).'
+          : 'Informe o volume da caçamba (o caminhão não tem capacidade cadastrada).',
+      )
+    if (porPeso && !nf.trim()) return setErro('Informe o ticket da balança.')
+    const ajustada = parseNum(dmt)
+    if (dmtManual && (ajustada == null || ajustada < 0))
+      return setErro('Informe a DMT ajustada (km).')
+    if (!dmtManual && calc.km == null) return setErro(calc.motivo ?? 'Sem DMT.')
     const m = parseNum(matQtd)
     if (pedeMaterial && servico.material_obrigatorio && m == null)
       return setErro(`Informe a quantidade de ${servico.material?.nome ?? 'material'}.`)
@@ -98,24 +144,33 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
       servicoId: servico.id,
       servicoNome: servico.descricao,
       unidade: servico.unidade,
-      origemId,
-      origemNome: origem?.nome ?? null,
-      destinoId,
-      destinoNome: destino?.nome ?? null,
+      origemId: origem.id,
+      origemNome: origem.nome,
+      destinoId: destino.id,
+      destinoNome: destino.nome,
       horaCarga: horaCarga || null,
       horaDescarga: horaDescarga || null,
-      quantidade: q,
+      quantidade: qtd.quantidade,
+      volumeM3: porPeso ? null : qtd.bruto,
+      pesoT: porPeso ? qtd.bruto : null,
       materialQtd: pedeMaterial ? m : null,
-      dmtKm: parseNum(dmt) ?? rota?.dmt_km ?? null,
+      dmtKm: dmtManual ? ajustada : calc.km,
+      dmtManual,
+      dmtVia: dmtManual ? 'manual' : calc.via,
       nfTicket: nf.trim() || null,
-      trechoId: eixo?.id ?? destino?.trecho_id ?? origem?.trecho_id ?? null,
-      estaca: eixo ? estaca.trim() || null : null,
-      posicaoM,
+      estacaCarga: eixoCarga ? estacaCarga.trim() : null,
+      estacaCargaM: pc,
+      estacaDescarga: eixoDescarga ? estacaDescarga.trim() : null,
+      estacaDescargaM: pd,
+      trechoId: undefined,
+      estaca: undefined,
+      posicaoM: undefined,
       carregadorId: carregador?.id ?? null,
       carregadorNome: carregador ? rotuloVeiculo(carregador) : null,
     })
   }
 
+  const unidadeServico = servico?.unidade ?? 'un'
   return (
     <div
       className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm sm:items-center sm:justify-center"
@@ -151,18 +206,40 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           />
           <div className="grid grid-cols-2 gap-3">
             <PickerField
-              label="ORIGEM"
+              label="ORIGEM *"
               value={origem?.nome ?? 'Selecionar…'}
               onClick={() => setPicker('origem')}
               empty={!origem}
             />
             <PickerField
-              label="DESTINO"
+              label="DESTINO *"
               value={destino?.nome ?? 'Selecionar…'}
               onClick={() => setPicker('destino')}
               empty={!destino}
             />
           </div>
+          {(eixoCarga || eixoDescarga) && (
+            <div className="grid grid-cols-2 gap-3">
+              {eixoCarga ? (
+                <LabeledInput
+                  label={`${nomePosicao(eixoCarga)} de carga *`}
+                  value={estacaCarga}
+                  onChange={setEstacaCarga}
+                  placeholder={estacaInicialTexto(eixoCarga)}
+                />
+              ) : (
+                <div />
+              )}
+              {eixoDescarga ? (
+                <LabeledInput
+                  label={`${nomePosicao(eixoDescarga)} de descarga *`}
+                  value={estacaDescarga}
+                  onChange={setEstacaDescarga}
+                  placeholder={estacaInicialTexto(eixoDescarga)}
+                />
+              ) : null}
+            </div>
+          )}
           {maquinas.length > 0 && (
             <PickerField
               label="CARREGADO POR"
@@ -171,22 +248,30 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
               empty={!carregador}
             />
           )}
-          {eixo && (
-            <LabeledInput
-              label={`${nomePosicao(eixo)} de ${pontaNaPista} (${eixo.nome})`}
-              value={estaca}
-              onChange={setEstaca}
-              placeholder={`${estacaInicialTexto(eixo)} – ${estacaFinalTexto(eixo)}`}
-            />
-          )}
           <div className="grid grid-cols-2 gap-3">
             <TimeField label="Hora carga" value={horaCarga} onChange={setHoraCarga} />
             <TimeField label="Hora descarga" value={horaDescarga} onChange={setHoraDescarga} />
           </div>
-          <NumericField
-            label={`Quantidade (${servico?.unidade ?? '—'}) *`}
-            value={qtd}
-            onChange={setQtd}
+          {porPeso ? (
+            <NumericField label="Peso líquido do ticket (t) *" value={peso} onChange={setPeso} />
+          ) : (
+            <NumericField
+              label={`Volume na caçamba (m³)${capacidade != null ? ` · caminhão ${formatNumero(capacidade, 1)}` : ' *'}`}
+              value={volume}
+              onChange={setVolume}
+            />
+          )}
+          <ReadOnlyRow
+            label={`QUANTIDADE (${unidadeServico})`}
+            value={
+              qtd.quantidade != null
+                ? `${formatNumero(qtd.quantidade, 2)}${
+                    Number(servico?.fator_viagem ?? 1) !== 1
+                      ? ` (${formatNumero(qtd.bruto ?? 0, 2)} ${qtd.unidadeBruta} × ${formatNumero(Number(servico?.fator_viagem), 4)})`
+                      : ''
+                  }`
+                : '—'
+            }
           />
           {servico?.controla_material &&
             (pedeMaterial ? (
@@ -201,12 +286,50 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
                 value={`${servico.material?.nome ?? '—'} = quantidade da viagem`}
               />
             ))}
-          <NumericField
-            label={`DMT (km)${rota ? ` · rota: ${formatNumero(rota.dmt_km, 1)}` : ''}`}
-            value={dmt}
-            onChange={setDmt}
+          <div>
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                {dmtManual ? (
+                  <NumericField label="DMT ajustada (km) *" value={dmt} onChange={setDmt} />
+                ) : (
+                  <ReadOnlyRow
+                    label="DMT (km)"
+                    value={
+                      calc.km != null
+                        ? `${formatNumero(calc.km, 3)} · ${calc.via === 'rota' ? 'distância fixa' : 'pelo eixo'}`
+                        : 'sem DMT'
+                    }
+                  />
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={dmtManual ? 'Voltar à DMT calculada' : 'Ajustar a DMT'}
+                onClick={() => {
+                  setDmt(dmtManual ? '' : txt(calc.km))
+                  setDmtManual(!dmtManual)
+                }}
+                className={dmtManual ? 'text-accent' : ''}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+            {!dmtManual && calc.km == null && calc.motivo && (
+              <p className="mt-1 text-xs text-warn">{calc.motivo}</p>
+            )}
+            {dmtManual && calc.km != null && (
+              <p className="mt-1 text-xs text-on-surface-dim">
+                Calculada: {formatNumero(calc.km, 3)} km
+              </p>
+            )}
+          </div>
+          <LabeledInput
+            label={porPeso ? 'Ticket da balança *' : 'NF / ticket'}
+            value={nf}
+            onChange={setNf}
+            placeholder={porPeso ? '' : 'Opcional'}
           />
-          <LabeledInput label="NF / ticket" value={nf} onChange={setNf} placeholder="Opcional" />
           {erro && <p className="text-sm text-bad">{erro}</p>}
         </div>
 
@@ -223,14 +346,10 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           title="Serviço"
           items={servicos}
           label={(s) => `${s.codigo} ${s.descricao}`}
-          sublabel={(s) => s.unidade}
+          sublabel={(s) =>
+            `${s.unidade ?? ''} · por ${s.medicao_viagem === 'peso' ? 'peso' : 'volume'}`
+          }
           onPick={(s) => {
-            // quantidade ainda no padrão do caminhão acompanha a unidade do novo serviço
-            const antes = capPara(servico)
-            if (qtd === '' || (antes != null && parseNum(qtd) === antes)) {
-              const c = capPara(s)
-              setQtd(c ? String(c) : '')
-            }
             setServicoId(s.id)
             setPicker(null)
           }}
@@ -259,16 +378,15 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           title={picker === 'origem' ? 'Origem' : 'Destino'}
           items={catalogo.origens_destinos}
           label={(l) => l.nome}
-          sublabel={(l) => TIPO_LOCAL[l.tipo]}
+          sublabel={(l) => TIPO_LOCAL[l.tipo] ?? l.tipo}
           onPick={(l) => {
-            const o = picker === 'origem' ? l.id : origemId
-            const d = picker === 'destino' ? l.id : destinoId
-            if (picker === 'origem') setOrigemId(l.id)
-            else setDestinoId(l.id)
-            // DMT acompanha a rota da nova origem/destino (antes ficava o da viagem anterior)
-            const r = catalogo.rotas.find((x) => x.origem_id === o && x.destino_id === d)
-            setDmt(r ? String(r.dmt_km) : '')
-            setEstaca('')
+            if (picker === 'origem') {
+              if (l.id !== origemId) setEstacaCarga('')
+              setOrigemId(l.id)
+            } else {
+              if (l.id !== destinoId) setEstacaDescarga('')
+              setDestinoId(l.id)
+            }
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}

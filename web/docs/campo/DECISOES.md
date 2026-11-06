@@ -106,3 +106,23 @@ veículos dessas obras e os manuais (`veiculos_da_obra`). A viagem registra a m�
 Credenciais por empresa: o adm conecta pela tela; a função testa o login e grava a senha no Vault (`fleethub_config`
 guarda só o e-mail e a referência). Só o serviço lê a senha (`fleethub_credencial`, service_role); o cron percorre as
 empresas conectadas. Empresa sem FleetHub cadastra a frota à mão.
+
+## C-11 Viagens: DMT pelo eixo, medição por volume ou peso, sem hodômetro (0048)
+
+DMT = acesso(origem) + |estaca de carga − estaca de descarga| + acesso(destino), no mesmo trecho. Local **pista**
+(corte/aterro) entra com a estaca da própria viagem; os demais (jazida, **caixa de empréstimo**, bota-fora, usina,
+central, depósito) com a estaca onde o acesso encontra o eixo (`estaca_acesso_m`) e a distância do acesso
+(`distancia_acesso_km`). A **distância fixa** do par (`transporte_rota`) prevalece sobre o cálculo — é para o par que
+não se liga pelo eixo. Sem nenhum dos dois o banco recusa a viagem. O ajuste manual (`dmt_manual`) fica marcado e a
+calculada é guardada ao lado (`dmt_calculada_km`); `dmt_origem` diz de onde veio (geometria, rota, manual).
+
+Origem e destino passam a ser obrigatórios. O local da produção continua sendo a ponta na pista (destino quando os dois
+são), para a recomposição por dia/serviço/local/equipe/encarregado.
+
+Medição por serviço (`servico_parametro.medicao_viagem`): **volume** (m³ da caçamba; sem valor, a capacidade do
+caminhão) ou **peso** (t do ticket; ticket obrigatório). `fator_viagem` converte para a unidade do serviço
+(empolamento, densidade); a viagem guarda o bruto (`volume_m3`/`peso_t`) e a produção recebe o convertido.
+
+O hodômetro saiu do app e do web: não entra na produção nem na medição (as colunas `km_inicial`/`km_final` ficam no
+banco, sem uso). O app e o web mostram a DMT e a quantidade antes de gravar (`lib/dmt.ts`, mesma regra do banco, cópia
+nos dois projetos); quem vale é o cálculo do banco.

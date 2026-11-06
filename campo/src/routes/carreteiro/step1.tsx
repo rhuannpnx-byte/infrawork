@@ -46,13 +46,16 @@ export function CarreteiroStep1Route() {
         destinoNome: ult?.destinoNome ?? null,
         horaCarga: null,
         horaDescarga: null,
-        quantidade: ult?.quantidade ?? 0,
+        quantidade: 0,
+        volumeM3: ult?.volumeM3 ?? null,
+        pesoT: null,
         materialQtd: null,
-        dmtKm: ult?.dmtKm ?? null,
+        dmtKm: null,
         nfTicket: null,
-        trechoId: ult?.trechoId ?? null,
-        estaca: null,
-        posicaoM: null,
+        estacaCarga: ult?.estacaCarga ?? null,
+        estacaCargaM: ult?.estacaCargaM ?? null,
+        estacaDescarga: ult?.estacaDescarga ?? null,
+        estacaDescargaM: ult?.estacaDescargaM ?? null,
         obs: null,
         carregadorId: ult?.carregadorId ?? null,
         carregadorNome: ult?.carregadorNome ?? null,
@@ -109,17 +112,25 @@ export function CarreteiroStep1Route() {
                   </p>
                   <p className="truncate font-medium text-on-surface">{v.servicoNome}</p>
                   <p className="truncate text-xs text-on-surface-dim">
-                    {(v.origemNome ?? '—') + ' → ' + (v.destinoNome ?? '—')}
-                    {v.estaca ? ` · est. ${v.estaca}` : ''}
+                    {(v.origemNome ?? '—') +
+                      (v.estacaCarga ? ` (${v.estacaCarga})` : '') +
+                      ' → ' +
+                      (v.destinoNome ?? '—') +
+                      (v.estacaDescarga ? ` (${v.estacaDescarga})` : '') +
+                      (v.estaca && v.estacaCarga === undefined ? ` · est. ${v.estaca}` : '')}
                   </p>
                   <p className="mt-0.5 font-bold text-accent">
                     {formatNumero(v.quantidade, 2)} {v.unidade ?? ''}
-                    {v.dmtKm != null && (
-                      <span className="text-xs font-normal text-on-surface-dim">
-                        {' '}
-                        · DMT {formatNumero(v.dmtKm, 1)} km
-                      </span>
-                    )}
+                    <span className="text-xs font-normal text-on-surface-dim">
+                      {v.pesoT != null
+                        ? ` · ${formatNumero(v.pesoT, 2)} t`
+                        : v.volumeM3 != null
+                          ? ` · ${formatNumero(v.volumeM3, 2)} m³`
+                          : ''}
+                      {v.dmtKm != null
+                        ? ` · DMT ${formatNumero(v.dmtKm, 2)} km${v.dmtManual ? ' (ajustada)' : ''}`
+                        : ''}
+                    </span>
                   </p>
                 </button>
                 <button

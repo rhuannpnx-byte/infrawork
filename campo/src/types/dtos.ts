@@ -31,6 +31,10 @@ export interface ServicoDto {
   material_obrigatorio: boolean
   habilita_obs: boolean
   exige_local: boolean
+  /** viagem medida pelo volume da caçamba ou pelo peso do ticket (ausente em catálogos antigos = volume) */
+  medicao_viagem?: 'volume' | 'peso'
+  /** bruto (m³ ou t) → unidade do serviço */
+  fator_viagem?: number
 }
 
 export interface NomeDto {
@@ -75,8 +79,19 @@ export interface VeiculoDto {
 export interface OrigemDestinoDto {
   id: string
   nome: string
-  tipo: 'jazida' | 'usina' | 'central' | 'bota_fora' | 'deposito' | 'pista' | 'outro'
+  tipo:
+    | 'jazida'
+    | 'caixa_emprestimo'
+    | 'usina'
+    | 'central'
+    | 'bota_fora'
+    | 'deposito'
+    | 'pista'
+    | 'outro'
   trecho_id: string | null
+  /** onde o acesso encontra o eixo (m no trecho); fora da pista */
+  estaca_acesso_m?: number | null
+  distancia_acesso_km?: number | null
 }
 
 export interface RotaDto {
@@ -130,13 +145,17 @@ export interface ViagemDto {
   destino_id: string | null
   hora_carga: string | null
   hora_descarga: string | null
-  quantidade: number
+  /** o banco recalcula pelo volume/peso × fator; vai só quando não há bruto (registro antigo) */
+  quantidade: number | null
+  volume_m3: number | null
+  peso_t: number | null
   material_qtd: number | null
+  /** só com dmt_manual; senão o banco calcula */
   dmt_km: number | null
+  dmt_manual: boolean
   nf_ticket: string | null
-  trecho_id: string | null
-  posicao_inicio_m: number | null
-  posicao_fim_m: number | null
+  estaca_carga_m: number | null
+  estaca_descarga_m: number | null
   obs: string | null
   carregador_id: string | null
 }
@@ -150,8 +169,6 @@ export interface FichaDto {
   motorista: string | null
   encarregado_id: string | null
   equipe_id: string | null
-  km_inicial: number | null
-  km_final: number | null
   obs: string | null
   origem: 'campo'
   viagens: ViagemDto[]

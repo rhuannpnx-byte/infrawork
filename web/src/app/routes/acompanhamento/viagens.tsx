@@ -45,8 +45,17 @@ interface LinhaTabela {
   servico: string
   origem: string
   destino: string
-  estaca: string
+  estacaCarga: string
+  estacaDescarga: string
+  /** volume (m³) ou peso (t) lançado */
+  bruto: string
   unidade: string
+}
+
+const ORIGEM_DMT: Record<string, string> = {
+  geometria: 'pelo eixo',
+  rota: 'distância fixa',
+  manual: 'ajustada'
 }
 
 const menosDias = (iso: string, d: number): string => {
@@ -81,13 +90,18 @@ function Inner(): ReactNode {
     const v = frota.find((x) => x.id === id)
     return v ? `${v.prefixo}${v.placa ? ` · ${v.placa}` : ''}` : '—'
   }
-  const estaca = (v: Viagem): string => {
-    const t = trechos.find((x) => x.id === v.trecho_id)
-    if (!t) return ''
-    return v.posicao_inicio_m !== null
-      ? formatMarcadorCompacto(v.posicao_inicio_m, ctxObraTrecho(t))
-      : t.nome
+  /** estaca da ponta na pista; fora dela, o nome do local já diz onde é */
+  const estaca = (localId: string | null, m: number | null): string => {
+    const l = transp?.locais.find((x) => x.id === localId)
+    const t = trechos.find((x) => x.id === l?.trecho_id)
+    return t && m !== null ? formatMarcadorCompacto(m, ctxObraTrecho(t)) : ''
   }
+  const bruto = (v: Viagem): string =>
+    v.peso_t !== null
+      ? `${formatNumber(v.peso_t, 2)} t`
+      : v.volume_m3 !== null
+        ? `${formatNumber(v.volume_m3, 2)} m³`
+        : ''
   const podeEditar = (f: FichaViagens): boolean =>
     role === 'god' ||
     role === 'adm' ||
@@ -104,7 +118,9 @@ function Inner(): ReactNode {
       servico: nomeServico(v.item_orcamentario_id),
       origem: nomeLocal(v.origem_id),
       destino: nomeLocal(v.destino_id),
-      estaca: estaca(v),
+      estacaCarga: estaca(v.origem_id, v.estaca_carga_m),
+      estacaDescarga: estaca(v.destino_id, v.estaca_descarga_m),
+      bruto: bruto(v),
       unidade: unidade(v.item_orcamentario_id)
     }))
   )
@@ -131,13 +147,15 @@ function Inner(): ReactNode {
     { header: '#', accessorFn: (r) => r.n },
     { header: 'Serviço', accessorKey: 'servico' },
     { header: 'Origem', accessorKey: 'origem' },
+    { header: 'Est. carga', accessorKey: 'estacaCarga' },
     { header: 'Destino', accessorKey: 'destino' },
-    { header: 'Estaca', accessorKey: 'estaca' },
+    { header: 'Est. descarga', accessorKey: 'estacaDescarga' },
     {
       header: 'Horário',
       accessorFn: (r) =>
         [r.v.hora_carga?.slice(0, 5), r.v.hora_descarga?.slice(0, 5)].filter(Boolean).join(' → ')
     },
+    { header: 'Volume / peso', accessorKey: 'bruto' },
     {
       header: 'Qtd',
       accessorFn: (r) => r.v.quantidade,
@@ -150,8 +168,25 @@ function Inner(): ReactNode {
     {
       header: 'DMT',
       accessorFn: (r) => r.v.dmt_km,
-      cell: ({ row }) =>
-        row.original.v.dmt_km !== null ? `${formatNumber(row.original.v.dmt_km, 1)} km` : ''
+      cell: ({ row }) => {
+        const v = row.original.v
+        if (v.dmt_km === null) return ''
+        return (
+          <span
+            className="font-mono tabular-nums"
+            title={
+              v.dmt_manual && v.dmt_calculada_km !== null
+                ? `ajustada; calculada ${formatNumber(v.dmt_calculada_km, 3)} km`
+                : undefined
+            }
+          >
+            {formatNumber(v.dmt_km, 3)} km
+            <span className="ml-1 font-sans text-2xs text-text-dim">
+              {ORIGEM_DMT[v.dmt_origem ?? ''] ?? ''}
+            </span>
+          </span>
+        )
+      }
     },
     { header: 'NF/ticket', accessorFn: (r) => r.v.nf_ticket ?? '' },
     { header: 'Origem do registro', accessorFn: (r) => r.ficha.origem }
@@ -168,17 +203,20 @@ function Inner(): ReactNode {
       { header: 'Viagem', numFmt: '0' },
       { header: 'Serviço' },
       { header: 'Origem' },
+      { header: 'Estaca de carga' },
       { header: 'Destino' },
-      { header: 'Estaca' },
+      { header: 'Estaca de descarga' },
       { header: 'Hora carga' },
       { header: 'Hora descarga' },
+      { header: 'Volume (m³)', numFmt: '#,##0.00' },
+      { header: 'Peso (t)', numFmt: '#,##0.00' },
       { header: 'Quantidade', numFmt: '#,##0.00' },
       { header: 'Unid.' },
       { header: 'Material', numFmt: '#,##0.00' },
-      { header: 'DMT (km)', numFmt: '#,##0.0' },
-      { header: 'NF/ticket' },
-      { header: 'Hodômetro inicial (km)', numFmt: '#,##0.0' },
-      { header: 'Hodômetro final (km)', numFmt: '#,##0.0' }
+      { header: 'DMT (km)', numFmt: '#,##0.000' },
+      { header: 'Cálculo da DMT' },
+      { header: 'DMT calculada (km)', numFmt: '#,##0.000' },
+      { header: 'NF/ticket' }
     ],
     linhas: visiveis.map((r) => [
       fmtBR(r.ficha.data),
@@ -187,17 +225,20 @@ function Inner(): ReactNode {
       r.n,
       r.servico,
       r.origem,
+      r.estacaCarga,
       r.destino,
-      r.estaca,
+      r.estacaDescarga,
       r.v.hora_carga?.slice(0, 5) ?? '',
       r.v.hora_descarga?.slice(0, 5) ?? '',
+      r.v.volume_m3,
+      r.v.peso_t,
       r.v.quantidade,
       r.unidade,
       r.v.material_qtd,
       r.v.dmt_km,
-      r.v.nf_ticket ?? '',
-      r.ficha.km_inicial,
-      r.ficha.km_final
+      ORIGEM_DMT[r.v.dmt_origem ?? ''] ?? '',
+      r.v.dmt_calculada_km,
+      r.v.nf_ticket ?? ''
     ])
   })
 

@@ -1,11 +1,11 @@
 /**
- * Ficha de viagens de um veículo no dia: cabeçalho (data, veículo, motorista, encarregado, equipe, km) e uma linha por
- * viagem. A nova viagem repete serviço, origem, destino e máquina de carga da anterior. Gravada pela RPC do app de
- * campo; a produção do dia é recomposta no banco.
+ * Ficha de viagens de um veículo no dia: cabeçalho (data, veículo, motorista, encarregado, equipe) e uma linha por
+ * viagem. A nova viagem repete serviço, origem, destino e máquina de carga da anterior. A DMT e a quantidade aparecem
+ * calculadas (lib/dmt, a mesma regra do banco); o banco recalcula ao gravar e recompõe a produção do dia.
  */
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
@@ -21,6 +21,7 @@ import { Select } from '@/components/ui/select'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { formatMarcador, parseMarcador } from '@/lib/format/posicao'
 import { formatNumber } from '@/lib/format/number'
+import { cn } from '@/lib/utils'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
@@ -41,6 +42,7 @@ import {
   type FichaInput,
   type FichaViagens
 } from '../../hooks/viagens'
+import { calcularDmt, pedeEstaca, quantidadeDaViagem } from '../../lib/dmt'
 import { parseQtd } from '../../lib/parse-qtd'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 
@@ -49,17 +51,20 @@ interface LinhaViagem {
   item: string
   origem: string
   destino: string
-  estaca: string
+  estacaCarga: string
+  estacaDescarga: string
   horaCarga: string
   horaDescarga: string
-  qtd: string
+  /** volume (m³) ou peso (t), conforme a medição do serviço */
+  bruto: string
   mat: string
+  dmtManual: boolean
   dmt: string
   nf: string
   carregador: string
 }
 
-const txtNum = (v: number | null): string =>
+const txtNum = (v: number | null | undefined): string =>
   v === null || v === undefined ? '' : String(v).replace('.', ',')
 
 export function FichaDialog({
@@ -80,7 +85,7 @@ export function FichaDialog({
 }): ReactNode {
   if (!open) return null
   return (
-    <Form
+    <Carregar
       onOpenChange={onOpenChange}
       obraId={obraId}
       empresaId={empresaId}
@@ -88,6 +93,21 @@ export function FichaDialog({
       podeExcluir={podeExcluir}
     />
   )
+}
+
+/** O formulário monta o estado inicial das linhas (estacas na unidade do trecho): espera os cadastros. */
+function Carregar(props: {
+  onOpenChange: (o: boolean) => void
+  obraId: string
+  empresaId: string | null
+  ficha: FichaViagens | null
+  podeExcluir: boolean
+}): ReactNode {
+  const transp = useLocaisTransporte(props.obraId)
+  const trechos = useObraTrechos(props.obraId)
+  const parametros = useParametrosServicos(props.obraId)
+  if (!transp.data || !trechos.data || !parametros.data) return null
+  return <Form {...props} />
 }
 
 function Form({
@@ -118,17 +138,23 @@ function Form({
   const servicosViagem = servicos.filter(
     (s) => parametroDe(parametros, s.id).modo_lancamento === 'viagens'
   )
-  const locais = (transp?.locais ?? []).filter((l) => l.ativo)
+  const todosLocais = transp?.locais ?? []
+  const locais = todosLocais.filter((l) => l.ativo)
   const rotas = transp?.rotas ?? []
-  const localDe = (id: string): (typeof locais)[number] | undefined =>
-    locais.find((l) => l.id === id)
-  // a estaca vale para a ponta que está na pista: o destino (aterro, base) ou, senão, a origem (corte)
-  const eixoDoLocal = (id: string): (typeof trechos)[number] | null => {
-    const t = trechos.find((x) => x.id === localDe(id)?.trecho_id)
-    return t && t.tipo === 'eixo' ? t : null
+  const localDe = (id: string): (typeof todosLocais)[number] | undefined =>
+    todosLocais.find((l) => l.id === id)
+  const trechoDe = (id: string | null | undefined): (typeof trechos)[number] | undefined =>
+    trechos.find((t) => t.id === id)
+  const tipoTrecho = (id: string): 'eixo' | 'area' | null => trechoDe(id)?.tipo ?? null
+  /** eixo da ponta na pista (pede a estaca da viagem) */
+  const eixoDaPonta = (localId: string): (typeof trechos)[number] | null => {
+    const l = localDe(localId)
+    return l && pedeEstaca(l, tipoTrecho) ? (trechoDe(l.trecho_id) ?? null) : null
   }
-  const eixoDaViagem = (origem: string, destino: string): (typeof trechos)[number] | null =>
-    eixoDoLocal(destino) ?? eixoDoLocal(origem)
+  const lerEstaca = (txt: string, eixo: (typeof trechos)[number] | null): number | null => {
+    if (!eixo || !txt.trim()) return null
+    return parseMarcador(txt.trim(), ctxObraTrecho(eixo)).metros
+  }
 
   const caminhoes = daObra.filter((v) => !ehMaquinaDeCarga(v))
   const maquinas = daObra.filter(ehMaquinaDeCarga)
@@ -145,38 +171,37 @@ function Form({
   const [motorista, setMotorista] = useState(ficha?.motorista ?? '')
   const [encarregado, setEncarregado] = useState(ficha?.encarregado_id ?? '')
   const [equipe, setEquipe] = useState(ficha?.equipe_id ?? '')
-  const [kmIni, setKmIni] = useState(txtNum(ficha?.km_inicial ?? null))
-  const [kmFim, setKmFim] = useState(txtNum(ficha?.km_final ?? null))
   const [obs, setObs] = useState(ficha?.obs ?? '')
   const [erro, setErro] = useState<string | null>(null)
   const [linhas, setLinhas] = useState<LinhaViagem[]>(() =>
     (ficha?.viagens ?? []).map((v) => {
-      const t = trechos.find((x) => x.id === v.trecho_id)
+      const ec = eixoDaPonta(v.origem_id ?? '')
+      const ed = eixoDaPonta(v.destino_id ?? '')
+      const peso = parametroDe(parametros, v.item_orcamentario_id).medicao_viagem === 'peso'
       return {
         id: v.id,
         item: v.item_orcamentario_id,
         origem: v.origem_id ?? '',
         destino: v.destino_id ?? '',
-        estaca:
-          t && v.posicao_inicio_m !== null
-            ? formatMarcador(v.posicao_inicio_m, ctxObraTrecho(t))
-            : '',
+        estacaCarga: ec ? formatMarcador(v.estaca_carga_m, ctxObraTrecho(ec)) : '',
+        estacaDescarga: ed ? formatMarcador(v.estaca_descarga_m, ctxObraTrecho(ed)) : '',
         horaCarga: v.hora_carga?.slice(0, 5) ?? '',
         horaDescarga: v.hora_descarga?.slice(0, 5) ?? '',
-        qtd: txtNum(v.quantidade),
+        bruto: txtNum(peso ? v.peso_t : v.volume_m3),
         mat: txtNum(v.material_qtd),
-        dmt: txtNum(v.dmt_km),
+        dmtManual: v.dmt_manual,
+        dmt: v.dmt_manual ? txtNum(v.dmt_km) : '',
         nf: v.nf_ticket ?? '',
         carregador: v.carregador_id ?? ''
       }
     })
   )
   const fichaId = useMemo(() => ficha?.id ?? crypto.randomUUID(), [ficha?.id])
+  const capacidade = frota.find((v) => v.id === veiculo)?.capacidade_m3 ?? null
 
   const nova = (): void =>
     setLinhas((ls) => {
       const ult = ls[ls.length - 1]
-      const cap = frota.find((v) => v.id === veiculo)?.capacidade_m3
       return [
         ...ls,
         {
@@ -184,11 +209,13 @@ function Form({
           item: ult?.item ?? servicosViagem[0]?.id ?? '',
           origem: ult?.origem ?? '',
           destino: ult?.destino ?? '',
-          estaca: '',
+          estacaCarga: ult?.estacaCarga ?? '',
+          estacaDescarga: ult?.estacaDescarga ?? '',
           horaCarga: '',
           horaDescarga: '',
-          qtd: ult?.qtd ?? (cap ? txtNum(cap) : ''),
+          bruto: ult?.bruto ?? '',
           mat: '',
+          dmtManual: false,
           dmt: '',
           nf: '',
           carregador: ult?.carregador ?? ''
@@ -198,7 +225,36 @@ function Form({
   const setLinha = (i: number, patch: Partial<LinhaViagem>): void =>
     setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)))
 
-  const total = linhas.reduce((s, l) => s + (parseQtd(l.qtd) ?? 0), 0)
+  /** DMT e quantidade da linha, como o banco vai calcular */
+  const calculo = (
+    l: LinhaViagem
+  ): {
+    dmt: ReturnType<typeof calcularDmt>
+    qtd: ReturnType<typeof quantidadeDaViagem>
+    par: ReturnType<typeof parametroDe>
+  } => {
+    const par = parametroDe(parametros, l.item)
+    return {
+      par,
+      dmt: calcularDmt({
+        origem: localDe(l.origem),
+        destino: localDe(l.destino),
+        estacaCarga: lerEstaca(l.estacaCarga, eixoDaPonta(l.origem)),
+        estacaDescarga: lerEstaca(l.estacaDescarga, eixoDaPonta(l.destino)),
+        rotas,
+        tipoTrecho
+      }),
+      qtd: quantidadeDaViagem({
+        medicao: par.medicao_viagem,
+        fator: par.fator_viagem,
+        volume: par.medicao_viagem === 'volume' ? parseQtd(l.bruto) : null,
+        peso: par.medicao_viagem === 'peso' ? parseQtd(l.bruto) : null,
+        capacidade
+      })
+    }
+  }
+
+  const total = linhas.reduce((s, l) => s + (calculo(l).qtd.quantidade ?? 0), 0)
 
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
@@ -208,30 +264,43 @@ function Form({
     const viagens: FichaInput['viagens'] = []
     for (const [k, l] of linhas.entries()) {
       const n = k + 1
-      const q = parseQtd(l.qtd)
       if (!l.item) return setErro(`Viagem ${n}: escolha o serviço.`)
-      if (q == null || q <= 0) return setErro(`Viagem ${n}: informe a quantidade.`)
-      const eixo = eixoDaViagem(l.origem, l.destino)
-      let pos: number | null = null
-      if (eixo && l.estaca.trim()) {
-        const p = parseMarcador(l.estaca.trim(), ctxObraTrecho(eixo))
-        if (p.metros === null) return setErro(`Viagem ${n}: estaca "${l.estaca}" inválida.`)
-        pos = p.metros
-      }
+      if (!l.origem || !l.destino) return setErro(`Viagem ${n}: escolha a origem e o destino.`)
+      const ec = eixoDaPonta(l.origem)
+      const ed = eixoDaPonta(l.destino)
+      const pc = lerEstaca(l.estacaCarga, ec)
+      const pd = lerEstaca(l.estacaDescarga, ed)
+      if (ec && pc === null) return setErro(`Viagem ${n}: informe a estaca de carga.`)
+      if (ed && pd === null) return setErro(`Viagem ${n}: informe a estaca de descarga.`)
+      const { dmt, qtd, par } = calculo(l)
+      if (qtd.quantidade === null)
+        return setErro(
+          par.medicao_viagem === 'peso'
+            ? `Viagem ${n}: informe o peso líquido do ticket (t).`
+            : `Viagem ${n}: informe o volume da caçamba (o caminhão não tem capacidade cadastrada).`
+        )
+      if (par.medicao_viagem === 'peso' && !l.nf.trim())
+        return setErro(`Viagem ${n}: informe o ticket da balança.`)
+      const manual = l.dmtManual ? parseQtd(l.dmt) : null
+      if (l.dmtManual && (manual === null || manual < 0))
+        return setErro(`Viagem ${n}: informe a DMT ajustada (km).`)
+      if (!l.dmtManual && dmt.km === null) return setErro(`Viagem ${n}: ${dmt.motivo}`)
+      const bruto = parseQtd(l.bruto)
       viagens.push({
         id: l.id,
         item_orcamentario_id: l.item,
-        origem_id: l.origem || null,
-        destino_id: l.destino || null,
+        origem_id: l.origem,
+        destino_id: l.destino,
         hora_carga: l.horaCarga || null,
         hora_descarga: l.horaDescarga || null,
-        quantidade: q,
+        volume_m3: par.medicao_viagem === 'volume' ? bruto : null,
+        peso_t: par.medicao_viagem === 'peso' ? bruto : null,
         material_qtd: parseQtd(l.mat),
-        dmt_km: parseQtd(l.dmt),
+        dmt_manual: l.dmtManual,
+        dmt_km: l.dmtManual ? manual : null,
         nf_ticket: l.nf.trim() || null,
-        trecho_id: eixo?.id ?? null,
-        posicao_inicio_m: pos,
-        posicao_fim_m: pos,
+        estaca_carga_m: pc,
+        estaca_descarga_m: pd,
         obs: null,
         carregador_id: l.carregador || null
       })
@@ -245,8 +314,6 @@ function Form({
         motorista: motorista.trim() || null,
         encarregado_id: encarregado || null,
         equipe_id: equipe || null,
-        km_inicial: parseQtd(kmIni),
-        km_final: parseQtd(kmFim),
         obs: obs.trim() || null,
         viagens
       })
@@ -258,6 +325,39 @@ function Form({
   }
 
   const campo = 'h-8 text-xs'
+  const opcoesLocal = (atual: string): ReactNode => (
+    <>
+      <option value="">—</option>
+      {(atual && !locais.some((x) => x.id === atual) && localDe(atual)
+        ? [...locais, localDe(atual)!]
+        : locais
+      ).map((x) => (
+        <option key={x.id} value={x.id}>
+          {x.nome} ({TIPO_LOCAL_LABEL[x.tipo]})
+        </option>
+      ))}
+    </>
+  )
+  const celulaEstaca = (
+    eixo: (typeof trechos)[number] | null,
+    valor: string,
+    onChange: (v: string) => void,
+    rotuloAria: string
+  ): ReactNode =>
+    eixo ? (
+      <Input
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={formatMarcador(0, ctxObraTrecho(eixo))}
+        aria-label={rotuloAria}
+        className={`${campo} font-mono`}
+      />
+    ) : (
+      <span className="text-2xs text-text-dim" title="Fora da pista: vale a estaca do acesso">
+        acesso
+      </span>
+    )
+
   return (
     <Dialog open onOpenChange={onOpenChange} size="full" disableDismiss={salvar.isPending}>
       <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -271,7 +371,7 @@ function Form({
               Nenhum serviço está parametrizado para viagens (Planejamento › Parametrização).
             </p>
           ) : null}
-          <div className="grid grid-cols-4 gap-3 lg:grid-cols-8">
+          <div className="grid grid-cols-4 gap-3 lg:grid-cols-6">
             <div>
               <Label>Data</Label>
               <Input
@@ -293,6 +393,7 @@ function Form({
                 {comAtual(caminhoes, veiculo).map((v) => (
                   <option key={v.id} value={v.id}>
                     {rotulo(v)}
+                    {v.capacidade_m3 ? ` · ${txtNum(v.capacidade_m3)} m³` : ''}
                   </option>
                 ))}
               </Select>
@@ -331,61 +432,45 @@ function Form({
                 ))}
               </Select>
             </div>
-            <div>
-              <Label>Hodômetro inicial (km)</Label>
-              <Input
-                inputMode="decimal"
-                value={kmIni}
-                onChange={(e) => setKmIni(e.target.value)}
-                className={`${campo} font-mono`}
-              />
-            </div>
-            <div>
-              <Label>Hodômetro final (km)</Label>
-              <Input
-                inputMode="decimal"
-                value={kmFim}
-                onChange={(e) => setKmFim(e.target.value)}
-                className={`${campo} font-mono`}
-              />
-            </div>
           </div>
 
           <div className="overflow-x-auto rounded border border-border">
-            <table className="w-full min-w-[1300px] border-collapse text-xs">
+            <table className="w-full min-w-[1500px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-border text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
                   <th className="w-8 px-2 py-1.5 font-normal">#</th>
                   <th className="min-w-[200px] px-2 py-1.5 font-normal">Serviço</th>
-                  <th className="min-w-[150px] px-2 py-1.5 font-normal">Origem</th>
-                  <th className="min-w-[150px] px-2 py-1.5 font-normal">Destino</th>
-                  <th className="min-w-[150px] px-2 py-1.5 font-normal">Carregado por</th>
-                  <th
-                    className="w-28 px-2 py-1.5 font-normal"
-                    title="Na pista: a estaca da descarga (ou do corte, quando a origem é a pista)"
-                  >
-                    Estaca
+                  <th className="min-w-[160px] px-2 py-1.5 font-normal">Origem</th>
+                  <th className="w-28 px-2 py-1.5 font-normal" title="Quando a origem é a pista">
+                    Est. carga
                   </th>
+                  <th className="min-w-[160px] px-2 py-1.5 font-normal">Destino</th>
+                  <th className="w-28 px-2 py-1.5 font-normal" title="Quando o destino é a pista">
+                    Est. descarga
+                  </th>
+                  <th className="min-w-[140px] px-2 py-1.5 font-normal">Carregado por</th>
                   <th className="w-24 px-2 py-1.5 font-normal">Carga</th>
                   <th className="w-24 px-2 py-1.5 font-normal">Descarga</th>
-                  <th className="w-24 px-2 py-1.5 font-normal">Qtd</th>
+                  <th
+                    className="w-32 px-2 py-1.5 font-normal"
+                    title="Volume da caçamba (m³) ou peso do ticket (t), conforme a parametrização do serviço"
+                  >
+                    Volume / peso
+                  </th>
                   <th className="w-24 px-2 py-1.5 font-normal">Material</th>
-                  <th className="w-20 px-2 py-1.5 font-normal">DMT km</th>
+                  <th className="w-32 px-2 py-1.5 font-normal">DMT km</th>
                   <th className="w-24 px-2 py-1.5 font-normal">NF/ticket</th>
                   <th className="w-8" />
                 </tr>
               </thead>
               <tbody>
                 {linhas.map((l, i) => {
-                  const par = parametroDe(parametros, l.item)
+                  const { par, dmt, qtd } = calculo(l)
                   const sv = servicos.find((s) => s.id === l.item)
-                  const eixo = eixoDaViagem(l.origem, l.destino)
-                  const rota = rotas.find(
-                    (r) => r.origem_id === l.origem && r.destino_id === l.destino
-                  )
                   const pedeMaterial =
                     par.controla_material &&
                     (par.material_unidade ?? '').toLowerCase() !== (sv?.unidade ?? '').toLowerCase()
+                  const peso = par.medicao_viagem === 'peso'
                   return (
                     <tr key={l.id} className="border-b border-border/50 last:border-b-0">
                       <td className="px-2 py-1 font-mono text-2xs text-text-dim">{i + 1}</td>
@@ -394,6 +479,7 @@ function Form({
                           value={l.item}
                           onChange={(e) => setLinha(i, { item: e.target.value })}
                           className={campo}
+                          aria-label="Serviço"
                         >
                           <option value="">—</option>
                           {servicosViagem.map((s) => (
@@ -408,28 +494,36 @@ function Form({
                           value={l.origem}
                           onChange={(e) => setLinha(i, { origem: e.target.value })}
                           className={campo}
+                          aria-label="Origem"
                         >
-                          <option value="">—</option>
-                          {locais.map((x) => (
-                            <option key={x.id} value={x.id}>
-                              {x.nome} ({TIPO_LOCAL_LABEL[x.tipo]})
-                            </option>
-                          ))}
+                          {opcoesLocal(l.origem)}
                         </Select>
+                      </td>
+                      <td className="px-2 py-1">
+                        {celulaEstaca(
+                          eixoDaPonta(l.origem),
+                          l.estacaCarga,
+                          (v) => setLinha(i, { estacaCarga: v }),
+                          'Estaca de carga'
+                        )}
                       </td>
                       <td className="px-2 py-1">
                         <Select
                           value={l.destino}
                           onChange={(e) => setLinha(i, { destino: e.target.value })}
                           className={campo}
+                          aria-label="Destino"
                         >
-                          <option value="">—</option>
-                          {locais.map((x) => (
-                            <option key={x.id} value={x.id}>
-                              {x.nome} ({TIPO_LOCAL_LABEL[x.tipo]})
-                            </option>
-                          ))}
+                          {opcoesLocal(l.destino)}
                         </Select>
+                      </td>
+                      <td className="px-2 py-1">
+                        {celulaEstaca(
+                          eixoDaPonta(l.destino),
+                          l.estacaDescarga,
+                          (v) => setLinha(i, { estacaDescarga: v }),
+                          'Estaca de descarga'
+                        )}
                       </td>
                       <td className="px-2 py-1">
                         <Select
@@ -445,18 +539,6 @@ function Form({
                             </option>
                           ))}
                         </Select>
-                      </td>
-                      <td className="px-2 py-1">
-                        {eixo ? (
-                          <Input
-                            value={l.estaca}
-                            onChange={(e) => setLinha(i, { estaca: e.target.value })}
-                            placeholder={formatMarcador(0, ctxObraTrecho(eixo))}
-                            className={`${campo} font-mono`}
-                          />
-                        ) : (
-                          <span className="text-2xs text-text-dim">—</span>
-                        )}
                       </td>
                       <td className="px-2 py-1">
                         <Input
@@ -477,11 +559,19 @@ function Form({
                       <td className="px-2 py-1">
                         <Input
                           inputMode="decimal"
-                          value={l.qtd}
-                          onChange={(e) => setLinha(i, { qtd: e.target.value })}
-                          placeholder={sv?.unidade ?? ''}
+                          value={l.bruto}
+                          onChange={(e) => setLinha(i, { bruto: e.target.value })}
+                          placeholder={peso ? 't' : capacidade ? `${txtNum(capacidade)} m³` : 'm³'}
+                          aria-label={peso ? 'Peso do ticket (t)' : 'Volume da caçamba (m³)'}
                           className={`${campo} font-mono`}
                         />
+                        <div className="mt-0.5 font-mono text-2xs text-text-dim">
+                          {qtd.quantidade !== null
+                            ? `= ${formatNumber(qtd.quantidade, 2)} ${sv?.unidade ?? ''}`
+                            : peso
+                              ? 'peso do ticket'
+                              : 'volume'}
+                        </div>
                       </td>
                       <td className="px-2 py-1">
                         {pedeMaterial ? (
@@ -499,18 +589,59 @@ function Form({
                         )}
                       </td>
                       <td className="px-2 py-1">
-                        <Input
-                          inputMode="decimal"
-                          value={l.dmt}
-                          onChange={(e) => setLinha(i, { dmt: e.target.value })}
-                          placeholder={rota ? txtNum(rota.dmt_km) : ''}
-                          className={`${campo} font-mono`}
-                        />
+                        <div className="flex items-center gap-1">
+                          {l.dmtManual ? (
+                            <Input
+                              inputMode="decimal"
+                              value={l.dmt}
+                              onChange={(e) => setLinha(i, { dmt: e.target.value })}
+                              placeholder={dmt.km !== null ? txtNum(dmt.km) : 'km'}
+                              aria-label="DMT ajustada (km)"
+                              className={`${campo} w-20 font-mono`}
+                            />
+                          ) : (
+                            <span
+                              className={cn(
+                                'font-mono text-xs',
+                                dmt.km === null ? 'text-warn' : 'text-text'
+                              )}
+                              title={dmt.motivo ?? undefined}
+                            >
+                              {dmt.km !== null ? formatNumber(dmt.km, 3) : 'sem DMT'}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            title={l.dmtManual ? 'Voltar ao cálculo' : 'Ajustar a DMT'}
+                            onClick={() =>
+                              setLinha(i, {
+                                dmtManual: !l.dmtManual,
+                                dmt: l.dmtManual ? '' : txtNum(dmt.km)
+                              })
+                            }
+                            className={cn(
+                              'ml-auto shrink-0 hover:text-accent',
+                              l.dmtManual ? 'text-accent' : 'text-text-dim'
+                            )}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        </div>
+                        <div className="mt-0.5 text-2xs text-text-dim">
+                          {l.dmtManual
+                            ? `ajustada · calc. ${dmt.km !== null ? formatNumber(dmt.km, 3) : '—'}`
+                            : dmt.via === 'rota'
+                              ? 'distância fixa'
+                              : dmt.via === 'geometria'
+                                ? 'pelo eixo'
+                                : ''}
+                        </div>
                       </td>
                       <td className="px-2 py-1">
                         <Input
                           value={l.nf}
                           onChange={(e) => setLinha(i, { nf: e.target.value })}
+                          placeholder={peso ? 'obrigatório' : ''}
                           className={campo}
                         />
                       </td>

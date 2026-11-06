@@ -79,9 +79,10 @@ export interface FleetSyncExecucao {
 }
 
 export type TipoLocalTransporte =
-  'jazida' | 'usina' | 'central' | 'bota_fora' | 'deposito' | 'pista' | 'outro'
+  'jazida' | 'caixa_emprestimo' | 'usina' | 'central' | 'bota_fora' | 'deposito' | 'pista' | 'outro'
 export const TIPO_LOCAL_LABEL: Record<TipoLocalTransporte, string> = {
   jazida: 'Jazida',
+  caixa_emprestimo: 'Caixa de empréstimo',
   usina: 'Usina',
   central: 'Central de concreto',
   bota_fora: 'Bota-fora',
@@ -96,6 +97,9 @@ export interface LocalTransporte {
   nome: string
   tipo: TipoLocalTransporte
   trecho_id: string | null
+  /** onde o acesso encontra o eixo (m no trecho); só fora da pista */
+  estaca_acesso_m: number | null
+  distancia_acesso_km: number
   ativo: boolean
 }
 
@@ -120,6 +124,13 @@ export interface Viagem {
   trecho_id: string | null
   posicao_inicio_m: number | null
   posicao_fim_m: number | null
+  estaca_carga_m: number | null
+  estaca_descarga_m: number | null
+  volume_m3: number | null
+  peso_t: number | null
+  dmt_calculada_km: number | null
+  dmt_manual: boolean
+  dmt_origem: 'geometria' | 'rota' | 'manual' | null
   obs: string | null
   ordem: number
   carregador_id: string | null
@@ -133,8 +144,6 @@ export interface FichaViagens {
   motorista: string | null
   encarregado_id: string | null
   equipe_id: string | null
-  km_inicial: number | null
-  km_final: number | null
   obs: string | null
   origem: 'web' | 'campo'
   criado_por: string | null
@@ -405,7 +414,11 @@ export function useLocaisTransporte(
       if (l.error) throw l.error
       if (r.error) throw r.error
       return {
-        locais: (l.data ?? []) as LocalTransporte[],
+        locais: (l.data ?? []).map((x) => ({
+          ...(x as LocalTransporte),
+          estaca_acesso_m: num(x.estaca_acesso_m),
+          distancia_acesso_km: Number(x.distancia_acesso_km ?? 0)
+        })),
         rotas: (r.data ?? []).map((x) => ({ ...(x as RotaTransporte), dmt_km: Number(x.dmt_km) }))
       }
     }
@@ -490,8 +503,6 @@ export function useFichasViagens(
       if (error) throw error
       return (data ?? []).map((f) => ({
         ...(f as FichaViagens),
-        km_inicial: num(f.km_inicial),
-        km_final: num(f.km_final),
         viagens: ((f.viagens ?? []) as Viagem[])
           .map((v) => ({
             ...v,
@@ -499,7 +510,12 @@ export function useFichasViagens(
             material_qtd: num(v.material_qtd),
             dmt_km: num(v.dmt_km),
             posicao_inicio_m: num(v.posicao_inicio_m),
-            posicao_fim_m: num(v.posicao_fim_m)
+            posicao_fim_m: num(v.posicao_fim_m),
+            estaca_carga_m: num(v.estaca_carga_m),
+            estaca_descarga_m: num(v.estaca_descarga_m),
+            volume_m3: num(v.volume_m3),
+            peso_t: num(v.peso_t),
+            dmt_calculada_km: num(v.dmt_calculada_km)
           }))
           .sort((a, b) => a.ordem - b.ordem)
       }))
@@ -507,8 +523,27 @@ export function useFichasViagens(
   })
 }
 
+export type ViagemInput = Pick<
+  Viagem,
+  | 'id'
+  | 'item_orcamentario_id'
+  | 'origem_id'
+  | 'destino_id'
+  | 'hora_carga'
+  | 'hora_descarga'
+  | 'material_qtd'
+  | 'nf_ticket'
+  | 'estaca_carga_m'
+  | 'estaca_descarga_m'
+  | 'volume_m3'
+  | 'peso_t'
+  | 'dmt_manual'
+  | 'obs'
+  | 'carregador_id'
+> & { dmt_km: number | null }
+
 export type FichaInput = Omit<FichaViagens, 'origem' | 'criado_por' | 'viagens'> & {
-  viagens: Omit<Viagem, 'ordem'>[]
+  viagens: ViagemInput[]
 }
 
 /** Grava a ficha e as viagens (mesma RPC do app de campo, origem 'web'). */

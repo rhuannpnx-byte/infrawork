@@ -5,15 +5,14 @@ import { Button } from '@/core/ui/Button'
 import { useIsAuthenticated } from '@/core/auth/SessionStore'
 import { useCatalogo } from '@/core/db/daos'
 import { PickerSheet } from '@/features/common/PickerSheet'
-import { LabeledInput, NumericField, PickerField } from '@/features/common/fields'
-import { parseNum } from '@/lib/numero'
+import { LabeledInput, PickerField } from '@/features/common/fields'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
 import { ehMaquinaDeCarga } from '@/lib/frota'
 import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
 
-/** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado, equipe e hodômetro do caminhão. */
+/** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado e equipe. */
 export function CarreteiroStep0Route() {
   const authed = useIsAuthenticated()
   const navigate = useNavigate()
@@ -21,20 +20,11 @@ export function CarreteiroStep0Route() {
   const setCab = useCarreteiroStore((s) => s.setCabecalho)
   const catalogo = useCatalogo(ficha?.obraId)
   const [picker, setPicker] = useState<'veiculo' | 'encarregado' | 'equipe' | null>(null)
-  const [kmIni, setKmIni] = useState(ficha?.kmInicial != null ? String(ficha.kmInicial) : '')
-  const [kmFim, setKmFim] = useState(ficha?.kmFinal != null ? String(ficha.kmFinal) : '')
-  const [erro, setErro] = useState<string | null>(null)
 
   if (!authed) return <Navigate to="/login" replace />
   if (!ficha) return <Navigate to="/carreteiro" replace />
 
   function continuar() {
-    setErro(null)
-    const a = parseNum(kmIni)
-    const b = parseNum(kmFim)
-    if (a != null && b != null && b < a)
-      return setErro('O hodômetro final não pode ser menor que o inicial.')
-    setCab({ kmInicial: a, kmFinal: b })
     navigate('/carreteiro/step1')
   }
 
@@ -108,11 +98,6 @@ export function CarreteiroStep0Route() {
             onClick={() => setPicker('equipe')}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <NumericField label="Hodômetro inicial (km)" value={kmIni} onChange={setKmIni} />
-          <NumericField label="Hodômetro final (km)" value={kmFim} onChange={setKmFim} />
-        </div>
-        {erro && <p className="text-sm text-bad">{erro}</p>}
       </div>
 
       <div className="sticky bottom-0 border-t border-border bg-bg-base/95 p-4 backdrop-blur pl-safe pr-safe pb-safe-plus-4">

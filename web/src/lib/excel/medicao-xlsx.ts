@@ -326,19 +326,23 @@ function abaQuadroViagens(
 ): void {
   const ws = wb.addWorksheet(sanitizeSheetName(m.codigo, usados))
   ws.columns = [
-    { width: 24 },
-    { width: 24 },
-    { width: 22 },
-    { width: 18 },
-    { width: 18 },
-    { width: 22 },
-    { width: 22 },
     { width: 14 },
-    { width: 12 },
+    { width: 18 },
+    { width: 18 },
     { width: 16 },
-    { width: 18 }
+    { width: 24 },
+    { width: 18 },
+    { width: 24 },
+    { width: 18 },
+    { width: 16 },
+    { width: 16 },
+    { width: 12 },
+    { width: 22 },
+    { width: 18 },
+    { width: 16 }
   ]
   const un = q.unidadeVolume || '—'
+  const ub = q.unidadeBruta === 't' ? 'Peso (t)' : 'Volume caçamba (m³)'
   const ini = escreverCabecalho(
     ws,
     p.obraNome,
@@ -346,7 +350,7 @@ function abaQuadroViagens(
     'Memória de cálculo — quadro de distribuição das viagens',
     `Serviço (filho): ${m.codigo} — ${m.descricao}`
   )
-  ws.mergeCells(ini, 1, ini, 11)
+  ws.mergeCells(ini, 1, ini, 14)
   ws.getCell(ini, 1).value =
     `Agregador: ${m.agregadorCodigo} — ${m.agregadorDescricao}` +
     `   •   Qtd contratual: ${m.qtdContratual} ${m.unidade || ''}` +
@@ -359,49 +363,54 @@ function abaQuadroViagens(
   const hq = ws.getRow(r++)
   ;[
     'Origem',
+    'Estacas de carga',
     'Destino',
-    'Estacas',
+    'Estacas de descarga',
     'Faixa de DMT',
     'Nº de viagens',
+    ub,
     `Volume (${un})`,
     'DMT (km)',
     `Momento (${un}·km)`,
     `Qtd medida (${m.unidade || '—'})`,
     'Valor medido'
   ].forEach((h, i) => (hq.getCell(i + 1).value = h))
-  estilizarHeaderRow(hq, 4)
+  estilizarHeaderRow(hq, 5)
   for (const l of q.linhas) {
     const row = ws.getRow(r++)
     row.getCell(1).value = l.origem
-    row.getCell(2).value = l.destino
-    row.getCell(3).value = l.estacas
-    row.getCell(4).value = l.faixa
-    row.getCell(5).value = l.viagens
-    row.getCell(6).value = l.volume
-    row.getCell(6).numFmt = NUM
-    row.getCell(7).value = l.dmtKm
-    row.getCell(7).numFmt = '#,##0.000'
-    row.getCell(8).value = l.momento
+    row.getCell(2).value = l.estacasCarga
+    row.getCell(3).value = l.destino
+    row.getCell(4).value = l.estacasDescarga
+    row.getCell(5).value = l.faixa
+    row.getCell(6).value = l.viagens
+    row.getCell(7).value = l.bruto
+    row.getCell(7).numFmt = NUM
+    row.getCell(8).value = l.volume
     row.getCell(8).numFmt = NUM
-    row.getCell(9).value = l.qtd
-    row.getCell(9).numFmt = NUM
-    row.getCell(10).value = l.valor
-    row.getCell(10).numFmt = MOEDA
+    row.getCell(9).value = l.dmtKm
+    row.getCell(9).numFmt = '#,##0.000'
+    row.getCell(10).value = l.momento
+    row.getCell(10).numFmt = NUM
+    row.getCell(11).value = l.qtd
+    row.getCell(11).numFmt = NUM
+    row.getCell(12).value = l.valor
+    row.getCell(12).numFmt = MOEDA
   }
   const tq = ws.getRow(r++)
-  ws.mergeCells(tq.number, 1, tq.number, 4)
+  ws.mergeCells(tq.number, 1, tq.number, 5)
   tq.getCell(1).value = 'Total (DMT médio ponderado pelo volume)'
-  tq.getCell(5).value = q.total.viagens
-  tq.getCell(6).value = q.total.volume
-  tq.getCell(6).numFmt = NUM
-  tq.getCell(7).value = q.total.dmtMedioKm
-  tq.getCell(7).numFmt = '#,##0.000'
-  tq.getCell(8).value = q.total.momento
+  tq.getCell(6).value = q.total.viagens
+  tq.getCell(8).value = q.total.volume
   tq.getCell(8).numFmt = NUM
-  tq.getCell(9).value = q.total.qtd
-  tq.getCell(9).numFmt = NUM
-  tq.getCell(10).value = q.total.valor
-  tq.getCell(10).numFmt = MOEDA
+  tq.getCell(9).value = q.total.dmtMedioKm
+  tq.getCell(9).numFmt = '#,##0.000'
+  tq.getCell(10).value = q.total.momento
+  tq.getCell(10).numFmt = NUM
+  tq.getCell(11).value = q.total.qtd
+  tq.getCell(11).numFmt = NUM
+  tq.getCell(12).value = q.total.valor
+  tq.getCell(12).numFmt = MOEDA
   tq.eachCell((c) => (c.font = { bold: true }))
 
   // 2. Resumo por faixa de DMT
@@ -433,14 +442,17 @@ function abaQuadroViagens(
     'Motorista',
     'Equipe',
     'Origem',
+    'Estaca de carga',
     'Destino',
-    'Estaca',
+    'Estaca de descarga',
+    ub,
     `Volume (${un})`,
     'DMT (km)',
+    'Cálculo da DMT',
     `Momento (${un}·km)`,
     'NF/ticket'
   ].forEach((h, i) => (hr.getCell(i + 1).value = h))
-  estilizarHeaderRow(hr, 7)
+  estilizarHeaderRow(hr, 9)
   for (const v of q.relacao) {
     const row = ws.getRow(r++)
     row.getCell(1).value = v.data
@@ -448,15 +460,19 @@ function abaQuadroViagens(
     row.getCell(3).value = v.motorista
     row.getCell(4).value = v.equipe
     row.getCell(5).value = v.origem
-    row.getCell(6).value = v.destino
-    row.getCell(7).value = v.estaca
-    row.getCell(8).value = v.volume
-    row.getCell(8).numFmt = NUM
-    row.getCell(9).value = v.dmtKm
-    row.getCell(9).numFmt = '#,##0.000'
-    row.getCell(10).value = v.momento
+    row.getCell(6).value = v.estacaCarga
+    row.getCell(7).value = v.destino
+    row.getCell(8).value = v.estacaDescarga
+    row.getCell(9).value = v.bruto
+    row.getCell(9).numFmt = NUM
+    row.getCell(10).value = v.volume
     row.getCell(10).numFmt = NUM
-    row.getCell(11).value = v.nfTicket
+    row.getCell(11).value = v.dmtKm
+    row.getCell(11).numFmt = '#,##0.000'
+    row.getCell(12).value = v.dmtCalculo
+    row.getCell(13).value = v.momento
+    row.getCell(13).numFmt = NUM
+    row.getCell(14).value = v.nfTicket
   }
 }
 

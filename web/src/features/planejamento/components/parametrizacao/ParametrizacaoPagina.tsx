@@ -1,6 +1,7 @@
 /**
  * Parametrização dos serviços — antes do cronograma: como cada serviço do orçamento é lançado no campo (app de campo e
- * Lançar produção). Por serviço: modo (quantidade ou viagens), material controlado (qual material e unidade; o sistema
+ * Lançar produção). Por serviço: modo (quantidade ou viagens; a viagem medida por volume da caçamba ou peso do ticket, com o
+ * fator que converte para a unidade do serviço), material controlado (qual material e unidade; o sistema
  * grava o material aplicado e calcula a média por unidade produzida), observação e local obrigatório.
  */
 import { useMemo, useState, type ReactNode } from 'react'
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatNumber } from '@/lib/format/number'
+import { parseQtd } from '@/features/acompanhamento/lib/parse-qtd'
 import { cn } from '@/lib/utils'
 import { useComposicoesServicos } from '@/features/cronograma/hooks/composicoes'
 import {
@@ -146,6 +148,12 @@ export function ParametrizacaoPagina({
                 (cada viagem com origem e destino; a produção do dia é a soma das viagens).
               </p>
               <p>
+                <strong className="text-text">Medição da viagem</strong>: por volume (m³ da caçamba;
+                sem valor, a capacidade do caminhão) ou por peso (t do ticket, que passa a ser
+                obrigatório). O fator converte para a unidade do serviço: argila medida no corte com
+                caçamba solta → 0,8 (empolamento de 25%); CBUQ em t → 1; CBUQ em m³ → 1 ÷ 2,4.
+              </p>
+              <p>
                 <strong className="text-text">Material</strong>: o lançamento passa a pedir a
                 quantidade do material escolhido; a média lançada por unidade produzida aparece aqui
                 ao lado do previsto na composição.
@@ -177,12 +185,18 @@ export function ParametrizacaoPagina({
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="w-full min-w-[1080px] border-collapse text-xs">
+              <table className="w-full min-w-[1280px] border-collapse text-xs">
                 <thead className="sticky top-0 z-10 bg-bg-panel">
                   <tr className="border-b border-border text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
                     <th className="px-3 py-2 font-normal">Serviço</th>
                     <th className="px-2 py-2 font-normal">Un.</th>
                     <th className="px-2 py-2 font-normal">Lançamento</th>
+                    <th
+                      className="px-2 py-2 font-normal"
+                      title="Como a viagem é medida e o fator para a unidade do serviço"
+                    >
+                      Medição da viagem
+                    </th>
                     <th className="px-2 py-2 text-center font-normal">Material</th>
                     <th className="px-2 py-2 font-normal">Material controlado</th>
                     <th className="px-2 py-2 font-normal">Unid. material</th>
@@ -219,7 +233,7 @@ export function ParametrizacaoPagina({
                   ))}
                   {!lista.length ? (
                     <tr>
-                      <td colSpan={10} className="px-3 py-4 text-text-dim">
+                      <td colSpan={11} className="px-3 py-4 text-text-dim">
                         Nenhum serviço com composição no orçamento.
                       </td>
                     </tr>
@@ -295,6 +309,47 @@ function Linha({
           <option value="viagens">Viagens</option>
         </Select>
       </td>
+      <td className="px-2 py-1.5">
+        {p.modo_lancamento === 'viagens' ? (
+          <div className="flex items-center gap-1.5">
+            <Select
+              value={p.medicao_viagem}
+              disabled={ro}
+              onChange={(e) =>
+                set({ medicao_viagem: e.target.value as ServicoParametro['medicao_viagem'] })
+              }
+              className="h-7 w-24 text-xs"
+              aria-label="Medição da viagem"
+            >
+              <option value="volume">Volume</option>
+              <option value="peso">Peso</option>
+            </Select>
+            <span className="text-2xs text-text-dim">
+              1 {p.medicao_viagem === 'peso' ? 't' : 'm³'} =
+            </span>
+            <Input
+              key={p.fator_viagem}
+              defaultValue={String(p.fator_viagem).replace('.', ',')}
+              disabled={ro}
+              inputMode="decimal"
+              title={
+                p.medicao_viagem === 'peso'
+                  ? 'Densidade: t do ticket → unidade do serviço (em m³, use 1 ÷ densidade)'
+                  : 'Empolamento: m³ da caçamba → unidade do serviço'
+              }
+              onBlur={(e) => {
+                const v = parseQtd(e.target.value)
+                if (v == null || v <= 0) return void toast.error('Fator inválido.')
+                if (v !== p.fator_viagem) set({ fator_viagem: v })
+              }}
+              className="h-7 w-20 text-right font-mono text-xs"
+            />
+            <span className="font-mono text-2xs text-text-dim">{s.unidade ?? 'un'}</span>
+          </div>
+        ) : (
+          <span className="text-2xs text-text-dim">—</span>
+        )}
+      </td>
       <td className="px-2 py-1.5 text-center">
         <Marca checked={p.controla_material} disabled={ro} onChange={ligarMaterial} />
       </td>
@@ -352,7 +407,7 @@ function Linha({
           disabled={ro || p.modo_lancamento === 'viagens'}
           title={
             p.modo_lancamento === 'viagens'
-              ? 'Nas viagens o local vem do destino (estaca de descarga)'
+              ? 'Nas viagens o local vem da ponta na pista (estaca de descarga ou de carga)'
               : undefined
           }
           onChange={(v) => set({ exige_local: v })}

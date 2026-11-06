@@ -34,13 +34,14 @@ const v = (p: Partial<ViagemExport>): ViagemExport => ({
   origem: 'Corte E10',
   destinoId: 'aterro',
   destino: 'Aterro E40',
-  trechoId: 't1',
-  trechoNome: 'Eixo',
-  trechoArea: false,
-  posIni: 800,
-  posFim: 800,
+  carga: { trechoId: 't1', trechoNome: 'Eixo', m: 200 },
+  descarga: { trechoId: 't1', trechoNome: 'Eixo', m: 800 },
   quantidade: 10,
+  volumeM3: 12.5,
+  pesoT: null,
   dmtKm: 0.5,
+  dmtOrigem: 'geometria',
+  dmtCalculadaKm: 0.5,
   nfTicket: '',
   ...p
 })
@@ -63,17 +64,24 @@ describe('faixaDmt', () => {
 
 describe('montarQuadroViagens', () => {
   const viagens = [
-    v({ data: '2026-11-04', posIni: 820, posFim: 820 }),
-    v({ posIni: 800, posFim: 800 }),
+    v({ data: '2026-11-04', descarga: { trechoId: 't1', trechoNome: 'Eixo', m: 820 } }),
+    v({}),
     v({
       destinoId: 'bf',
       destino: 'Bota-fora',
       dmtKm: 2.5,
-      trechoId: null,
-      posIni: null,
-      posFim: null
+      dmtOrigem: 'rota',
+      descarga: null
     }),
-    v({ origemId: 'jaz', origem: 'Jazida Km 8', dmtKm: null, quantidade: 12 }),
+    v({
+      origemId: 'jaz',
+      origem: 'Jazida Km 8',
+      carga: null,
+      dmtKm: null,
+      dmtOrigem: null,
+      quantidade: 12,
+      volumeM3: 15
+    }),
     v({ itemId: 'outro', quantidade: 999 })
   ]
 
@@ -86,11 +94,27 @@ describe('montarQuadroViagens', () => {
       formatarPosicao: fmt
     })
     expect(
-      q.linhas.map((l) => [l.origem, l.destino, l.viagens, l.volume, l.estacas, l.faixa])
+      q.linhas.map((l) => [
+        l.origem,
+        l.destino,
+        l.viagens,
+        l.bruto,
+        l.volume,
+        l.estacasCarga,
+        l.estacasDescarga,
+        l.faixa
+      ])
     ).toEqual([
-      ['Corte E10', 'Aterro E40', 2, 20, 'E40 a E41', '400 a 600 m'],
-      ['Corte E10', 'Bota-fora', 1, 10, '', '2.000 a 3.000 m'],
-      ['Jazida Km 8', 'Aterro E40', 1, 12, 'E40', SEM_DMT]
+      ['Corte E10', 'Aterro E40', 2, 25, 20, 'E10', 'E40 a E41', '400 a 600 m'],
+      ['Corte E10', 'Bota-fora', 1, 12.5, 10, 'E10', '', '2.000 a 3.000 m'],
+      ['Jazida Km 8', 'Aterro E40', 1, 15, 12, '', 'E40', SEM_DMT]
+    ])
+    expect(q.unidadeBruta).toBe('m³')
+    expect(q.relacao.map((r) => r.dmtCalculo)).toEqual([
+      'pelo eixo',
+      'distância fixa',
+      '',
+      'pelo eixo'
     ])
     expect(q.linhas[0].momento).toBe(10)
     expect(q.linhas[0].qtd).toBe(40) // 20 / 1000 × 2000
@@ -122,5 +146,20 @@ describe('montarQuadroViagens', () => {
     expect(ultima.volume).toBeCloseTo(8)
     expect(q.total.volume).toBeCloseTo(50)
     expect(q.total.qtd).toBeCloseTo((50 / 1000) * 2000)
+  })
+
+  it('DMT ajustada mostra a calculada; peso vira a unidade bruta', () => {
+    const q = montarQuadroViagens({
+      grupo,
+      filho,
+      viagens: [
+        v({ dmtKm: 9.1, dmtOrigem: 'manual', dmtCalculadaKm: 7.5, volumeM3: null, pesoT: 28.4 })
+      ],
+      producaoPeriodo: 10,
+      formatarPosicao: fmt
+    })
+    expect(q.unidadeBruta).toBe('t')
+    expect(q.relacao[0].dmtCalculo).toBe('ajustada (calculada 7,5 km)')
+    expect(q.relacao[0].bruto).toBe(28.4)
   })
 })

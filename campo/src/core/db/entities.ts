@@ -72,14 +72,26 @@ export interface ViagemLocal {
   destinoNome: string | null
   horaCarga: string | null
   horaDescarga: string | null
+  /** na unidade do serviço (bruto × fator); o banco recalcula */
   quantidade: number
+  /** valor lançado: volume da caçamba (m³) ou peso do ticket (t), conforme a medição do serviço */
+  volumeM3?: number | null
+  pesoT?: number | null
   materialQtd: number | null
+  /** DMT efetiva mostrada no app (calculada, ou a ajustada quando dmtManual) */
   dmtKm: number | null
+  dmtManual?: boolean
+  dmtVia?: 'rota' | 'geometria' | 'manual' | null
   nfTicket: string | null
-  /** eixo do destino (pista) e a estaca de descarga */
-  trechoId: string | null
-  estaca: string | null
-  posicaoM: number | null
+  /** estacas das pontas na pista (texto digitado e metros no trecho) */
+  estacaCarga?: string | null
+  estacaCargaM?: number | null
+  estacaDescarga?: string | null
+  estacaDescargaM?: number | null
+  /** legado (antes da DMT pelo eixo): uma estaca só, a da ponta na pista */
+  trechoId?: string | null
+  estaca?: string | null
+  posicaoM?: number | null
   obs: string | null
   /** máquina que carregou (escavadeira/carregadeira) */
   carregadorId?: string | null
@@ -98,8 +110,6 @@ export interface FichaCabecalho {
   encarregadoNome: string | null
   equipeId: string | null
   equipeNome: string | null
-  kmInicial: number | null
-  kmFinal: number | null
   obs: string | null
 }
 

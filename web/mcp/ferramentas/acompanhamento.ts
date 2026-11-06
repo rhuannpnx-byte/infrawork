@@ -242,7 +242,10 @@ export const parametrosServico = ferramenta({
   descricao:
     'Como cada serviço é lançado no app de campo e no web: modo_lancamento quantidade | viagens (a produção ' +
     'vem das fichas de viagem), controle de material (recurso, unidade, obrigatório), observação e se exige ' +
-    'local (trecho + estacas). acao: listar | salvar (um serviço por vez).',
+    'local (trecho + estacas). Nas viagens: medicao_viagem volume (m³ da caçamba; sem valor, a capacidade do ' +
+    'caminhão) | peso (t do ticket, ticket obrigatório) e fator_viagem, que converte o bruto para a unidade do ' +
+    'serviço (argila no corte com caçamba solta 0,8; CBUQ em t 1; CBUQ em m³ 1/2,4). ' +
+    'acao: listar | salvar (um serviço por vez).',
   entrada: {
     acao: z.enum(['listar', 'salvar']),
     obra_id: OBRA,
@@ -253,7 +256,9 @@ export const parametrosServico = ferramenta({
     material_unidade: z.string().nullable().optional(),
     material_obrigatorio: z.boolean().optional(),
     habilita_obs: z.boolean().optional(),
-    exige_local: z.boolean().optional()
+    exige_local: z.boolean().optional(),
+    medicao_viagem: z.enum(['volume', 'peso']).optional(),
+    fator_viagem: z.number().positive().optional().describe('bruto (m³ ou t) → unidade do serviço')
   },
   cobre: { tabelas: ['servico_parametro'] },
   async executar(a) {
@@ -271,6 +276,8 @@ export const parametrosServico = ferramenta({
       material_obrigatorio: true,
       habilita_obs: true,
       exige_local: false,
+      medicao_viagem: 'volume',
+      fator_viagem: 1,
       ...(atual ?? {}),
       item_orcamentario_id: id,
       obra_id: a.obra_id
@@ -282,7 +289,9 @@ export const parametrosServico = ferramenta({
       'material_unidade',
       'material_obrigatorio',
       'habilita_obs',
-      'exige_local'
+      'exige_local',
+      'medicao_viagem',
+      'fator_viagem'
     ] as const)
       if (a[k] !== undefined) p[k] = a[k]
     if (!p.controla_material) {
@@ -299,21 +308,40 @@ export const parametrosServico = ferramenta({
 
 export const transporte = ferramenta({
   nome: 'transporte',
-  titulo: 'Locais de carga e descarga e rotas (DMT)',
+  titulo: 'Locais de carga e descarga e distâncias fixas (DMT)',
   descricao:
-    'Origens e destinos das viagens (jazida, usina, central, bota_fora, deposito, pista, outro) e as rotas com ' +
-    'DMT em km. Local do tipo pista fica ligado a um trecho (a estaca da viagem é a ponta na pista). acao: ' +
-    'listar | salvar_local (cria sem id, edita com id) | excluir_local | rota (origem_id, destino_id, dmt_km; ' +
-    'dmt_km null apaga a rota). A DMT da rota preenche a viagem quando ela não traz DMT.',
+    'Origens e destinos das viagens (jazida, caixa_emprestimo, usina, central, bota_fora, deposito, pista, ' +
+    'outro). DMT da viagem = acesso(origem) + |estaca de carga - estaca de descarga| + acesso(destino), pelo ' +
+    'eixo do trecho. Local pista: só o trecho (eixo ou área); a viagem informa a estaca. Demais locais: ' +
+    'trecho (eixo) + estaca_acesso_m (onde o acesso encontra o eixo, em metros no trecho) + ' +
+    'distancia_acesso_km (do local ao eixo). Par que não se liga pelo eixo (usina distante, outro trecho): ' +
+    'distância fixa (acao rota), que prevalece sobre o cálculo. acao: listar | salvar_local (cria sem id, ' +
+    'edita com id) | excluir_local | rota (origem_id, destino_id, dmt_km; dmt_km null apaga).',
   entrada: {
     acao: z.enum(['listar', 'salvar_local', 'excluir_local', 'rota']),
     obra_id: OBRA,
     id: z.string().uuid().optional(),
     nome: z.string().optional(),
     tipo: z
-      .enum(['jazida', 'usina', 'central', 'bota_fora', 'deposito', 'pista', 'outro'])
+      .enum([
+        'jazida',
+        'caixa_emprestimo',
+        'usina',
+        'central',
+        'bota_fora',
+        'deposito',
+        'pista',
+        'outro'
+      ])
       .optional(),
     trecho_id: z.string().uuid().nullable().optional(),
+    estaca_acesso_m: z
+      .number()
+      .min(0)
+      .nullable()
+      .optional()
+      .describe('metros no trecho (eixo) onde o acesso encontra o eixo; não vale para pista'),
+    distancia_acesso_km: z.number().min(0).optional().describe('do local até o eixo'),
     lat: z.number().nullable().optional(),
     lng: z.number().nullable().optional(),
     ativo: z.boolean().optional(),
@@ -338,7 +366,16 @@ export const transporte = ferramenta({
       }
       case 'salvar_local': {
         const campos: Record<string, unknown> = {}
-        for (const k of ['nome', 'tipo', 'trecho_id', 'lat', 'lng', 'ativo'] as const)
+        for (const k of [
+          'nome',
+          'tipo',
+          'trecho_id',
+          'estaca_acesso_m',
+          'distancia_acesso_km',
+          'lat',
+          'lng',
+          'ativo'
+        ] as const)
           if (a[k] !== undefined) campos[k] = a[k]
         if (a.id) return (await gravar('transporte_local', 'update', campos, [eq('id', a.id)]))[0]
         return (
@@ -389,17 +426,39 @@ export const transporte = ferramenta({
 const VIAGEM = z.object({
   id: z.string().uuid().optional().describe('viagem existente (mantém)'),
   item_orcamentario_id: z.string().uuid().describe('serviço parametrizado por viagens'),
-  origem_id: z.string().uuid().nullable().optional(),
-  destino_id: z.string().uuid().nullable().optional(),
-  quantidade: z.number().describe('volume/peso da viagem na unidade do serviço'),
+  origem_id: z.string().uuid().describe('local de carga'),
+  destino_id: z.string().uuid().describe('local de descarga'),
+  estaca_carga_m: z
+    .number()
+    .nullable()
+    .optional()
+    .describe('metros no trecho; obrigatória quando a origem é pista (eixo)'),
+  estaca_descarga_m: z
+    .number()
+    .nullable()
+    .optional()
+    .describe('metros no trecho; obrigatória quando o destino é pista (eixo)'),
+  volume_m3: z
+    .number()
+    .positive()
+    .nullable()
+    .optional()
+    .describe('medição por volume: m³ da caçamba (vazio = capacidade do caminhão da ficha)'),
+  peso_t: z
+    .number()
+    .positive()
+    .nullable()
+    .optional()
+    .describe('medição por peso: t líquidas do ticket (exige nf_ticket)'),
   material_qtd: z.number().nullable().optional(),
-  dmt_km: z.number().nullable().optional().describe('vazio = DMT da rota'),
+  dmt_manual: z
+    .boolean()
+    .optional()
+    .describe('true = usa dmt_km informado (fica marcada como ajustada)'),
+  dmt_km: z.number().nullable().optional().describe('só com dmt_manual; senão o banco calcula'),
   hora_carga: z.string().nullable().optional(),
   hora_descarga: z.string().nullable().optional(),
   nf_ticket: z.string().nullable().optional(),
-  trecho_id: z.string().uuid().nullable().optional(),
-  posicao_inicio_m: z.number().nullable().optional(),
-  posicao_fim_m: z.number().nullable().optional(),
   carregador_id: z.string().uuid().nullable().optional(),
   obs: z.string().nullable().optional()
 })
@@ -408,10 +467,13 @@ export const viagens = ferramenta({
   nome: 'viagens',
   titulo: 'Fichas de viagem (transporte)',
   descricao:
-    'Ficha diária de um veículo com as viagens (origem, destino, estaca, quantidade, DMT). A produção dos ' +
-    'serviços por viagens é recomposta pelo banco: uma por dia, serviço, local, equipe e encarregado — a ' +
-    'equipe e o encarregado vêm da ficha. acao: listar (período) | salvar (cria ou substitui a ficha inteira; ' +
-    'id novo = ficha nova) | excluir | veiculos (veículos que a obra enxerga).',
+    'Ficha diária de um veículo com as viagens. Cada viagem: origem e destino (obrigatórios), estaca de carga ' +
+    'e/ou descarga quando a ponta é pista, volume ou peso conforme a medição do serviço (parametros_servico). ' +
+    'O banco calcula a quantidade (bruto × fator) e a DMT (distância fixa do par; senão pelo eixo: acessos + ' +
+    'diferença das estacas; dmt_origem rota | geometria | manual) e recusa a viagem sem DMT possível. A ' +
+    'produção dos serviços por viagens é recomposta: uma por dia, serviço, local (a ponta na pista), equipe e ' +
+    'encarregado (da ficha). acao: listar (período) | salvar (cria ou substitui a ficha inteira; id novo = ' +
+    'ficha nova) | excluir | veiculos (veículos que a obra enxerga, com a capacidade em m³).',
   entrada: {
     acao: z.enum(['listar', 'salvar', 'excluir', 'veiculos']),
     obra_id: OBRA,
@@ -423,8 +485,6 @@ export const viagens = ferramenta({
     motorista: z.string().nullable().optional(),
     equipe_id: z.string().uuid().nullable().optional(),
     encarregado_id: z.string().uuid().nullable().optional(),
-    km_inicial: z.number().nullable().optional().describe('hodômetro inicial'),
-    km_final: z.number().nullable().optional(),
     obs: z.string().nullable().optional(),
     viagens: z.array(VIAGEM).optional(),
     confirmar: CONFIRMAR
@@ -457,8 +517,6 @@ export const viagens = ferramenta({
             motorista: a.motorista ?? null,
             equipe_id: a.equipe_id ?? null,
             encarregado_id: a.encarregado_id ?? null,
-            km_inicial: a.km_inicial ?? null,
-            km_final: a.km_final ?? null,
             obs: a.obs ?? null,
             origem: 'web',
             viagens: exigir(a.viagens, 'viagens', a.acao).map((v) => ({

@@ -89,12 +89,6 @@ export function CarreteiroStep2Route() {
               {[ficha.encarregadoNome, ficha.equipeNome].filter(Boolean).join(' · ')}
             </p>
           )}
-          {(ficha.kmInicial != null || ficha.kmFinal != null) && (
-            <p>
-              <span className="text-on-surface-dim">Km:</span> {ficha.kmInicial ?? '—'} →{' '}
-              {ficha.kmFinal ?? '—'}
-            </p>
-          )}
         </div>
         <p className="text-xs font-bold uppercase text-on-surface-dim">
           Produção do dia (soma das viagens)

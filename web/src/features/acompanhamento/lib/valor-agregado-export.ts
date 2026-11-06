@@ -11,7 +11,13 @@ import { formatMarcadorCompacto } from '@/lib/format/posicao'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import type { ObraTrecho } from '@/types/gerencial'
 import type { EapGrupo, CurvaSDiaRow } from './valor-agregado-calc'
-import { montarQuadroViagens, type QuadroViagens, type ViagemExport } from './qdm-viagens'
+import {
+  montarQuadroViagens,
+  type OrigemDmt,
+  type PontoViagem,
+  type QuadroViagens,
+  type ViagemExport
+} from './qdm-viagens'
 
 export interface MemoriaDiaExport {
   data: string
@@ -256,15 +262,18 @@ interface ViagemRow {
   ficha_id: string
   ordem: number
   quantidade: number | string
+  volume_m3: number | string | null
+  peso_t: number | string | null
   dmt_km: number | string | null
+  dmt_calculada_km: number | string | null
+  dmt_origem: OrigemDmt | null
   nf_ticket: string | null
-  trecho_id: string | null
-  posicao_inicio_m: number | string | null
-  posicao_fim_m: number | string | null
+  estaca_carga_m: number | string | null
+  estaca_descarga_m: number | string | null
   origem_id: string | null
   destino_id: string | null
-  origem: { nome: string } | null
-  destino: { nome: string } | null
+  origem: { nome: string; trecho_id: string | null } | null
+  destino: { nome: string; trecho_id: string | null } | null
   ficha: {
     motorista: string | null
     veiculo: { prefixo: string | null; placa: string | null } | null
@@ -292,30 +301,45 @@ export async function carregarViagensExport(
   const itens = new Set((params ?? []).map((p) => p.item_orcamentario_id as string))
   if (itens.size === 0) return vazio
 
-  const [viagensRes, trechosRes] = await Promise.all([
-    supabase
-      .from('viagem')
-      .select(
-        'id, item_orcamentario_id, data, ficha_id, ordem, quantidade, dmt_km, nf_ticket, trecho_id, ' +
-          'posicao_inicio_m, posicao_fim_m, origem_id, destino_id, ' +
-          'origem:transporte_local!viagem_origem_id_fkey(nome), ' +
-          'destino:transporte_local!viagem_destino_id_fkey(nome), ' +
-          'ficha:viagem_ficha!inner(motorista, veiculo:frota_veiculo(prefixo, placa), equipe:equipe(nome))'
-      )
-      .eq('obra_id', obraId)
-      .gte('data', de)
-      .lte('data', ate)
-      .limit(50_000),
-    supabase.from('obra_trecho').select('*').eq('obra_id', obraId)
+  const sb = supabase
+  // o PostgREST devolve no máximo 1000 linhas por chamada: pagina
+  const carregarViagens = async (): Promise<ViagemRow[]> => {
+    const passo = 1000
+    const out: ViagemRow[] = []
+    for (let ini = 0; ; ini += passo) {
+      const { data, error } = await sb
+        .from('viagem')
+        .select(
+          'id, item_orcamentario_id, data, ficha_id, ordem, quantidade, volume_m3, peso_t, dmt_km, ' +
+            'dmt_calculada_km, dmt_origem, nf_ticket, estaca_carga_m, estaca_descarga_m, origem_id, destino_id, ' +
+            'origem:transporte_local!viagem_origem_id_fkey(nome, trecho_id), ' +
+            'destino:transporte_local!viagem_destino_id_fkey(nome, trecho_id), ' +
+            'ficha:viagem_ficha!inner(motorista, veiculo:frota_veiculo(prefixo, placa), equipe:equipe(nome))'
+        )
+        .eq('obra_id', obraId)
+        .gte('data', de)
+        .lte('data', ate)
+        .order('id')
+        .range(ini, ini + passo - 1)
+      if (error) throw error
+      out.push(...((data ?? []) as unknown as ViagemRow[]))
+      if ((data ?? []).length < passo) return out
+    }
+  }
+  const [linhas, trechosRes] = await Promise.all([
+    carregarViagens(),
+    sb.from('obra_trecho').select('*').eq('obra_id', obraId)
   ])
-  if (viagensRes.error) throw viagensRes.error
   if (trechosRes.error) throw trechosRes.error
   const trechos = new Map(
     ((trechosRes.data ?? []) as unknown as ObraTrecho[]).map((t) => [t.id, t])
   )
 
-  const viagens: ViagemExport[] = ((viagensRes.data ?? []) as unknown as ViagemRow[]).map((v) => {
-    const t = v.trecho_id ? trechos.get(v.trecho_id) : undefined
+  const ponto = (trechoId: string | null | undefined, m: number | null): PontoViagem | null => {
+    const t = trechoId ? trechos.get(trechoId) : undefined
+    return t && m !== null ? { trechoId: t.id, trechoNome: t.nome, m } : null
+  }
+  const viagens: ViagemExport[] = linhas.map((v) => {
     const vei = v.ficha?.veiculo
     return {
       id: v.id,
@@ -330,13 +354,14 @@ export async function carregarViagensExport(
       origem: v.origem?.nome ?? '—',
       destinoId: v.destino_id,
       destino: v.destino?.nome ?? '—',
-      trechoId: v.trecho_id,
-      trechoNome: t?.nome ?? '',
-      trechoArea: t?.tipo === 'area',
-      posIni: numOuNull(v.posicao_inicio_m),
-      posFim: numOuNull(v.posicao_fim_m),
+      carga: ponto(v.origem?.trecho_id, numOuNull(v.estaca_carga_m)),
+      descarga: ponto(v.destino?.trecho_id, numOuNull(v.estaca_descarga_m)),
       quantidade: Number(v.quantidade) || 0,
+      volumeM3: numOuNull(v.volume_m3),
+      pesoT: numOuNull(v.peso_t),
       dmtKm: numOuNull(v.dmt_km),
+      dmtOrigem: v.dmt_origem,
+      dmtCalculadaKm: numOuNull(v.dmt_calculada_km),
       nfTicket: v.nf_ticket ?? ''
     }
   })

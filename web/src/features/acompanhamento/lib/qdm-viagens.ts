@@ -1,7 +1,22 @@
 // Quadro de distribuição das viagens (como um QDM de terraplenagem): memória de medição dos serviços lançados por
-// viagens. Uma linha por origem → destino → DMT, resumo por faixa de DMT e a relação das viagens.
+// viagens. Uma linha por origem → destino → DMT (com as estacas de carga e de descarga), resumo por faixa de DMT e a
+// relação das viagens com o volume/peso lançado e de onde veio a DMT (pelo eixo, distância fixa ou ajustada).
 
 import type { EapFilhoReceita, EapGrupo } from './valor-agregado-calc'
+
+/** Estaca de uma ponta na pista (m no trecho). */
+export interface PontoViagem {
+  trechoId: string
+  trechoNome: string
+  m: number
+}
+
+export type OrigemDmt = 'geometria' | 'rota' | 'manual'
+export const ROTULO_ORIGEM_DMT: Record<OrigemDmt, string> = {
+  geometria: 'pelo eixo',
+  rota: 'distância fixa',
+  manual: 'ajustada'
+}
 
 /** Viagem do período já com os nomes resolvidos (ver carregarViagensExport). */
 export interface ViagemExport {
@@ -18,22 +33,27 @@ export interface ViagemExport {
   origem: string
   destinoId: string | null
   destino: string
-  trechoId: string | null
-  trechoNome: string
-  trechoArea: boolean
-  posIni: number | null
-  posFim: number | null
+  carga: PontoViagem | null
+  descarga: PontoViagem | null
+  /** na unidade do serviço (já com o fator) */
   quantidade: number
+  volumeM3: number | null
+  pesoT: number | null
   dmtKm: number | null
+  dmtOrigem: OrigemDmt | null
+  dmtCalculadaKm: number | null
   nfTicket: string
 }
 
 export interface LinhaQuadro {
   origem: string
   destino: string
-  estacas: string
+  estacasCarga: string
+  estacasDescarga: string
   faixa: string
   viagens: number
+  /** volume da caçamba (m³) ou peso do ticket (t), conforme a medição */
+  bruto: number | null
   volume: number
   dmtKm: number | null
   momento: number | null
@@ -54,16 +74,22 @@ export interface RelacaoViagem {
   motorista: string
   equipe: string
   origem: string
+  estacaCarga: string
   destino: string
-  estaca: string
+  estacaDescarga: string
+  bruto: number | null
   volume: number
   dmtKm: number | null
+  /** pelo eixo, distância fixa ou ajustada (com a calculada) */
+  dmtCalculo: string
   momento: number | null
   nfTicket: string
 }
 
 export interface QuadroViagens {
   unidadeVolume: string
+  /** unidade do valor bruto lançado: m³ (caçamba) ou t (ticket) */
+  unidadeBruta: 'm³' | 't'
   linhas: LinhaQuadro[]
   total: {
     viagens: number
@@ -100,30 +126,21 @@ const ordemFaixa = (f: string): number => {
   return f.startsWith('acima') ? n + 1 : n
 }
 
-/** Estaca(s) de um conjunto de viagens: faixa mín.–máx. por trecho; área = nome do local. */
+/** Estacas de um conjunto de pontos na pista: faixa mín.–máx. por trecho. */
 function estacasDe(
-  vs: ViagemExport[],
+  pontos: (PontoViagem | null)[],
   formatarPosicao: (trechoId: string, metros: number) => string
 ): string {
-  const porTrecho = new Map<string, { nome: string; area: boolean; min: number; max: number }>()
-  for (const v of vs) {
-    if (!v.trechoId) continue
-    const t = porTrecho.get(v.trechoId) ?? {
-      nome: v.trechoNome,
-      area: v.trechoArea,
-      min: Infinity,
-      max: -Infinity
-    }
-    if (v.posIni != null) t.min = Math.min(t.min, v.posIni)
-    if (v.posFim != null || v.posIni != null) t.max = Math.max(t.max, v.posFim ?? v.posIni!)
-    porTrecho.set(v.trechoId, t)
+  const porTrecho = new Map<string, { nome: string; min: number; max: number }>()
+  for (const p of pontos) {
+    if (!p) continue
+    const t = porTrecho.get(p.trechoId) ?? { nome: p.trechoNome, min: Infinity, max: -Infinity }
+    t.min = Math.min(t.min, p.m)
+    t.max = Math.max(t.max, p.m)
+    porTrecho.set(p.trechoId, t)
   }
   const partes: string[] = []
   for (const [id, t] of porTrecho) {
-    if (t.area || !Number.isFinite(t.min)) {
-      partes.push(t.nome)
-      continue
-    }
     const a = formatarPosicao(id, t.min)
     const b = formatarPosicao(id, t.max)
     const faixa = a === b ? a : `${a} a ${b}`
@@ -131,6 +148,10 @@ function estacasDe(
   }
   return partes.join('; ')
 }
+
+const brutoDe = (v: ViagemExport): number | null => v.pesoT ?? v.volumeM3
+const somaBruto = (vs: ViagemExport[]): number | null =>
+  vs.some((v) => brutoDe(v) != null) ? vs.reduce((a, v) => a + (brutoDe(v) ?? 0), 0) : null
 
 /**
  * Quadro de distribuição das viagens para um filho de um agregador lançado por viagens. A quantidade do filho segue
@@ -171,9 +192,17 @@ export function montarQuadroViagens(input: {
     return {
       origem: vs[0].origem,
       destino: vs[0].destino,
-      estacas: estacasDe(vs, formatarPosicao),
+      estacasCarga: estacasDe(
+        vs.map((v) => v.carga),
+        formatarPosicao
+      ),
+      estacasDescarga: estacasDe(
+        vs.map((v) => v.descarga),
+        formatarPosicao
+      ),
       faixa: faixaDmt(dmt),
       viagens: vs.length,
+      bruto: somaBruto(vs),
       volume,
       dmtKm: dmt,
       momento: dmt == null ? null : volume * dmt,
@@ -195,9 +224,11 @@ export function montarQuadroViagens(input: {
     linhas.push({
       origem: 'Produção sem viagem no período',
       destino: '',
-      estacas: '',
+      estacasCarga: '',
+      estacasDescarga: '',
       faixa: SEM_DMT,
       viagens: 0,
+      bruto: null,
       volume: sobra,
       dmtKm: null,
       momento: null,
@@ -227,16 +258,25 @@ export function montarQuadroViagens(input: {
     motorista: v.motorista,
     equipe: v.equipe,
     origem: v.origem,
+    estacaCarga: estacasDe([v.carga], formatarPosicao),
     destino: v.destino,
-    estaca: estacasDe([v], formatarPosicao),
+    estacaDescarga: estacasDe([v.descarga], formatarPosicao),
+    bruto: brutoDe(v),
     volume: v.quantidade,
     dmtKm: v.dmtKm,
+    dmtCalculo:
+      v.dmtOrigem === 'manual'
+        ? `ajustada (calculada ${v.dmtCalculadaKm == null ? '—' : v.dmtCalculadaKm.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} km)`
+        : v.dmtOrigem
+          ? ROTULO_ORIGEM_DMT[v.dmtOrigem]
+          : '',
     momento: v.dmtKm == null ? null : v.quantidade * v.dmtKm,
     nfTicket: v.nfTicket
   }))
 
   return {
     unidadeVolume: grupo.unidade_referencia,
+    unidadeBruta: viagens.some((v) => v.pesoT != null) ? 't' : 'm³',
     linhas,
     total: {
       viagens: viagens.length,

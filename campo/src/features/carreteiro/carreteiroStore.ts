@@ -37,8 +37,6 @@ export const useCarreteiroStore = create<CarreteiroStore>((set) => ({
         encarregadoNome: null,
         equipeId: null,
         equipeNome: null,
-        kmInicial: null,
-        kmFinal: null,
         obs: null,
         viagens: [],
       },

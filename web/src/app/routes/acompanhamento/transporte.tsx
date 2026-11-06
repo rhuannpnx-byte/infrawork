@@ -9,7 +9,10 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
+import type { ObraTrecho } from '@/types/gerencial'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
+import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
+import { formatMarcador, parseMarcador } from '@/lib/format/posicao'
 import { parseQtd } from '@/features/acompanhamento/lib/parse-qtd'
 import {
   TIPO_LOCAL_LABEL,
@@ -17,6 +20,7 @@ import {
   useLocaisTransporte,
   useSalvarLocalTransporte,
   useSalvarRota,
+  type LocalTransporte,
   type TipoLocalTransporte
 } from '@/features/acompanhamento/hooks/viagens'
 
@@ -31,6 +35,16 @@ export function AcompanhamentoTransportePage(): ReactNode {
 }
 
 const TIPOS = Object.keys(TIPO_LOCAL_LABEL) as TipoLocalTransporte[]
+const txtKm = (v: number | null | undefined): string =>
+  v == null ? '' : String(v).replace('.', ',')
+
+/** Estaca digitada na unidade do trecho → metros no trecho; vazio limpa. */
+function lerEstaca(txt: string, t: ObraTrecho | undefined): { m: number | null; erro?: string } {
+  if (!txt.trim()) return { m: null }
+  if (!t || t.tipo !== 'eixo') return { m: null, erro: 'Escolha um eixo para a estaca do acesso.' }
+  const p = parseMarcador(txt.trim(), ctxObraTrecho(t))
+  return p.metros === null ? { m: null, erro: `Estaca "${txt}" inválida.` } : { m: p.metros }
+}
 
 function Inner(): ReactNode {
   const scope = useCurrentScope()
@@ -42,24 +56,30 @@ function Inner(): ReactNode {
   const salvarLocal = useSalvarLocalTransporte()
   const excluirLocal = useExcluirLocalTransporte()
   const salvarRota = useSalvarRota()
-  const [novo, setNovo] = useState<{ nome: string; tipo: TipoLocalTransporte; trecho: string }>({
-    nome: '',
-    tipo: 'jazida',
-    trecho: ''
-  })
+  const [novo, setNovo] = useState<{
+    nome: string
+    tipo: TipoLocalTransporte
+    trecho: string
+    estaca: string
+    acesso: string
+  }>({ nome: '', tipo: 'jazida', trecho: '', estaca: '', acesso: '' })
   const [rota, setRota] = useState({ origem: '', destino: '', dmt: '' })
   const locais = data?.locais ?? []
   const rotas = data?.rotas ?? []
   const nome = (id: string): string => locais.find((l) => l.id === id)?.nome ?? '?'
   const erro = (e: Error): void => void toast.error(e.message)
+  const trechoDe = (id: string | null): ObraTrecho | undefined => trechos.find((t) => t.id === id)
+  const salvar = (l: LocalTransporte, patch: Partial<LocalTransporte>): void =>
+    salvarLocal.mutate({ id: l.id, obra_id: obraId, nome: l.nome, ...patch }, { onError: erro })
+  const eixoNovo = trechoDe(novo.trecho)?.tipo === 'eixo' ? trechoDe(novo.trecho) : undefined
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Origens e destinos"
-        subtitle={`${scope.obra?.nome ?? ''} — jazidas, usinas, bota-foras e a pista, usados nas viagens; o DMT de cada rota preenche a viagem.`}
+        subtitle={`${scope.obra?.nome ?? ''} — DMT da viagem = acesso da origem + distância pelo eixo entre as estacas + acesso do destino. Na pista a viagem informa a estaca; fora dela vale a estaca onde o acesso encontra o eixo.`}
       />
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 overflow-hidden p-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-4 overflow-hidden p-4">
         <section className="flex min-h-0 flex-col rounded border border-border bg-bg-panel">
           <h3 className="border-b border-border px-3 py-2 text-2xs font-mono uppercase tracking-wider text-text-muted">
             Locais de carga e descarga
@@ -70,111 +90,145 @@ function Inner(): ReactNode {
                 <tr className="border-b border-border text-left text-2xs font-mono uppercase text-text-dim">
                   <th className="px-3 py-1.5 font-normal">Nome</th>
                   <th className="px-2 py-1.5 font-normal">Tipo</th>
-                  <th className="px-2 py-1.5 font-normal">Local da obra</th>
+                  <th className="px-2 py-1.5 font-normal">Trecho</th>
+                  <th
+                    className="px-2 py-1.5 font-normal"
+                    title="Onde o acesso do local encontra o eixo, na unidade do trecho"
+                  >
+                    Estaca do acesso
+                  </th>
+                  <th className="px-2 py-1.5 font-normal" title="Do local até o eixo">
+                    Acesso (km)
+                  </th>
                   <th className="px-2 py-1.5 font-normal">Ativo</th>
                   <th className="w-8" />
                 </tr>
               </thead>
               <tbody>
-                {locais.map((l) => (
-                  <tr key={l.id} className="border-b border-border/50">
-                    <td className="px-3 py-1">
-                      <Input
-                        key={l.nome}
-                        defaultValue={l.nome}
-                        disabled={ro}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim()
-                          if (v && v !== l.nome)
-                            salvarLocal.mutate(
-                              { id: l.id, obra_id: obraId, nome: v },
-                              { onError: erro }
-                            )
-                        }}
-                        className="h-7 text-xs"
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Select
-                        value={l.tipo}
-                        disabled={ro}
-                        onChange={(e) =>
-                          salvarLocal.mutate(
-                            {
-                              id: l.id,
-                              obra_id: obraId,
-                              nome: l.nome,
-                              tipo: e.target.value as TipoLocalTransporte
-                            },
-                            { onError: erro }
-                          )
-                        }
-                        className="h-7 text-xs"
-                      >
-                        {TIPOS.map((t) => (
-                          <option key={t} value={t}>
-                            {TIPO_LOCAL_LABEL[t]}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
-                    <td className="px-2 py-1">
-                      <Select
-                        value={l.trecho_id ?? ''}
-                        disabled={ro}
-                        onChange={(e) =>
-                          salvarLocal.mutate(
-                            {
-                              id: l.id,
-                              obra_id: obraId,
-                              nome: l.nome,
-                              trecho_id: e.target.value || null
-                            },
-                            { onError: erro }
-                          )
-                        }
-                        className="h-7 text-xs"
-                        title="Na pista: a viagem informa a estaca de descarga e a produção cai no local"
-                      >
-                        <option value="">—</option>
-                        {trechos.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
-                    <td className="px-2 py-1 text-center">
-                      <input
-                        type="checkbox"
-                        checked={l.ativo}
-                        disabled={ro}
-                        onChange={(e) =>
-                          salvarLocal.mutate(
-                            { id: l.id, obra_id: obraId, nome: l.nome, ativo: e.target.checked },
-                            { onError: erro }
-                          )
-                        }
-                        className="h-3.5 w-3.5 accent-[var(--accent)]"
-                      />
-                    </td>
-                    <td className="px-1">
-                      {!ro ? (
-                        <button
-                          type="button"
-                          title="Excluir"
-                          onClick={() => excluirLocal.mutate(l.id, { onError: erro })}
-                          className="text-text-dim hover:text-danger"
+                {locais.map((l) => {
+                  const t = trechoDe(l.trecho_id)
+                  return (
+                    <tr key={l.id} className="border-b border-border/50">
+                      <td className="px-3 py-1">
+                        <Input
+                          key={l.nome}
+                          defaultValue={l.nome}
+                          disabled={ro}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim()
+                            if (v && v !== l.nome)
+                              salvarLocal.mutate(
+                                { id: l.id, obra_id: obraId, nome: v },
+                                { onError: erro }
+                              )
+                          }}
+                          className="h-7 text-xs"
+                        />
+                      </td>
+                      <td className="px-2 py-1">
+                        <Select
+                          value={l.tipo}
+                          disabled={ro}
+                          onChange={(e) =>
+                            salvar(l, { tipo: e.target.value as TipoLocalTransporte })
+                          }
+                          className="h-7 text-xs"
                         >
-                          <Trash2 size={13} />
-                        </button>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
+                          {TIPOS.map((x) => (
+                            <option key={x} value={x}>
+                              {TIPO_LOCAL_LABEL[x]}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <Select
+                          value={l.trecho_id ?? ''}
+                          disabled={ro}
+                          onChange={(e) =>
+                            salvar(l, { trecho_id: e.target.value || null, estaca_acesso_m: null })
+                          }
+                          className="h-7 text-xs"
+                          title="Na pista: a viagem informa a estaca e a produção cai no local"
+                        >
+                          <option value="">—</option>
+                          {trechos.map((x) => (
+                            <option key={x.id} value={x.id}>
+                              {x.tipo === 'area' ? `Área ${x.nome}` : x.nome}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      {l.tipo === 'pista' ? (
+                        <td colSpan={2} className="px-2 py-1 text-2xs text-text-dim">
+                          estaca informada em cada viagem
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-2 py-1">
+                            {t?.tipo === 'eixo' ? (
+                              <Input
+                                key={`${l.trecho_id}:${l.estaca_acesso_m}`}
+                                defaultValue={formatMarcador(l.estaca_acesso_m, ctxObraTrecho(t))}
+                                disabled={ro}
+                                placeholder={formatMarcador(0, ctxObraTrecho(t))}
+                                onBlur={(e) => {
+                                  const r = lerEstaca(e.target.value, t)
+                                  if (r.erro) return void toast.error(r.erro)
+                                  if (r.m !== l.estaca_acesso_m) salvar(l, { estaca_acesso_m: r.m })
+                                }}
+                                className="h-7 w-28 font-mono text-xs"
+                              />
+                            ) : (
+                              <span className="text-2xs text-text-dim">
+                                {t ? 'área: use distância fixa' : 'sem trecho: use distância fixa'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1">
+                            <Input
+                              key={l.distancia_acesso_km}
+                              defaultValue={txtKm(l.distancia_acesso_km)}
+                              disabled={ro}
+                              inputMode="decimal"
+                              onBlur={(e) => {
+                                const v = e.target.value.trim() ? parseQtd(e.target.value) : 0
+                                if (v == null || v < 0) return void toast.error('Acesso inválido.')
+                                if (v !== l.distancia_acesso_km)
+                                  salvar(l, { distancia_acesso_km: v })
+                              }}
+                              className="h-7 w-20 text-right font-mono text-xs"
+                            />
+                          </td>
+                        </>
+                      )}
+                      <td className="px-2 py-1 text-center">
+                        <input
+                          type="checkbox"
+                          checked={l.ativo}
+                          disabled={ro}
+                          onChange={(e) => salvar(l, { ativo: e.target.checked })}
+                          className="h-3.5 w-3.5 accent-[var(--accent)]"
+                        />
+                      </td>
+                      <td className="px-1">
+                        {!ro ? (
+                          <button
+                            type="button"
+                            title="Excluir"
+                            onClick={() => excluirLocal.mutate(l.id, { onError: erro })}
+                            className="text-text-dim hover:text-danger"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )
+                })}
                 {!locais.length ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 text-text-dim">
+                    <td colSpan={7} className="px-3 py-4 text-text-dim">
                       Nenhum local cadastrado.
                     </td>
                   </tr>
@@ -184,25 +238,32 @@ function Inner(): ReactNode {
           </div>
           {!ro ? (
             <form
-              className="flex items-center gap-2 border-t border-border px-3 py-2"
+              className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (!novo.nome.trim()) {
-                  toast.error('Informe o nome do local.')
-                  return
-                }
+                if (!novo.nome.trim()) return void toast.error('Informe o nome do local.')
+                const pista = novo.tipo === 'pista'
+                const est = pista ? { m: null } : lerEstaca(novo.estaca, trechoDe(novo.trecho))
+                if (est.erro) return void toast.error(est.erro)
+                const acesso = pista || !novo.acesso.trim() ? 0 : parseQtd(novo.acesso)
+                if (acesso == null || acesso < 0) return void toast.error('Acesso inválido.')
                 salvarLocal.mutate(
                   {
                     obra_id: obraId,
                     nome: novo.nome.trim(),
                     tipo: novo.tipo,
-                    trecho_id: novo.trecho || null
+                    trecho_id: novo.trecho || null,
+                    estaca_acesso_m: est.m,
+                    distancia_acesso_km: acesso
                   },
-                  { onSuccess: () => setNovo({ ...novo, nome: '' }), onError: erro }
+                  {
+                    onSuccess: () => setNovo({ ...novo, nome: '', estaca: '', acesso: '' }),
+                    onError: erro
+                  }
                 )
               }}
             >
-              <div className="min-w-[8rem] flex-1">
+              <div className="min-w-[10rem] flex-1">
                 <Input
                   value={novo.nome}
                   onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
@@ -210,7 +271,7 @@ function Inner(): ReactNode {
                   className="h-7 text-xs"
                 />
               </div>
-              <div className="w-32 shrink-0">
+              <div className="w-40 shrink-0">
                 <Select
                   value={novo.tipo}
                   onChange={(e) =>
@@ -231,9 +292,9 @@ function Inner(): ReactNode {
                   value={novo.trecho}
                   onChange={(e) => setNovo({ ...novo, trecho: e.target.value })}
                   className="h-7 text-xs"
-                  aria-label="Local da obra do novo local"
+                  aria-label="Trecho do novo local"
                 >
-                  <option value="">local da obra: —</option>
+                  <option value="">trecho: —</option>
                   {trechos.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
@@ -241,6 +302,27 @@ function Inner(): ReactNode {
                   ))}
                 </Select>
               </div>
+              {novo.tipo !== 'pista' ? (
+                <>
+                  <Input
+                    value={novo.estaca}
+                    onChange={(e) => setNovo({ ...novo, estaca: e.target.value })}
+                    disabled={!eixoNovo}
+                    placeholder={eixoNovo ? formatMarcador(0, ctxObraTrecho(eixoNovo)) : 'estaca'}
+                    aria-label="Estaca do acesso do novo local"
+                    title="Estaca onde o acesso encontra o eixo"
+                    className="h-7 w-28 font-mono text-xs"
+                  />
+                  <Input
+                    value={novo.acesso}
+                    onChange={(e) => setNovo({ ...novo, acesso: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="acesso km"
+                    aria-label="Distância do acesso do novo local"
+                    className="h-7 w-20 font-mono text-xs"
+                  />
+                </>
+              ) : null}
               <Button size="sm" type="submit">
                 <Plus size={12} /> Incluir
               </Button>
@@ -251,11 +333,11 @@ function Inner(): ReactNode {
         <section className="flex min-h-0 flex-col rounded border border-border bg-bg-panel">
           <div className="border-b border-border px-3 py-2">
             <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">
-              Rotas e DMT
+              Distâncias fixas (pares fora do eixo)
             </h3>
             <p className="mt-1 text-2xs text-text-dim">
-              Distância média de transporte de cada par origem → destino; vira o DMT padrão da
-              viagem (editável na viagem).
+              Para o par que não se liga pelo eixo (usina distante, outro trecho). A distância
+              cadastrada vale para toda viagem do par, no lugar do cálculo pelas estacas.
             </p>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -269,7 +351,7 @@ function Inner(): ReactNode {
                 <span className="truncate text-text">{nome(r.destino_id)}</span>
                 <Input
                   key={r.dmt_km}
-                  defaultValue={String(r.dmt_km).replace('.', ',')}
+                  defaultValue={txtKm(r.dmt_km)}
                   disabled={ro}
                   inputMode="decimal"
                   onBlur={(e) => {
@@ -291,7 +373,7 @@ function Inner(): ReactNode {
                 {!ro ? (
                   <button
                     type="button"
-                    title="Remover rota"
+                    title="Remover distância fixa"
                     onClick={() =>
                       salvarRota.mutate(
                         {
@@ -311,7 +393,9 @@ function Inner(): ReactNode {
               </div>
             ))}
             {!rotas.length ? (
-              <p className="px-3 py-4 text-xs text-text-dim">Nenhuma rota.</p>
+              <p className="px-3 py-4 text-xs text-text-dim">
+                Nenhuma: as viagens usam a distância pelo eixo.
+              </p>
             ) : null}
           </div>
           {!ro ? (
@@ -321,7 +405,7 @@ function Inner(): ReactNode {
                 e.preventDefault()
                 const dmt = parseQtd(rota.dmt)
                 if (!rota.origem || !rota.destino || dmt == null) {
-                  toast.error('Escolha a origem e o destino e informe o DMT em km.')
+                  toast.error('Escolha a origem e o destino e informe a distância em km.')
                   return
                 }
                 salvarRota.mutate(

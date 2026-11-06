@@ -2,7 +2,7 @@ import { db } from '@/core/db/dexie'
 import { syncEndpoints } from '@/core/api/endpoints'
 import { ApiError } from '@/core/api/fetchClient'
 import { sessionStore } from '@/core/auth/SessionStore'
-import type { OutFicha } from '@/core/db/entities'
+import type { OutFicha, ViagemLocal } from '@/core/db/entities'
 import type { FichaDto } from '@/types/dtos'
 
 /**
@@ -71,6 +71,16 @@ async function doPush(): Promise<PushSummary> {
   return summary
 }
 
+/** Estacas de carga/descarga; a viagem gravada antes da DMT pelo eixo tinha uma só (a ponta na pista). */
+function estacas(v: ViagemLocal): {
+  estaca_carga_m: number | null
+  estaca_descarga_m: number | null
+} {
+  if (v.estacaCargaM !== undefined || v.estacaDescargaM !== undefined)
+    return { estaca_carga_m: v.estacaCargaM ?? null, estaca_descarga_m: v.estacaDescargaM ?? null }
+  return { estaca_carga_m: v.posicaoM ?? null, estaca_descarga_m: v.posicaoM ?? null }
+}
+
 function paraDto(f: OutFicha): FichaDto {
   return {
     id: f.id,
@@ -80,8 +90,6 @@ function paraDto(f: OutFicha): FichaDto {
     motorista: f.motorista,
     encarregado_id: f.encarregadoId,
     equipe_id: f.equipeId,
-    km_inicial: f.kmInicial,
-    km_final: f.kmFinal,
     obs: f.obs,
     origem: 'campo',
     viagens: f.viagens.map((v) => ({
@@ -91,13 +99,14 @@ function paraDto(f: OutFicha): FichaDto {
       destino_id: v.destinoId,
       hora_carga: v.horaCarga,
       hora_descarga: v.horaDescarga,
-      quantidade: v.quantidade,
+      quantidade: v.volumeM3 == null && v.pesoT == null ? v.quantidade : null,
+      volume_m3: v.volumeM3 ?? null,
+      peso_t: v.pesoT ?? null,
       material_qtd: v.materialQtd,
-      dmt_km: v.dmtKm,
+      dmt_km: v.dmtManual ? v.dmtKm : null,
+      dmt_manual: !!v.dmtManual,
       nf_ticket: v.nfTicket,
-      trecho_id: v.trechoId,
-      posicao_inicio_m: v.posicaoM,
-      posicao_fim_m: v.posicaoM,
+      ...estacas(v),
       obs: v.obs,
       carregador_id: v.carregadorId ?? null,
     })),
