@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Search, Star, ChevronDown, LogOut, User, Building2, Folder, KeyRound } from 'lucide-react'
+import { Search, Star, ChevronDown, LogOut, User, Building2, Folder, Bot } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -7,7 +7,8 @@ import { useEmpresas } from '@/features/gerencial/hooks'
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '@/components/ui/dropdown'
 import { cn } from '@/lib/utils'
 import infraworkIcon from '@/assets/infrawork-icon.png'
-import { TokensIADialog } from '@/features/gerencial/modals/TokensIADialog'
+import { PontoEstado, TokensIADialog } from '@/features/gerencial/modals/TokensIADialog'
+import { useStatusMcp } from '@/features/gerencial/hooks/mcp'
 
 /**
  * Barra de título (estilo VSCode), unificando marca, busca, seletor de
@@ -173,14 +174,43 @@ export function UserMenu(): ReactNode {
           {empresa ? empresa.nome : 'Acesso global'}
         </div>
         <DropdownSeparator />
+        <DropdownLabel>IA (MCP)</DropdownLabel>
+        <StatusMcpMenu />
         <DropdownItem onClick={() => setTokensAberto(true)}>
-          <KeyRound size={11} /> Conectar IA (MCP)
+          <Bot size={11} /> Conectar IA, tokens e status…
         </DropdownItem>
+        <DropdownSeparator />
         <DropdownItem variant="danger" onClick={() => void signOut()}>
           <LogOut size={11} /> Sair
         </DropdownItem>
       </Dropdown>
       <TokensIADialog open={tokensAberto} onOpenChange={setTokensAberto} />
     </>
+  )
+}
+
+/** Linha de status do MCP no menu do usuário (só consulta quando o menu abre). */
+function StatusMcpMenu(): ReactNode {
+  const { status } = useStatusMcp()
+  const servidor =
+    status.servidor === 'ok' ? 'no ar' : status.servidor === 'off' ? 'fora do ar' : '…'
+  const oauth =
+    status.oauth === 'ok' ? 'login ligado' : status.oauth === 'off' ? 'login desligado' : '…'
+  return (
+    <div
+      className="px-2 pb-1.5 space-y-0.5 text-2xs font-mono text-text-muted"
+      data-testid="menu-mcp-status"
+    >
+      <div className="flex items-center gap-1.5">
+        <PontoEstado estado={status.servidor} /> servidor {servidor}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <PontoEstado estado={status.oauth} /> {oauth}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <PontoEstado estado={status.ativos.length > 0 ? 'ok' : 'off'} /> {status.ativos.length}{' '}
+        token(s) ativo(s)
+      </div>
+    </div>
   )
 }
