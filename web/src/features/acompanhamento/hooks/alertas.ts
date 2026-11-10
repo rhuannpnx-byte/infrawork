@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { adminApi } from '@/lib/supabase/functions'
 import type {
   AcompanhamentoAlerta,
@@ -28,20 +29,23 @@ export function useAlertas(
     staleTime: 30 * 1000,
     queryFn: async () => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      let q = supabase
-        .from('acompanhamento_alerta')
-        .select('*')
-        .eq('obra_id', obraId!)
-        .order('severidade')
-        .order('criado_em', { ascending: false })
-        .limit(1000)
+      const sb = supabase
       const statuses = filtros.status?.length ? filtros.status : ['aberto']
-      q = q.in('status', statuses)
-      if (filtros.severidade?.length) q = q.in('severidade', filtros.severidade)
-      if (filtros.tipo?.length) q = q.in('tipo', filtros.tipo)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []) as AcompanhamentoAlerta[]
+      const data = await lerTodas((de, ate) => {
+        let q = sb
+          .from('acompanhamento_alerta')
+          .select('*')
+          .eq('obra_id', obraId!)
+          .in('status', statuses)
+        if (filtros.severidade?.length) q = q.in('severidade', filtros.severidade)
+        if (filtros.tipo?.length) q = q.in('tipo', filtros.tipo)
+        return q
+          .order('severidade')
+          .order('criado_em', { ascending: false })
+          .order('id')
+          .range(de, ate)
+      })
+      return data as unknown as AcompanhamentoAlerta[]
     }
   })
 }

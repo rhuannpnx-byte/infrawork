@@ -37,12 +37,25 @@ export async function ler<T = Record<string, unknown>>(
   const sb = ctxAtual().sb
   const limite = opts.limite ?? 50_000
   const out: T[] = []
+  // páginas só são estáveis com ordem total: desempata por id (tabela/view sem id lê sem desempate)
+  let desempate = !(opts.ordem ?? []).some((o) => o.coluna === 'id')
   for (let de = 0; de < limite; de += PASSO) {
     let q: Q = sb.from(tabela).select(opts.colunas ?? '*')
     q = aplicar(q, opts.filtros ?? [])
     for (const o of opts.ordem ?? []) q = q.order(o.coluna, { ascending: o.asc ?? true })
+    if (desempate) q = q.order('id')
     const ate = Math.min(de + PASSO, limite) - 1
     const { data, error } = await q.range(de, ate)
+    if (
+      error &&
+      desempate &&
+      de === 0 &&
+      /\bid\b.*does not exist|42703/.test(`${error.message} ${error.code}`)
+    ) {
+      desempate = false
+      de -= PASSO
+      continue
+    }
     if (error) throw new Error(`${tabela}: ${error.message}`)
     out.push(...((data ?? []) as T[]))
     if (!data || data.length < ate - de + 1) break

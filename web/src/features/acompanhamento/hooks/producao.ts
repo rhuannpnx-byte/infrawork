@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ProducaoEnriquecida, ProducaoOrigem } from '@/types/acompanhamento'
 import { downloadBlob } from '@/lib/files/download'
@@ -44,31 +45,29 @@ export function useProducao(
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      let q = isCliente
-        ? supabase
-            .rpc('cliente_producao', { _obra_id: obraId! })
-            .select(PROD_COLS)
-            .order('data', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(5000)
-        : supabase
-            .from('vw_acompanhamento_producao_enriquecida')
-            .select(PROD_COLS)
-            .eq('obra_id', obraId!)
-            .order('data', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(5000)
-      if (filtros.data_de) q = q.gte('data', filtros.data_de)
-      if (filtros.data_ate) q = q.lte('data', filtros.data_ate)
-      if (filtros.equipe_ids?.length) q = q.in('equipe_id', filtros.equipe_ids)
-      if (filtros.encarregado_ids?.length) q = q.in('encarregado_id', filtros.encarregado_ids)
-      if (filtros.item_ids?.length) q = q.in('item_orcamentario_id', filtros.item_ids)
-      if (filtros.frente) q = q.eq('frente', filtros.frente)
-      if (filtros.origem) q = q.eq('origem', filtros.origem)
-      if (filtros.texto?.trim()) q = q.ilike('obs', `%${filtros.texto.trim()}%`)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []) as unknown as ProducaoEnriquecida[]
+      const sb = supabase
+      const data = await lerTodas((de, ate) => {
+        let q = isCliente
+          ? sb.rpc('cliente_producao', { _obra_id: obraId! }).select(PROD_COLS)
+          : sb
+              .from('vw_acompanhamento_producao_enriquecida')
+              .select(PROD_COLS)
+              .eq('obra_id', obraId!)
+        if (filtros.data_de) q = q.gte('data', filtros.data_de)
+        if (filtros.data_ate) q = q.lte('data', filtros.data_ate)
+        if (filtros.equipe_ids?.length) q = q.in('equipe_id', filtros.equipe_ids)
+        if (filtros.encarregado_ids?.length) q = q.in('encarregado_id', filtros.encarregado_ids)
+        if (filtros.item_ids?.length) q = q.in('item_orcamentario_id', filtros.item_ids)
+        if (filtros.frente) q = q.eq('frente', filtros.frente)
+        if (filtros.origem) q = q.eq('origem', filtros.origem)
+        if (filtros.texto?.trim()) q = q.ilike('obs', `%${filtros.texto.trim()}%`)
+        return q
+          .order('data', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id')
+          .range(de, ate)
+      })
+      return data as unknown as ProducaoEnriquecida[]
     }
   })
 }
@@ -81,14 +80,17 @@ export function useProducaoPorTarefa(
     enabled: !!tarefaId,
     queryFn: async () => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { data, error } = await supabase
-        .from('vw_acompanhamento_producao_enriquecida')
-        .select(PROD_COLS)
-        .eq('tarefa_baseline_id', tarefaId!)
-        .order('data', { ascending: false })
-        .limit(1000)
-      if (error) throw error
-      return (data ?? []) as unknown as ProducaoEnriquecida[]
+      const sb = supabase
+      const data = await lerTodas((de, ate) =>
+        sb
+          .from('vw_acompanhamento_producao_enriquecida')
+          .select(PROD_COLS)
+          .eq('tarefa_baseline_id', tarefaId!)
+          .order('data', { ascending: false })
+          .order('id')
+          .range(de, ate)
+      )
+      return data as unknown as ProducaoEnriquecida[]
     }
   })
 }

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { useAuthStore } from '@/stores/auth-store'
 import type { PrevistoRealizadoItem, CurvaSPonto } from '@/types/acompanhamento'
 
@@ -54,23 +55,18 @@ export function useCurvaS(
       const limite = new Date()
       limite.setDate(limite.getDate() - diasAtras)
       const desde = limite.toISOString().slice(0, 10)
-      const q = isCliente
-        ? supabase
-            .rpc('cliente_curva_s', { _obra_id: obraId! })
-            .select(CURVA_S_COLS)
-            .gte('data', desde)
-            .order('data')
-            .limit(10000)
-        : supabase
-            .from('vw_acompanhamento_curva_s')
-            .select(CURVA_S_COLS)
-            .eq('obra_id', obraId!)
-            .gte('data', desde)
-            .order('data')
-            .limit(10000)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []) as unknown as CurvaSPonto[]
+      const sb = supabase
+      const data = await lerTodas((de, ate) =>
+        (isCliente
+          ? sb.rpc('cliente_curva_s', { _obra_id: obraId! }).select(CURVA_S_COLS)
+          : sb.from('vw_acompanhamento_curva_s').select(CURVA_S_COLS).eq('obra_id', obraId!)
+        )
+          .gte('data', desde)
+          .order('data')
+          .order('item_orcamentario_id')
+          .range(de, ate)
+      )
+      return data as unknown as CurvaSPonto[]
     }
   })
 }

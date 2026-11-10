@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { adminApi } from '@/lib/supabase/functions'
 import type { DashboardResumoResposta, ProducaoEnriquecida } from '@/types/acompanhamento'
 
@@ -41,21 +42,22 @@ export function useProducoesDashboard(
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      let q = supabase
-        .from('vw_acompanhamento_producao_enriquecida')
-        .select(
-          'id, obra_id, data, item_orcamentario_id, servico_id, servico_nome, servico_display_nome, ' +
-            'equipe_id, equipe_display_nome, equipe_display_cor, ' +
-            'encarregado_id, encarregado_display_nome, qtd, qtd_convertida, unidade_plano, frente, fotos_count'
-        )
-        .eq('obra_id', obraId!)
-        .gte('data', dataDe)
-        .lte('data', dataAte)
-        .limit(10000)
-      if (filtroItemId) q = q.eq('item_orcamentario_id', filtroItemId)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []) as unknown as ProducaoEnriquecida[]
+      const sb = supabase
+      const data = await lerTodas((de, ate) => {
+        let q = sb
+          .from('vw_acompanhamento_producao_enriquecida')
+          .select(
+            'id, obra_id, data, item_orcamentario_id, servico_id, servico_nome, servico_display_nome, ' +
+              'equipe_id, equipe_display_nome, equipe_display_cor, ' +
+              'encarregado_id, encarregado_display_nome, qtd, qtd_convertida, unidade_plano, frente, fotos_count'
+          )
+          .eq('obra_id', obraId!)
+          .gte('data', dataDe)
+          .lte('data', dataAte)
+        if (filtroItemId) q = q.eq('item_orcamentario_id', filtroItemId)
+        return q.order('data').order('id').range(de, ate)
+      })
+      return data as unknown as ProducaoEnriquecida[]
     }
   })
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import type { ModoQuantidade, TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 import type { SegmentoValores as SegmentoTrecho } from '@/lib/quantidades/segmentos'
 import { fetchTemplateAtual } from './trechos'
@@ -154,13 +155,17 @@ export function useQuantidadesEmTarefas(
     enabled: !!planejamentoId,
     queryFn: async () => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { data, error } = await supabase
-        .from('planejamento_tarefa_local')
-        .select('trecho_id, quantidade, qtd_origem, tarefa:tarefa_id(item_orcamentario_id)')
-        .eq('planejamento_id', planejamentoId!)
-        .not('trecho_id', 'is', null)
-      if (error) throw error
-      return (data ?? []).flatMap((r) => {
+      const sb = supabase
+      const data = await lerTodas((de, ate) =>
+        sb
+          .from('planejamento_tarefa_local')
+          .select('trecho_id, quantidade, qtd_origem, tarefa:tarefa_id(item_orcamentario_id)')
+          .eq('planejamento_id', planejamentoId!)
+          .not('trecho_id', 'is', null)
+          .order('id')
+          .range(de, ate)
+      )
+      return data.flatMap((r) => {
         const raw = (r as unknown as { tarefa: unknown }).tarefa
         const t = (Array.isArray(raw) ? raw[0] : raw) as { item_orcamentario_id: string } | null
         if (!t?.item_orcamentario_id) return []

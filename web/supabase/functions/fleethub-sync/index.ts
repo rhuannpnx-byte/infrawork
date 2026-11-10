@@ -5,6 +5,7 @@
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { handlePreflight, json } from '../_shared/cors.ts'
+import { lerTodas } from '../_shared/paginar.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import {
   cubagemM3,
@@ -163,10 +164,15 @@ async function gravar(admin: SupabaseClient, empresa: string, dados: Awaited<Ret
   const obraPorNomeCI = new Map<string, string>()
   for (const o of obras ?? []) if (!obraPorNomeCI.has(o.nome.toUpperCase())) obraPorNomeCI.set(o.nome.toUpperCase(), o.id)
 
-  const { data: frota, error: eFrota } = await admin
-    .from('frota_veiculo')
-    .select('id, fleet_id, prefixo, origem, ativo')
-    .eq('empresa_id', empresa)
+  // a frota da empresa passa de 1000: ler tudo, senão veículos existentes parecem novos
+  const { data: frota, error: eFrota } = await lerTodas<Record<string, unknown>>((de, ate) =>
+    admin
+      .from('frota_veiculo')
+      .select('id, fleet_id, prefixo, origem, ativo')
+      .eq('empresa_id', empresa)
+      .order('id')
+      .range(de, ate)
+  )
   if (eFrota) throw eFrota
   const porFleet = new Map((frota ?? []).filter((v) => v.fleet_id != null).map((v) => [v.fleet_id as number, v]))
   const porPrefixo = new Map((frota ?? []).map((v) => [v.prefixo as string, v]))

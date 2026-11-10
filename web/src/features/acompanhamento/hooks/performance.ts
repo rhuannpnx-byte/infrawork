@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import type {
   PerfHistorico,
   ProducaoEnriquecida,
@@ -33,16 +34,19 @@ export function useProducaoPerformance(
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
       if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { data, error } = await supabase
-        .from('vw_acompanhamento_producao_enriquecida')
-        .select(PERF_COLS)
-        .eq('obra_id', obraId!)
-        .gte('data', dataDe)
-        .lte('data', dataAte)
-        .order('data')
-        .limit(20000)
-      if (error) throw error
-      return (data ?? []) as unknown as ProducaoEnriquecida[]
+      const sb = supabase
+      const data = await lerTodas((de, ate) =>
+        sb
+          .from('vw_acompanhamento_producao_enriquecida')
+          .select(PERF_COLS)
+          .eq('obra_id', obraId!)
+          .gte('data', dataDe)
+          .lte('data', dataAte)
+          .order('data')
+          .order('id')
+          .range(de, ate)
+      )
+      return data as unknown as ProducaoEnriquecida[]
     }
   })
 }

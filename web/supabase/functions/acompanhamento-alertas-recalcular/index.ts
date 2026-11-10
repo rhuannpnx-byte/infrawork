@@ -10,6 +10,7 @@
 // Permissão: service_role (cron) OU god/adm/eng com acesso à obra.
 
 import { handlePreflight, json } from '../_shared/cors.ts'
+import { lerTodas } from '../_shared/paginar.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import { assertObraAccess } from '../_shared/orc.ts'
 import { addDiasIso, dataLocal, hojeLocal, semanaIsoLocal } from '../_shared/dates.ts'
@@ -33,15 +34,23 @@ async function recalcOneObra(
   const novos: AlertaSpec[] = []
 
   const [prodResp, fotosResp, prevRealResp, produtResp] = await Promise.all([
-    admin
-      .from('acompanhamento_producao')
-      .select('id, data, equipe_id, encarregado_id, item_orcamentario_id, servico_nome, quantidade, fator_conversao, origem')
-      .eq('obra_id', obraId),
-    admin
-      .from('acompanhamento_foto')
-      .select('id, producao_id, captured_at, item_orcamentario_id')
-      .eq('obra_id', obraId)
-      .is('excluida_em', null),
+    lerTodas((de, ate) =>
+      admin
+        .from('acompanhamento_producao')
+        .select('id, data, equipe_id, encarregado_id, item_orcamentario_id, servico_nome, quantidade, fator_conversao, origem')
+        .eq('obra_id', obraId)
+        .order('id')
+        .range(de, ate)
+    ),
+    lerTodas((de, ate) =>
+      admin
+        .from('acompanhamento_foto')
+        .select('id, producao_id, captured_at, item_orcamentario_id')
+        .eq('obra_id', obraId)
+        .is('excluida_em', null)
+        .order('id')
+        .range(de, ate)
+    ),
     admin
       .from('vw_acompanhamento_previsto_x_realizado')
       .select('tarefa_id, codigo, descricao, qtd_plan, qtd_real, pct_avanco, pct_esperado_hoje, data_inicio_plan, data_fim_plan, status, desvio_dias_estimado, data_ultima_realizacao, item_orcamentario_id')

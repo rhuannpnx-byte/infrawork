@@ -5,6 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 
 export type TipoVeiculo =
   | 'basculante'
@@ -167,13 +168,16 @@ export function useFrota(
     queryKey: ['frota', empresaId],
     enabled: !!empresaId,
     queryFn: async () => {
-      const { data, error } = await sb()
-        .from('frota_veiculo')
-        .select('*')
-        .eq('empresa_id', empresaId!)
-        .order('prefixo')
-      if (error) throw error
-      return (data ?? []).map(veiculoDe)
+      const data = await lerTodas((de, ate) =>
+        sb()
+          .from('frota_veiculo')
+          .select('*')
+          .eq('empresa_id', empresaId!)
+          .order('prefixo')
+          .order('id')
+          .range(de, ate)
+      )
+      return data.map(veiculoDe)
     }
   })
 }
@@ -490,17 +494,20 @@ export function useFichasViagens(
     queryKey: ['viagens', obraId, de, ate],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb()
-        .from('viagem_ficha')
-        .select('*, viagens:viagem(*)')
-        .eq('obra_id', obraId!)
-        .gte('data', de)
-        .lte('data', ate)
-        .order('data', { ascending: false })
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return (data ?? []).map((f) => ({
-        ...(f as FichaViagens),
+      const data = await lerTodas((ini, fim) =>
+        sb()
+          .from('viagem_ficha')
+          .select('*, viagens:viagem(*)')
+          .eq('obra_id', obraId!)
+          .gte('data', de)
+          .lte('data', ate)
+          .order('data', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id')
+          .range(ini, fim)
+      )
+      return data.map((f) => ({
+        ...(f as unknown as FichaViagens),
         viagens: ((f.viagens ?? []) as Viagem[])
           .map((v) => ({
             ...v,

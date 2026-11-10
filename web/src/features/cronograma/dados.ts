@@ -6,6 +6,7 @@
  * (calendários, dependências entre serviços, equipe de cada tarefa e os trechos de tarefa calculados).
  */
 import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import type { ControleEntrada } from './motor/controle'
 import { fetchTemplateAtual } from '@/features/planejamento/hooks/trechos'
@@ -37,10 +38,11 @@ const n = (v: unknown, d = 0): number => {
 }
 const nn = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : n(v))
 
-async function todos<T>(q: () => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const { data, error } = await q()
-  if (error) throw error
-  return data ?? []
+/** Lê todas as linhas (a API corta em 1000 por chamada); consultas que podem passar disso terminam em `.order('id')`. */
+async function todos<T>(
+  q: () => { range: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<T[]> {
+  return lerTodas<T>((de, ate) => q().range(de, ate))
 }
 
 interface PlanoRow {
@@ -417,6 +419,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
             .in('item_orcamentario_id', itens)
             .lte('data', data)
             .order('data')
+            .order('id')
         )
       : []
     controle = {
