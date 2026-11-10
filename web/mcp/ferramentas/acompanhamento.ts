@@ -670,9 +670,10 @@ export const alertas = ferramenta({
   nome: 'alertas',
   titulo: 'Alertas da obra',
   descricao:
-    'Alertas automáticos (atraso, produtividade, sem lançamento…). acao: listar (status aberto|silenciado|' +
-    'resolvido) | silenciar (até uma data) | resolver | reabrir | recalcular (roda as regras agora; também roda ' +
-    'de hora em hora).',
+    'Alertas automáticos (atraso, produtividade, sem lançamento, sem foto…). acao: listar (status aberto|' +
+    'silenciado|resolvido; resolvido_automaticamente=true quando a condição sumiu) | silenciar (até uma data) | ' +
+    'resolver | reabrir | recalcular (roda as regras agora; também roda de hora em hora). Silenciado ou resolvido ' +
+    'à mão não volta a abrir com a mesma chave (tipo + tarefa/serviço/equipe + período).',
   entrada: {
     acao: z.enum(['listar', 'silenciar', 'resolver', 'reabrir', 'recalcular']),
     obra_id: OBRA,
@@ -680,7 +681,11 @@ export const alertas = ferramenta({
     status: z.enum(['aberto', 'silenciado', 'resolvido']).optional(),
     ate: z.string().optional().describe('silenciar até (ISO)')
   },
-  cobre: { tabelas: ['acompanhamento_alerta'], funcoes: ['acompanhamento-alertas-recalcular'] },
+  cobre: {
+    tabelas: ['acompanhamento_alerta'],
+    rpcs: ['acompanhamento_alertas_sincronizar'],
+    funcoes: ['acompanhamento-alertas-recalcular']
+  },
   async executar(a) {
     const id = () => exigir(a.id, 'id', a.acao)
     switch (a.acao) {
@@ -703,7 +708,11 @@ export const alertas = ferramenta({
           await gravar(
             'acompanhamento_alerta',
             'update',
-            { status: 'resolvido', resolvido_em: new Date().toISOString() },
+            {
+              status: 'resolvido',
+              resolvido_em: new Date().toISOString(),
+              resolvido_automaticamente: false
+            },
             [eq('id', id())]
           )
         )[0]
@@ -712,7 +721,12 @@ export const alertas = ferramenta({
           await gravar(
             'acompanhamento_alerta',
             'update',
-            { status: 'aberto', silenciado_ate: null, resolvido_em: null },
+            {
+              status: 'aberto',
+              silenciado_ate: null,
+              resolvido_em: null,
+              resolvido_automaticamente: false
+            },
             [eq('id', id())]
           )
         )[0]

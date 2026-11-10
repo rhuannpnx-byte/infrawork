@@ -567,7 +567,39 @@ try {
     `${wb.worksheets.map((w) => w.name).join(', ')}`
   )
 
-  // ── 8. Papéis ──────────────────────────────────────────────────────────────────────────────────
+  // ── 8. Alertas ─────────────────────────────────────────────────────────────────────────────────
+  // chave estável: a rodada seguinte não recria; silenciado continua calado; "sem foto" é um por serviço
+  const recalc = async () =>
+    (await chamar('alertas', { acao: 'recalcular', obra_id: O })).resultados[0]
+  const ra = await recalc()
+  const rb = await recalc()
+  check(
+    'alertas: a rodada seguinte não recria nem resolve',
+    rb.inseridos === 0 && rb.resolvidos === 0 && rb.abertos === ra.abertos && ra.abertos > 0,
+    JSON.stringify(rb)
+  )
+  const abertos = await chamar('alertas', { acao: 'listar', obra_id: O, status: 'aberto' })
+  const semFoto = abertos.filter((a) => a.tipo === 'sem_foto_periodo')
+  check(
+    'sem foto: um alerta por serviço, sem a produção das viagens',
+    semFoto.length === 1 && semFoto[0].contexto?.item_orcamentario_id === sBase.id,
+    JSON.stringify(semFoto.map((a) => a.titulo))
+  )
+  if (semFoto[0]) {
+    const amanha = new Date(Date.now() + 86400000).toISOString()
+    await chamar('alertas', { acao: 'silenciar', obra_id: O, id: semFoto[0].id, ate: amanha })
+    const rc = await recalc()
+    const todos = await chamar('alertas', { acao: 'listar', obra_id: O })
+    check(
+      'alerta silenciado não reabre na rodada seguinte',
+      todos.find((a) => a.id === semFoto[0].id)?.status === 'silenciado' &&
+        rc.inseridos === 0 &&
+        !todos.some((a) => a.status === 'aberto' && a.tipo === 'sem_foto_periodo'),
+      JSON.stringify(rc)
+    )
+  }
+
+  // ── 9. Papéis ──────────────────────────────────────────────────────────────────────────────────
   if (process.env.E2E_APONTADOR && process.env.E2E_APONTADOR_SENHA) {
     const apt = await conectar(process.env.E2E_APONTADOR, process.env.E2E_APONTADOR_SENHA)
     const r = await apt.tentar('equipes', { acao: 'criar_equipe', obra_id: O, nome: 'X' })
@@ -579,7 +611,7 @@ try {
     await apt.c.close()
   }
 } finally {
-  // ── 9. Exclusão com confirmação ────────────────────────────────────────────────────────────────
+  // ── 10. Exclusão com confirmação ────────────────────────────────────────────────────────────────
   const p = await chamar('obras', { acao: 'excluir', obra_id: O })
   check(
     'excluir obra sem confirmar mostra o impacto',

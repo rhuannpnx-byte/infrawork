@@ -46,6 +46,10 @@ violada — repasse-as ao usuário em vez de tentar contornar.
   Sem nenhum dos dois, o banco recusa. DMT ajustada (dmt_manual) guarda a calculada ao lado. A quantidade é a que
   o usuário informa, na unidade do serviço: o sistema não aplica empolamento nem densidade (variam por material e
   ensaio) — pergunte, não presuma. Serviço medido por peso (parametros_servico.medicao_viagem) exige o ticket.
+- **Alertas**: recalculados de hora em hora. Cada um tem uma chave (tipo + tarefa/serviço/equipe + semana, mês ou
+  episódio): o que continua mantém a data de abertura e só atualiza os números; o que sumiu fica "resolvido"
+  automaticamente. Silenciado (até a data) ou resolvido à mão não reabre com a mesma chave. "Sem foto" é um por
+  serviço nos últimos 7 dias e ignora produção importada e de viagens (a evidência é a planilha/ficha).
   Não há hodômetro. A medição desses serviços sai como quadro de distribuição (origem → destino com as estacas,
   DMT, momento).
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.

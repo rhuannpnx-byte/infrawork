@@ -4,8 +4,9 @@
 // - Sem obra_id: percorre todas as obras ativas (cron horário).
 // - Com obra_id: recalcula só aquela obra.
 //
-// Estratégia: calcula o conjunto novo de alertas "abertos" e substitui os
-// abertos anteriores (silenciados/resolvidos ficam intactos).
+// Estratégia: calcula os alertas de agora, cada um com uma chave estável (tipo + serviço/tarefa/equipe + período),
+// e sincroniza pela RPC acompanhamento_alertas_sincronizar (atualiza os que continuam, resolve os que sumiram,
+// insere os novos; silenciado ou resolvido à mão com a mesma chave não reabre).
 //
 // Permissão: service_role (cron) OU god/adm/eng com acesso à obra.
 
@@ -17,8 +18,19 @@ import { addDiasIso, dataLocal, hojeLocal, semanaIsoLocal } from '../_shared/dat
 
 interface Body { obra_id?: string }
 
+interface Resultado {
+  inseridos: number
+  atualizados: number
+  reabertos: number
+  resolvidos: number
+  abertos: number
+  total: number
+  erros: string[]
+}
+
 interface AlertaSpec {
   obra_id: string
+  chave: string
   tipo: string
   severidade: 'info' | 'warn' | 'critical'
   titulo: string
@@ -29,7 +41,7 @@ interface AlertaSpec {
 async function recalcOneObra(
   obraId: string,
   admin: ReturnType<typeof import('jsr:@supabase/supabase-js@2').createClient>
-): Promise<{ inseridos: number; resolvidos: number; total: number; erros: string[] }> {
+): Promise<Resultado> {
   const erros: string[] = []
   const novos: AlertaSpec[] = []
 
@@ -77,6 +89,7 @@ async function recalcOneObra(
   if (semEquipe.length > 0) {
     novos.push({
       obra_id: obraId,
+      chave: `lancamento_sem_equipe|semana:${semanaIso}`,
       tipo: 'lancamento_sem_equipe',
       severidade: 'info',
       titulo: `${semEquipe.length} lançamento(s) sem equipe nos últimos 7 dias`,
@@ -96,6 +109,7 @@ async function recalcOneObra(
       if (String(t.data_inicio_plan) < addDiasIso(hojeIso, -3)) {
         novos.push({
           obra_id: obraId,
+          chave: `producao_zero_dias|tarefa:${t.tarefa_id}|desde:nunca`,
           tipo: 'producao_zero_dias',
           severidade: 'warn',
           titulo: `${nomeSrv} — sem lançamento`,
@@ -108,6 +122,7 @@ async function recalcOneObra(
       if (diff >= 3) {
         novos.push({
           obra_id: obraId,
+          chave: `producao_zero_dias|tarefa:${t.tarefa_id}|desde:${ultima}`,
           tipo: 'producao_zero_dias',
           severidade: 'warn',
           titulo: `${nomeSrv} — sem lançamento há ${diff} dias`,
@@ -129,6 +144,7 @@ async function recalcOneObra(
     if (ratio < 0.4) {
       novos.push({
         obra_id: obraId,
+        chave: `desvio_quantidade|tarefa:${t.tarefa_id}|mes:${mesIso}`,
         tipo: 'desvio_quantidade',
         severidade: 'critical',
         titulo: `${nomeSrv} — avanço crítico (${Math.round(ratio * 100)}% do esperado)`,
@@ -138,6 +154,7 @@ async function recalcOneObra(
     } else if (ratio < 0.7) {
       novos.push({
         obra_id: obraId,
+        chave: `desvio_quantidade|tarefa:${t.tarefa_id}|mes:${mesIso}`,
         tipo: 'desvio_quantidade',
         severidade: 'warn',
         titulo: `${nomeSrv} — avanço abaixo do esperado (${Math.round(ratio * 100)}%)`,
@@ -155,11 +172,12 @@ async function recalcOneObra(
     if (Number(t.desvio_dias_estimado) < -7) {
       novos.push({
         obra_id: obraId,
+        chave: `desvio_prazo|tarefa:${t.tarefa_id}|mes:${mesIso}`,
         tipo: 'desvio_prazo',
         severidade: 'critical',
         titulo: `${nomeSrv} — projeção de atraso de ${Math.abs(Number(t.desvio_dias_estimado))} dias`,
         descricao: 'Mantida a produção atual, a conclusão fica depois do prazo do baseline.',
-        contexto: { tarefa_id: t.tarefa_id, item_orcamentario_id: t.item_orcamentario_id, codigo: codigoSrv, descricao: nomeSrv, dias_atraso: Math.abs(Number(t.desvio_dias_estimado)) }
+        contexto: { tarefa_id: t.tarefa_id, item_orcamentario_id: t.item_orcamentario_id, codigo: codigoSrv, descricao: nomeSrv, dias_atraso: Math.abs(Number(t.desvio_dias_estimado)), mes: mesIso }
       })
     }
   }
@@ -172,6 +190,7 @@ async function recalcOneObra(
     if (Number(r.pct_aderencia_meta) < 0.6) {
       novos.push({
         obra_id: obraId,
+        chave: `produtividade_baixa|equipe:${r.equipe_id}|item:${r.item_orcamentario_id ?? r.servico_nome}|mes:${mesIso}`,
         tipo: 'produtividade_baixa',
         severidade: 'warn',
         titulo: `${r.equipe_display_nome} — produtividade ${Math.round(Number(r.pct_aderencia_meta) * 100)}% da meta`,
@@ -187,7 +206,8 @@ async function recalcOneObra(
     }
   }
 
-  // ── 6) Produção relevante sem foto (±1 dia); importações isentas ────────
+  // ── 6) Produção sem foto (±1 dia) nos últimos 7 dias, um alerta por serviço ──
+  // Importação e viagens ficam de fora: a evidência é a planilha / a ficha e o ticket.
   const fotosPorProducao = new Set<string>()
   const fotosPorItemData = new Set<string>()
   for (const f of fotos) {
@@ -196,93 +216,63 @@ async function recalcOneObra(
       fotosPorItemData.add(`${f.item_orcamentario_id}|${dataLocal(f.captured_at as string)}`)
     }
   }
-  const qtds = prods
-    .map((p) => Number(p.quantidade ?? 0) * Number(p.fator_conversao ?? 1))
-    .filter((q) => q > 0)
-    .sort((a, b) => a - b)
-  const p50Qtd = qtds.length ? qtds[Math.floor(qtds.length / 2)] : 0
+  const temFoto = (p: Record<string, unknown>): boolean => {
+    if (fotosPorProducao.has(String(p.id))) return true
+    if (!p.item_orcamentario_id) return false
+    for (let off = -1; off <= 1; off++) {
+      if (fotosPorItemData.has(`${p.item_orcamentario_id}|${addDiasIso(String(p.data), off)}`)) return true
+    }
+    return false
+  }
+  const qtdConv = (p: Record<string, unknown>): number => Number(p.quantidade ?? 0) * Number(p.fator_conversao ?? 1)
+  const porServico = new Map<string, Record<string, unknown>[]>()
   for (const p of prods) {
     if (!p.data || p.quantidade == null) continue
-    if (p.origem === 'importacao') continue
-    const qtdConv = Number(p.quantidade) * Number(p.fator_conversao ?? 1)
-    if (qtdConv < p50Qtd) continue
-    if (fotosPorProducao.has(String(p.id))) continue
-    let found = false
-    if (p.item_orcamentario_id) {
-      for (let off = -1; off <= 1; off++) {
-        if (fotosPorItemData.has(`${p.item_orcamentario_id}|${addDiasIso(String(p.data), off)}`)) {
-          found = true
-          break
-        }
+    if (p.origem === 'importacao' || p.origem === 'viagens') continue
+    if (String(p.data) < seteDiasAtrasIso || String(p.data) > hojeIso) continue
+    if (qtdConv(p) <= 0) continue
+    const k = String(p.item_orcamentario_id ?? p.servico_nome ?? 'sem-servico')
+    const lista = porServico.get(k) ?? []
+    lista.push(p)
+    porServico.set(k, lista)
+  }
+  for (const [k, lista] of porServico) {
+    const qs = lista.map(qtdConv).sort((a, b) => a - b)
+    const p50 = qs[Math.floor(qs.length / 2)]
+    const semFoto = lista.filter((p) => qtdConv(p) >= p50 && !temFoto(p))
+    if (semFoto.length === 0) continue
+    const nome = String(semFoto[0].servico_nome ?? 'Serviço')
+    const datas = [...new Set(semFoto.map((p) => String(p.data)))].sort()
+    novos.push({
+      obra_id: obraId,
+      chave: `sem_foto_periodo|item:${k}|semana:${semanaIso}`,
+      tipo: 'sem_foto_periodo',
+      severidade: 'info',
+      titulo: `${nome} — ${semFoto.length} lançamento(s) sem foto nos últimos 7 dias`,
+      descricao: `Sem evidência fotográfica em ±1 dia: ${datas.map((d) => d.slice(8, 10) + '/' + d.slice(5, 7)).join(', ')}.`,
+      contexto: {
+        item_orcamentario_id: semFoto[0].item_orcamentario_id ?? null,
+        servico_nome: nome,
+        n: semFoto.length,
+        datas,
+        producao_ids: semFoto.map((p) => p.id),
+        semana: semanaIso
       }
-    }
-    if (!found) {
-      novos.push({
-        obra_id: obraId,
-        tipo: 'sem_foto_periodo',
-        severidade: 'info',
-        titulo: `Lançamento ${p.data} sem foto`,
-        descricao: `${p.servico_nome ?? 'serviço'} — qtd ${qtdConv.toFixed(0)} — sem evidência fotográfica em ±1 dia.`,
-        contexto: { producao_id: p.id, data: p.data, item_orcamentario_id: p.item_orcamentario_id, qtd: qtdConv }
-      })
-    }
+    })
   }
 
-  // ── Substitui os abertos ───────────────────────────────────────────────
-  let resolvidos = 0
-  {
-    const { count: resolvidosCount, error: delErr } = await admin
-      .from('acompanhamento_alerta')
-      .delete({ count: 'exact' })
-      .eq('obra_id', obraId)
-      .eq('status', 'aberto')
-    if (delErr) erros.push(`del abertos: ${delErr.message}`)
-    else resolvidos = resolvidosCount ?? 0
-  }
+  if (erros.length > 0) return { inseridos: 0, atualizados: 0, reabertos: 0, resolvidos: 0, abertos: 0, total: novos.length, erros }
 
-  let inseridos = 0
-  if (novos.length > 0) {
-    const BATCH = 100
-    for (let i = 0; i < novos.length; i += BATCH) {
-      const slice = novos.slice(i, i + BATCH)
-      const { error, count } = await admin.from('acompanhamento_alerta').insert(slice, { count: 'exact' })
-      if (error) erros.push(`insert lote ${i}: ${error.message}`)
-      else inseridos += count ?? slice.length
-    }
+  const { data: sinc, error: sincErr } = await admin.rpc('acompanhamento_alertas_sincronizar', {
+    p_obra_id: obraId,
+    p_alertas: novos.map(({ obra_id: _o, ...a }) => a)
+  })
+  if (sincErr) {
+    erros.push(`sincronizar: ${sincErr.message}`)
+    return { inseridos: 0, atualizados: 0, reabertos: 0, resolvidos: 0, abertos: 0, total: novos.length, erros }
   }
-
-  // Alertas silenciados (dentro do prazo) ou resolvidos à mão não voltam a abrir: o mesmo
-  // contexto_hash (tipo + contexto) recém-inserido como "aberto" sai.
-  {
-    const agora = new Date().toISOString()
-    const { data: calados } = await admin
-      .from('acompanhamento_alerta')
-      .select('contexto_hash, status, silenciado_ate, resolvido_automaticamente')
-      .eq('obra_id', obraId)
-      .neq('status', 'aberto')
-    const hashes = [
-      ...new Set(
-        (calados ?? [])
-          .filter((a) =>
-            a.status === 'silenciado'
-              ? !a.silenciado_ate || (a.silenciado_ate as string) > agora
-              : a.resolvido_automaticamente === false
-          )
-          .map((a) => a.contexto_hash as string)
-      )
-    ]
-    for (let i = 0; i < hashes.length; i += 200) {
-      const { count, error } = await admin
-        .from('acompanhamento_alerta')
-        .delete({ count: 'exact' })
-        .eq('obra_id', obraId)
-        .eq('status', 'aberto')
-        .in('contexto_hash', hashes.slice(i, i + 200))
-      if (error) erros.push(`calados: ${error.message}`)
-      else inseridos -= count ?? 0
-    }
-  }
-  return { inseridos, resolvidos, total: novos.length, erros }
+  const r = sinc as { inseridos: number; atualizados: number; reabertos: number; resolvidos: number; abertos: number }
+  return { ...r, total: novos.length, erros }
 }
 
 Deno.serve(async (req) => {
@@ -336,13 +326,13 @@ Deno.serve(async (req) => {
     obraIds = (data ?? []).map((r) => r.id as string)
   }
 
-  const resultados: Array<{ obra_id: string; inseridos: number; resolvidos: number; total: number; erros: string[] }> = []
+  const resultados: Array<{ obra_id: string } & Resultado> = []
   for (const id of obraIds) {
     try {
       const r = await recalcOneObra(id, admin)
       resultados.push({ obra_id: id, ...r })
     } catch (e) {
-      resultados.push({ obra_id: id, inseridos: 0, resolvidos: 0, total: 0, erros: [(e as Error).message] })
+      resultados.push({ obra_id: id, inseridos: 0, atualizados: 0, reabertos: 0, resolvidos: 0, abertos: 0, total: 0, erros: [(e as Error).message] })
     }
   }
 

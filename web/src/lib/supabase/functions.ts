@@ -152,7 +152,10 @@ export const adminApi = {
       resultados: Array<{
         obra_id: string
         inseridos: number
+        atualizados: number
+        reabertos: number
         resolvidos: number
+        abertos: number
         total: number
         erros: string[]
       }>

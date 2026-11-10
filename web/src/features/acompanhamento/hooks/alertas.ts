@@ -154,8 +154,14 @@ export function useReabrirAlerta(): ReturnType<
       if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('acompanhamento_alerta')
-        .update({ status: 'aberto', silenciado_ate: null, resolvido_em: null })
+        .update({
+          status: 'aberto',
+          silenciado_ate: null,
+          resolvido_em: null,
+          resolvido_automaticamente: false
+        })
         .eq('id', id)
+      if (error?.code === '23505') throw new Error('Já existe um alerta aberto igual a este.')
       if (error) throw error
     },
     onSuccess: (_d, vars) => {

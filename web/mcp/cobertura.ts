@@ -120,7 +120,9 @@ export const RPCS_INDIRETAS: Record<string, string> = {
   importar_orcamento: 'Edge Function import-orcamento (orcamento_importar)',
   excluir_obra: 'Edge Function delete-obra (obras.excluir)',
   planejamento_gravar_calculo: 'mcp/lib/motor.ts (recalcularPlano)',
-  obra_equipes_vivas: 'carregarPlanoEntrada do web, dentro do motor'
+  obra_equipes_vivas: 'carregarPlanoEntrada do web, dentro do motor',
+  acompanhamento_alertas_sincronizar:
+    'Edge Function acompanhamento-alertas-recalcular (alertas.recalcular)'
 }
 
 const RLS = 'auxiliar de RLS/permissão usada pelas políticas do banco'

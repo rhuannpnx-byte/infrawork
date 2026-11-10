@@ -54,9 +54,10 @@ function Inner(): ReactNode {
               try {
                 const r = await recalc.mutateAsync({ obra_id: obraId })
                 const item = r.resultados[0]
-                if (item)
+                if (item?.erros.length) toast.error(item.erros.join('; '))
+                else if (item)
                   toast.success(
-                    `Recalc OK: ${item.inseridos} novos, ${item.resolvidos} auto-resolvidos`
+                    `${item.abertos} aberto(s): ${item.inseridos} novo(s), ${item.resolvidos} resolvido(s) automaticamente`
                   )
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : 'Erro')
