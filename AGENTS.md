@@ -26,3 +26,11 @@ faça também:
 6. O bundle do MCP é gerado no `npm run build` e vai junto no deploy do web.
 
 Detalhes (conexão dos clientes, login OAuth/token, ferramentas): `web/docs/MCP.md`.
+
+## Publicação na Vercel
+
+Os projetos `infrawork-web` (raiz `web/`) e `infrawork-campo` (raiz `campo/`) estão ligados ao GitHub
+(`rhuannpnx-byte/infrawork`): **push na `main` publica em produção**; outras branches geram preview. Cada projeto só
+reconstrói quando a própria pasta mudou desde o último deploy (`ignoreCommand` no `vercel.json`). Não use mais
+`vercel deploy` de dentro de `web/` ou `campo/` — com a raiz configurada, o deploy manual sai da raiz do repositório.
+Migrações e Edge Functions do Supabase continuam manuais (`supabase db query --remote`, `supabase functions deploy`).
