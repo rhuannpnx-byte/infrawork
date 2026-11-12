@@ -376,6 +376,12 @@ try {
   check('premissas da linha de base sem mudança', diff.mudou === false, JSON.stringify(diff))
   const orcRecalc = await chamar('orcamento_resumo', { acao: 'recalcular', obra_id: O })
   check('recálculo do orçamento pelo MCP', orcRecalc.ok === true, JSON.stringify(orcRecalc))
+  const totais = await chamar('quantidades_locais', { acao: 'totais', obra_id: O })
+  check(
+    'totais nos trechos: um por serviço, numa chamada',
+    totais.length > 0 && totais.every((s) => typeof s.distribuido_nos_trechos === 'number'),
+    JSON.stringify(totais.map((s) => [s.codigo, s.distribuido_nos_trechos]))
+  )
 
   // ── 5. Produção ────────────────────────────────────────────────────────────────────────────────
   const ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10)

@@ -98,7 +98,7 @@ export const quantidadesLocais = ferramenta({
     rpcs: [
       'trecho_salvar_quantidades',
       'trecho_restaurar_versao',
-      'trechos_servico_total',
+      'trechos_servico_totais',
       'trecho_servico_total',
       'trecho_servico_disponivel',
       'trecho_qtd_faixa',
@@ -211,12 +211,14 @@ export const quantidadesLocais = ferramenta({
           filtros: [eq('obra_id', obra), eq('tipo', 'servico_grupo')],
           ordem: [{ coluna: 'codigo' }]
         })
-        return Promise.all(
-          servicos.map(async (s) => ({
-            ...s,
-            distribuido_nos_trechos: await rpc('trechos_servico_total', { _item_id: s.id })
-          }))
+        const totais = new Map(
+          (
+            await rpc<{ item_orcamentario_id: string; total: number }[]>('trechos_servico_totais', {
+              _obra_id: obra
+            })
+          ).map((x) => [x.item_orcamentario_id, Number(x.total)])
         )
+        return servicos.map((s) => ({ ...s, distribuido_nos_trechos: totais.get(s.id) ?? 0 }))
       }
       case 'ler_planilha': {
         const wb = await abrirPlanilha(a)

@@ -88,7 +88,7 @@ async function fetchMe(): Promise<MePayload | null> {
   return (await r.json()) as MePayload
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
+export const useAuthStore = create<AuthStore>((set, get) => ({
   status: 'idle',
   profile: null,
   empresa: null,
@@ -98,6 +98,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   avisoLogin: avisoDoLink(LINK_AUTH.erro),
 
   async bootstrap() {
+    if (get().status !== 'idle') return
     if (!SUPABASE_CONFIGURADO) {
       set({ status: 'guest', profile: null, empresa: null, obras: [] })
       return
@@ -220,15 +221,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
   }
 }))
 
-// Mantém a store sincronizada com mudanças do Supabase Auth (refresh de token, signOut em outra aba, etc.)
+// Mantém a store sincronizada com o Supabase Auth: saída em outra aba e troca de usuário. Renovação do token e volta
+// à aba não mudam o perfil; o login e a abertura já carregam o perfil por conta própria.
 if (SUPABASE_CONFIGURADO) {
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || !session) {
       pararHeartbeat()
       useAuthStore.setState({ status: 'guest', profile: null, empresa: null, obras: [] })
       useTabsStore.getState().resetToHome()
-    } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-      void useAuthStore.getState().refreshMe()
+    } else if (event === 'SIGNED_IN') {
+      const { status, profile } = useAuthStore.getState()
+      if (status === 'authenticated' && profile?.id !== session.user.id) {
+        void useAuthStore.getState().refreshMe()
+      }
     }
   })
 }

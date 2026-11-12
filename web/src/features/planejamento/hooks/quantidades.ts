@@ -62,17 +62,21 @@ export function useAgrupadoresTrecho(
         .is('indireto_id', null)
         .order('codigo')
       if (error) throw error
-      const lista = data ?? []
-      const totais = await Promise.all(
-        lista.map((g) => supabase.rpc('trechos_servico_total', { _item_id: g.id }))
+      const t = await supabase.rpc('trechos_servico_totais', { _obra_id: obraId! })
+      if (t.error) throw t.error
+      const totais = new Map(
+        ((t.data ?? []) as { item_orcamentario_id: string; total: number }[]).map((x) => [
+          x.item_orcamentario_id,
+          Number(x.total)
+        ])
       )
-      return lista.map((g, k) => ({
+      return (data ?? []).map((g) => ({
         id: g.id as string,
         codigo: g.codigo as string,
         descricao: g.descricao as string,
         unidade: (g.unidade_referencia as string) ?? '',
         quantidade: Number(g.quantidade_referencia ?? 0),
-        totalTrechos: Number(totais[k].data ?? 0)
+        totalTrechos: totais.get(g.id as string) ?? 0
       }))
     }
   })
