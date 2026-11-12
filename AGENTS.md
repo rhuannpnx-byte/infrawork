@@ -33,6 +33,8 @@ Os projetos `infrawork-web` (raiz `web/`) e `infrawork-campo` (raiz `campo/`) es
 (`rhuannpnx-byte/infrawork`): **push na `main` publica em produção**; outras branches geram preview. Cada projeto só
 reconstrói quando a própria pasta mudou desde o último deploy (`ignoreCommand` no `vercel.json`). Não use mais
 `vercel deploy` de dentro de `web/` ou `campo/` — com a raiz configurada, o deploy manual sai da raiz do repositório.
+As migrações anteriores à 0052 estão consolidadas em `web/supabase/migrations/20260701000052_base.sql` (as originais
+ficam na tag `pre-consolidacao-migracoes`); as novas seguem a numeração `20260701000053_…`.
 Migrações e Edge Functions do Supabase continuam manuais e pedem autorização: migração por
 `npx -y supabase@3.0.0 db query --remote --yes --workdir . -f arquivo.sql`; Edge Functions, dentro de `web/`, com a CLI
 2.x do projeto (a 3.x recusa o `config.toml`):

@@ -200,7 +200,7 @@ Edge functions localmente: `supabase functions serve` (em outro terminal).
 Depois `npm run dev` → http://localhost:5173.
 
 Scripts: `npm run typecheck`, `npm run lint`, `npm run build`, `npm run format`,
-`supabase db reset` (reaplica todas as migrações do zero).
+`supabase db reset` (recria o banco local do zero pelo esquema-base e pelas migrações novas).
 
 Teste de ponta a ponta (empresa → obra → importações → cronograma no motor do
 ApeX → linha de base → produção → aditivos/reajustes → trechos), com o stack e as
@@ -266,9 +266,9 @@ web/
   src/features     gerencial · orcamento · planejamento · cronograma · acompanhamento
   vendor/apex      motor do ApeX (cópia, sem alterações)
   src/lib/xlsx     modelos de importação (spec → gerar + ler)
-  supabase/migrations   161 migrações originais + 20260701* (prune, storage,
-                        cron, importação, programação por equipes,
-                        acompanhamento nativo, views, alertas)
+  supabase/migrations   esquema-base (20260701000052_base.sql: as 213 migrações anteriores
+                        consolidadas; as originais estão na tag pre-consolidacao-migracoes)
+                        + as migrações novas
   supabase/functions    edge functions mantidas (Deno)
 ```
 
