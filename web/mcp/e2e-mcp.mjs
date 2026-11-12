@@ -376,6 +376,13 @@ try {
   check('premissas da linha de base sem mudança', diff.mudou === false, JSON.stringify(diff))
   const orcRecalc = await chamar('orcamento_resumo', { acao: 'recalcular', obra_id: O })
   check('recálculo do orçamento pelo MCP', orcRecalc.ok === true, JSON.stringify(orcRecalc))
+  const pront = await chamar('obras', { acao: 'prontidao', obra_id: O })
+  const etapa = (k) => pront.etapas.find((e) => e.chave === k)?.situacao
+  check(
+    'prontidão: composições e linha de base ok, produção pendente',
+    etapa('composicoes') === 'ok' && etapa('linha_base') === 'ok' && etapa('producao') === 'pendente',
+    pront.etapas.map((e) => `${e.chave}:${e.situacao}`).join(' ')
+  )
   const totais = await chamar('quantidades_locais', { acao: 'totais', obra_id: O })
   check(
     'totais nos trechos: um por serviço, numa chamada',

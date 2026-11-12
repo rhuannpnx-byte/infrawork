@@ -10,6 +10,8 @@ import { usePlanOrc } from '@/features/orcamento/hooks/plan-orc'
 import { useIndireto, totalIndireto } from '@/features/orcamento/hooks/indireto'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
 import { cn } from '@/lib/utils'
+import { ProntidaoObra } from '@/features/gerencial/components/ProntidaoObra'
+import { rotuloStatusObra } from '@/features/gerencial/lib/status-obra'
 
 export function ObraIndexPage(): ReactNode {
   return (
@@ -35,7 +37,7 @@ function ObraDashboard(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title={scope.obra?.nome ?? 'Obra'}
-        subtitle={`Código ${scope.obra?.codigo ?? '—'} · status: ${scope.obra?.status ?? '—'}`}
+        subtitle={`Código ${scope.obra?.codigo ?? '—'} · ${rotuloStatusObra(scope.obra?.status)}`}
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
         <div className="grid grid-cols-4 gap-3">
@@ -80,21 +82,7 @@ function ObraDashboard(): ReactNode {
           />
         </div>
 
-        <div className="rounded border border-border bg-bg-panel p-4">
-          <h3 className="text-sm font-semibold text-text mb-2">Próximas ações</h3>
-          <ul className="text-xs text-text-muted leading-relaxed space-y-1 list-disc list-inside">
-            <li>
-              Construa a <strong>Planilha Orçamentária</strong> com índices + receitas; depois
-              selecione receitas e agrupe como serviço (vincula CPU).
-            </li>
-            <li>
-              Lance os <strong>custos indiretos</strong> (mobilização, admin local, etc).
-            </li>
-            <li>
-              Consulte a <strong>lucratividade global</strong> consolidada.
-            </li>
-          </ul>
-        </div>
+        <ProntidaoObra obraId={obraId} />
       </div>
     </div>
   )

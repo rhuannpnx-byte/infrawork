@@ -6,6 +6,10 @@ conectado: o banco aplica as permissões dele (papel e obras liberadas). Mensage
 violada — repasse-as ao usuário em vez de tentar contornar.
 
 ## Ordem para montar uma obra do zero
+Para saber o que falta numa obra que já existe, use **obras.prontidao**: lista as etapas abaixo com a situação
+(ok, pendente, aviso, opcional), o resumo e os itens pendentes (ex.: serviços sem composição, equipes sem encarregado,
+locais de transporte sem estaca de acesso). Comece por ela antes de sugerir próximos passos ao usuário.
+
 1. **obras.criar** (nome, código). Cria o calendário padrão.
 2. **trechos.criar**: eixos (estaqueamento; posições em metros internos a partir do início) e áreas. Ajuste o comprimento
    ou importe a geometria (KML/KMZ ou coordenadas).

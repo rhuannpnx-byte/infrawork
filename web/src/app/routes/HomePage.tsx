@@ -9,6 +9,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { visibleFor } from '@/types/module'
 import infraworkWordmark from '@/assets/infrawork-wordmark.png'
 import { cn } from '@/lib/utils'
+import { ProntidaoObra } from '@/features/gerencial/components/ProntidaoObra'
 
 interface ModuleSummary {
   key: string
@@ -70,7 +71,7 @@ export function HomePage(): ReactNode {
   const saudacao = greetingByHour()
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-bg">
+    <div className="relative h-full w-full overflow-auto bg-bg">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[440px] opacity-70"
@@ -80,7 +81,7 @@ export function HomePage(): ReactNode {
         }}
       />
 
-      <div className="relative h-full max-w-5xl mx-auto px-6 py-6 flex flex-col gap-5">
+      <div className="relative min-h-full max-w-5xl mx-auto px-6 py-6 flex flex-col gap-5">
         {/* Hero */}
         <section className="flex flex-col items-center text-center shrink-0">
           <img
@@ -123,6 +124,12 @@ export function HomePage(): ReactNode {
             ) : null}
           </div>
         </section>
+
+        {obra && role && role !== 'cliente' ? (
+          <div className="shrink-0">
+            <ProntidaoObra obraId={obra.id} titulo={`${obra.nome}: o que falta`} />
+          </div>
+        ) : null}
 
         {/* Cards de módulos */}
         <section className="shrink-0">

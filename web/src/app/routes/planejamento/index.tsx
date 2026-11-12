@@ -12,6 +12,7 @@ import {
   useBaseline
 } from '@/features/planejamento/hooks'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
+import { ProntidaoObra } from '@/features/gerencial/components/ProntidaoObra'
 
 export function PlanejamentoIndex(): ReactNode {
   return (
@@ -110,53 +111,7 @@ function PlanejamentoIndexInner(): ReactNode {
           />
         </div>
 
-        <div className="rounded border border-border bg-bg-panel p-4">
-          <h3 className="text-sm font-semibold text-text mb-2">Como começar</h3>
-          <ol className="text-xs text-text-muted leading-relaxed list-decimal pl-5 space-y-1">
-            <li>
-              Em <strong>Parametrização</strong>, defina como cada serviço é lançado no campo: por
-              quantidade ou por <strong>viagens</strong> (origem e destino; o dia é a soma das
-              viagens), se controla <strong>material</strong> (qual e em que unidade), se aceita
-              observação e se exige local e estacas.
-            </li>
-            <li>
-              Configure os <strong>calendários</strong> da obra: semana de trabalho, feriados (os
-              móveis saem da Páscoa), folgas e horários excepcionais, e o fator de produtividade de
-              cada mês (dezembro 0,7 por chuva, por exemplo).
-            </li>
-            <li>
-              Em <strong>Equipes</strong>, cadastre as equipes nomeadas quando quiser controlar quem
-              executa cada tarefa. A produção por dia de cada serviço vem da composição (Orçamento ›
-              Composições) × o número de equipes da tarefa.
-            </li>
-            <li>
-              Em <strong>Locais</strong>, cadastre os eixos (nome, estaca inicial e final — o mapa é
-              opcional) e as áreas sem estacas (OAE, jazida, canteiro) e informe as{' '}
-              <strong>quantidades por serviço em cada local</strong>: na grade, ou importando a
-              planilha (uma aba por local, como no DynaRoad). A soma dos locais respeita o
-              orçamento.
-            </li>
-            <li>
-              Crie o <strong>plano em edição</strong> com a data de início da obra.
-            </li>
-            <li>
-              No <strong>cronograma</strong>,{' '}
-              <strong>crie as tarefas a partir das quantidades por local</strong> (uma por sequência
-              contígua de estacas, por local ou por janela) — ou manualmente, com o local e as
-              estacas — e ligue as dependências (arrastando no Gantt ou no tempo-caminho). Uma
-              dependência “por estacas” pode valer para todas as tarefas dos dois serviços (regra
-              entre serviços). A tarefa é os seus locais: posição, quantidade e a “escada” do
-              tempo-caminho saem deles; divida por estaca ou por quantidade, combine e mude de
-              trecho pelo menu da tarefa.
-            </li>
-            <li>
-              Quando aprovar, <strong>trave como linha de base</strong> e torne-a{' '}
-              <strong>vigente</strong> — ela vira a régua do acompanhamento e trava o orçamento. No
-              modo <strong>controle</strong>, o plano mostra o realizado lançado e a previsão do
-              saldo.
-            </li>
-          </ol>
-        </div>
+        <ProntidaoObra obraId={obraId} />
       </div>
     </div>
   )

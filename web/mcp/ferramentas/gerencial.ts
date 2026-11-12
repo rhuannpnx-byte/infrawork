@@ -12,12 +12,22 @@ export const obras = ferramenta({
   nome: 'obras',
   titulo: 'Obras e empresas',
   descricao:
-    'acao: listar | detalhe | criar (nome, codigo; cria o calendário padrão — os locais vêm em trechos.criar) | editar ' +
+    'acao: listar | detalhe | prontidao (o que falta para a obra ter previsto e realizado: etapa, situação, resumo e ' +
+    'itens pendentes) | criar (nome, codigo; cria o calendário padrão — os locais vêm em trechos.criar) | editar ' +
     '(nome, código, status, rodovia, trecho, extensão, data-base do orçamento, datas planejadas) | ativar ' +
     '(ativa true/false: some da seleção, nada é apagado) | excluir (apaga a obra e tudo dela) | criar_empresa ' +
     '(só god). Criar/excluir obra: god ou adm da empresa.',
   entrada: {
-    acao: z.enum(['listar', 'detalhe', 'criar', 'editar', 'ativar', 'excluir', 'criar_empresa']),
+    acao: z.enum([
+      'listar',
+      'detalhe',
+      'prontidao',
+      'criar',
+      'editar',
+      'ativar',
+      'excluir',
+      'criar_empresa'
+    ]),
     obra_id: OBRA.optional(),
     empresa_id: z.string().uuid().optional(),
     nome: z.string().optional(),
@@ -37,11 +47,13 @@ export const obras = ferramenta({
   cobre: {
     tabelas: ['obras', 'empresas'],
     funcoes: ['create-obra', 'set-obra-ativa', 'delete-obra', 'create-empresa'],
-    rpcs: ['excluir_obra']
+    rpcs: ['excluir_obra', 'obra_prontidao']
   },
   async executar(a) {
     const obra = () => exigir(a.obra_id, 'obra_id', a.acao)
     switch (a.acao) {
+      case 'prontidao':
+        return rpc('obra_prontidao', { _obra_id: obra() })
       case 'listar':
         return ler('obras', { ordem: [{ coluna: 'codigo' }] })
       case 'detalhe': {

@@ -16,13 +16,9 @@ import { Select } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
 import type { ObraComEmpresa } from '@/types/gerencial'
 import { VinculoFleetHub } from '../components/VinculoFleetHub'
+import { STATUS_OBRA } from '../lib/status-obra'
 
-const STATUS = [
-  { value: 'planejamento', label: 'Planejamento' },
-  { value: 'em_andamento', label: 'Em andamento' },
-  { value: 'paralisado', label: 'Paralisada' },
-  { value: 'concluido', label: 'Concluída' }
-]
+const STATUS = STATUS_OBRA
 
 interface Props {
   open: boolean

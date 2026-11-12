@@ -912,6 +912,7 @@ await sbAp.auth.signOut()
     ['trecho_sync_tarefas', { _obra_id: obraId }],
     ['lb_premissas_diff', { _planejamento_id: plan.id }],
     ['set_recurso_preco_vigente', { _preco_id: np.id }],
+    ['obra_prontidao', { _obra_id: obraId }],
     ['importar_orcamento', { _obra_id: obraId, _itens: [], _alocacoes: [], _servicos: [], _opcoes: {} }]
   ]
   for (const [f, a] of sensiveis) {
@@ -919,7 +920,7 @@ await sbAp.auth.signOut()
     const ou = await u.admB.c.rpc(f, a)
     check(`${f}: recusa anônimo e adm de outra empresa`, !!an.error && !!ou.error, `${an.error?.code ?? 'passou'} / ${ou.error?.code ?? 'passou'}`)
   }
-  for (const f of ['recalcular_orcamento', 'lb_premissas_diff']) {
+  for (const f of ['recalcular_orcamento', 'lb_premissas_diff', 'obra_prontidao']) {
     const a = sensiveis.find((s) => s[0] === f)[1]
     const daObra = await u.eng.c.rpc(f, a)
     const cliente = await u.cli.c.rpc(f, a)

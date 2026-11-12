@@ -14,18 +14,14 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useCreateObra, useEmpresas } from '../hooks'
 import { useAuthStore } from '@/stores/auth-store'
+import { STATUS_OBRA } from '../lib/status-obra'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-const STATUS_OPTS: Array<{ value: string; label: string }> = [
-  { value: 'em_andamento', label: 'Em andamento' },
-  { value: 'planejamento', label: 'Planejamento' },
-  { value: 'paralisado', label: 'Paralisada' },
-  { value: 'concluido', label: 'Concluída' }
-]
+const STATUS_OPTS = STATUS_OBRA
 
 export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
   const create = useCreateObra()
