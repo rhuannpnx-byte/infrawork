@@ -68,7 +68,7 @@ export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props):
                       height: 0,
                       borderTop: '4px solid transparent',
                       borderBottom: '4px solid transparent',
-                      borderLeft: '7px solid var(--color-text, #e5e7eb)'
+                      borderLeft: '7px solid var(--text)'
                     }}
                   />
                 </span>

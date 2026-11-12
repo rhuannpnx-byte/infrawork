@@ -299,7 +299,7 @@ function Inner(): ReactNode {
                   : null
                 return (
                   <span
-                    className={`font-mono tabular-nums text-xs ${d < 0 ? 'text-red-400' : 'text-emerald-400'}`}
+                    className={`font-mono tabular-nums text-xs ${d < 0 ? 'text-danger' : 'text-success'}`}
                     title={fimProj ? `Fim projetado (ritmo atual): ${fimProj}` : undefined}
                   >
                     {d > 0 ? '+' : ''}

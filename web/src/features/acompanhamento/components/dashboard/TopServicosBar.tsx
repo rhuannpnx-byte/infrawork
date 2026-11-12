@@ -127,7 +127,7 @@ export function TopServicosBar({
               stroke={CHART_THEME.axisStroke}
               width={70}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(120,150,200,.06)' }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-hover)' }} />
             <Bar dataKey="pct" barSize={14} radius={[0, 2, 2, 0]}>
               {data.map((d) => (
                 <Cell

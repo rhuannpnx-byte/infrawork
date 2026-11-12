@@ -46,6 +46,18 @@ Política nova usa `to authenticated` e, em tabela que cresce, compara com o con
 Gravação em vários passos (cabeçalho + filhos) vai numa função do banco, numa transação (ex.: `producao_salvar`). O `scripts/e2e-local.mjs` (seção 11) confere que sem login a API não expõe nada
 e que as funções sensíveis recusam quem não é da obra — acrescente lá a função nova.
 
+## Frontend do web
+
+A identidade visual é a "Prancheta técnica" (claro por padrão, escuro como variante), descrita em `web/DESIGN.md`.
+Ao mexer em tela do `web/`:
+
+- cor só por token (`bg-bg-panel`, `text-text-muted`, `bg-danger/10`…); nada de cor literal nem classe da paleta
+  padrão do Tailwind, fora do que fica sobre foto ou mapa;
+- token novo entra nos dois temas em `web/src/styles/theme.css` (`theme.test.ts` cobra);
+- ícone chamado pelo nome entra no mapa de `web/src/components/layout/IconRenderer.tsx` (`icones.test.ts` cobra);
+- página nova entra em `web/src/config/modules.ts` (menu) e em `web/scripts/rotas-telas.mjs` (fumaça e capturas);
+- confira nos dois temas com `node scripts/capturas-telas.mjs` e rode `node scripts/fumaca-telas.mjs`.
+
 ## Publicação na Vercel
 
 Os projetos `infrawork-web` (raiz `web/`) e `infrawork-campo` (raiz `campo/`) estão ligados ao GitHub

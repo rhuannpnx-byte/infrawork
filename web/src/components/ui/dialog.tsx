@@ -77,13 +77,13 @@ export function Dialog({
         if (ref.current && !ref.current.contains(e.target as Node)) onOpenChange(false)
       }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in pointer-events-none" />
+      <div className="absolute inset-0 bg-[color:var(--veu)] animate-fade-in pointer-events-none" />
       <div
         ref={ref}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative mx-4 rounded-md border border-border-strong bg-bg-panel shadow-2xl animate-slide-up',
+          'relative mx-4 rounded-md border border-border-strong bg-bg-panel shadow-[var(--sombra-flutuante)] animate-slide-up',
           SIZES[size],
           className
         )}

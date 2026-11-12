@@ -1,78 +1,146 @@
 /* ============================================================
- * Tokens de cor — OKLCH canônico (tema escuro único, hue 255
- * "console blue"), iguais ao InfraWork desktop.
+ * Identidade "Prancheta técnica": papel claro por padrão, tinta
+ * quase preta, azul de carimbo como destaque, cantos quase retos.
+ * O escuro é a variante. Neutros puxados para o tom do papel
+ * (hue 90); nada de preto ou branco puros.
+ *
+ * O tema vem de `data-theme` em <html> (public/theme-boot.js e
+ * stores/theme-store.ts). Sem o atributo vale o claro.
  * ============================================================ */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* Backgrounds — 8 camadas de luminosidade tintadas */
-  --bg: oklch(11% 0.005 255);
-  --bg-tabs: oklch(12% 0.006 255);
-  --bg-menu: oklch(13% 0.007 255);
-  --bg-rail: oklch(12% 0.006 255);
-  --bg-panel: oklch(15% 0.008 255);
-  --bg-elevated: oklch(18% 0.01 255);
-  --bg-hover: oklch(22% 0.012 255);
-  --bg-active: oklch(26% 0.013 255);
+  /* Fundos: a mesa (bg), as faixas de navegação e a folha (panel) */
+  --bg: oklch(97.6% 0.004 90);
+  --bg-tabs: oklch(95.4% 0.006 90);
+  --bg-menu: oklch(95.4% 0.006 90);
+  --bg-rail: oklch(95.4% 0.006 90);
+  --bg-panel: oklch(99.3% 0.002 90);
+  --bg-elevated: oklch(96% 0.005 90);
+  /* realce sobre qualquer fundo: véu de tinta, não cor chapada */
+  --bg-hover: color-mix(in oklab, var(--text) 6%, transparent);
+  --bg-active: color-mix(in oklab, var(--text) 11%, transparent);
 
-  /* Borders */
-  --border: oklch(22% 0.011 255);
-  --border-strong: oklch(28% 0.013 255);
-  --border-accent: oklch(32% 0.015 255);
+  /* Linhas: a fina separa, a forte contorna campo e botão (3:1 sobre a folha) */
+  --border: oklch(86% 0.009 90);
+  --border-strong: oklch(65% 0.011 90);
+  --border-accent: oklch(46% 0.012 90);
 
-  /* Text — 4 níveis, contraste validado contra bg-panel */
-  --text: oklch(92% 0.006 255); /* ~14:1 */
-  --text-muted: oklch(72% 0.01 255); /* ~7:1   */
-  --text-dim: oklch(58% 0.01 255); /* ~4.7:1 — limite WCAG AA */
-  --text-faint: oklch(38% 0.006 255); /* ~2:1 — decoração-only */
+  /* Tinta: contraste medido contra bg-panel e bg */
+  --text: oklch(21% 0.006 280);
+  --text-muted: oklch(41% 0.008 90);
+  --text-dim: oklch(49% 0.009 90);
+  --text-faint: oklch(68% 0.009 90);
 
-  /* Accent (sobreposto pela marca) */
-  --accent: oklch(67% 0.18 255);
-  --accent-hover: oklch(72% 0.16 255);
-  --accent-glow: oklch(67% 0.18 255 / 0.12);
-  --accent-glow-strong: oklch(67% 0.18 255 / 0.2);
-  --accent-line: oklch(67% 0.18 255 / 0.4);
+  /* Azul de carimbo */
+  --accent: oklch(41% 0.165 266);
+  --accent-hover: oklch(35% 0.16 266);
+  --accent-glow: color-mix(in oklab, var(--accent) 9%, transparent);
+  --accent-glow-strong: color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 45%, transparent);
+  --on-accent: oklch(98.5% 0.004 266);
 
-  /* Status semantic */
-  --success: oklch(78% 0.18 145);
-  --warn: oklch(82% 0.16 80);
-  --danger: oklch(70% 0.18 25);
+  /* Estados */
+  --success: oklch(45% 0.1 158);
+  --warn: oklch(49% 0.105 75);
+  --danger: oklch(46% 0.155 28);
 
-  /* Marco (milestone) — roxo distintivo */
-  --milestone: oklch(72% 0.18 305);
+  --milestone: oklch(44% 0.17 305);
 
-  /* Plots/timeline — derivados dentro do sistema de luminosidade */
-  --mt-nao-trab: oklch(9.5% 0.005 255);
-  --mt-grid-minor: oklch(20% 0.01 255);
-  --mt-grid-major: oklch(29% 0.013 255);
-  --mt-cross: oklch(67% 0.18 255 / 0.55);
+  /* Linha do tempo e gráficos de malha */
+  --mt-nao-trab: oklch(94.2% 0.007 90);
+  --mt-grid-minor: oklch(92% 0.008 90);
+  --mt-grid-major: oklch(82% 0.01 90);
+  --mt-cross: color-mix(in oklab, var(--accent) 55%, transparent);
 
   /* Identidade de módulo */
   --module-orcamento: var(--accent);
-  --module-planejamento: oklch(85% 0.12 215);
+  --module-planejamento: oklch(47% 0.085 215);
   --module-acompanhamento: var(--success);
   --module-medicoes: var(--warn);
-  --module-suprimentos: oklch(74% 0.14 295);
-  --module-equipe: oklch(73% 0.16 350);
-  --module-documentos: oklch(70% 0.02 250);
+  --module-suprimentos: oklch(46% 0.14 295);
+  --module-equipe: oklch(48% 0.16 350);
+  --module-documentos: oklch(48% 0.02 250);
 
-  /* Séries de gráfico (ordem estável) */
+  /* Séries de gráfico (ordem estável): mais claras que a tinta, para área e barra */
+  --chart-1: oklch(48% 0.17 266);
+  --chart-2: oklch(58% 0.1 215);
+  --chart-3: oklch(58% 0.12 158);
+  --chart-4: oklch(66% 0.13 75);
+  --chart-5: oklch(56% 0.14 295);
+  --chart-6: oklch(58% 0.16 350);
+  --chart-teal: oklch(56% 0.09 195);
+  --chart-laranja: oklch(62% 0.15 50);
+
+  --veu: oklch(21% 0.006 280 / 0.38);
+  --sombra-flutuante: 0 8px 24px oklch(21% 0.006 280 / 0.14), 0 1px 2px oklch(21% 0.006 280 / 0.1);
+
+  /* shadcn tokens mapeados pra paleta */
+  --card: var(--bg-panel);
+  --popover: var(--bg-panel);
+  --primary: var(--accent);
+  --primary-foreground: var(--on-accent);
+  --secondary: var(--bg-elevated);
+  --muted: var(--bg-elevated);
+  --destructive: var(--danger);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: oklch(17.5% 0.003 90);
+  --bg-tabs: oklch(19% 0.003 90);
+  --bg-menu: oklch(20% 0.003 90);
+  --bg-rail: oklch(19% 0.003 90);
+  --bg-panel: oklch(22% 0.004 90);
+  --bg-elevated: oklch(25.5% 0.004 90);
+  --bg-hover: color-mix(in oklab, var(--text) 7%, transparent);
+  --bg-active: color-mix(in oklab, var(--text) 12%, transparent);
+
+  --border: oklch(31% 0.005 90);
+  --border-strong: oklch(50% 0.008 90);
+  --border-accent: oklch(66% 0.01 90);
+
+  --text: oklch(93.5% 0.012 90);
+  --text-muted: oklch(76% 0.014 90);
+  --text-dim: oklch(64% 0.013 90);
+  --text-faint: oklch(44% 0.008 90);
+
+  --accent: oklch(78% 0.105 268);
+  --accent-hover: oklch(84% 0.085 268);
+  --accent-glow: color-mix(in oklab, var(--accent) 13%, transparent);
+  --accent-glow-strong: color-mix(in oklab, var(--accent) 22%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 45%, transparent);
+  --on-accent: oklch(20% 0.05 268);
+
+  --success: oklch(77% 0.12 158);
+  --warn: oklch(80% 0.12 85);
+  --danger: oklch(74% 0.13 30);
+
+  --milestone: oklch(74% 0.15 305);
+
+  --mt-nao-trab: oklch(15.5% 0.003 90);
+  --mt-grid-minor: oklch(27% 0.004 90);
+  --mt-grid-major: oklch(36% 0.006 90);
+  --mt-cross: color-mix(in oklab, var(--accent) 55%, transparent);
+
+  --module-planejamento: oklch(80% 0.09 215);
+  --module-suprimentos: oklch(76% 0.12 295);
+  --module-equipe: oklch(76% 0.13 350);
+  --module-documentos: oklch(72% 0.02 250);
+
   --chart-1: var(--accent);
   --chart-2: var(--module-planejamento);
   --chart-3: var(--success);
   --chart-4: var(--warn);
   --chart-5: var(--module-suprimentos);
   --chart-6: var(--module-equipe);
-  --chart-teal: oklch(72% 0.1 195);
-  --chart-laranja: oklch(74% 0.16 50);
+  --chart-teal: oklch(74% 0.09 195);
+  --chart-laranja: oklch(76% 0.14 50);
 
-  /* shadcn tokens mapeados pra paleta */
-  --card: var(--bg-panel);
+  --veu: oklch(0% 0 0 / 0.62);
+  --sombra-flutuante: 0 10px 28px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.4);
+
   --popover: var(--bg-elevated);
-  --primary: var(--accent);
-  --primary-foreground: oklch(12% 0.006 255);
-  --secondary: var(--bg-elevated);
-  --muted: var(--bg-elevated);
-  --destructive: var(--danger);
 }

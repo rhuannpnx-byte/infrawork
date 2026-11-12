@@ -224,7 +224,7 @@ function Inner(): ReactNode {
                 Geral (todas)
               </FiltroBtn>
               {entidadeFocada && !ehGeral ? (
-                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-2xs font-mono bg-accent text-white">
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-2xs font-mono bg-accent text-[color:var(--on-accent)]">
                   <span className="size-2 rounded-sm" style={{ background: COR.realizado }} />
                   {entidadeFocada.nome}
                 </span>
@@ -363,7 +363,7 @@ function FiltroBtn({
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-1 px-2 py-1 rounded text-2xs font-mono transition-colors',
-        ativo ? 'bg-accent text-white' : 'text-text-muted hover:text-text hover:bg-bg-hover'
+        ativo ? 'bg-accent text-[color:var(--on-accent)]' : 'text-text-muted hover:text-text hover:bg-bg-hover'
       )}
     >
       {children}

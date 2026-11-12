@@ -239,11 +239,11 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
 
       <div className="px-3 py-2 border-t border-border flex items-center gap-4 text-2xs font-mono text-text-dim flex-wrap">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-sky-400/40 border border-sky-400/60" /> Prev
+          <span className="size-2 rounded-sm bg-accent/40 border border-accent/60" /> Prev
           (planejado)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-emerald-400/40 border border-emerald-400/60" /> Real
+          <span className="size-2 rounded-sm bg-success/40 border border-success/40" /> Real
           (executado)
         </span>
       </div>
@@ -273,7 +273,7 @@ function LinhaServico({
   const { servico: s, prev, real, totPrev, totReal } = linha
   return (
     <>
-      <tr className="bg-sky-500/[0.04]">
+      <tr className="bg-accent/5">
         <td
           rowSpan={2}
           className="sticky left-0 z-10 bg-bg-panel border border-border px-2 py-1 align-middle font-semibold text-text w-[200px] min-w-[200px] max-w-[200px]"
@@ -286,40 +286,40 @@ function LinhaServico({
         >
           {s.unidade ?? ''}
         </td>
-        <td className="sticky left-[248px] z-10 bg-bg-panel border border-border px-1 py-1 text-center text-sky-300 font-semibold w-[44px] min-w-[44px] max-w-[44px]">
+        <td className="sticky left-[248px] z-10 bg-bg-panel border border-border px-1 py-1 text-center text-accent font-semibold w-[44px] min-w-[44px] max-w-[44px]">
           Prev
         </td>
         {dias.map((d, i) => (
           <td
             key={d.iso}
             className={cn(
-              'border border-border px-1 py-1 text-center tabular-nums text-sky-300',
+              'border border-border px-1 py-1 text-center tabular-nums text-accent',
               d.iso === hojeIso && 'bg-accent-glow'
             )}
           >
             {fmtCell(prev[i])}
           </td>
         ))}
-        <td className="border border-border px-2 py-1 text-center tabular-nums font-semibold text-sky-300">
+        <td className="border border-border px-2 py-1 text-center tabular-nums font-semibold text-accent">
           {fmtCell(totPrev)}
         </td>
       </tr>
-      <tr className="bg-emerald-500/[0.04]">
-        <td className="sticky left-[248px] z-10 bg-bg-panel border border-border px-1 py-1 text-center text-emerald-300 font-semibold w-[44px] min-w-[44px] max-w-[44px]">
+      <tr className="bg-success/5">
+        <td className="sticky left-[248px] z-10 bg-bg-panel border border-border px-1 py-1 text-center text-success font-semibold w-[44px] min-w-[44px] max-w-[44px]">
           Real
         </td>
         {dias.map((d, i) => (
           <td
             key={d.iso}
             className={cn(
-              'border border-border px-1 py-1 text-center tabular-nums text-emerald-300',
+              'border border-border px-1 py-1 text-center tabular-nums text-success',
               d.iso === hojeIso && 'bg-accent-glow'
             )}
           >
             {fmtCell(real[i])}
           </td>
         ))}
-        <td className="border border-border px-2 py-1 text-center tabular-nums font-semibold text-emerald-300">
+        <td className="border border-border px-2 py-1 text-center tabular-nums font-semibold text-success">
           {fmtCell(totReal)}
         </td>
       </tr>

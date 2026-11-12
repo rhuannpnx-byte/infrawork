@@ -31,7 +31,7 @@ interface Props {
 }
 
 const AZUL = CHART_THEME.series[0]
-const CURSOR_FILL = 'rgba(120,150,200,.06)'
+const CURSOR_FILL = 'var(--bg-hover)'
 
 const ORDEM: RecursoGrupo[] = ['MO', 'MVE', 'COMBUSTIVEL', 'MATERIAL', 'ADM']
 
@@ -69,7 +69,7 @@ function WrapTick(props: {
         textAnchor="middle"
         fill={CHART_THEME.axisLabel}
         fontSize={9}
-        fontFamily='"IBM Plex Mono", ui-monospace, monospace'
+        fontFamily='"Archivo Variable", Archivo, system-ui, sans-serif'
       >
         {lines.slice(0, 3).map((l, i) => (
           <tspan key={i} x={0} dy={i === 0 ? 11 : 10}>
@@ -221,7 +221,7 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
               className={cn(
                 'px-2.5 py-1 rounded text-2xs font-mono border transition-colors',
                 g === grupoSel
-                  ? 'bg-accent text-white border-accent'
+                  ? 'bg-accent text-[color:var(--on-accent)] border-accent'
                   : 'bg-bg-panel text-text-dim border-border hover:text-text hover:border-border-strong'
               )}
             >
@@ -236,7 +236,7 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
               onClick={() => setVisao(v)}
               className={cn(
                 'px-2.5 py-1 text-2xs font-mono transition-colors',
-                v === visao ? 'bg-accent text-white' : 'bg-bg-panel text-text-dim hover:text-text'
+                v === visao ? 'bg-accent text-[color:var(--on-accent)]' : 'bg-bg-panel text-text-dim hover:text-text'
               )}
             >
               {v === 'semanal' ? 'Semanal' : 'Visão geral'}
@@ -383,7 +383,7 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
       ) : null}
 
       {materialNaGeral ? (
-        <p className="text-2xs font-mono text-amber-400/80 shrink-0">
+        <p className="text-2xs font-mono text-warn shrink-0">
           ⚠ Em Material, a “Visão geral” soma quantidades de recursos com unidades diferentes (kg,
           m³, un). Use a visão Semanal para leitura por recurso.
         </p>

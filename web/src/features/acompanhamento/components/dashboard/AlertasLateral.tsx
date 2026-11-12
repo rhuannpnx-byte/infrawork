@@ -38,7 +38,7 @@ export function AlertasLateral({ alertas, obraId, altura = 200 }: Props): ReactN
       </div>
       <div className="flex-1 overflow-auto px-2 pb-2 space-y-1">
         {top.length === 0 ? (
-          <div className="text-2xs font-mono text-emerald-300 flex items-center justify-center h-full">
+          <div className="text-2xs font-mono text-success flex items-center justify-center h-full">
             <Info size={11} className="mr-1.5" /> tudo certo
           </div>
         ) : (
@@ -46,10 +46,10 @@ export function AlertasLateral({ alertas, obraId, altura = 200 }: Props): ReactN
             const Icon = ICON[a.severidade] ?? Info
             const cor =
               a.severidade === 'critical'
-                ? 'text-red-400 border-red-500/30'
+                ? 'text-danger border-danger/40'
                 : a.severidade === 'warn'
-                  ? 'text-amber-400 border-amber-500/30'
-                  : 'text-blue-400 border-blue-500/30'
+                  ? 'text-warn border-warn/40'
+                  : 'text-accent border-accent/40'
             return (
               <button
                 key={a.id}

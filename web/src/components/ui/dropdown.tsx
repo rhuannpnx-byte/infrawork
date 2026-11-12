@@ -74,7 +74,7 @@ export function Dropdown({
               role="menu"
               style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 1000 }}
               className={cn(
-                'min-w-[180px] rounded-md border border-border-strong bg-bg-elevated p-1 shadow-xl animate-slide-up',
+                'min-w-[180px] rounded-md border border-border-strong bg-[color:var(--popover)] p-1 shadow-[var(--sombra-flutuante)] animate-slide-up',
                 className
               )}
               onClick={() => setOpen(false)}

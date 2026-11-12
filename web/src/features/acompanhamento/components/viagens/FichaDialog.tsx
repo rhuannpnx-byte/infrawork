@@ -460,7 +460,7 @@ function Form({
                     (par.material_unidade ?? '').toLowerCase() !== (sv?.unidade ?? '').toLowerCase()
                   const peso = par.medicao_viagem === 'peso'
                   return (
-                    <tr key={l.id} className="border-b border-border/50 last:border-b-0">
+                    <tr key={l.id} className="border-b border-border last:border-b-0">
                       <td className="px-2 py-1 font-mono text-2xs text-text-dim">{i + 1}</td>
                       <td className="px-2 py-1">
                         <Select

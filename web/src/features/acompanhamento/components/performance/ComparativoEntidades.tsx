@@ -173,7 +173,7 @@ export function ComparativoEntidades({
                   key={s.key}
                   onClick={() => onSelect(s.key)}
                   className={cn(
-                    'border-b border-border/40 cursor-pointer hover:bg-bg-hover transition-colors',
+                    'border-b border-border cursor-pointer hover:bg-bg-hover transition-colors',
                     selectedKey === s.key && 'bg-accent-glow'
                   )}
                 >

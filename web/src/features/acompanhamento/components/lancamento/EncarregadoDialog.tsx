@@ -160,7 +160,7 @@ function FormDialog({
                 <p className="text-2xs text-text-dim">Nenhuma equipe ativa na obra.</p>
               ) : (
                 <div
-                  className="max-h-44 overflow-auto rounded border border-border divide-y divide-border/40"
+                  className="max-h-44 overflow-auto rounded border border-border divide-y divide-border"
                   data-testid="enc-equipes"
                 >
                   {equipes.map((q) => {

@@ -867,7 +867,7 @@ export function TempoCaminhoVista({
             {foraDaVista.map(({ t, motivo, ocultos }) => (
               <div
                 key={t.id}
-                className="flex items-center gap-2 border-t border-border/60 py-1 first:border-t-0"
+                className="flex items-center gap-2 border-t border-border py-1 first:border-t-0"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-text">{t.nome}</div>

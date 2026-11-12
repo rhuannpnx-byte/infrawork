@@ -242,7 +242,7 @@ function RatearConteudo({
           {linhas.map((l, i) => (
             <div
               key={i}
-              className="grid grid-cols-[1fr_120px_64px_70px_110px_24px] gap-2 px-2 py-1 items-center border-b border-border/50"
+              className="grid grid-cols-[1fr_120px_64px_70px_110px_24px] gap-2 px-2 py-1 items-center border-b border-border"
             >
               <Select value={l.grupo_id} onChange={(e) => set(i, { grupo_id: e.target.value })}>
                 <option value="">— serviço —</option>

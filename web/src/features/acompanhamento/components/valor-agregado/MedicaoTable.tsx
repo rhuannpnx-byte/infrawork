@@ -55,7 +55,7 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
               {rows.map((r, i) =>
                 r.tipo === 'indireto' && !r.item_codigo ? (
                   // Fallback: indireto sem itens de receita cadastrados.
-                  <tr key={`ind-${i}`} className="border-b border-border/40 bg-accent/5">
+                  <tr key={`ind-${i}`} className="border-b border-border bg-accent/5">
                     <td className="px-3 py-1.5 text-text-dim">{r.grupo_codigo}</td>
                     <td className="px-3 py-1.5" colSpan={3}>
                       {r.item_descricao}
@@ -64,7 +64,7 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
                       {(r.pct_avanco * 100).toFixed(1)}%
                     </td>
                     <td className="px-3 py-1.5" colSpan={2} />
-                    <td className="px-3 py-1.5 text-right tabular-nums text-emerald-400">
+                    <td className="px-3 py-1.5 text-right tabular-nums text-success">
                       {fmtBRL(r.medicao_valor)}
                     </td>
                   </tr>
@@ -72,7 +72,7 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
                   <tr
                     key={`${r.tipo}-${r.item_codigo}-${i}`}
                     className={cn(
-                      'border-b border-border/40',
+                      'border-b border-border',
                       r.tipo === 'indireto' && 'bg-accent/5'
                     )}
                   >
@@ -93,7 +93,7 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
                     <td className="px-3 py-1.5 text-right tabular-nums">
                       {fmtBRL(r.venda_unitaria)}
                     </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums text-emerald-400">
+                    <td className="px-3 py-1.5 text-right tabular-nums text-success">
                       {fmtBRL(r.medicao_valor)}
                     </td>
                   </tr>
@@ -105,7 +105,7 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
                 <td className="px-3 py-1.5 font-semibold uppercase text-2xs" colSpan={7}>
                   Total medido no período
                 </td>
-                <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-emerald-400">
+                <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-success">
                   {fmtBRL(total)}
                 </td>
               </tr>

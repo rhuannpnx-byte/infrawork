@@ -180,7 +180,7 @@ function Inner(): ReactNode {
               return (
                 <tr
                   key={v.id}
-                  className={cn('border-b border-border/50', !v.ativo && 'opacity-50')}
+                  className={cn('border-b border-border', !v.ativo && 'opacity-50')}
                 >
                   <td className="px-2 py-1">
                     {fh ? (

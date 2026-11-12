@@ -1,20 +1,98 @@
-import * as Lucide from 'lucide-react'
-import type { LucideProps } from 'lucide-react'
-import { HelpCircle } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  Archive,
+  BarChart3,
+  Briefcase,
+  Building2,
+  Calculator,
+  Calendar,
+  CalendarDays,
+  ChartGantt,
+  ChartSpline,
+  ClipboardPen,
+  FileLock,
+  FilePlus,
+  FilePlus2,
+  Folder,
+  FolderOpen,
+  FolderX,
+  Gauge,
+  GitCompare,
+  HelpCircle,
+  Home,
+  Inbox,
+  KeyRound,
+  Keyboard,
+  LayoutDashboard,
+  ListChecks,
+  ListTree,
+  LogOut,
+  MapPin,
+  MapPinned,
+  Package,
+  Percent,
+  Route,
+  Scale,
+  Settings,
+  Shield,
+  SlidersHorizontal,
+  Square,
+  TrendingUp,
+  Truck,
+  Users,
+  type LucideIcon,
+  type LucideProps
+} from 'lucide-react'
 import type { ReactElement } from 'react'
 
-function toPascalCase(s: string): string {
-  return s
-    .split(/[-_\s]/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('')
+// Só os ícones chamados pelo nome (menu em config/modules.ts e estados vazios). Importar a biblioteca inteira
+// punha todos os ícones do pacote no carregamento inicial; ícone novo pelo nome entra aqui.
+const ICONES: Record<string, LucideIcon> = {
+  activity: Activity,
+  'alert-triangle': AlertTriangle,
+  archive: Archive,
+  'bar-chart-3': BarChart3,
+  briefcase: Briefcase,
+  'building-2': Building2,
+  calculator: Calculator,
+  calendar: Calendar,
+  'calendar-days': CalendarDays,
+  'chart-gantt': ChartGantt,
+  'chart-spline': ChartSpline,
+  'clipboard-pen': ClipboardPen,
+  'file-lock': FileLock,
+  'file-plus': FilePlus,
+  'file-plus-2': FilePlus2,
+  folder: Folder,
+  'folder-open': FolderOpen,
+  'folder-x': FolderX,
+  gauge: Gauge,
+  'git-compare': GitCompare,
+  home: Home,
+  inbox: Inbox,
+  'key-round': KeyRound,
+  keyboard: Keyboard,
+  'layout-dashboard': LayoutDashboard,
+  'list-checks': ListChecks,
+  'list-tree': ListTree,
+  'log-out': LogOut,
+  'map-pin': MapPin,
+  'map-pinned': MapPinned,
+  package: Package,
+  percent: Percent,
+  route: Route,
+  scale: Scale,
+  settings: Settings,
+  shield: Shield,
+  'sliders-horizontal': SlidersHorizontal,
+  square: Square,
+  'trending-up': TrendingUp,
+  truck: Truck,
+  users: Users
 }
 
-type LucideIconRef = (props: LucideProps) => ReactElement
-
 export function Icon({ name, ...props }: { name: string } & LucideProps): ReactElement {
-  const pascal = toPascalCase(name)
-  const lib = Lucide as unknown as Record<string, LucideIconRef | undefined>
-  const Component = lib[pascal] ?? (HelpCircle as unknown as LucideIconRef)
-  return <Component {...props} />
+  const Componente = ICONES[name] ?? HelpCircle
+  return <Componente {...props} />
 }

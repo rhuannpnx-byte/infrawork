@@ -594,7 +594,7 @@ function Conteudo({
                   <table className="w-full text-xs">
                     <tbody>
                       {previa.map((p, i) => (
-                        <tr key={i} className="border-t border-border/50">
+                        <tr key={i} className="border-t border-border">
                           <td className="px-2 py-1 text-text">{p.nome}</td>
                           <td className="px-2 py-1 text-text-muted">
                             {p.trecho.tipo === 'area' ? `Área ${p.trecho.nome}` : p.trecho.nome}

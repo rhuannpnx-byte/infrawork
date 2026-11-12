@@ -69,10 +69,10 @@ export function PromoverBaselineDialog({
       <DialogBody className="space-y-3">
         <DialogErrorBanner message={error} />
 
-        <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded">
-          <Lock size={14} className="text-amber-400 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-2 p-3 bg-warn/10 border border-warn/40 rounded">
+          <Lock size={14} className="text-warn mt-0.5 shrink-0" />
           <div className="text-xs space-y-1.5 text-text">
-            <div className="font-semibold text-amber-300">O plano deixa de ser editável.</div>
+            <div className="font-semibold text-warn">O plano deixa de ser editável.</div>
             <div>
               Tarefas, datas, equipes e o perfil semanal ficam congelados, junto com as premissas
               (quantidades, valores e produção de cada serviço, e o calendário). Mudanças futuras no

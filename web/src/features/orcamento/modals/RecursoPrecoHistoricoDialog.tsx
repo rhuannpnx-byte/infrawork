@@ -67,7 +67,7 @@ export function RecursoPrecoHistoricoDialog({
                     <tr
                       key={p.id}
                       className={cn(
-                        'border-b border-border/60',
+                        'border-b border-border',
                         p.is_vigente ? 'bg-accent-glow' : ''
                       )}
                     >

@@ -348,13 +348,13 @@ export function CurvaSComProjecoes({
         <div className="flex items-center gap-3 text-2xs font-mono text-text-dim">
           {!ocultarProjecoes && projStats.media_atual != null && (
             <span>
-              <span className="text-orange-400">●</span> média atual:{' '}
+              <span className="text-[color:var(--chart-laranja)]">●</span> média atual:{' '}
               <span className="text-text">{fmtNum(projStats.media_atual)}/dia</span>
             </span>
           )}
           {!ocultarProjecoes && projStats.media_necessaria != null && (
             <span>
-              <span className="text-violet-400">●</span> média necessária:{' '}
+              <span className="text-milestone">●</span> média necessária:{' '}
               <span className="text-text">{fmtNum(projStats.media_necessaria)}/dia</span>
             </span>
           )}
@@ -391,7 +391,7 @@ export function CurvaSComProjecoes({
               verticalAlign="top"
               height={24}
               iconSize={8}
-              wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }}
+              wrapperStyle={{ fontSize: 10, fontFamily: '"Archivo Variable", Archivo, sans-serif' }}
             />
             <ReferenceLine
               x={hojeIso}

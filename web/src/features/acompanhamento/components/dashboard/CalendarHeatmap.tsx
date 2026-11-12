@@ -39,10 +39,10 @@ export function CalendarHeatmap({ data, altura = 200 }: Props): ReactNode {
     if (isFuture) return 'bg-bg/60'
     if (qtd === 0) return 'bg-bg'
     const ratio = qtd / max
-    if (ratio < 0.25) return 'bg-emerald-900'
-    if (ratio < 0.5) return 'bg-emerald-700'
-    if (ratio < 0.75) return 'bg-emerald-500'
-    return 'bg-emerald-400'
+    if (ratio < 0.25) return 'bg-success/25'
+    if (ratio < 0.5) return 'bg-success/50'
+    if (ratio < 0.75) return 'bg-success/75'
+    return 'bg-success'
   }
 
   const totalFotos = grid.dias.reduce((s, d) => s + (d?.qtd ?? 0), 0)

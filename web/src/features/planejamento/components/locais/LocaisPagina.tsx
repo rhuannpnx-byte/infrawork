@@ -310,7 +310,7 @@ function LinhaLocal({
 
   return (
     <>
-      <tr className="border-b border-border/40">
+      <tr className="border-b border-border">
         <td className="px-3 py-1.5">
           <Popover
             open={corOpen}

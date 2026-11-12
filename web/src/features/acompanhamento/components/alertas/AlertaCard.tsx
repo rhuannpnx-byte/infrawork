@@ -25,10 +25,10 @@ export function AlertaCard({ alerta }: Props): ReactNode {
   const Icon = ICON[alerta.severidade] ?? Info
   const cor =
     alerta.severidade === 'critical'
-      ? 'text-red-400 border-red-500/30 bg-red-500/5'
+      ? 'text-danger border-danger/40 bg-danger/5'
       : alerta.severidade === 'warn'
-        ? 'text-amber-400 border-amber-500/30 bg-amber-500/5'
-        : 'text-blue-400 border-blue-500/30 bg-blue-500/5'
+        ? 'text-warn border-warn/40 bg-warn/5'
+        : 'text-accent border-accent/40 bg-accent/5'
 
   const ctx = alerta.contexto ?? {}
 

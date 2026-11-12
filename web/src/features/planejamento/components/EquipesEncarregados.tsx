@@ -114,7 +114,7 @@ export function EquipesEncarregados(): ReactNode {
                 {equipes.map((e, idx) => {
                   const r = resumoEquipe.get(e.id)
                   return (
-                    <tr key={e.id} className="border-b border-border/40 hover:bg-bg-hover">
+                    <tr key={e.id} className="border-b border-border hover:bg-bg-hover">
                       <td className="px-2 py-2">
                         <span className="inline-flex items-center gap-0.5">
                           {!readOnlyEquipes ? (
@@ -218,7 +218,7 @@ export function EquipesEncarregados(): ReactNode {
               </thead>
               <tbody>
                 {encarregados.map((en) => (
-                  <tr key={en.id} className="border-b border-border/40 hover:bg-bg-hover">
+                  <tr key={en.id} className="border-b border-border hover:bg-bg-hover">
                     <td className="px-3 py-2 text-text">{en.nome}</td>
                     <td className="px-3 py-2 text-text-muted">{en.apelido ?? '—'}</td>
                     <td className="px-3 py-2">

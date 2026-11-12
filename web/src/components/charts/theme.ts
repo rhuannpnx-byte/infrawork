@@ -23,15 +23,15 @@ export const CHART_THEME = {
 export const tooltipStyle = {
   backgroundColor: CHART_THEME.tooltipBg,
   border: `1px solid ${CHART_THEME.tooltipBorder}`,
-  borderRadius: '4px',
+  borderRadius: '2px',
   fontSize: '11px',
-  fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+  fontFamily: '"Archivo Variable", Archivo, system-ui, sans-serif',
   color: CHART_THEME.tooltipText,
   padding: '6px 8px'
 }
 
 export const axisStyle = {
   fontSize: 10,
-  fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+  fontFamily: '"Archivo Variable", Archivo, system-ui, sans-serif',
   fill: CHART_THEME.axisLabel
 }

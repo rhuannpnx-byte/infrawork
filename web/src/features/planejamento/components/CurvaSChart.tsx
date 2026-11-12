@@ -136,7 +136,7 @@ export function CurvaSChart({
           <Line
             type="monotone"
             dataKey="receita_acumulada"
-            stroke="var(--success, #10b981)"
+            stroke="var(--success)"
             strokeWidth={2}
             strokeDasharray="6 4"
             dot={false}

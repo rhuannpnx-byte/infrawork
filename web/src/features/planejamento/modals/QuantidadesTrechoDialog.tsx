@@ -325,7 +325,7 @@ export function QuantidadesTrechoDialog({
             {lista.map((a) => (
               <label
                 key={a.id}
-                className="flex items-start gap-2 px-3 py-1.5 border-b border-border/40 text-xs hover:bg-bg-hover cursor-pointer"
+                className="flex items-start gap-2 px-3 py-1.5 border-b border-border text-xs hover:bg-bg-hover cursor-pointer"
               >
                 <input
                   type="checkbox"
@@ -435,7 +435,7 @@ export function QuantidadesTrechoDialog({
               {versoes.map((v) => (
                 <div
                   key={v.id}
-                  className="flex items-center gap-2 px-3 py-1 text-xs border-b border-border/40"
+                  className="flex items-center gap-2 px-3 py-1 text-xs border-b border-border"
                 >
                   <span className="font-mono">v{v.numero}</span>
                   {v.is_atual ? <Badge variant="accent">atual</Badge> : null}

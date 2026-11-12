@@ -422,7 +422,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
       draggable={podeAlocar && isReceita}
       onDragStart={isReceita ? onDragStart : undefined}
       className={cn(
-        'flex items-center border-b border-border/40 group h-7 border-l-2',
+        'flex items-center border-b border-border group h-7 border-l-2',
         isSelected ? 'bg-accent-glow' : 'hover:bg-bg-hover',
         destaque !== null ? 'border-l-accent bg-accent-glow' : 'border-l-transparent',
         emDestaque && destaque === null && isReceita && 'opacity-60'

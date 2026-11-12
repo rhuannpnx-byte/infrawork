@@ -145,7 +145,7 @@ function CompararInner(): ReactNode {
                     {diffs.map((r) => (
                       <tr
                         key={r.key}
-                        className={cn('border-b border-border/40', r.grupo && 'bg-bg/40')}
+                        className={cn('border-b border-border', r.grupo && 'bg-bg/40')}
                       >
                         <td className="px-3 py-1.5" style={{ paddingLeft: 12 + r.nivel * 14 }}>
                           <span className="text-text-dim mr-1.5">{r.numero}</span>

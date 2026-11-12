@@ -100,7 +100,7 @@ export function ProdutividadeDiariaChart({
             verticalAlign="top"
             height={22}
             iconSize={8}
-            wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }}
+            wrapperStyle={{ fontSize: 10, fontFamily: '"Archivo Variable", Archivo, sans-serif' }}
           />
           <Bar
             name="Produção/dia"

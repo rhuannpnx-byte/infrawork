@@ -7,14 +7,14 @@ const iconButtonVariants = cva(
   {
     variants: {
       variant: {
-        ghost: 'text-text-dim hover:text-text hover:bg-bg-hover',
+        ghost: 'text-text-muted hover:text-text hover:bg-bg-hover',
         danger: 'text-text-dim hover:text-danger hover:bg-danger/10',
         accent: 'text-text-muted hover:text-accent hover:bg-bg-hover'
       },
       size: {
         // Mínimo WCAG 2.2 SC 2.5.8: 24×24. Default 28 (combina com Button size default).
-        sm: 'w-6 h-6',
-        default: 'w-7 h-7'
+        sm: 'w-7 h-7',
+        default: 'w-8 h-8'
       }
     },
     defaultVariants: { variant: 'ghost', size: 'default' }

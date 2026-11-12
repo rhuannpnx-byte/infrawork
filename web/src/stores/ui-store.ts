@@ -22,7 +22,8 @@ const SIDEBAR_KEY = storageKey('ui.sidebarOpen')
 function readSidebarPref(): boolean {
   if (typeof window === 'undefined') return true
   const v = window.localStorage.getItem(SIDEBAR_KEY)
-  return v === null ? true : v === '1'
+  if (v === null) return !window.matchMedia('(max-width: 767px)').matches
+  return v === '1'
 }
 
 function writeSidebarPref(open: boolean): void {

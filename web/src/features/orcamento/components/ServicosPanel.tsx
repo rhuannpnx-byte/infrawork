@@ -128,7 +128,7 @@ export function ServicosPanel({
               onDragLeave={() => setDropAlvo((d) => (d === s.id ? null : d))}
               onDrop={(e) => void onDrop(e, s.id)}
               className={cn(
-                'group px-3 py-2 border-b border-border/50 cursor-pointer border-l-2',
+                'group px-3 py-2 border-b border-border cursor-pointer border-l-2',
                 ativo ? 'bg-accent-glow border-l-accent' : 'border-l-transparent hover:bg-bg-hover',
                 dropAlvo === s.id && 'bg-accent-glow ring-1 ring-inset ring-accent'
               )}

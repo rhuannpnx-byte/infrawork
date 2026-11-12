@@ -63,7 +63,7 @@ function etiquetaSeqHtml(seq: SequenciaAtaque): string {
   ]
     .filter(Boolean)
     .join('')
-  return `<div data-seq-card style="display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.35;background:rgba(11,23,38,.93);border:1px solid rgba(255,255,255,.18);border-left:3px solid ${seq.cor};border-radius:4px;padding:4px 7px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.55)">${linhas}</div>`
+  return `<div data-seq-card style="display:inline-block;font-family:'Archivo Variable',Archivo,sans-serif;font-size:10px;line-height:1.35;background:rgba(11,23,38,.93);border:1px solid rgba(255,255,255,.18);border-left:3px solid ${seq.cor};border-radius:4px;padding:4px 7px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.55)">${linhas}</div>`
 }
 
 interface PointProps {
@@ -249,7 +249,7 @@ export function MapaFotosSatelite({
         const inner = Math.round(tam * 0.6)
         const icon = L.divIcon({
           className: '',
-          html: `<div style="width:${tam}px;height:${tam}px;border-radius:50%;background:${bg};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:rgba(11,23,38,.82);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px rgba(0,0,0,.7)">${count}</div></div>`,
+          html: `<div style="width:${tam}px;height:${tam}px;border-radius:50%;background:${bg};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:rgba(11,23,38,.82);color:#fff;font-family:'Archivo Variable',Archivo,sans-serif;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px rgba(0,0,0,.7)">${count}</div></div>`,
           iconSize: [tam, tam],
           iconAnchor: [tam / 2, tam / 2]
         })

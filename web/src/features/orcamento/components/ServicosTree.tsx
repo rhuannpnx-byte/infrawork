@@ -156,7 +156,7 @@ function ServicoRow({
         {depth > 0 ? (
           <span
             aria-hidden
-            className="absolute top-0 bottom-0 border-l border-border/60 pointer-events-none"
+            className="absolute top-0 bottom-0 border-l border-border pointer-events-none"
             style={{ left: `${(depth - 1) * 20 + 10}px` }}
           />
         ) : null}

@@ -153,7 +153,7 @@ export function GanttGrade(p: Props): ReactNode {
                   data-linha={l.chave}
                   style={{ top: i * ALTURA_LINHA, height: ALTURA_LINHA }}
                   className={cn(
-                    'absolute left-0 right-0 flex items-center border-b border-border/60 text-xs',
+                    'absolute left-0 right-0 flex items-center border-b border-border text-xs',
                     sel ? 'bg-accent-glow' : 'hover:bg-bg-hover/60',
                     l.tipo === 'local' && 'text-text-muted',
                     l.tipo === 'servico' && 'text-text-muted'

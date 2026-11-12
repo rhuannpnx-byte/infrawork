@@ -149,7 +149,7 @@ function PlanilhaInicialInner(): ReactNode {
               return (
                 <tr
                   key={l.id}
-                  className={'border-b border-border/40 ' + (etapa ? 'bg-bg-elevated/40' : '')}
+                  className={'border-b border-border ' + (etapa ? 'bg-bg-elevated/40' : '')}
                 >
                   <td className="px-2 py-1 font-mono text-text-dim">{l.codigo}</td>
                   <td
@@ -192,7 +192,7 @@ function PlanilhaInicialInner(): ReactNode {
               )
             })}
             {novos.map((n) => (
-              <tr key={n.id} className="border-b border-border/40">
+              <tr key={n.id} className="border-b border-border">
                 <td className="px-2 py-1 font-mono text-text-dim">{n.codigo}</td>
                 <td className="px-2 py-1 text-text">
                   {n.descricao}{' '}

@@ -202,7 +202,7 @@ export function PrevistoRealizadoPainel({
     aderencia: number | null
   }): ReactNode {
     const ratio = aderencia ?? 0
-    const cor = ratio >= 0.95 ? '#10b981' : ratio >= 0.7 ? '#f59e0b' : '#ef4444'
+    const cor = ratio >= 0.95 ? 'var(--success)' : ratio >= 0.7 ? 'var(--warn)' : 'var(--danger)'
     return (
       <div className="rounded border border-border bg-bg p-2 flex flex-col">
         <div className="text-2xs font-mono uppercase text-text-dim mb-1">{titulo}</div>

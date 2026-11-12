@@ -161,7 +161,7 @@ export function GradeQuantidades({
         <tbody>
           {segmentos.map((s, r) => (
             <tr key={r} className="group hover:bg-bg-hover/40">
-              <td className="sticky left-0 z-[5] bg-bg-panel group-hover:bg-bg-hover/60 px-1 py-0.5 border-b border-r border-border/60 font-mono">
+              <td className="sticky left-0 z-[5] bg-bg-panel group-hover:bg-bg-elevated px-1 py-0.5 border-b border-r border-border font-mono">
                 {tipo === 'area' ? (
                   <span className="px-1 text-text-muted">Área inteira</span>
                 ) : colExtra ? (
@@ -192,7 +192,7 @@ export function GradeQuantidades({
                 )}
               </td>
               {colunas.map((k, c) => (
-                <td key={k.id} className="px-1 py-0.5 border-b border-border/60 text-right">
+                <td key={k.id} className="px-1 py-0.5 border-b border-border text-right">
                   <Celula
                     r={r}
                     c={c}
@@ -205,7 +205,7 @@ export function GradeQuantidades({
                 </td>
               ))}
               {colExtra ? (
-                <td className="border-b border-border/60 text-center">
+                <td className="border-b border-border text-center">
                   <IconButton
                     size="sm"
                     variant="ghost"

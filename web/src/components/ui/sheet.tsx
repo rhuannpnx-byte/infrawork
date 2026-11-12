@@ -38,7 +38,7 @@ export function Sheet({
         if (e.target === e.currentTarget) onOpenChange(false)
       }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" />
+      <div className="absolute inset-0 bg-[color:var(--veu)] animate-fade-in" />
       <div
         className={cn(
           'absolute top-0 bottom-0 w-[420px] bg-bg-panel border-border-strong shadow-2xl flex flex-col',

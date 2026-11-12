@@ -82,7 +82,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
       ) : anexos.length === 0 ? (
         <div className="text-text-muted font-mono italic">Nenhum anexo.</div>
       ) : (
-        <div className="rounded border border-border bg-bg-elevated divide-y divide-border/40">
+        <div className="rounded border border-border bg-bg-elevated divide-y divide-border">
           {anexos.map((a) => (
             <div key={a.id} className="flex items-center gap-2 px-2 py-1.5 group">
               <Paperclip size={11} className="text-text-dim shrink-0" />

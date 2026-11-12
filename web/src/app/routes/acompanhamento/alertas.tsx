@@ -121,7 +121,7 @@ function Inner(): ReactNode {
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {isLoading && Array.from({ length: 4 }).map((_, i) => <PulseBlock key={i} h={80} />)}
         {!isLoading && alertas.length === 0 && (
-          <div className="rounded border border-emerald-500/30 bg-emerald-500/5 px-4 py-6 text-center text-emerald-300 text-xs">
+          <div className="rounded border border-success/40 bg-success/5 px-4 py-6 text-center text-success text-xs">
             Sem alertas nesse filtro · tudo certo
           </div>
         )}

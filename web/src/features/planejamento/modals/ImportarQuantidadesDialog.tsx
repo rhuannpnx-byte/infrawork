@@ -589,7 +589,7 @@ export function ImportarQuantidadesDialog({
                     </thead>
                     <tbody>
                       {leitura.abas.map((a) => (
-                        <tr key={a.nome} className="border-b border-border/40">
+                        <tr key={a.nome} className="border-b border-border">
                           <td className="px-2 py-1 font-medium text-text">{a.nome}</td>
                           <td className="px-2 py-1">
                             <Badge variant="outline">
@@ -664,7 +664,7 @@ export function ImportarQuantidadesDialog({
                             : 'nao'
                       const opcoes = l.tipo === 'eixo' ? eixos : areas
                       return (
-                        <tr key={l.chave} className="border-b border-border/40">
+                        <tr key={l.chave} className="border-b border-border">
                           <td className="px-2 py-1">
                             <span className="font-medium text-text">{l.nome}</span>{' '}
                             <Badge variant="outline" className="ml-1">
@@ -770,7 +770,7 @@ export function ImportarQuantidadesDialog({
                       const unidadeDifere =
                         a && c.unidade && normalizarTexto(a.unidade) !== normalizarTexto(c.unidade)
                       return (
-                        <tr key={c.chave} className="border-b border-border/40">
+                        <tr key={c.chave} className="border-b border-border">
                           <td className="px-2 py-1">
                             <span className="text-text">{c.titulo}</span>
                             {c.abas.length > 1 ? (
@@ -865,7 +865,7 @@ export function ImportarQuantidadesDialog({
                 ) : null}
                 <table className="w-full text-xs">
                   <thead className="text-2xs font-mono uppercase text-text-dim">
-                    <tr className="border-b border-border/60">
+                    <tr className="border-b border-border">
                       <th className="text-left px-3 py-1">Serviço</th>
                       <th className="text-right px-2 py-1">Importado</th>
                       <th className="text-right px-2 py-1">Atual no local</th>
@@ -876,7 +876,7 @@ export function ImportarQuantidadesDialog({
                   </thead>
                   <tbody className="font-mono tabular-nums">
                     {p.linhas.map((ln) => (
-                      <tr key={ln.itemId} className="border-b border-border/40">
+                      <tr key={ln.itemId} className="border-b border-border">
                         <td className="px-3 py-1 font-sans">
                           <span className="font-mono text-text-dim mr-1">{ln.codigo}</span>
                           {ln.descricao}

@@ -5,12 +5,12 @@ import { useTabsStore } from '@/stores/tabs-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { MODULES } from '@/config/modules'
 
-// Sequência "g + letra" → chave do módulo (não a rota): abrimos via openModule,
-// gateado por papel, para o papel não pular para módulos ocultos (ex.: cliente).
-const GO_SEQUENCE_MAP: Record<string, string> = {
-  g: 'gerencial'
-  // Demais módulos voltarão aqui quando forem implementados.
-}
+// Sequência "g + letra" → chave do módulo (não a rota), tirada do atalho declarado em config/modules.ts. Abre via
+// openModule, conferindo o papel, para ninguém pular para um módulo oculto (ex.: cliente). "g h" é o Início.
+const GO_SEQUENCE_MAP: Record<string, string> = Object.fromEntries([
+  ['h', 'home'],
+  ...MODULES.map((m) => [m.shortcut.split(' ')[1], m.key])
+])
 
 const TIMEOUT_MS = 800
 
@@ -18,10 +18,6 @@ export function useShortcuts(): void {
   const openModal = useUIStore((s) => s.openModal)
   const closeModal = useUIStore((s) => s.closeModal)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
-  const closeActiveTab = useTabsStore((s) => s.closeTab)
-  const activeTabId = useTabsStore((s) => s.activeTabId)
-  const cycleActive = useTabsStore((s) => s.cycleActive)
-  const reopenLastClosed = useTabsStore((s) => s.reopenLastClosed)
 
   const waitingForG = useRef(false)
   const gTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -36,29 +32,6 @@ export function useShortcuts(): void {
   useHotkeys('mod+b', (e) => {
     e.preventDefault()
     toggleSidebar()
-  })
-
-  // Alt + W — close current tab (Ctrl+W é reservado pelo browser)
-  useHotkeys('alt+w', (e) => {
-    e.preventDefault()
-    if (activeTabId) closeActiveTab(activeTabId)
-  })
-
-  // Alt + Shift + T — reopen last closed
-  useHotkeys('alt+shift+t', (e) => {
-    e.preventDefault()
-    reopenLastClosed()
-  })
-
-  // Alt + 1..9 — switch tab (cycle by index)
-  useHotkeys('alt+1, alt+2, alt+3, alt+4, alt+5, alt+6, alt+7, alt+8, alt+9', (e, handler) => {
-    e.preventDefault()
-    const key = handler.keys?.find((k) => /^\d$/.test(k))
-    const n = key ? parseInt(key, 10) : NaN
-    if (!Number.isFinite(n)) return
-    const { tabs, setActive } = useTabsStore.getState()
-    const tab = tabs[n - 1]
-    if (tab) setActive(tab.id)
   })
 
   // ? — keyboard shortcuts overlay
@@ -88,7 +61,8 @@ export function useShortcuts(): void {
           const role = useAuthStore.getState().profile?.role ?? null
           const mod = MODULES.find((m) => m.key === modKey)
           const visivel =
-            !!mod && (!mod.requiredRoles || (!!role && mod.requiredRoles.includes(role)))
+            modKey === 'home' ||
+            (!!mod && (!mod.requiredRoles || (!!role && mod.requiredRoles.includes(role))))
           if (visivel) {
             e.preventDefault()
             useUIStore.getState().setSidebarOpen(true)
@@ -116,8 +90,4 @@ export function useShortcuts(): void {
       if (gTimer.current) clearTimeout(gTimer.current)
     }
   }, [])
-
-  // Side effect: ensure all module shortcuts are registered (for display)
-  void MODULES
-  void cycleActive
 }

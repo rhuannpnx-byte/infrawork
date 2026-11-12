@@ -1,55 +1,9 @@
 // Fumaça das telas: entra no web e abre cada rota do menu, acusando erro de página, de console e tela de erro.
 //   E2E_EMAIL=… E2E_PASSWORD=… E2E_EMPRESA_ID=… E2E_OBRA_ID=… [E2E_URL=http://localhost:5174] node scripts/fumaca-telas.mjs
 import { chromium } from 'playwright'
+import { ROTAS } from './rotas-telas.mjs'
 
 const URL = process.env.E2E_URL ?? 'http://localhost:5174'
-const ROTAS = [
-  '/',
-  '/gerencial',
-  '/gerencial/empresas',
-  '/gerencial/usuarios',
-  '/gerencial/obras',
-  '/gerencial/frota',
-  '/orcamento',
-  '/orcamento/obra',
-  '/orcamento/obra/plan-orc',
-  '/orcamento/obra/lucratividade',
-  '/orcamento/obra/indireto',
-  '/orcamento/obra/aditivos',
-  '/orcamento/obra/planilha-inicial',
-  '/orcamento/obra/reajustes',
-  '/orcamento/recursos',
-  '/orcamento/servicos',
-  '/orcamento/composicoes',
-  '/orcamento/taxas',
-  '/planejamento',
-  '/planejamento/cronograma',
-  '/planejamento/parametrizacao',
-  '/planejamento/calendario',
-  '/planejamento/equipes',
-  '/planejamento/trechos',
-  '/planejamento/tempo-caminho',
-  '/planejamento/curva-s',
-  '/planejamento/recursos',
-  '/planejamento/comparar',
-  '/planejamento/programacao',
-  '/planejamento/marcha-tempo',
-  '/planejamento/histograma',
-  '/planejamento/revisoes/00000000-0000-0000-0000-000000000000',
-  '/acompanhamento',
-  '/acompanhamento/lancar',
-  '/acompanhamento/calendario',
-  '/acompanhamento/valor-agregado',
-  '/acompanhamento/producao',
-  '/acompanhamento/viagens',
-  '/acompanhamento/fotos',
-  '/acompanhamento/comparativo',
-  '/acompanhamento/performance',
-  '/acompanhamento/equipes',
-  '/acompanhamento/transporte',
-  '/acompanhamento/alertas',
-  '/lancar'
-]
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })

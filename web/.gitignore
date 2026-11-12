@@ -8,3 +8,6 @@ vendor/apex/.types/
 
 # bundles do MCP (gerados no build)
 mcp/dist/
+
+# capturas das telas (scripts/capturas-telas.mjs)
+capturas/

@@ -1,3 +1,4 @@
+import '@fontsource-variable/archivo/wght.css'
 import './styles/globals.css'
 import './app/OAuthConsentimento'
 

@@ -1,10 +1,7 @@
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { LayoutDashboard } from 'lucide-react'
 import { TitleBar, ScopePill, UserMenu } from './TitleBar'
-import { TabBar } from './TabBar'
-import { PrimaryRail } from './PrimaryRail'
-import { SecondarySidebar } from './SecondarySidebar'
-import { StatusBar } from './StatusBar'
+import { Sidebar } from './Sidebar'
 import infraworkIcon from '@/assets/infrawork-icon.png'
 import { useUIStore } from '@/stores/ui-store'
 import { useActiveTab } from '@/stores/tabs-store'
@@ -19,10 +16,12 @@ import { navigateActiveTab } from '@/app/navigateActiveTab'
  * `overflow-hidden` e o ErrorBoundary vive dentro de cada aba.
  *
  * Rotas "bare" (`/lancar`, uso em campo no celular) ganham um chrome mínimo:
- * só logo, obra e usuário — sem rail, sidebar nem abas.
+ * só logo, obra e usuário, sem o menu.
  */
 export function AppShell({ children }: { children: ReactNode }): ReactNode {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const estreito = useTelaEstreita()
   const activeTab = useActiveTab()
 
   const bare = !!activeTab && isBareRoute(activeTab.location.split('?')[0])
@@ -35,37 +34,55 @@ export function AppShell({ children }: { children: ReactNode }): ReactNode {
     )
   }
 
-  // Home (e rotas sem módulo) não têm sidebar: colapsa a coluna.
-  const inModule = !!activeTab && activeTab.moduleKey !== 'home'
-  const showSidebar = sidebarOpen && inModule
-  const gridTemplateColumns = showSidebar ? '44px 268px 1fr' : '44px 0 1fr'
-
+  // Tela estreita (celular): o menu abre por cima do conteúdo e fecha ao escolher a página.
+  const fixo = sidebarOpen && !estreito
   return (
     <div
-      className="h-screen w-screen grid"
+      className="h-dvh w-screen grid"
       style={{
-        gridTemplateRows: '40px 28px 1fr 22px',
-        gridTemplateColumns,
-        gridTemplateAreas:
-          '"title title title" "tabs tabs tabs" "rail sidebar main" "status status status"',
+        gridTemplateRows: '48px minmax(0, 1fr)',
+        gridTemplateColumns: fixo ? '248px minmax(0, 1fr)' : '0 minmax(0, 1fr)',
+        gridTemplateAreas: '"title title" "sidebar main"',
         transition: 'grid-template-columns 140ms ease-out'
       }}
     >
       <TitleBar />
-      <TabBar />
-      <PrimaryRail />
-      <SecondarySidebar />
+      {fixo ? <Sidebar /> : <span style={{ gridArea: 'sidebar' }} />}
       <main style={{ gridArea: 'main' }} className="bg-bg overflow-hidden relative">
         {children}
       </main>
-      <StatusBar />
+      {sidebarOpen && estreito ? (
+        <div className="fixed inset-x-0 bottom-0 top-12 z-40 flex">
+          <div className="w-[min(280px,85vw)] h-full grid shadow-[var(--sombra-flutuante)]">
+            <Sidebar aoNavegar={() => setSidebarOpen(false)} />
+          </div>
+          <button
+            type="button"
+            aria-label="Fechar o menu"
+            className="flex-1 bg-[color:var(--veu)]"
+            onClick={() => setSidebarOpen(false)}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
 
+function useTelaEstreita(): boolean {
+  const consulta = '(max-width: 767px)'
+  const [estreito, setEstreito] = useState(() => window.matchMedia(consulta).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(consulta)
+    const aoMudar = (): void => setEstreito(mq.matches)
+    mq.addEventListener('change', aoMudar)
+    return () => mq.removeEventListener('change', aoMudar)
+  }, [])
+  return estreito
+}
+
 function BareBar(): ReactNode {
   return (
-    <div className="h-11 shrink-0 bg-bg-tabs border-b border-border flex items-center gap-2 px-2 text-xs">
+    <div className="h-12 shrink-0 bg-bg-menu border-b border-border flex items-center gap-2 px-2 text-sm">
       <img
         src={infraworkIcon}
         alt="InfraWork"
@@ -78,10 +95,10 @@ function BareBar(): ReactNode {
       <button
         type="button"
         onClick={() => navigateActiveTab('/acompanhamento/lancar')}
-        className="hidden sm:inline-flex items-center gap-1 h-7 px-2 rounded border border-border-strong bg-bg-elevated text-2xs text-text-muted hover:text-text hover:border-border-accent"
+        className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded border border-border-strong bg-bg-panel text-sm text-text-muted hover:text-text hover:border-border-accent"
         title="Abrir o app completo"
       >
-        <LayoutDashboard size={11} /> App completo
+        <LayoutDashboard size={13} /> App completo
       </button>
       <UserMenu />
     </div>

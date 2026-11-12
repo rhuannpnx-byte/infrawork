@@ -65,7 +65,7 @@ function Lucratividade(): ReactNode {
                     const lucroRs = venda - custo - taxa
                     const lucroPerc = venda > 0 ? lucroRs / venda : null
                     return (
-                      <tr key={raiz.id} className="border-b border-border/40">
+                      <tr key={raiz.id} className="border-b border-border">
                         <td className="px-3 py-2 text-text-dim">{raiz.codigo}</td>
                         <td className="px-3 py-2 text-text">{raiz.descricao}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtBRL(venda)}</td>

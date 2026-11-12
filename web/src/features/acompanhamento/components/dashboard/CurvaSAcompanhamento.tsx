@@ -159,7 +159,7 @@ export function CurvaSAcompanhamento({ pontos, altura = 280 }: Props): ReactNode
             verticalAlign="top"
             height={24}
             iconSize={8}
-            wrapperStyle={{ fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }}
+            wrapperStyle={{ fontSize: 10, fontFamily: '"Archivo Variable", Archivo, sans-serif' }}
           />
           <ReferenceLine
             x={hojeIso}

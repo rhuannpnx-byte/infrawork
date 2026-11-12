@@ -417,7 +417,7 @@ function ReajusteEditor({
             </thead>
             <tbody>
               {grupos.map((g) => (
-                <tr key={g.id} className="border-b border-border/40">
+                <tr key={g.id} className="border-b border-border">
                   <td className="px-2 py-1">
                     <Input
                       className="h-6"
@@ -560,7 +560,7 @@ function ReajusteEditor({
               {linhas.map((n) => {
                 if (n.tipo === 'etapa') {
                   return (
-                    <tr key={n.id} className="border-b border-border/40 bg-bg-elevated/40">
+                    <tr key={n.id} className="border-b border-border bg-bg-elevated/40">
                       <td className="px-2">
                         {editavel ? (
                           <input
@@ -587,7 +587,7 @@ function ReajusteEditor({
                     ? Math.round(preco * (fatorDe.get(gid) ?? 1) * 100) / 100
                     : (it?.preco_depois ?? null)
                 return (
-                  <tr key={n.id} className="border-b border-border/40">
+                  <tr key={n.id} className="border-b border-border">
                     <td className="px-2">
                       {editavel ? (
                         <input

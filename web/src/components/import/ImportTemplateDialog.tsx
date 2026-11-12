@@ -307,7 +307,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
                     <tr
                       key={`${r.sheet}-${r.row}`}
                       className={cn(
-                        'border-t border-border/50',
+                        'border-t border-border',
                         r.acao === 'erro' && 'bg-danger/5'
                       )}
                     >

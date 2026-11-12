@@ -290,7 +290,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                 <tr
                   key={i.id}
                   className={cn(
-                    'border-b border-border/40',
+                    'border-b border-border',
                     ativa ? 'bg-accent/5' : 'hover:bg-bg-hover'
                   )}
                 >

@@ -42,9 +42,9 @@ export function CommandPalette(): ReactNode {
         if (e.target === e.currentTarget) close()
       }}
     >
-      <div className="absolute inset-0 bg-black/70 animate-fade-in" />
+      <div className="absolute inset-0 bg-[color:var(--veu)] animate-fade-in" />
       <Command
-        className="relative w-full max-w-xl mx-4 rounded-md border border-border-strong bg-bg-panel shadow-2xl animate-slide-up overflow-hidden"
+        className="relative w-full max-w-xl mx-4 rounded-md border border-border-strong bg-bg-panel shadow-[var(--sombra-flutuante)] animate-slide-up overflow-hidden"
         shouldFilter
         value={value}
         onValueChange={setValue}

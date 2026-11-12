@@ -141,7 +141,7 @@ function CurvaSInner(): ReactNode {
                   {curvaPlanejada.map((row) => {
                     const margemAcum = row.receita_acumulada - row.custo_acumulado
                     return (
-                      <tr key={row.periodo} className="border-b border-border/40">
+                      <tr key={row.periodo} className="border-b border-border">
                         <td className="px-3 py-1.5">{fmtDataBR(row.periodo)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {fmtBRL(row.custo_periodo)}
@@ -152,11 +152,11 @@ function CurvaSInner(): ReactNode {
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {fmtBRL(row.receita_periodo)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-emerald-400">
+                        <td className="px-3 py-1.5 text-right tabular-nums text-success">
                           {fmtBRL(row.receita_acumulada)}
                         </td>
                         <td
-                          className={`px-3 py-1.5 text-right tabular-nums ${margemAcum >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                          className={`px-3 py-1.5 text-right tabular-nums ${margemAcum >= 0 ? 'text-success' : 'text-danger'}`}
                         >
                           {fmtBRL(margemAcum)}
                         </td>
@@ -183,7 +183,7 @@ function Stat({
   tone?: 'neutral' | 'positive' | 'negative'
 }): ReactNode {
   const valueClass =
-    tone === 'positive' ? 'text-emerald-400' : tone === 'negative' ? 'text-red-400' : 'text-text'
+    tone === 'positive' ? 'text-success' : tone === 'negative' ? 'text-danger' : 'text-text'
   return (
     <div className="rounded border border-border bg-bg-panel p-3">
       <div className="text-2xs font-mono text-text-dim uppercase tracking-wider mb-1">{label}</div>

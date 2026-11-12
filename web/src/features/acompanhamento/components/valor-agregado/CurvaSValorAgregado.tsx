@@ -20,8 +20,8 @@ interface Props {
   height?: number
 }
 
-const COR_RECEITA = 'var(--success, #10b981)'
-const COR_CUSTO = 'var(--danger, #ef4444)'
+const COR_RECEITA = 'var(--success)'
+const COR_CUSTO = 'var(--danger)'
 
 const labels: Record<string, string> = {
   receita_planejada_acum: 'Receita planejada',

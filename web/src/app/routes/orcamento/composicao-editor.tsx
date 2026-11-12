@@ -735,7 +735,7 @@ function ItemRow({
   const ehMat = item.grupo === 'MATERIAL'
   const cell = 'h-6 text-right font-mono'
   return (
-    <tr className="border-b border-border/40">
+    <tr className="border-b border-border">
       <td className="px-2 py-1">
         <Badge variant={ehEq ? 'accent' : ehMat ? 'default' : 'warn'}>
           {CPU_ITEM_GRUPO_LABEL[item.grupo]}

@@ -48,7 +48,7 @@ export function KPICard({ label, value, delta, unit, spark, hint, icon }: KPICar
               <YAxis domain={['dataMin', 'dataMax']} hide />
               <Line
                 dataKey="v"
-                stroke={positive ? 'oklch(78% 0.18 145)' : 'oklch(70% 0.18 25)'}
+                stroke={positive ? 'var(--success)' : 'var(--danger)'}
                 strokeWidth={1.4}
                 dot={false}
                 type="monotone"

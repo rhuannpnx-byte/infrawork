@@ -389,7 +389,7 @@ function AditivoEditor({
                 const atual = rascunho ? (r?.quantidade ?? null) : it.quantidade_antes
                 const dv = deltaVenda(it)
                 return (
-                  <tr key={it.id} className="border-b border-border/40">
+                  <tr key={it.id} className="border-b border-border">
                     <td className="px-2 py-1.5">
                       <Badge
                         variant={
@@ -586,7 +586,7 @@ function ReceitaPicker({
                 disabled={bloq}
                 onClick={() => onPick(r)}
                 title={bloq ? 'Alocada em serviço — remova a alocação antes de excluir' : undefined}
-                className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left border-b border-border/40 hover:bg-bg-hover disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left border-b border-border hover:bg-bg-hover disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <span className="font-mono text-text-dim w-16 shrink-0">{r.codigo}</span>
                 <span className="flex-1 truncate text-text">{r.descricao}</span>

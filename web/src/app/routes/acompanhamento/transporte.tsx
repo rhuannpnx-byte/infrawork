@@ -142,7 +142,7 @@ function Inner(): ReactNode {
                 {locais.map((l) => {
                   const t = trechoDe(l.trecho_id)
                   return (
-                    <tr key={l.id} className="border-b border-border/50">
+                    <tr key={l.id} className="border-b border-border">
                       <td className="px-3 py-1">
                         <Input
                           key={l.nome}
@@ -378,7 +378,7 @@ function Inner(): ReactNode {
             {rotas.map((r) => (
               <div
                 key={r.id}
-                className="flex items-center gap-2 border-b border-border/50 px-3 py-1.5 text-xs"
+                className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs"
               >
                 <span className="truncate text-text">{nome(r.origem_id)}</span>
                 <ArrowRight size={12} className="shrink-0 text-text-dim" />

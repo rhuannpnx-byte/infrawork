@@ -117,7 +117,7 @@ export function PlanejadoProjetadoPorServico({ dados, limite = 25 }: Props): Rea
               <Cell
                 key={s.item_orcamentario_id}
                 fill={
-                  s.projetado >= s.planejado ? 'var(--success, #10b981)' : 'var(--danger, #ef4444)'
+                  s.projetado >= s.planejado ? 'var(--success)' : 'var(--danger)'
                 }
               />
             ))}

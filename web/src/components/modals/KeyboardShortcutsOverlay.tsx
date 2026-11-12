@@ -2,39 +2,23 @@ import { type ReactNode } from 'react'
 import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/stores/ui-store'
+import { MODULES } from '@/config/modules'
 
 const SECTIONS: Array<{ title: string; items: Array<[string, string]> }> = [
   {
-    title: 'Navegação',
+    title: 'Ir para',
     items: [
-      ['⌘K', 'Paleta de comandos'],
-      ['G G', 'Gerencial']
+      ['G H', 'Início'],
+      ...MODULES.map((m): [string, string] => [m.shortcut.toUpperCase(), m.title])
     ]
   },
   {
-    title: 'Edição',
+    title: 'Aplicação',
     items: [
-      ['⌘N', 'Novo (contextual)'],
-      ['⌘S', 'Salvar'],
-      ['⌘Z', 'Desfazer'],
-      ['⌘⇧Z', 'Refazer'],
-      ['Delete', 'Excluir item selecionado']
-    ]
-  },
-  {
-    title: 'Abas e janelas',
-    items: [
-      ['Alt+W', 'Fechar aba'],
-      ['Alt+Shift+T', 'Reabrir última aba'],
-      ['Alt+1…9', 'Ir para aba N'],
-      ['⌘B', 'Mostrar/ocultar sidebar']
-    ]
-  },
-  {
-    title: 'Diálogos',
-    items: [
-      ['?', 'Mostrar atalhos'],
-      ['Esc', 'Fechar modal']
+      ['Ctrl K', 'Buscar páginas, obras e ações'],
+      ['Ctrl B', 'Mostrar ou ocultar o menu'],
+      ['?', 'Mostrar estes atalhos'],
+      ['Esc', 'Fechar a janela aberta']
     ]
   }
 ]
@@ -52,7 +36,7 @@ export function KeyboardShortcutsOverlay(): ReactNode {
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           {SECTIONS.map((sec) => (
             <div key={sec.title}>
-              <div className="text-2xs font-mono uppercase tracking-wider text-text-dim mb-2">
+              <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
                 {sec.title}
               </div>
               <div className="space-y-1">

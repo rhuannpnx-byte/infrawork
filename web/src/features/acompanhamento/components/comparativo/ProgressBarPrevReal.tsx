@@ -28,7 +28,7 @@ export function ProgressBarPrevReal({ pct, esperado, status, neutral }: Props): 
         {/* marcador "esperado hoje" — onde a barra DEVERIA estar */}
         {exp != null && (
           <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-[3px] rounded-full bg-amber-300 ring-1 ring-bg shadow-sm"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-[3px] rounded-full bg-text ring-1 ring-bg shadow-sm"
             style={{ left: `${exp * 100}%` }}
             title={`Esperado hoje: ${(exp * 100).toFixed(0)}%`}
           />

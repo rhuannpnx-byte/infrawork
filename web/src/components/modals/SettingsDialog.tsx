@@ -5,15 +5,24 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { Keyboard, User, Info } from 'lucide-react'
+import { Palette, User, Info, Sun, Moon, Monitor } from 'lucide-react'
+import { useThemeStore, type TemaPreferencia } from '@/stores/theme-store'
 import { cn } from '@/lib/utils'
 
-type Tab = 'atalhos' | 'conta' | 'sobre'
+type Tab = 'aparencia' | 'conta' | 'sobre'
+
+const TEMAS: { valor: TemaPreferencia; rotulo: string; icone: ReactNode }[] = [
+  { valor: 'light', rotulo: 'Claro', icone: <Sun size={14} /> },
+  { valor: 'dark', rotulo: 'Escuro', icone: <Moon size={14} /> },
+  { valor: 'system', rotulo: 'Seguir o sistema', icone: <Monitor size={14} /> }
+]
 
 export function SettingsDialog(): ReactNode {
   const open = useUIStore((s) => s.activeModals.has('settings'))
   const close = (): void => useUIStore.getState().closeModal('settings')
-  const [tab, setTab] = useState<Tab>('atalhos')
+  const [tab, setTab] = useState<Tab>('aparencia')
+  const preferencia = useThemeStore((s) => s.preferencia)
+  const setPreferencia = useThemeStore((s) => s.setPreferencia)
   const profile = useAuthStore((s) => s.profile)
   const empresa = useAuthStore((s) => s.empresa)
 
@@ -25,10 +34,10 @@ export function SettingsDialog(): ReactNode {
       <SheetBody className="!px-0 !py-0 flex">
         <nav className="w-44 border-r border-border bg-bg-elevated p-2 flex flex-col gap-px">
           <TabBtn
-            icon={<Keyboard size={12} />}
-            label="Atalhos"
-            active={tab === 'atalhos'}
-            onClick={() => setTab('atalhos')}
+            icon={<Palette size={12} />}
+            label="Aparência"
+            active={tab === 'aparencia'}
+            onClick={() => setTab('aparencia')}
           />
           <TabBtn
             icon={<User size={12} />}
@@ -44,26 +53,34 @@ export function SettingsDialog(): ReactNode {
           />
         </nav>
         <div className="flex-1 overflow-auto p-4">
-          {tab === 'atalhos' ? (
-            <div>
-              <div className="text-2xs font-mono uppercase tracking-wider text-text-dim mb-2">
-                Navegação por módulo
+          {tab === 'aparencia' ? (
+            <fieldset>
+              <legend className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
+                Tema
+              </legend>
+              <div className="flex flex-col gap-1.5">
+                {TEMAS.map((t) => (
+                  <label
+                    key={t.valor}
+                    className={cn(
+                      'flex items-center gap-2.5 h-10 px-3 rounded border cursor-pointer text-sm',
+                      preferencia === t.valor
+                        ? 'border-accent bg-accent-glow text-accent font-semibold'
+                        : 'border-border-strong text-text hover:bg-bg-hover'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="tema"
+                      className="sr-only"
+                      checked={preferencia === t.valor}
+                      onChange={() => setPreferencia(t.valor)}
+                    />
+                    {t.icone} {t.rotulo}
+                  </label>
+                ))}
               </div>
-              <ShortcutRow keys="G G" label="Ir para Gerencial" />
-              <ShortcutRow keys="G O" label="Ir para Orçamento" />
-              <ShortcutRow keys="G P" label="Ir para Planejamento" />
-              <ShortcutRow keys="G A" label="Ir para Acompanhamento" />
-              <ShortcutRow keys="G H" label="Ir para Início" />
-              <div className="text-2xs font-mono uppercase tracking-wider text-text-dim mb-2 mt-4">
-                Aplicação
-              </div>
-              <ShortcutRow keys="Ctrl K" label="Abrir paleta de comandos" />
-              <ShortcutRow keys="Ctrl B" label="Mostrar/ocultar sidebar" />
-              <ShortcutRow keys="Alt+W" label="Fechar aba" />
-              <ShortcutRow keys="Alt+Shift+T" label="Reabrir última aba" />
-              <ShortcutRow keys="Alt+1…9" label="Ir para aba N" />
-              <ShortcutRow keys="?" label="Mostrar atalhos" />
-            </div>
+            </fieldset>
           ) : tab === 'conta' ? (
             <div className="space-y-3">
               <div>
@@ -126,16 +143,5 @@ function TabBtn({
     >
       {icon} {label}
     </button>
-  )
-}
-
-function ShortcutRow({ keys, label }: { keys: string; label: string }): ReactNode {
-  return (
-    <div className="flex items-center justify-between py-1 border-b border-border last:border-b-0">
-      <span className="text-xs text-text">{label}</span>
-      <span className="font-mono text-2xs text-text-muted bg-bg-elevated px-1.5 py-0.5 rounded">
-        {keys}
-      </span>
-    </div>
   )
 }

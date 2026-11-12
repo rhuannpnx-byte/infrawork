@@ -772,7 +772,7 @@ function CpuTab({ item }: { item: ReturnType<typeof useItemDetalhe>['data'] & ob
             </thead>
             <tbody>
               {comp.itens.map((it) => (
-                <tr key={it.id} className="border-b border-border/40">
+                <tr key={it.id} className="border-b border-border">
                   <td className="px-2 py-1 text-text-dim">{CPU_ITEM_GRUPO_LABEL[it.grupo]}</td>
                   <td
                     className="px-2 py-1 text-text truncate max-w-[180px]"

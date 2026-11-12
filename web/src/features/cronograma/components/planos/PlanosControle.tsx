@@ -136,7 +136,7 @@ export function SeletorPlano({
             )}
           >
             {plano.is_baseline ? (
-              <Lock size={11} className={plano.vigente ? 'text-amber-400' : 'text-text-dim'} />
+              <Lock size={11} className={plano.vigente ? 'text-warn' : 'text-text-dim'} />
             ) : (
               <Pencil size={11} className="text-accent" />
             )}
@@ -305,7 +305,7 @@ function ItemPlano({
           size={11}
           className={cn(
             'shrink-0',
-            p.vigente ? 'fill-amber-400 text-amber-400' : 'text-text-dim/40'
+            p.vigente ? 'fill-warn text-warn' : 'text-text-dim/40'
           )}
         />
       ) : (
@@ -422,10 +422,10 @@ export function FaixaLinhaBase({
 
   return (
     <div
-      className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs"
+      className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-warn/40 bg-warn/10 px-4 py-1.5 text-xs"
       data-testid="faixa-linha-base"
     >
-      <Lock size={13} className="shrink-0 text-amber-400" />
+      <Lock size={13} className="shrink-0 text-warn" />
       <span className="text-text">
         <strong>Linha de base{plano.vigente ? ' vigente' : ''}</strong> · travada em{' '}
         {travadaEm(plano)} · somente leitura
@@ -626,7 +626,7 @@ function PremissasDialog({
               </thead>
               <tbody>
                 {diff.itens.map((it) => (
-                  <tr key={it.item_orcamentario_id} className="border-b border-border/40">
+                  <tr key={it.item_orcamentario_id} className="border-b border-border">
                     <td className="px-2 py-1 text-text">
                       {it.codigo} · {it.descricao}
                     </td>

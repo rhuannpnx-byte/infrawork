@@ -124,7 +124,7 @@ export function RankingEntidades({
               formatter={(v) => formatNumber(Number(v), dec)}
               style={{
                 fontSize: 10,
-                fontFamily: '"IBM Plex Mono", monospace',
+                fontFamily: '"Archivo Variable", Archivo, sans-serif',
                 fill: CHART_THEME.axisLabel
               }}
             />

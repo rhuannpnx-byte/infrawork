@@ -8,6 +8,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { TabViewport } from './TabViewport'
 import { Modals } from '@/components/modals/Modals'
 import { installUrlSync } from './url-sync'
+import { useThemeStore } from '@/stores/theme-store'
 
 function ShortcutsBoot(): null {
   useShortcuts()
@@ -21,6 +22,7 @@ function UrlSyncBoot(): null {
 }
 
 export function Providers(): ReactNode {
+  const tema = useThemeStore((s) => s.tema)
   return (
     <QueryClientProvider client={queryClient}>
       <AuthGate>
@@ -33,14 +35,14 @@ export function Providers(): ReactNode {
       </AuthGate>
       <Toaster
         position="bottom-right"
-        theme="dark"
+        theme={tema}
         toastOptions={{
           style: {
             background: 'var(--bg-elevated)',
             color: 'var(--text)',
             border: '1px solid var(--border-strong)',
-            fontSize: '12px',
-            fontFamily: '"IBM Plex Sans", system-ui'
+            fontSize: '13px',
+            fontFamily: '"Archivo Variable", Archivo, system-ui'
           }
         }}
       />
