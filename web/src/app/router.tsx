@@ -3,53 +3,171 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect
 } from '@tanstack/react-router'
 
 import { TabRoot } from './TabRoot'
 import { HomePage } from '@/app/routes/HomePage'
-import { GerencialIndex } from '@/app/routes/gerencial'
-import { EmpresasPage } from '@/app/routes/gerencial/empresas'
-import { UsuariosPage } from '@/app/routes/gerencial/usuarios'
-import { GerencialFrotaPage } from '@/app/routes/gerencial/frota'
-import { ObrasPage } from '@/app/routes/gerencial/obras'
-import { ObraDetailPage } from '@/app/routes/gerencial/obra-detail'
-import { OrcamentoIndex } from '@/app/routes/orcamento'
-import { RecursosPage } from '@/app/routes/orcamento/recursos'
-import { ServicosPage } from '@/app/routes/orcamento/servicos'
-import { ComposicoesPage } from '@/app/routes/orcamento/composicoes'
-import { ComposicaoEditorPage, ComposicaoNovaPage } from '@/app/routes/orcamento/composicao-editor'
-import { TaxasPage } from '@/app/routes/orcamento/taxas'
-import { ObraIndexPage } from '@/app/routes/orcamento/obra-index'
-import { PlanOrcPage } from '@/app/routes/orcamento/plan-orc'
-import { IndiretoPage } from '@/app/routes/orcamento/indireto'
-import { LucratividadePage } from '@/app/routes/orcamento/lucratividade'
-import { AditivosPage } from '@/app/routes/orcamento/aditivos'
-import { PlanilhaInicialPage } from '@/app/routes/orcamento/planilha-inicial'
-import { ReajustesPage } from '@/app/routes/orcamento/reajustes'
-import { PlanejamentoIndex } from '@/app/routes/planejamento'
-import { PlanejamentoCronogramaPage } from '@/app/routes/planejamento/cronograma'
-import { PlanejamentoTempoCaminhoPage } from '@/app/routes/planejamento/tempo-caminho'
-import { PlanejamentoRecursosPage } from '@/app/routes/planejamento/recursos'
-import { PlanejamentoParametrizacaoPage } from '@/app/routes/planejamento/parametrizacao'
-import { PlanejamentoCalendarioPage } from '@/app/routes/planejamento/calendario'
-import { PlanejamentoEquipesPage } from '@/app/routes/planejamento/equipes'
-import { PlanejamentoCurvaSPage } from '@/app/routes/planejamento/curva-s'
-import { PlanejamentoCompararPage } from '@/app/routes/planejamento/comparar'
-import { PlanejamentoTrechosPage } from '@/app/routes/planejamento/trechos'
-import { AcompanhamentoIndex } from '@/app/routes/acompanhamento'
-import { AcompanhamentoCalendarioPage } from '@/app/routes/acompanhamento/calendario'
-import { AcompanhamentoProducaoPage } from '@/app/routes/acompanhamento/producao'
-import { AcompanhamentoValorAgregadoPage } from '@/app/routes/acompanhamento/valor-agregado'
-import { AcompanhamentoFotosPage } from '@/app/routes/acompanhamento/fotos'
-import { AcompanhamentoPerformancePage } from '@/app/routes/acompanhamento/performance'
-import { AcompanhamentoComparativoPage } from '@/app/routes/acompanhamento/comparativo'
-import { AcompanhamentoAlertasPage } from '@/app/routes/acompanhamento/alertas'
-import { AcompanhamentoLancarPage } from '@/app/routes/acompanhamento/lancar'
-import { AcompanhamentoEquipesPage } from '@/app/routes/acompanhamento/equipes'
-import { AcompanhamentoViagensPage } from '@/app/routes/acompanhamento/viagens'
-import { AcompanhamentoTransportePage } from '@/app/routes/acompanhamento/transporte'
+
+// cada tela vira um pedaço do bundle, baixado quando a rota abre pela primeira vez
+const GerencialIndex = lazyRouteComponent(() => import('@/app/routes/gerencial'), 'GerencialIndex')
+const EmpresasPage = lazyRouteComponent(
+  () => import('@/app/routes/gerencial/empresas'),
+  'EmpresasPage'
+)
+const UsuariosPage = lazyRouteComponent(
+  () => import('@/app/routes/gerencial/usuarios'),
+  'UsuariosPage'
+)
+const GerencialFrotaPage = lazyRouteComponent(
+  () => import('@/app/routes/gerencial/frota'),
+  'GerencialFrotaPage'
+)
+const ObrasPage = lazyRouteComponent(() => import('@/app/routes/gerencial/obras'), 'ObrasPage')
+const ObraDetailPage = lazyRouteComponent(
+  () => import('@/app/routes/gerencial/obra-detail'),
+  'ObraDetailPage'
+)
+const OrcamentoIndex = lazyRouteComponent(() => import('@/app/routes/orcamento'), 'OrcamentoIndex')
+const RecursosPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/recursos'),
+  'RecursosPage'
+)
+const ServicosPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/servicos'),
+  'ServicosPage'
+)
+const ComposicoesPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/composicoes'),
+  'ComposicoesPage'
+)
+const ComposicaoEditorPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/composicao-editor'),
+  'ComposicaoEditorPage'
+)
+const ComposicaoNovaPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/composicao-editor'),
+  'ComposicaoNovaPage'
+)
+const TaxasPage = lazyRouteComponent(() => import('@/app/routes/orcamento/taxas'), 'TaxasPage')
+const ObraIndexPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/obra-index'),
+  'ObraIndexPage'
+)
+const PlanOrcPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/plan-orc'),
+  'PlanOrcPage'
+)
+const IndiretoPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/indireto'),
+  'IndiretoPage'
+)
+const LucratividadePage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/lucratividade'),
+  'LucratividadePage'
+)
+const AditivosPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/aditivos'),
+  'AditivosPage'
+)
+const PlanilhaInicialPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/planilha-inicial'),
+  'PlanilhaInicialPage'
+)
+const ReajustesPage = lazyRouteComponent(
+  () => import('@/app/routes/orcamento/reajustes'),
+  'ReajustesPage'
+)
+const PlanejamentoIndex = lazyRouteComponent(
+  () => import('@/app/routes/planejamento'),
+  'PlanejamentoIndex'
+)
+const PlanejamentoCronogramaPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/cronograma'),
+  'PlanejamentoCronogramaPage'
+)
+const PlanejamentoTempoCaminhoPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/tempo-caminho'),
+  'PlanejamentoTempoCaminhoPage'
+)
+const PlanejamentoRecursosPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/recursos'),
+  'PlanejamentoRecursosPage'
+)
+const PlanejamentoParametrizacaoPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/parametrizacao'),
+  'PlanejamentoParametrizacaoPage'
+)
+const PlanejamentoCalendarioPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/calendario'),
+  'PlanejamentoCalendarioPage'
+)
+const PlanejamentoEquipesPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/equipes'),
+  'PlanejamentoEquipesPage'
+)
+const PlanejamentoCurvaSPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/curva-s'),
+  'PlanejamentoCurvaSPage'
+)
+const PlanejamentoCompararPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/comparar'),
+  'PlanejamentoCompararPage'
+)
+const PlanejamentoTrechosPage = lazyRouteComponent(
+  () => import('@/app/routes/planejamento/trechos'),
+  'PlanejamentoTrechosPage'
+)
+const AcompanhamentoIndex = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento'),
+  'AcompanhamentoIndex'
+)
+const AcompanhamentoCalendarioPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/calendario'),
+  'AcompanhamentoCalendarioPage'
+)
+const AcompanhamentoProducaoPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/producao'),
+  'AcompanhamentoProducaoPage'
+)
+const AcompanhamentoValorAgregadoPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/valor-agregado'),
+  'AcompanhamentoValorAgregadoPage'
+)
+const AcompanhamentoFotosPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/fotos'),
+  'AcompanhamentoFotosPage'
+)
+const AcompanhamentoPerformancePage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/performance'),
+  'AcompanhamentoPerformancePage'
+)
+const AcompanhamentoComparativoPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/comparativo'),
+  'AcompanhamentoComparativoPage'
+)
+const AcompanhamentoAlertasPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/alertas'),
+  'AcompanhamentoAlertasPage'
+)
+const AcompanhamentoLancarPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/lancar'),
+  'AcompanhamentoLancarPage'
+)
+const AcompanhamentoEquipesPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/equipes'),
+  'AcompanhamentoEquipesPage'
+)
+const AcompanhamentoViagensPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/viagens'),
+  'AcompanhamentoViagensPage'
+)
+const AcompanhamentoTransportePage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/transporte'),
+  'AcompanhamentoTransportePage'
+)
 
 /**
  * Router por aba (keep-alive). Cada aba aberta tem sua própria instância de

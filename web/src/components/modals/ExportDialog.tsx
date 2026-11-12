@@ -13,7 +13,6 @@ import {
   computarServico
 } from '@/features/acompanhamento/lib/relatorio-servico'
 import { downloadBlob, nomeComStamp } from '@/lib/files/download'
-import { gerarTabelaXlsx } from '@/lib/excel/tabela-xlsx'
 import { printHtmlToPdf } from '@/lib/print/print-html'
 
 type Format = 'pdf' | 'excel' | 'csv'
@@ -77,6 +76,8 @@ export function ExportDialog(): ReactNode {
             semanas
           }
         })
+        // o exceljs (~1 MB) só baixa quando alguém exporta
+        const { gerarTabelaXlsx } = await import('@/lib/excel/tabela-xlsx')
         const blob = await gerarTabelaXlsx({
           obraNome: config.obraNome,
           titulo: config.titulo,
