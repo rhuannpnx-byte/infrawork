@@ -414,8 +414,8 @@ export const equipes = ferramenta({
     'Equipes (frentes de serviço) e encarregados da obra. Um encarregado pode ter N equipes (equipe.encarregado_id). ' +
     'acao: listar | criar_equipe | editar_equipe (nome, tipo, cor, ativo, encarregado_id) | excluir_equipe | ' +
     'ordenar_equipes (ids na ordem) | criar_encarregado | editar_encarregado (nome, apelido, telefone, ativo) | ' +
-    'vincular (define exatamente quais equipes ativas são do encarregado). Produtividade de equipe por serviço ' +
-    'fica em equipe_produtividade (consultar).',
+    'vincular (define exatamente quais equipes ativas são do encarregado). A produtividade vem da composição do ' +
+    'serviço × nº de equipes da tarefa (não há taxa própria por equipe).',
   entrada: {
     acao: z.enum([
       'listar',

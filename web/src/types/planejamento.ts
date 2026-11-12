@@ -9,21 +9,6 @@
 
 export type PlanejamentoStatus = 'rascunho' | 'ativo' | 'arquivado'
 export type DependenciaTipo = 'FS' | 'SS' | 'FF' | 'SF'
-/** Modo de scheduling CPM (Fase 2):
- *   asap — agenda no early start (default, comportamento clássico).
- *   alap — agenda no late start dentro da folga, sem alterar deadline.
- */
-export type ScheduleMode = 'asap' | 'alap'
-/**
- * Tipos de constraint formal (MS Project completo):
- *   snet — Start No Earlier Than ("Não iniciar antes de", soft, empurra ES).
- *   snlt — Start No Later Than ("Não iniciar depois de", soft, puxa LS).
- *   fnet — Finish No Earlier Than ("Não terminar antes de", soft, atrasa EF).
- *   fnlt — Finish No Later Than ("Não terminar depois de", soft, puxa LF).
- *   mso  — Must Start On ("Deve iniciar em", hard, força ES).
- *   mfo  — Must Finish On ("Deve terminar em", hard, força LF).
- */
-export type ConstraintType = 'snet' | 'snlt' | 'fnet' | 'fnlt' | 'mso' | 'mfo'
 
 /**
  * Tipo do nó na EAP da tarefa:
@@ -114,27 +99,8 @@ export interface PlanejamentoTarefa {
   data_inicio: string | null
   data_fim: string | null
   duracao_dias_uteis_calc: number | null
-  /** Early Start (CPM forward pass). NULL antes do primeiro recálculo. */
-  early_start: string | null
-  /** Early Finish (CPM forward pass). NULL antes do primeiro recálculo. */
-  early_finish: string | null
-  /** Late Start (CPM backward pass). NULL antes do primeiro recálculo. */
-  late_start: string | null
-  /** Late Finish (CPM backward pass). NULL antes do primeiro recálculo. */
-  late_finish: string | null
-  /** Folga total em dias úteis = LS - ES. ≤ 0 = caminho crítico. */
-  total_float: number | null
-  /** Folga livre em dias úteis = min(ES sucessoras) - EF. */
-  free_float: number | null
-  /** true quando total_float ≤ 0. Populado pela edge function. */
+  /** true quando a folga total é zero (gravado pelo cálculo do cronograma). */
   is_critico: boolean
-  /** Modo de scheduling: 'asap' (default) ou 'alap'. */
-  schedule_mode: ScheduleMode
-  /** Constraint formal. NULL = sem constraint (ASAP puro). */
-  constraint_type: ConstraintType | null
-  /** Data-alvo da constraint. NULL quando constraint_type é NULL. */
-  constraint_date: string | null
-  data_inicio_manual: boolean
   notas: string | null
   ordem: number
   /** Tipo do nó na EAP. Default 'tarefa'. */
@@ -160,22 +126,16 @@ export interface EquipeAlocada {
   tipo: string
   ordem: number
   qtd_equipes: number
-  /** Taxa específica desta alocação (sobrepõe equipe/CPU). */
-  producao_diaria_override: number | null
-  /** Taxa da equipe para o serviço (equipe_produtividade). */
-  producao_diaria_equipe: number | null
-  /** Taxa efetiva desta alocação = coalesce(override, equipe, CPU) × qtd_equipes. */
+  /** Produção efetiva da tarefa = composição × nº de equipes × coeficiente. */
   producao_diaria_efetiva: number | null
 }
 
-/** Origem de uma dependência: 'lane' = gerada pela ordem na lane; 'manual' = "após X". */
-export type DependenciaOrigem = 'manual' | 'lane'
+export type DependenciaOrigem = 'manual'
 
 export interface PredecessoraRef {
   id: string
   predecessora_id: string
   tipo: DependenciaTipo
-  lag_dias: number
   origem: DependenciaOrigem
 }
 
@@ -183,7 +143,6 @@ export interface SucessoraRef {
   id: string
   sucessora_id: string
   tipo: DependenciaTipo
-  lag_dias: number
   origem: DependenciaOrigem
 }
 
@@ -238,7 +197,6 @@ export interface PlanejamentoTarefaCompleta extends PlanejamentoTarefa {
   servico_codigo: string | null
   servico_nome: string | null
   unidade_servico: string | null
-  cpu_snapshot_id: string | null
   cpu_id_origem: string | null
   /** Taxa da CPU (fallback quando a equipe não tem taxa própria). */
   producao_diaria_qtde: number | null

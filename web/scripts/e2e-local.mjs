@@ -156,7 +156,7 @@ check(
 )
 const itensOrc = await q('item_orcamentario', (t) =>
   t
-    .select('id, codigo, descricao, tipo, parent_id, unidade_referencia, qtd_ref_modo, quantidade_referencia, venda_total_calc, custo_total_calc, servico_id, cpu_snapshot_id, custo_unitario_calc')
+    .select('id, codigo, descricao, tipo, parent_id, unidade_referencia, qtd_ref_modo, quantidade_referencia, venda_total_calc, custo_total_calc, servico_id, custo_unitario_calc')
     .eq('obra_id', obraId)
     .order('codigo')
 )

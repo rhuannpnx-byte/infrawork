@@ -23,7 +23,6 @@ export const LEGIVEIS: string[] = [
   'encargos_sociais_regime',
   'encarregado',
   'equipe',
-  'equipe_produtividade',
   'fleet_obra',
   'fleet_sync_execucao',
   'frota_veiculo',
@@ -74,7 +73,6 @@ export const LEGIVEIS: string[] = [
   'vw_acompanhamento_curva_s',
   'vw_acompanhamento_foto_enriquecida',
   'vw_acompanhamento_frente_kpis',
-  'vw_acompanhamento_heatmap_dia_servico',
   'vw_acompanhamento_obra_resumo',
   'vw_acompanhamento_previsto_x_realizado',
   'vw_acompanhamento_producao_enriquecida',
@@ -83,7 +81,6 @@ export const LEGIVEIS: string[] = [
   'vw_planejamento_tarefa_completa',
   'vw_recurso_com_preco',
   'vw_servico_consumo_material',
-  'vw_servico_custo_agregado',
   'vw_servico_vivo'
 ]
 
@@ -93,21 +90,11 @@ export const NAO_LEGIVEIS: Record<string, string> = {
   mcp_token: 'hash dos tokens pessoais (gerenciados no web)',
   orcamento_recalculo_pendente: 'fila interna de recálculo (sem acesso do usuário)',
   mcp_oauth_cliente: 'clientes OAuth do próprio MCP (infraestrutura de login)',
-  mcp_oauth_codigo: 'códigos de autorização OAuth (infraestrutura de login)',
-  cpu_snapshot:
-    'legado: imutável, o web não usa mais (as LBs congelam em planejamento_lb_premissa)',
-  planejamento_baseline_snapshot: 'legado, sem uso no web',
-  obra_calendario: 'legado (substituído por calendario/calendario_definicao)',
-  obra_calendario_excecao: 'legado (substituído por calendario_definicao)'
+  mcp_oauth_codigo: 'códigos de autorização OAuth (infraestrutura de login)'
 }
 
 /** Tabelas que nenhuma ferramenta grava, com o motivo. */
 export const TABELAS_IGNORADAS: Record<string, string> = {
-  cpu_snapshot: 'legado imutável (as LBs congelam em planejamento_lb_premissa)',
-  planejamento_baseline_snapshot: 'legado, sem uso',
-  obra_calendario: 'legado (calendario)',
-  obra_calendario_excecao: 'legado (calendario_definicao)',
-  equipe_produtividade: 'o web não grava (só leitura pela consultar)',
   fleethub_config: 'credencial da FleetHub: só pela tela do web (nunca passa pela IA)',
   mcp_token: 'tokens pessoais: criados e revogados só na tela do web',
   orcamento_recalculo_pendente: 'fila interna do banco (processada por recalcular_orcamento)',
@@ -141,29 +128,16 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   pode_lancar_producao: RLS,
   pode_ver_acompanhamento: RLS,
   pode_ver_obra: RLS,
-  item_orc_obra: RLS,
-  cpu_snap_obra: RLS,
-  indireto_obra: RLS,
-  comentario_obra: RLS,
-  memoria_obra: RLS,
   recurso_obra: RLS,
   servico_obra: RLS,
   cpu_obra: RLS,
-  encargos_obra: RLS,
-  equipe_obra: RLS,
   planejamento_obra: RLS,
   tarefa_obra: RLS,
-  dependencia_obra: RLS,
-  acomp_alerta_obra: RLS,
-  servico_cpu_link_obra: RLS,
   acomp_producao_obra: RLS,
-  acomp_foto_obra: RLS,
-  encarregado_obra: RLS,
   calendario_obra: RLS,
   preco_vigente_recurso: INTERNA,
   fn_cpu_recalc: INTERNA,
   snapshot_orcamento_atual: INTERNA,
-  cronograma_validar_ciclo: INTERNA,
   norm_txt: INTERNA,
   imp_grupo_recurso: INTERNA,
   imp_definir_preco_vigente: INTERNA,

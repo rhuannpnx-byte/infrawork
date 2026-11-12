@@ -125,6 +125,6 @@ obrigatório. A quantidade da viagem é a que o apontador lança, na unidade do 
 por ensaio, não dá para premissar — quem lança converte pela regra dele. Sem preenchimento automático pela cubagem do
 caminhão (ela aparece só como referência).
 
-O hodômetro saiu do app e do web: não entra na produção nem na medição (as colunas `km_inicial`/`km_final` ficam no
-banco, sem uso). O app e o web mostram a DMT antes de gravar (`lib/dmt.ts`, mesma regra do banco, cópia
+O hodômetro saiu do app e do web: não entra na produção nem na medição (as colunas `km_inicial`/`km_final` saíram do
+banco na 0052). O app e o web mostram a DMT antes de gravar (`lib/dmt.ts`, mesma regra do banco, cópia
 nos dois projetos); quem vale é o cálculo do banco.

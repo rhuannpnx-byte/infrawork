@@ -221,7 +221,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 }))
 
 // Mantém a store sincronizada com mudanças do Supabase Auth (refresh de token, signOut em outra aba, etc.)
-if (supabase) {
+if (SUPABASE_CONFIGURADO) {
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || !session) {
       pararHeartbeat()

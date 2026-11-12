@@ -163,11 +163,11 @@ if (ja.length === 0) {
   await rpc('campo_sync_ficha', {
     _ficha: {
       id: uuid(), obra_id: obra.id, data: ontem, veiculo_id: veiculo('CB-01').id, motorista: 'José Almeida',
-      km_inicial: 85320, km_final: 85362, origem: 'web',
+      origem: 'web',
       viagens: [0, 1, 2, 3, 4].map((k) => ({
         id: uuid(), item_orcamentario_id: item(/Escavação/).id, origem_id: local('Pista — Trecho 1'),
         destino_id: local('Bota-fora Km 5'), hora_carga: hora(7 + k, 10), hora_descarga: hora(7 + k, 40),
-        quantidade: 12, posicao_inicio_m: 2400 + k * 20
+        quantidade: 12, estaca_carga_m: 2400 + k * 20
       }))
     }
   })
@@ -175,11 +175,11 @@ if (ja.length === 0) {
   await rpc('campo_sync_ficha', {
     _ficha: {
       id: uuid(), obra_id: obra.id, data: ontem, veiculo_id: veiculo('CB-02').id, motorista: 'Carlos Pereira',
-      km_inicial: 120410, km_final: 120488, origem: 'web',
+      origem: 'web',
       viagens: [0, 1, 2, 3].map((k) => ({
         id: uuid(), item_orcamentario_id: item(/Sub-base/).id, origem_id: local('Jazida Km 8'),
         destino_id: local('Pista — Trecho 1'), hora_carga: hora(7 + 2 * k, 0), hora_descarga: hora(7 + 2 * k, 50),
-        quantidade: 14, nf_ticket: `T-${1040 + k}`, posicao_inicio_m: 800 + k * 20
+        quantidade: 14, nf_ticket: `T-${1040 + k}`, estaca_descarga_m: 800 + k * 20
       }))
     }
   })

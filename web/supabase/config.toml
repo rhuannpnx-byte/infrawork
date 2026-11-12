@@ -89,9 +89,6 @@ verify_jwt = true
 [functions.acompanhamento-fotos-listar]
 verify_jwt = true
 
-[functions.acompanhamento-foto-signed-url]
-verify_jwt = true
-
 [functions.acompanhamento-foto-signed-urls-batch]
 verify_jwt = true
 

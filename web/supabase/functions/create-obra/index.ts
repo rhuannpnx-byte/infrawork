@@ -2,8 +2,7 @@
 // Body: { nome, codigo, status?, empresa_id? }
 // Permissão: God (qualquer empresa) ou Adm (na sua empresa).
 //
-// O calendário da obra (dias úteis) é criado por trigger no banco
-// (fn_obra_calendario_default).
+// O calendário padrão da obra é criado por gatilho no banco (fn_obra_calendario_default).
 
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'

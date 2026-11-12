@@ -15,7 +15,7 @@ import type {
 
 const ITEM_COLUNAS =
   'id, obra_id, parent_id, nivel, codigo, descricao, tipo, unidade, servico_id, quantidade, ' +
-  'venda_unitaria, cpu_snapshot_id, indireto_id, quantidade_referencia, unidade_referencia, ' +
+  'venda_unitaria, indireto_id, quantidade_referencia, unidade_referencia, ' +
   'qtd_ref_modo, qtd_ref_filhos, ordem, custo_unitario_calc, custo_total_calc, ' +
   'venda_total_calc, lucratividade_perc_calc, aditivo_id, created_at, updated_at'
 

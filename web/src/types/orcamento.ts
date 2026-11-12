@@ -223,8 +223,6 @@ export interface ItemOrcamentario {
   aditivo_id?: string | null
   /** servico_grupo: NOT NULL (livre). receita/etapa: NULL. */
   servico_id: string | null
-  /** servico_grupo: pode ter snapshot vinculado. */
-  cpu_snapshot_id: string | null
   /** servico_grupo: alternativa a servico_id — linka a um indireto_item.
    * Mutuamente exclusivo com servico_id. */
   indireto_id: string | null
@@ -291,96 +289,7 @@ export interface AlocInfo {
   destinos: AlocDestino[]
 }
 
-export interface CpuSnapshotPayloadCpuItem {
-  id: string
-  grupo: CpuItemGrupo
-  recurso_id: string
-  quantidade: number
-  horas_dia: number | null
-  consumo_combustivel_lh: number | null
-  indice_produtividade: number
-  consumo_material_por_unid: number | null
-  ordem: number
-  custo_total_calc: number
-  recurso: { id: string; nome: string; unidade: string; grupo: RecursoGrupo; codigo: string | null }
-  preco_vigente: number | null
-}
-
-/**
- * Uma CPU dentro de um snapshot AGREGADOR: cpu_items crus + o fator/operacao do
- * vínculo servico_cpu_link. O `fator` NÃO está embutido nos `itens` — é aplicado
- * só ao custo agregado (e, no histograma físico, só ao MATERIAL).
- */
-export interface CpuSnapshotPayloadCpuUnidade {
-  cpu: {
-    id: string
-    servico_id: string
-    versao: number
-    custo_unit_calc?: number
-    producao_diaria_qtde: number
-    producao_diaria_unidade: string
-    servico?: { codigo: string; nome: string; unidade: string | null } | null
-  }
-  fator: number
-  operacao: ServicoCpuOperacao
-  ordem: number
-  observacao: string | null
-  contribuicao_custo?: number
-  itens: CpuSnapshotPayloadCpuItem[]
-}
-
-/**
- * Payload do cpu_snapshot. Dois formatos discriminados por `modo`:
- *  - 'legado' (ou ausente): 1 CPU única → usa `cpu` + `itens`.
- *  - 'agregador': N CPUs com fator → usa `servico` + `cpus[]` (itens crus por CPU).
- * Campos de ambos os formatos ficam opcionais para conviverem no mesmo tipo.
- */
-export interface CpuSnapshotPayload {
-  modo?: 'legado' | 'agregador'
-  // ── Formato legado ──
-  cpu?: {
-    id: string
-    servico_id: string
-    versao: number
-    producao_diaria_qtde: number
-    producao_diaria_unidade: string
-  }
-  itens?: CpuSnapshotPayloadCpuItem[]
-  // ── Formato agregador ──
-  servico?: {
-    id: string
-    codigo: string
-    nome: string
-    unidade: string | null
-    producao_diaria_qtde: number | null
-    producao_diaria_unidade: string | null
-  }
-  cpus?: CpuSnapshotPayloadCpuUnidade[]
-  snapshot_em: string
-}
-
-export interface CpuSnapshot {
-  id: string
-  obra_id: string
-  cpu_id_origem: string | null
-  versao_origem: number | null
-  snapshot_em: string
-  criado_por: string | null
-  custo_unit: number
-  custo_eq_dia: number
-  custo_comb_dia: number
-  custo_mo_dia: number
-  custo_mat_dia: number
-  producao_diaria_qtde: number
-  producao_diaria_unidade: string
-  servico_codigo: string | null
-  servico_nome: string | null
-  servico_unidade: string | null
-  payload: CpuSnapshotPayload
-}
-
 export interface ItemDetalhe extends ItemOrcamentario {
-  cpu_snapshot?: CpuSnapshot | null
   servico?: { id: string; codigo: string; nome: string; unidade: string | null } | null
 }
 

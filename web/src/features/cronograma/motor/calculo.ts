@@ -492,8 +492,6 @@ export function payloadGravacao(e: PlanoEntrada, r: ResultadoCalculo): Record<st
     duracao_dias_uteis: Math.round(t.duracao_dias_uteis * 100) / 100,
     folga_total_h: Math.round(t.folga_total_h * 10000) / 10000,
     folga_livre_h: Math.round(t.folga_livre_h * 10000) / 10000,
-    folga_total_dias: Math.floor(t.folga_total_h / 24 + 1e-9),
-    folga_livre_dias: Math.floor(t.folga_livre_h / 24 + 1e-9),
     critico: t.folga_total_h <= 1e-6,
     restricao_limite: t.restricao_limite,
     violacoes: t.violacoes
@@ -508,8 +506,6 @@ export function payloadGravacao(e: PlanoEntrada, r: ResultadoCalculo): Record<st
       duracao_dias_uteis: Math.round(i.dias_uteis * 100) / 100,
       folga_total_h: 0,
       folga_livre_h: 0,
-      folga_total_dias: 0,
-      folga_livre_dias: 0,
       critico: false,
       restricao_limite: 'TC_DEADLINE',
       violacoes: [],

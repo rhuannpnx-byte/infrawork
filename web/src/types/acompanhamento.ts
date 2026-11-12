@@ -13,7 +13,6 @@ export interface Encarregado {
   nome: string
   apelido: string | null
   telefone: string | null
-  profile_id: string | null
   ativo: boolean
   created_at: string
   updated_at: string
@@ -66,10 +65,8 @@ export interface AcompanhamentoAlerta {
   titulo: string
   descricao: string | null
   contexto: Record<string, unknown>
-  contexto_hash?: string
   status: AlertaStatus
   silenciado_ate: string | null
-  silenciado_por: string | null
   resolvido_em: string | null
   resolvido_automaticamente: boolean
   criado_em: string
@@ -282,8 +279,6 @@ export interface ProdutividadeEquipeItem {
   /** Alias legado de equipe_id. */
   equipe_planejamento_id: string | null
   equipe_display_nome: string
-  /** Alias legado (= equipe_display_nome). */
-  siga_equipe_nome: string
   equipe_cor: string
   servico_nome: string
   servico_id: string | null
@@ -299,13 +294,11 @@ export interface ProdutividadeEquipeItem {
   qtd_max: number
   qtd_p50: number
   qtd_p90: number
-  /** Meta diária: taxa da equipe para o serviço, ou produção da CPU. */
+  /** Meta diária: a produção da composição do serviço. */
   producao_diaria_meta: number | null
   /** Alias legado de producao_diaria_meta. */
   producao_diaria_cpu: number | null
   pct_aderencia_meta: number | null
-  /** Alias legado de pct_aderencia_meta. */
-  pct_aderencia_cpu: number | null
   primeira_data: string | null
   ultima_data: string | null
 }

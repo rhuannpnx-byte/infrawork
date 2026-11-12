@@ -219,7 +219,7 @@ export function useCopiarPlanejamento(): ReturnType<
 
 export function usePromoverBaseline(): ReturnType<
   typeof useMutation<
-    { baseline_id: string; snapshot_id: string; vigente: boolean },
+    { baseline_id: string; vigente: boolean },
     Error,
     { planejamento_id: string; obra_id: string; marcar_vigente?: boolean }
   >
@@ -235,13 +235,13 @@ export function usePromoverBaseline(): ReturnType<
 async function promover(
   planejamento_id: string,
   marcar_vigente?: boolean
-): Promise<{ baseline_id: string; snapshot_id: string; vigente: boolean }> {
+): Promise<{ baseline_id: string; vigente: boolean }> {
   const { data, error } = await supabase.rpc('planejamento_promover', {
     _planejamento_id: planejamento_id,
     _marcar_vigente: marcar_vigente ?? null
   })
   if (error) throw new Error(error.message)
-  return data as { baseline_id: string; snapshot_id: string; vigente: boolean }
+  return data as { baseline_id: string; vigente: boolean }
 }
 
 export function useMarcarVigente(): ReturnType<

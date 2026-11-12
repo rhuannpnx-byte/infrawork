@@ -7,18 +7,29 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 /** Falso quando o build saiu sem VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY: a tela de login avisa e nada conecta. */
 export const SUPABASE_CONFIGURADO = !!url && !!anonKey
 
-export const supabase: SupabaseClient = createClient(
-  url || 'http://supabase.invalid',
-  anonKey || 'ausente',
+/** Sem configuração não há cliente: qualquer uso acusa a falta das variáveis (testes sem banco só importam). */
+const semConfiguracao = new Proxy(
+  {},
   {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-      storageKey: storageKey('auth.v1')
+    get() {
+      throw new Error(
+        'Sistema sem configuração: faltam VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.'
+      )
     }
   }
-)
+) as SupabaseClient
+
+export const supabase: SupabaseClient =
+  url && anonKey
+    ? createClient(url, anonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: false,
+          storageKey: storageKey('auth.v1')
+        }
+      })
+    : semConfiguracao
 
 /**
  * Link de e-mail do Supabase Auth (fluxo implícito): `#access_token=…&type=recovery`

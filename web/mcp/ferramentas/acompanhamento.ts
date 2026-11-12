@@ -770,7 +770,6 @@ export const fotos = ferramenta({
     funcoes: [
       'acompanhamento-fotos-listar',
       'acompanhamento-foto-signed-urls-batch',
-      'acompanhamento-foto-signed-url',
       'acompanhamento-foto-delete'
     ]
   },

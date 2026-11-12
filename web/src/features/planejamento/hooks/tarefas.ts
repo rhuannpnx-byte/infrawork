@@ -54,7 +54,7 @@ export interface ItemSincronizavel {
   venda_total: number | null
   /**
    * Custo unitário orçado. Pra indiretos = indireto_item.valor_total
-   * (custo por período). Pra diretos = cpu_snapshot.custo_unit.
+   * (custo por período). Pra diretos = custo unitário da composição.
    */
   custo_unitario: number | null
 }
