@@ -79,6 +79,29 @@ export const MODULES: ModuleConfig[] = [
         ]
       },
       {
+        title: 'ALTERAÇÕES DO CONTRATO',
+        items: [
+          {
+            icon: 'file-plus',
+            label: 'Aditivos',
+            route: '/orcamento/obra/aditivos',
+            requiresObra: true
+          },
+          {
+            icon: 'percent',
+            label: 'Reajustes',
+            route: '/orcamento/obra/reajustes',
+            requiresObra: true
+          },
+          {
+            icon: 'file-lock',
+            label: 'Planilha Inicial',
+            route: '/orcamento/obra/planilha-inicial',
+            requiresObra: true
+          }
+        ]
+      },
+      {
         title: 'CATÁLOGOS DA OBRA',
         items: [
           {

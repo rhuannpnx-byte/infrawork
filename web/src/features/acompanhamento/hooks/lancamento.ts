@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import exifr from 'exifr'
 import { supabase } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { useAuthStore } from '@/stores/auth-store'
 import type { Encarregado, LancamentoInput, ProducaoEnriquecida } from '@/types/acompanhamento'
 import { PROD_COLS } from './producao'
@@ -52,24 +53,27 @@ export function useItensLancaveis(
     enabled: !!obraId,
     staleTime: 60 * 1000,
     queryFn: async (): Promise<ItemLancavel[]> => {
-      const [itensRes, realRes] = await Promise.all([
-        supabase
-          .from('item_orcamentario')
-          .select(
-            'id, codigo, descricao, quantidade_referencia, unidade_referencia, servico:servico_id(codigo, nome, unidade)'
-          )
-          .eq('obra_id', obraId!)
-          .eq('tipo', 'servico_grupo')
-          .is('indireto_id', null)
-          // agrupamento sem composição não recebe produção até ser vinculado
-          .not('servico_id', 'is', null)
-          .order('codigo'),
+      const [itensData, realRes] = await Promise.all([
+        lerTodas((de, ate) =>
+          supabase
+            .from('item_orcamentario')
+            .select(
+              'id, codigo, descricao, quantidade_referencia, unidade_referencia, servico:servico_id(codigo, nome, unidade)'
+            )
+            .eq('obra_id', obraId!)
+            .eq('tipo', 'servico_grupo')
+            .is('indireto_id', null)
+            // agrupamento sem composição não recebe produção até ser vinculado
+            .not('servico_id', 'is', null)
+            .order('codigo')
+            .order('id')
+            .range(de, ate)
+        ),
         supabase
           .from('vw_acompanhamento_previsto_x_realizado')
           .select('item_orcamentario_id, qtd_real')
           .eq('obra_id', obraId!)
       ])
-      if (itensRes.error) throw itensRes.error
       const real = new Map<string, number>()
       for (const r of (realRes.data ?? []) as Array<{
         item_orcamentario_id: string
@@ -78,7 +82,7 @@ export function useItensLancaveis(
         real.set(r.item_orcamentario_id, Number(r.qtd_real ?? 0))
       }
       return (
-        (itensRes.data ?? []) as unknown as Array<{
+        itensData as unknown as Array<{
           id: string
           codigo: string
           descricao: string

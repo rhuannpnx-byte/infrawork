@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
 import { supabase } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import type { Recurso, RecursoGrupo, RecursoPreco } from '@/types/orcamento'
 
 // ─── Recursos ────────────────────────────────────────────────────────────
@@ -12,16 +13,19 @@ export function useRecursos(
     queryKey: ['orcamento', 'recursos', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Recurso[]> => {
-      const { data, error } = await supabase
-        .from('vw_recurso_com_preco')
-        .select(
-          'id, obra_id, codigo, grupo, nome, unidade, ativo, fonte, observacao, created_at, updated_at, preco_vigente'
-        )
-        .eq('obra_id', obraId!)
-        .order('grupo')
-        .order('nome')
-      if (error) throw error
-      return (data ?? []) as Recurso[]
+      const data = await lerTodas((de, ate) =>
+        supabase
+          .from('vw_recurso_com_preco')
+          .select(
+            'id, obra_id, codigo, grupo, nome, unidade, ativo, fonte, observacao, created_at, updated_at, preco_vigente'
+          )
+          .eq('obra_id', obraId!)
+          .order('grupo')
+          .order('nome')
+          .order('id')
+          .range(de, ate)
+      )
+      return data as unknown as Recurso[]
     }
   })
 }

@@ -38,7 +38,8 @@ export function usePrevistoXRealizado(
 
 export function useCurvaS(
   obraId: string | null | undefined,
-  diasAtras = 60
+  /** null = a obra inteira */
+  diasAtras: number | null = 60
 ): ReturnType<typeof useQuery<CurvaSPonto[]>> {
   const isCliente = useAuthStore((s) => s.profile?.role === 'cliente')
   return useQuery({
@@ -47,8 +48,8 @@ export function useCurvaS(
     staleTime: 60 * 1000,
     queryFn: async () => {
       const limite = new Date()
-      limite.setDate(limite.getDate() - diasAtras)
-      const desde = limite.toISOString().slice(0, 10)
+      limite.setDate(limite.getDate() - (diasAtras ?? 0))
+      const desde = diasAtras === null ? '1900-01-01' : limite.toISOString().slice(0, 10)
       const sb = supabase
       const data = await lerTodas((de, ate) =>
         (isCliente

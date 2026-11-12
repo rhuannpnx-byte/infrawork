@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { useBaseline, useTarefas } from '@/features/planejamento/hooks'
 import type { OpcoesCurvaS } from '@/features/planejamento/hooks/cronograma'
 import type { Planejamento } from '@/types/planejamento'
@@ -45,24 +46,31 @@ export async function carregarCurvaSDia(obraId: string): Promise<CurvaSDiaRow[]>
 
 /** Leitura usada pela tela e pelo MCP. */
 export async function carregarEapGrupos(obraId: string): Promise<EapGrupo[]> {
-  const [itensRes, alocRes] = await Promise.all([
-    supabase
-      .from('item_orcamentario')
-      .select(
-        'id, codigo, descricao, tipo, quantidade, venda_unitaria, quantidade_referencia, unidade, unidade_referencia, custo_unitario_calc'
-      )
-      .eq('obra_id', obraId)
-      .in('tipo', ['servico_grupo', 'receita'])
-      .order('codigo', { ascending: true }),
-    supabase.from('item_orc_alocacao').select('grupo_id, receita_id, fracao').eq('obra_id', obraId)
+  const [itens, alocs] = await Promise.all([
+    lerTodas<Record<string, unknown>>((de, ate) =>
+      supabase
+        .from('item_orcamentario')
+        .select(
+          'id, codigo, descricao, tipo, quantidade, venda_unitaria, quantidade_referencia, unidade, unidade_referencia, custo_unitario_calc'
+        )
+        .eq('obra_id', obraId)
+        .in('tipo', ['servico_grupo', 'receita'])
+        .order('codigo', { ascending: true })
+        .order('id')
+        .range(de, ate)
+    ),
+    lerTodas<Record<string, unknown>>((de, ate) =>
+      supabase
+        .from('item_orc_alocacao')
+        .select('grupo_id, receita_id, fracao')
+        .eq('obra_id', obraId)
+        .order('id')
+        .range(de, ate)
+    )
   ])
-  if (itensRes.error) throw itensRes.error
-  if (alocRes.error) throw alocRes.error
-  const itens = itensRes.data ?? []
   const receitas = new Map(
     itens.filter((i) => i.tipo === 'receita').map((r) => [r.id as string, r])
   )
-  const alocs = alocRes.data ?? []
   return itens
     .filter((i) => i.tipo === 'servico_grupo')
     .map((g) => ({
@@ -91,23 +99,27 @@ export async function carregarEapGrupos(obraId: string): Promise<EapGrupo[]> {
 
 /** Leitura usada pela tela e pelo MCP. */
 export async function carregarHistoricoPrecos(obraId: string): Promise<HistoricoPrecos> {
-  const [rj, it] = await Promise.all([
+  const [rj, itens] = await Promise.all([
     supabase
       .from('orcamento_reajuste')
       .select('id, data')
       .eq('obra_id', obraId)
       .eq('status', 'aplicado'),
-    supabase
-      .from('orcamento_reajuste_item')
-      .select('reajuste_id, receita_id, preco_antes')
-      .eq('obra_id', obraId)
-      .not('preco_antes', 'is', null)
+    lerTodas<Record<string, unknown>>((de, ate) =>
+      supabase
+        .from('orcamento_reajuste_item')
+        .select('reajuste_id, receita_id, preco_antes')
+        .eq('obra_id', obraId)
+        .not('preco_antes', 'is', null)
+        .order('reajuste_id')
+        .order('receita_id')
+        .range(de, ate)
+    )
   ])
   if (rj.error) throw rj.error
-  if (it.error) throw it.error
   const dataDe = new Map((rj.data ?? []).map((r) => [r.id as string, r.data as string]))
   const m: HistoricoPrecos = new Map()
-  for (const i of it.data ?? []) {
+  for (const i of itens) {
     const data = dataDe.get(i.reajuste_id as string)
     if (!data) continue
     const arr = m.get(i.receita_id as string) ?? []

@@ -17,6 +17,7 @@ import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
 import { assertObraAccess } from '../_shared/orc.ts'
 import { addDiasIso, dataLocal, hojeLocal } from '../_shared/dates.ts'
+import { lerTodas } from '../_shared/paginar.ts'
 
 interface Body {
   obra_id?: string
@@ -57,13 +58,16 @@ Deno.serve(async (req) => {
     fotosGeoResp
   ] = await Promise.all([
     admin.from('vw_acompanhamento_obra_resumo').select('*').eq('obra_id', body.obra_id).maybeSingle(),
-    admin
-      .from('vw_acompanhamento_curva_s')
-      .select('data, planejado_acumulado, realizado_acumulado, planejado_dia, realizado_dia, servico_grupo_codigo, item_orcamentario_id')
-      .eq('obra_id', body.obra_id)
-      .gte('data', dataDeIso)
-      .order('data', { ascending: true })
-      .limit(5000),
+    lerTodas((de, ate) =>
+      admin
+        .from('vw_acompanhamento_curva_s')
+        .select('data, planejado_acumulado, realizado_acumulado, planejado_dia, realizado_dia, servico_grupo_codigo, item_orcamentario_id')
+        .eq('obra_id', body.obra_id)
+        .gte('data', dataDeIso)
+        .order('data', { ascending: true })
+        .order('item_orcamentario_id')
+        .range(de, ate)
+    ),
     admin
       .from('vw_acompanhamento_previsto_x_realizado')
       .select('*')
@@ -111,13 +115,16 @@ Deno.serve(async (req) => {
 
   // Cobertura fotográfica (mês corrente) — dia × contagem de fotos (fuso local).
   const mesIni = `${hoje.slice(0, 7)}-01T00:00:00-03:00`
-  const { data: coberturaRaw } = await admin
-    .from('acompanhamento_foto')
-    .select('captured_at')
-    .eq('obra_id', body.obra_id)
-    .is('excluida_em', null)
-    .gte('captured_at', new Date(mesIni).toISOString())
-    .limit(5000)
+  const { data: coberturaRaw } = await lerTodas((de, ate) =>
+    admin
+      .from('acompanhamento_foto')
+      .select('captured_at')
+      .eq('obra_id', body.obra_id)
+      .is('excluida_em', null)
+      .gte('captured_at', new Date(mesIni).toISOString())
+      .order('id')
+      .range(de, ate)
+  )
   const coberturaMap = new Map<string, number>()
   for (const f of coberturaRaw ?? []) {
     if (!f.captured_at) continue

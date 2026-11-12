@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useObraStore } from '@/stores/obra-store'
 
 export type FotosViewMode = 'split' | 'grid' | 'mapa'
 
@@ -57,3 +58,10 @@ export const useFotosFiltrosStore = create<FotosFiltrosStore>((set) => ({
   setViewMode: (m) => set({ view_mode: m }),
   reset: () => set(initial)
 }))
+
+// serviços, equipes e encarregados são da obra: ao trocar de obra os filtros voltam ao padrão (a visualização fica)
+useObraStore.subscribe((s, antes) => {
+  if (s.currentObraId === antes.currentObraId) return
+  const { view_mode } = useFotosFiltrosStore.getState()
+  useFotosFiltrosStore.setState({ ...initial, view_mode })
+})

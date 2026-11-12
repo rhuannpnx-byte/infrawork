@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
 import { supabase } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import type {
   AlocInfo,
   AlocStatus,
@@ -43,18 +44,27 @@ export function usePlanOrc(
     queryKey: ['orcamento', 'plan-orc', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<PlanOrcData> => {
-      const [itensRes, alocRes] = await Promise.all([
-        supabase
-          .from('item_orcamentario')
-          .select(ITEM_COLUNAS)
-          .eq('obra_id', obraId!)
-          .order('codigo'),
-        supabase.from('item_orc_alocacao').select(ALOC_COLUNAS).eq('obra_id', obraId!)
+      const [itensData, alocData] = await Promise.all([
+        lerTodas((de, ate) =>
+          supabase
+            .from('item_orcamentario')
+            .select(ITEM_COLUNAS)
+            .eq('obra_id', obraId!)
+            .order('codigo')
+            .order('id')
+            .range(de, ate)
+        ),
+        lerTodas((de, ate) =>
+          supabase
+            .from('item_orc_alocacao')
+            .select(ALOC_COLUNAS)
+            .eq('obra_id', obraId!)
+            .order('id')
+            .range(de, ate)
+        )
       ])
-      if (itensRes.error) throw itensRes.error
-      if (alocRes.error) throw alocRes.error
-      const itens = (itensRes.data ?? []) as unknown as ItemOrcamentario[]
-      const alocacoes = ((alocRes.data ?? []) as unknown as ItemAlocacao[]).map((a) => ({
+      const itens = itensData as unknown as ItemOrcamentario[]
+      const alocacoes = (alocData as unknown as ItemAlocacao[]).map((a) => ({
         ...a,
         valor: a.valor === null ? null : Number(a.valor),
         fracao: Number(a.fracao)

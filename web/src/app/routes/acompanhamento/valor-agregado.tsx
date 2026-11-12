@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ChevronDown, Search, Check, X, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { AvisoSemLinhaDeBase } from '@/features/acompanhamento/components/AvisoSemLinhaDeBase'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -126,6 +127,7 @@ function ValorAgregadoInner(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Valor Agregado" subtitle={scope.obra?.nome ?? ''} />
+      <AvisoSemLinhaDeBase obraId={obraId} />
 
       <div className="flex-1 overflow-auto">
         {/* Filtros sticky */}

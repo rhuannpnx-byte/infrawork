@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { lerTodas } from '@/lib/supabase/paginar'
 import { invalidarCadeia } from '@/lib/query/cadeia'
 
 export interface Reajuste {
@@ -165,11 +166,16 @@ export function useCriarReajuste(): ReturnType<
           if (ge) throw ge
           mapa.set(g.id as string, ng.id as string)
         }
-        const { data: itens } = await supabase
-          .from('orcamento_reajuste_item')
-          .select('receita_id, grupo_id')
-          .eq('reajuste_id', b.copiarDe)
-        const novos = (itens ?? [])
+        const origem = b.copiarDe
+        const itens = await lerTodas<Record<string, unknown>>((de, ate) =>
+          supabase
+            .from('orcamento_reajuste_item')
+            .select('receita_id, grupo_id')
+            .eq('reajuste_id', origem)
+            .order('receita_id')
+            .range(de, ate)
+        )
+        const novos = itens
           .filter((i) => mapa.has(i.grupo_id as string))
           .map((i) => ({
             reajuste_id: id,

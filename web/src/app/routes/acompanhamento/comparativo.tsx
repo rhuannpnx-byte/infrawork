@@ -37,7 +37,7 @@ function Inner(): ReactNode {
   // atraso (Δ dias, fim projetado, status, linhas de tendência da curva).
   const isCliente = useAuthStore((s) => s.profile?.role === 'cliente')
   const { data: itens = [], isLoading } = usePrevistoXRealizado(obraId)
-  const { data: curva = [] } = useCurvaS(obraId, 180)
+  const { data: curva = [] } = useCurvaS(obraId, null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const itemSelecionado = useMemo(

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useObraStore } from '@/stores/obra-store'
 
 export type PeriodoPreset = '7d' | '30d' | '90d' | 'custom'
 
@@ -51,3 +52,8 @@ export function periodoDias(p: PeriodoPreset): number {
       return 30
   }
 }
+
+// ids de serviço são da obra: ao trocar de obra o filtro volta ao padrão
+useObraStore.subscribe((s, antes) => {
+  if (s.currentObraId !== antes.currentObraId) useDashboardFiltrosStore.getState().reset()
+})
