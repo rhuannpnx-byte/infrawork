@@ -10,23 +10,10 @@ import { useAuthStore } from '@/stores/auth-store'
 import type { Encarregado, LancamentoInput, ProducaoEnriquecida } from '@/types/acompanhamento'
 import { PROD_COLS } from './producao'
 
-const ACOMP_KEYS = [
-  'producao',
-  'curva-s',
-  'previsto-realizado',
-  'dashboard',
-  'dashboard-prods',
-  'fotos',
-  'fotos-geo',
-  'perf-prod',
-  'perf-produtividade',
-  'dados-resumo',
-  'lancamentos-dia',
-  'itens-lancaveis'
-]
-
+/** Lançamento muda produção, curvas, valor agregado, alertas e a prontidão da obra: relê tudo isso. */
 function invalidarAcompanhamento(qc: ReturnType<typeof useQueryClient>): void {
-  for (const k of ACOMP_KEYS) void qc.invalidateQueries({ queryKey: ['acompanhamento', k] })
+  void qc.invalidateQueries({ queryKey: ['acompanhamento'] })
+  void qc.invalidateQueries({ queryKey: ['prontidao'] })
 }
 
 // ─── Itens lançáveis ─────────────────────────────────────────────────────

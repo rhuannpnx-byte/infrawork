@@ -185,6 +185,14 @@ function FormInner({
   const { data: parametros } = useParametrosServicos(obraId)
   const { data: materiaisObra = [] } = useMateriaisObra(obraId)
   const par = parametroDe(parametros, itemId)
+  // serviço alimentado por viagens não recebe lançamento manual: nem aparece na lista (a não ser o já escolhido)
+  const itensManuais = useMemo(
+    () =>
+      itens.filter(
+        (i) => i.id === itemId || parametroDe(parametros, i.id).modo_lancamento !== 'viagens'
+      ),
+    [itens, itemId, parametros]
+  )
   const porViagens = !!itemId && par.modo_lancamento === 'viagens'
   const matControlado = par.controla_material
     ? (materiaisObra.find((m) => m.id === par.material_recurso_id) ?? null)
@@ -417,7 +425,7 @@ function FormInner({
         <div>
           <Label>Serviço (item do orçamento)</Label>
           <ItemCombobox
-            itens={itens}
+            itens={itensManuais}
             value={itemId}
             onChange={escolherItem}
             loading={loadingItens}

@@ -265,6 +265,8 @@ export interface ProducaoContexto {
   /** locais da obra (controle por estaca) */
   trechos?: TrechoLocal[]
   hojeISO: string
+  /** parametrização do serviço (modo de lançamento e local obrigatório) */
+  parametro?: (itemId: string) => { modo_lancamento: string; exige_local: boolean }
 }
 
 export function parseProducao(
@@ -378,6 +380,25 @@ export function parseProducao(
           nivel: 'aviso'
         })
     }
+
+    // parametrização do serviço: recusa já na prévia o que o banco recusaria (o lote é tudo ou nada)
+    const par = item ? contexto.parametro?.(item.id) : undefined
+    if (par?.modo_lancamento === 'viagens')
+      erros.push({
+        ...base,
+        col: 'Código do item',
+        code: 'IGNORADO',
+        msg: `"${codigo}" é alimentado por viagens: lance as viagens (a produção do dia é a soma delas).`,
+        nivel: 'erro'
+      })
+    else if (par?.exige_local && !loc.trecho_id)
+      erros.push({
+        ...base,
+        col: 'Local',
+        code: 'IGNORADO',
+        msg: `"${codigo}" exige local e estacas.`,
+        nivel: 'erro'
+      })
 
     const quantidade = Number(pr.data.quantidade ?? 0)
     const data: ProducaoLinha = {

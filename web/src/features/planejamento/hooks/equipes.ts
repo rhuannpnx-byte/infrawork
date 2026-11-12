@@ -104,12 +104,9 @@ export function useReorderEquipes(): ReturnType<
 > {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ ids }) => {
-      const results = await Promise.all(
-        ids.map((id, idx) => supabase.from('equipe').update({ ordem: idx }).eq('id', id))
-      )
-      const err = results.find((r) => r.error)?.error
-      if (err) throw err
+    mutationFn: async ({ obra_id, ids }) => {
+      const { error } = await supabase.rpc('equipes_ordenar', { _obra_id: obra_id, _ids: ids })
+      if (error) throw error
     },
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['planejamento', 'equipes', vars.obra_id] })

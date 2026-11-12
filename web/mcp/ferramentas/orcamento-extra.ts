@@ -382,7 +382,7 @@ export const reajustes = ferramenta({
   destrutiva: true,
   cobre: {
     tabelas: ['orcamento_reajuste', 'orcamento_reajuste_grupo', 'orcamento_reajuste_item'],
-    rpcs: ['definir_data_base', 'aplicar_reajuste', 'receita_preco_em']
+    rpcs: ['definir_data_base', 'aplicar_reajuste', 'receita_preco_em', 'reajuste_criar']
   },
   async executar(a) {
     const id = () => exigir(a.id, 'id', a.acao)
@@ -398,45 +398,16 @@ export const reajustes = ferramenta({
           filtros: [eq('obra_id', exigir(a.obra_id, 'obra_id', a.acao))],
           ordem: [{ coluna: 'data' }]
         })
-      case 'criar': {
-        const [r] = await gravar<{ id: string }>('orcamento_reajuste', 'insert', {
-          obra_id: exigir(a.obra_id, 'obra_id', a.acao),
-          data: exigir(a.data, 'data', a.acao),
-          descricao: a.descricao?.trim() || null
-        })
-        if (a.copiar_de) {
-          const grupos = await ler<{
-            id: string
-            ordem: number
-            nome: string
-            indice_atual: number
-          }>('orcamento_reajuste_grupo', { filtros: [eq('reajuste_id', a.copiar_de)] })
-          const mapa = new Map<string, string>()
-          for (const g of grupos) {
-            const [ng] = await gravar<{ id: string }>('orcamento_reajuste_grupo', 'insert', {
-              reajuste_id: r!.id,
-              ordem: g.ordem,
-              nome: g.nome,
-              indice_anterior: g.indice_atual,
-              indice_atual: g.indice_atual
-            })
-            mapa.set(g.id, ng!.id)
-          }
-          const itens = await ler<{ receita_id: string; grupo_id: string }>(
-            'orcamento_reajuste_item',
-            { filtros: [eq('reajuste_id', a.copiar_de)] }
-          )
-          const novos = itens
-            .filter((i) => mapa.has(i.grupo_id))
-            .map((i) => ({
-              reajuste_id: r!.id,
-              receita_id: i.receita_id,
-              grupo_id: mapa.get(i.grupo_id)!
-            }))
-          if (novos.length) await gravar('orcamento_reajuste_item', 'insert', novos)
+      case 'criar':
+        // rascunho + grupos e classificação copiados, numa transação
+        return {
+          id: await rpc<string>('reajuste_criar', {
+            _obra_id: exigir(a.obra_id, 'obra_id', a.acao),
+            _data: exigir(a.data, 'data', a.acao),
+            _descricao: a.descricao ?? null,
+            _copiar_de: a.copiar_de ?? null
+          })
         }
-        return r
-      }
       case 'editar':
         return (
           await gravar('orcamento_reajuste', 'update', patchDe(a, ['data', 'descricao']), [

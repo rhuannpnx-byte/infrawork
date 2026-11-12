@@ -148,6 +148,8 @@ export interface FichaViagens {
   criado_por: string | null
   /** versão gravada (o envio confere que a ficha não mudou depois dela) */
   updated_at: string
+  /** prefixo e placa do caminhão, lidos junto com a ficha */
+  veiculo?: { prefixo: string; placa: string | null } | null
   viagens: Viagem[]
 }
 
@@ -209,6 +211,20 @@ export function useExcluirVeiculo(): ReturnType<typeof useMutation<void, Error, 
       if (error) throw new Error(error.message)
     },
     onSettled: () => void qc.invalidateQueries({ queryKey: ['frota'] })
+  })
+}
+
+/** Só os veículos pedidos (ex.: o de uma ficha antiga que saiu da obra). */
+export function useVeiculos(ids: string[]): ReturnType<typeof useQuery<Veiculo[]>> {
+  const chave = [...new Set(ids.filter(Boolean))].sort()
+  return useQuery({
+    queryKey: ['frota', 'ids', chave],
+    enabled: chave.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('frota_veiculo').select('*').in('id', chave)
+      if (error) throw error
+      return ((data ?? []) as Record<string, unknown>[]).map(veiculoDe)
+    }
   })
 }
 
@@ -495,7 +511,7 @@ export function useFichasViagens(
       const data = await lerTodas((ini, fim) =>
         supabase
           .from('viagem_ficha')
-          .select('*, viagens:viagem(*)')
+          .select('*, veiculo:veiculo_id(prefixo, placa), viagens:viagem(*)')
           .eq('obra_id', obraId!)
           .gte('data', de)
           .lte('data', ate)
@@ -542,7 +558,10 @@ export type ViagemInput = Pick<
   | 'carregador_id'
 > & { dmt_km: number | null }
 
-export type FichaInput = Omit<FichaViagens, 'origem' | 'criado_por' | 'viagens' | 'updated_at'> & {
+export type FichaInput = Omit<
+  FichaViagens,
+  'origem' | 'criado_por' | 'viagens' | 'updated_at' | 'veiculo'
+> & {
   viagens: ViagemInput[]
   /** versão em que a edição se baseou (ausente na ficha nova) */
   versao: string | null

@@ -442,7 +442,7 @@ export const equipes = ferramenta({
     confirmar: CONFIRMAR
   },
   destrutiva: true,
-  cobre: { tabelas: ['equipe', 'encarregado'] },
+  cobre: { tabelas: ['equipe', 'encarregado'], rpcs: ['equipes_ordenar'] },
   async executar(a) {
     const id = () => exigir(a.id, 'id', a.acao)
     switch (a.acao) {
@@ -477,9 +477,10 @@ export const equipes = ferramenta({
       }
       case 'ordenar_equipes': {
         const ids = exigir(a.ids, 'ids', a.acao)
-        for (const [i, e] of ids.entries())
-          await gravar('equipe', 'update', { ordem: i }, [eq('id', e)])
-        return { ok: true }
+        return {
+          ok: true,
+          alteradas: await rpc<number>('equipes_ordenar', { _obra_id: a.obra_id, _ids: ids })
+        }
       }
       case 'criar_encarregado':
         return (

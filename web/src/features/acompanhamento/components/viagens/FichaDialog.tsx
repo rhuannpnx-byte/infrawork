@@ -34,7 +34,7 @@ import { useEncarregados } from '../../hooks/lancamento'
 import {
   TIPO_LOCAL_LABEL,
   ehMaquinaDeCarga,
-  useFrota,
+  useVeiculos,
   useVeiculosDaObra,
   useLocaisTransporte,
   useExcluirFicha,
@@ -71,14 +71,12 @@ export function FichaDialog({
   open,
   onOpenChange,
   obraId,
-  empresaId,
   ficha,
   podeExcluir = false
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   obraId: string
-  empresaId: string | null
   /** edita; sem ficha, cria */
   ficha: FichaViagens | null
   podeExcluir?: boolean
@@ -88,7 +86,6 @@ export function FichaDialog({
     <Carregar
       onOpenChange={onOpenChange}
       obraId={obraId}
-      empresaId={empresaId}
       ficha={ficha}
       podeExcluir={podeExcluir}
     />
@@ -99,7 +96,6 @@ export function FichaDialog({
 function Carregar(props: {
   onOpenChange: (o: boolean) => void
   obraId: string
-  empresaId: string | null
   ficha: FichaViagens | null
   podeExcluir: boolean
 }): ReactNode {
@@ -113,20 +109,26 @@ function Carregar(props: {
 function Form({
   onOpenChange,
   obraId,
-  empresaId,
   ficha,
   podeExcluir
 }: {
   onOpenChange: (o: boolean) => void
   obraId: string
-  empresaId: string | null
   ficha: FichaViagens | null
   podeExcluir: boolean
 }): ReactNode {
   const { data: servicos = [] } = useServicosParametrizaveis(obraId)
   const { data: parametros } = useParametrosServicos(obraId)
-  const { data: frota = [] } = useFrota(empresaId)
   const { data: daObra = [] } = useVeiculosDaObra(obraId)
+  // ficha antiga pode citar veículo que saiu da obra: busca só esses
+  const citados = [
+    ficha?.veiculo_id ?? '',
+    ...(ficha?.viagens ?? []).map((v) => v.carregador_id ?? '')
+  ]
+  const { data: extras = [] } = useVeiculos(
+    citados.filter((id) => id && !daObra.some((v) => v.id === id))
+  )
+  const frota = [...daObra, ...extras]
   const { data: transp } = useLocaisTransporte(obraId)
   const { data: trechos = [] } = useObraTrechos(obraId)
   const { data: equipes = [] } = useEquipes(obraId)

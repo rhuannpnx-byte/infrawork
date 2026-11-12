@@ -152,7 +152,7 @@ export const producao = ferramenta({
         if (a.acao === 'importar') {
           const wb = await abrirPlanilha(a)
           if (!wb) throw new Error('Mande arquivo_base64 ou url.')
-          const [itens, real, eqs, encs, trechos] = await Promise.all([
+          const [itens, real, eqs, encs, trechos, pars] = await Promise.all([
             ler<{
               id: string
               codigo: string
@@ -180,8 +180,16 @@ export const producao = ferramenta({
             ler<{ id: string; nome: string; apelido: string | null }>('encarregado', {
               filtros: [eq('obra_id', a.obra_id)]
             }),
-            ler('obra_trecho', { filtros: [eq('obra_id', a.obra_id)] })
+            ler('obra_trecho', { filtros: [eq('obra_id', a.obra_id)] }),
+            ler<{ item_orcamentario_id: string; modo_lancamento: string; exige_local: boolean }>(
+              'servico_parametro',
+              {
+                colunas: 'item_orcamentario_id, modo_lancamento, exige_local',
+                filtros: [eq('obra_id', a.obra_id)]
+              }
+            )
           ])
+          const parPorItem = new Map(pars.map((p) => [p.item_orcamentario_id, p]))
           const qtdReal = new Map(
             real.map((r) => [r.item_orcamentario_id, Number(r.qtd_real ?? 0)])
           )
@@ -203,7 +211,9 @@ export const producao = ferramenta({
             equipes: eqs,
             encarregados: encs as never,
             trechos: trechos as never,
-            hojeISO: new Date().toISOString().slice(0, 10)
+            hojeISO: new Date().toISOString().slice(0, 10),
+            parametro: (id) =>
+              parPorItem.get(id) ?? { modo_lancamento: 'quantidade', exige_local: false }
           })
           previa = resumoParse(p)
           const idPorNome = new Map<string, string>()

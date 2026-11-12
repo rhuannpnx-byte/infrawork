@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
-import { lerTodas } from '@/lib/supabase/paginar'
 import { invalidarCadeia } from '@/lib/query/cadeia'
 
 export interface Reajuste {
@@ -138,56 +137,15 @@ export function useCriarReajuste(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (b) => {
-      const { data, error } = await supabase
-        .from('orcamento_reajuste')
-        .insert({ obra_id: b.obra_id, data: b.data, descricao: b.descricao?.trim() || null })
-        .select('id')
-        .single()
+      // rascunho + grupos e classificação copiados, numa transação
+      const { data, error } = await supabase.rpc('reajuste_criar', {
+        _obra_id: b.obra_id,
+        _data: b.data,
+        _descricao: b.descricao ?? null,
+        _copiar_de: b.copiarDe ?? null
+      })
       if (error) throw error
-      const id = data.id as string
-      if (b.copiarDe) {
-        const { data: grupos } = await supabase
-          .from('orcamento_reajuste_grupo')
-          .select('id, ordem, nome, indice_atual')
-          .eq('reajuste_id', b.copiarDe)
-        const mapa = new Map<string, string>()
-        for (const g of grupos ?? []) {
-          const { data: ng, error: ge } = await supabase
-            .from('orcamento_reajuste_grupo')
-            .insert({
-              reajuste_id: id,
-              ordem: g.ordem,
-              nome: g.nome,
-              indice_anterior: g.indice_atual,
-              indice_atual: g.indice_atual
-            })
-            .select('id')
-            .single()
-          if (ge) throw ge
-          mapa.set(g.id as string, ng.id as string)
-        }
-        const origem = b.copiarDe
-        const itens = await lerTodas<Record<string, unknown>>((de, ate) =>
-          supabase
-            .from('orcamento_reajuste_item')
-            .select('receita_id, grupo_id')
-            .eq('reajuste_id', origem)
-            .order('receita_id')
-            .range(de, ate)
-        )
-        const novos = itens
-          .filter((i) => mapa.has(i.grupo_id as string))
-          .map((i) => ({
-            reajuste_id: id,
-            receita_id: i.receita_id,
-            grupo_id: mapa.get(i.grupo_id as string)!
-          }))
-        if (novos.length > 0) {
-          const { error: ie } = await supabase.from('orcamento_reajuste_item').insert(novos)
-          if (ie) throw ie
-        }
-      }
-      return { id }
+      return { id: data as string }
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['orcamento', 'reajustes'] })
   })

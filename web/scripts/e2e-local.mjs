@@ -512,6 +512,24 @@ const intervalo = await sb.rpc('aplicar_reajuste', { _reajuste_id: rj2.id })
 check('2º reajuste só 12 meses após o 1º', !!intervalo.error && /12 meses do anterior/.test(intervalo.error.message), intervalo.error?.message)
 const baseFixa = await sb.rpc('definir_data_base', { _obra_id: obraId, _data: '2026-02-01' })
 check('data-base não muda depois de reajuste aplicado', !!baseFixa.error)
+// migração 0060: cópia de reajuste numa transação (índice anterior = atual do copiado, mesma classificação)
+const rj3 = await rpc('reajuste_criar', { _obra_id: obraId, _data: '2028-01-15', _descricao: 'E2E cópia', _copiar_de: rj1.id })
+const gr3 = await q('orcamento_reajuste_grupo', (t) => t.select('id, nome, indice_anterior, indice_atual').eq('reajuste_id', rj3))
+const it3 = await q('orcamento_reajuste_item', (t) => t.select('receita_id, grupo_id').eq('reajuste_id', rj3))
+check(
+  'cópia de reajuste traz grupos e classificação',
+  gr3.length === 1 && Number(gr3[0].indice_anterior) === 110 && it3.length === 1 && it3[0].grupo_id === gr3[0].id && it3[0].receita_id === recBase.id,
+  JSON.stringify({ gr3, it3 })
+)
+const copiaRuim = await sb.rpc('reajuste_criar', { _obra_id: obraId, _data: '2028-02-01', _copiar_de: crypto.randomUUID() })
+const rascunhos = await q('orcamento_reajuste', (t) => t.select('id').eq('obra_id', obraId).eq('data', '2028-02-01'))
+check('cópia recusada não deixa rascunho', !!copiaRuim.error && rascunhos.length === 0, copiaRuim.error?.message)
+await q('orcamento_reajuste', (t) => t.delete().eq('id', rj3).select())
+const [eqB] = await q('equipe', (t) => t.insert({ obra_id: obraId, nome: 'Equipe ordem E2E', tipo: 'Terraplenagem', ordem: 2 }).select())
+const nOrd = await rpc('equipes_ordenar', { _obra_id: obraId, _ids: [eqB.id, eqA.id] })
+const ordens = await q('equipe', (t) => t.select('id, ordem').in('id', [eqA.id, eqB.id]))
+check('equipes reordenadas num único pedido (conta só as que mudaram)', nOrd === 1 && ordens.find((e) => e.id === eqB.id)?.ordem === 0 && ordens.find((e) => e.id === eqA.id)?.ordem === 1, JSON.stringify(ordens))
+await q('equipe', (t) => t.delete().eq('id', eqB.id).select())
 
 // ── 8. Rateio por peso na importação (obra sem planejamento) ───────────────
 const obraRev = await fn('create-obra', { empresa_id: empresa.id, nome: `Obra rateio ${STAMP}`, codigo: `RAT-${STAMP}` })

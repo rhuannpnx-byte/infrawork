@@ -73,3 +73,32 @@ describe('importação de produção com local (controle por estaca)', () => {
     expect(r.rows[2]!.erros[0]!.msg).toMatch(/fora/)
   })
 })
+
+describe('importação de produção com a parametrização do serviço', () => {
+  it('serviço por viagens e serviço sem o local obrigatório são erros já na prévia', () => {
+    const modos: Record<string, { modo_lancamento: string; exige_local: boolean }> = {
+      v1: { modo_lancamento: 'viagens', exige_local: false },
+      l1: { modo_lancamento: 'quantidade', exige_local: true }
+    }
+    const r = parseProducao(
+      planilha([
+        ['01/10/2026', '02.01', '', '', 10, '', '', '', '', ''],
+        ['01/10/2026', '03.01', '', '', 10, '', '', '', '', ''],
+        ['01/10/2026', '03.01', '', '', 10, '', 'trecho 2 — contorno', '2+000', '2+500', ''],
+        ['01/10/2026', '01.01', '', '', 10, '', '', '', '', '']
+      ]),
+      {
+        ...ctx,
+        itens: [
+          ...itens,
+          { id: 'v1', codigo: '02.01' },
+          { id: 'l1', codigo: '03.01' }
+        ] as unknown as ItemLancavel[],
+        parametro: (id) => modos[id] ?? { modo_lancamento: 'quantidade', exige_local: false }
+      }
+    )
+    expect(r.rows.map((x) => x.acao)).toEqual(['erro', 'erro', 'criar', 'criar'])
+    expect(r.rows[0]!.erros[0]!.msg).toMatch(/viagens/)
+    expect(r.rows[1]!.erros[0]!.msg).toMatch(/exige local/)
+  })
+})

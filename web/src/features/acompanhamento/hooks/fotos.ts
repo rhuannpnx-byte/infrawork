@@ -218,7 +218,7 @@ export function useDeleteFotos(): ReturnType<
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'fotos'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'fotos-geo'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'signed-urls'] })
-      void qc.invalidateQueries({ queryKey: ['acompanhamento', 'dashboard-resumo'] })
+      void qc.invalidateQueries({ queryKey: ['acompanhamento', 'dashboard'] })
     }
   })
 }

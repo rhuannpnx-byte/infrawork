@@ -159,7 +159,8 @@ export function ImportarProducaoDialog({
           equipes: equipes.map((e) => ({ id: e.id, nome: e.nome })),
           encarregados,
           trechos,
-          hojeISO: hojeLocalISO()
+          hojeISO: hojeLocalISO(),
+          parametro: (id) => parametroDe(parametros, id)
         })
       }
       previewColumns={[

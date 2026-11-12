@@ -18,7 +18,6 @@ import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
 import { useServicosParametrizaveis } from '@/features/planejamento/hooks/parametros'
 import {
   useFichasViagens,
-  useFrota,
   useLocaisTransporte,
   type FichaViagens,
   type Viagem
@@ -73,7 +72,6 @@ function Inner(): ReactNode {
   const [aberta, setAberta] = useState<{ ficha: FichaViagens | null } | null>(null)
   const fichas = useFichasViagens(obraId, de, ate)
   const { data: servicos = [] } = useServicosParametrizaveis(obraId)
-  const { data: frota = [] } = useFrota(scope.empresaId)
   const { data: transp } = useLocaisTransporte(obraId)
   const { data: trechos = [] } = useObraTrechos(obraId)
 
@@ -84,10 +82,8 @@ function Inner(): ReactNode {
   const unidade = (id: string): string => servicos.find((x) => x.id === id)?.unidade ?? ''
   const nomeLocal = (id: string | null): string =>
     (id && transp?.locais.find((l) => l.id === id)?.nome) || '—'
-  const veiculo = (id: string | null): string => {
-    const v = frota.find((x) => x.id === id)
-    return v ? `${v.prefixo}${v.placa ? ` · ${v.placa}` : ''}` : '—'
-  }
+  const veiculo = (f: FichaViagens): string =>
+    f.veiculo ? `${f.veiculo.prefixo}${f.veiculo.placa ? ` · ${f.veiculo.placa}` : ''}` : '—'
   /** estaca da ponta na pista; fora dela, o nome do local já diz onde é */
   const estaca = (localId: string | null, m: number | null): string => {
     const l = transp?.locais.find((x) => x.id === localId)
@@ -106,7 +102,7 @@ function Inner(): ReactNode {
       ficha: f,
       v,
       n: i + 1,
-      veiculo: veiculo(f.veiculo_id),
+      veiculo: veiculo(f),
       servico: nomeServico(v.item_orcamentario_id),
       origem: nomeLocal(v.origem_id),
       destino: nomeLocal(v.destino_id),
@@ -284,7 +280,6 @@ function Inner(): ReactNode {
         open={!!aberta}
         onOpenChange={(o) => !o && setAberta(null)}
         obraId={obraId}
-        empresaId={scope.empresaId}
         ficha={aberta?.ficha ?? null}
         podeExcluir={!!aberta?.ficha && podeEditar(aberta.ficha)}
       />
