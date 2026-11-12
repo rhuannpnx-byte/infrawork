@@ -15,11 +15,11 @@
 //   item_orcamentario ─→ item_orcamentario.parent_id (RESTRICT — cascateamos manual)
 //                     ─→ planejamento_tarefa (SET NULL, após migração)
 
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 /** Serviços do orçamento cujo custo (ao vivo) vem dessas composições. */
 async function contarServicosOrcamentoDasCpus(cpuIds: string[]): Promise<number> {
-  if (!supabase || cpuIds.length === 0) return 0
+  if (cpuIds.length === 0) return 0
   const [{ data: cpus }, { data: links }] = await Promise.all([
     supabase.from('cpu').select('servico_id').in('id', cpuIds),
     supabase.from('servico_cpu_link').select('servico_id').in('cpu_id', cpuIds)
@@ -36,10 +36,6 @@ async function contarServicosOrcamentoDasCpus(cpuIds: string[]): Promise<number>
   return count ?? 0
 }
 
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
-
 export interface RecursoCascadePreview {
   cpuItensAfetados: number
   cpusAfetadas: number
@@ -49,7 +45,6 @@ export interface RecursoCascadePreview {
 }
 
 export async function previewCascadeRecursos(recursoIds: string[]): Promise<RecursoCascadePreview> {
-  if (!SUPABASE_ENABLED || !supabase) notReady()
   if (recursoIds.length === 0) {
     return {
       cpuItensAfetados: 0,
@@ -79,7 +74,6 @@ export interface CpuCascadePreview {
 }
 
 export async function previewCascadeCpus(cpuIds: string[]): Promise<CpuCascadePreview> {
-  if (!SUPABASE_ENABLED || !supabase) notReady()
   if (cpuIds.length === 0) {
     return { cpuItensQueIraoEmbora: 0, itensOrcamentoComCpuOrigem: 0 }
   }
@@ -113,7 +107,6 @@ export async function previewCascadeItensOrcamentarios(
   itemIds: string[],
   allFlat: { id: string; parent_id: string | null; nivel: number | null }[]
 ): Promise<ItemOrcamentarioCascadePreview> {
-  if (!SUPABASE_ENABLED || !supabase) notReady()
   if (itemIds.length === 0) {
     return {
       totalParaApagar: 0,
@@ -191,7 +184,6 @@ export async function previewCascadeServicos(
   servicoIds: string[],
   allServicos: { id: string; parent_id: string | null; nivel: number | null }[]
 ): Promise<ServicoCascadePreview> {
-  if (!SUPABASE_ENABLED || !supabase) notReady()
   if (servicoIds.length === 0) {
     return {
       totalParaApagar: 0,

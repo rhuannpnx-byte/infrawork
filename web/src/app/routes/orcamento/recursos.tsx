@@ -16,7 +16,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useRecursos, useToggleAtivoRecurso } from '@/features/orcamento/hooks/recursos'
 import { previewCascadeRecursos } from '@/features/orcamento/hooks/cascade'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { NewRecursoDialog } from '@/features/orcamento/modals/NewRecursoDialog'
 import { EditRecursoDialog } from '@/features/orcamento/modals/EditRecursoDialog'
 import { ImportRecursosDialog } from '@/features/orcamento/modals/ImportRecursosDialog'
@@ -99,11 +99,6 @@ function RecursosInner(): ReactNode {
       variant: 'danger'
     })
     if (!ok) return
-
-    if (!SUPABASE_ENABLED || !supabase) {
-      toast.error('Supabase não configurado.')
-      return
-    }
 
     // Limpa a seleção e fecha o painel imediatamente — UX responsiva.
     clear()

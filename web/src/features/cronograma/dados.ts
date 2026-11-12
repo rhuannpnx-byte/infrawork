@@ -5,7 +5,7 @@
  * com quantidade do trecho são divididos pelo template atual. Linha de base: tudo o que foi congelado na promoção
  * (calendários, dependências entre serviços, equipe de cada tarefa e os trechos de tarefa calculados).
  */
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import type { ControleEntrada } from './motor/controle'
@@ -26,11 +26,6 @@ import type {
   TarefaEntrada,
   WpCongelado
 } from './motor/tipos'
-
-function sb(): NonNullable<typeof supabase> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-  return supabase
-}
 
 const n = (v: unknown, d = 0): number => {
   const x = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
@@ -128,7 +123,7 @@ function equipeDaRpc(x: Record<string, unknown>): EquipeServico {
 
 /** Retrato completo de um plano para o motor. */
 export async function carregarPlanoEntrada(planejamentoId: string): Promise<PlanoEntrada> {
-  const c = sb()
+  const c = supabase
   const { data: pr, error: pErr } = await c
     .from('planejamento')
     .select(

@@ -1,12 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { adminApi } from '@/lib/supabase/functions'
 import type { ImportResultado } from '@/lib/xlsx/types'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 interface RpcErro {
   row?: number
@@ -39,7 +35,6 @@ export function useImportarRecursos(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input): Promise<ImportResultado> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('importar_recursos', {
         _obra_id: input.obra_id,
         _linhas: input.linhas,
@@ -102,7 +97,6 @@ export function useImportarComposicoes(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input): Promise<ImportarComposicoesResultado> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('importar_composicoes', {
         _obra_id: input.obra_id,
         _composicoes: input.composicoes,

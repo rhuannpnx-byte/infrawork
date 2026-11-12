@@ -754,8 +754,8 @@ check('produção "viagens" não é gravada à mão', !!forjado.error, forjado.e
 const uuid = () => crypto.randomUUID()
 const fichaId = uuid()
 const vg = [uuid(), uuid(), uuid()]
-const viagemDe = (id, estaca) => ({ id, item_orcamentario_id: svAterro.id, origem_id: jazida.id, destino_id: destPista.id, quantidade: 12, posicao_inicio_m: estaca, hora_carga: '07:30' })
-const ficha = (viagens, data = iso(ontem)) => ({ id: fichaId, obra_id: obraCampo.id, data, veiculo_id: cam.id, motorista: 'Zé', km_inicial: 1000, km_final: 1100, viagens })
+const viagemDe = (id, estaca) => ({ id, item_orcamentario_id: svAterro.id, origem_id: jazida.id, destino_id: destPista.id, quantidade: 12, estaca_descarga_m: estaca, hora_carga: '07:30' })
+const ficha = (viagens, data = iso(ontem)) => ({ id: fichaId, obra_id: obraCampo.id, data, veiculo_id: cam.id, motorista: 'Zé', viagens })
 await rpc('campo_sync_ficha', { _ficha: ficha([viagemDe(vg[0], 500), viagemDe(vg[1], 800), viagemDe(vg[2], 1200)]) })
 await rpc('campo_sync_ficha', { _ficha: ficha([viagemDe(vg[0], 500), viagemDe(vg[1], 800), viagemDe(vg[2], 1200)]) })
 const prodViagens = async () => q('acompanhamento_producao', (t) => t.select('id, data, quantidade, trecho_id, posicao_inicio_m, posicao_fim_m, obs, origem').eq('obra_id', obraCampo.id).eq('origem', 'viagens'))

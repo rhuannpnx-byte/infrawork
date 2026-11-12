@@ -51,7 +51,6 @@ export function OAuthConsentimento({ pedido }: { pedido: PedidoOAuth }): ReactNo
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
-    if (!supabase) return
     if (pedido.response_type !== 'code')
       return setErro('Pedido inválido: response_type precisa ser "code".')
     if (pedido.code_challenge_method !== 'S256' || pedido.code_challenge.length < 43)
@@ -68,7 +67,6 @@ export function OAuthConsentimento({ pedido }: { pedido: PedidoOAuth }): ReactNo
   }, [pedido])
 
   async function permitir(): Promise<void> {
-    if (!supabase) return
     setEnviando(true)
     const { data, error } = await supabase.rpc('mcp_oauth_autorizar', {
       _client_id: pedido.client_id,

@@ -14,7 +14,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePlanOrc } from '@/features/orcamento/hooks/plan-orc'
 import { previewCascadeItensOrcamentarios } from '@/features/orcamento/hooks/cascade'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useTaxaVigente } from '@/features/orcamento/hooks/taxas'
 import { PlanOrcTree } from '@/features/orcamento/components/PlanOrcTree'
 import { ItemDetailPanel } from '@/features/orcamento/components/ItemDetailPanel'
@@ -234,11 +234,6 @@ function PlanilhaOrcamentaria(): ReactNode {
       variant: 'danger'
     })
     if (!ok) return
-    if (!SUPABASE_ENABLED || !supabase) {
-      toast.error('Supabase não configurado.')
-      return
-    }
-
     // Limpa seleção imediatamente — UX responsiva.
     setSelectedIds(new Set())
     setBulkDeleting(true)

@@ -1,13 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ProducaoEnriquecida, ProducaoOrigem } from '@/types/acompanhamento'
-import { downloadBlob } from '@/lib/files/download'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export interface ProducaoFiltros {
   data_de?: string | null
@@ -44,7 +39,6 @@ export function useProducao(
     enabled: !!obraId,
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const sb = supabase
       const data = await lerTodas((de, ate) => {
         let q = isCliente
@@ -70,79 +64,4 @@ export function useProducao(
       return data as unknown as ProducaoEnriquecida[]
     }
   })
-}
-
-export function useProducaoPorTarefa(
-  tarefaId: string | null | undefined
-): ReturnType<typeof useQuery<ProducaoEnriquecida[]>> {
-  return useQuery({
-    queryKey: ['acompanhamento', 'producao-tarefa', tarefaId],
-    enabled: !!tarefaId,
-    queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const sb = supabase
-      const data = await lerTodas((de, ate) =>
-        sb
-          .from('vw_acompanhamento_producao_enriquecida')
-          .select(PROD_COLS)
-          .eq('tarefa_baseline_id', tarefaId!)
-          .order('data', { ascending: false })
-          .order('id')
-          .range(de, ate)
-      )
-      return data as unknown as ProducaoEnriquecida[]
-    }
-  })
-}
-
-export function exportarProducaoCsv(rows: ProducaoEnriquecida[]): void {
-  const headers = [
-    'Data',
-    'Código',
-    'Serviço',
-    'Equipe',
-    'Encarregado',
-    'Qtd',
-    'Unid.',
-    'Fator',
-    'Qtd (plano)',
-    'Unid. plano',
-    'Frente',
-    'Local',
-    'Estaca inicial',
-    'Estaca final',
-    'Observação',
-    'Origem',
-    'Lançado por',
-    'Tarefa baseline',
-    'Fotos'
-  ]
-  const lines = rows.map((r) => [
-    r.data ?? '',
-    r.servico_grupo_codigo ?? r.servico_codigo ?? '',
-    r.servico_display_nome ?? r.servico_nome ?? '',
-    r.equipe_display_nome ?? '',
-    r.encarregado_display_nome ?? '',
-    r.qtd ?? '',
-    r.unidade ?? '',
-    r.fator_conversao ?? 1,
-    r.qtd_convertida ?? r.qtd ?? '',
-    r.unidade_plano ?? r.servico_unidade ?? '',
-    r.frente ?? '',
-    r.trecho_nome ? (r.trecho_tipo === 'area' ? `Área ${r.trecho_nome}` : r.trecho_nome) : '',
-    r.estaca_inicial ?? '',
-    r.estaca_final ?? '',
-    (r.obs ?? '').replace(/\n/g, ' ').replace(/"/g, '""'),
-    r.origem,
-    r.criado_por_nome ?? '',
-    r.tarefa_baseline_id ? 'Sim' : 'Não',
-    r.fotos_count ?? 0
-  ])
-  const csv = [headers, ...lines]
-    .map((row) => row.map((c) => `"${String(c)}"`).join(','))
-    .join('\n')
-  downloadBlob(
-    new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }),
-    `producao_${new Date().toISOString().slice(0, 10)}.csv`
-  )
 }

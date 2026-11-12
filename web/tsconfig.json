@@ -22,7 +22,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@renderer/*": ["src/*"],
       "@apex/dr5": ["vendor/apex/.types/dr5/src/index.d.ts"],
       "@apex/model": ["vendor/apex/.types/model/src/index.d.ts"],
       "@apex/calendar": ["vendor/apex/.types/calendar/src/index.d.ts"],

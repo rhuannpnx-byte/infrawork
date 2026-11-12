@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ComentarioItem } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const COLS =
   'id, item_id, obra_id, autor_id, texto, resolvido, resolvido_por, resolvido_em, created_at, updated_at, autor:autor_id(id, nome)'
@@ -17,7 +13,6 @@ export function useComentariosDoItem(
     queryKey: ['orcamento', 'comentarios', itemId],
     enabled: !!itemId,
     queryFn: async (): Promise<ComentarioItem[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('comentario_item')
         .select(COLS)
@@ -36,7 +31,6 @@ export function useAddComentario(): ReturnType<
   const callerId = useAuthStore((s) => s.profile?.id ?? null)
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       if (!callerId) throw new Error('Sem usuário autenticado')
       const { data, error } = await supabase
         .from('comentario_item')
@@ -63,7 +57,6 @@ export function useResolverComentario(): ReturnType<
   const callerId = useAuthStore((s) => s.profile?.id ?? null)
   return useMutation({
     mutationFn: async ({ id, resolvido }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('comentario_item')
         .update({
@@ -86,7 +79,6 @@ export function useDeleteComentario(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('comentario_item').delete().eq('id', id)
       if (error) throw error
     },

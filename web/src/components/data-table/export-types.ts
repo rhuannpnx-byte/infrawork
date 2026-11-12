@@ -1,6 +1,6 @@
 // Config de exportação fornecida por uma página à DataTable.
 // O botão "Exportar" entrega isto ao ExportDialog (via modalPayload['export']),
-// que então gera CSV (client), Excel (IPC) e PDF (IPC).
+// que então gera CSV, Excel e PDF no navegador.
 
 import type { RelatorioServicoInput } from '@/features/acompanhamento/lib/relatorio-servico'
 

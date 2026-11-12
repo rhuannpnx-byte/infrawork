@@ -28,7 +28,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
   }
 })
 
-export const SUPABASE_ENABLED = true
+export const SUPABASE_CONFIGURADO = true
 
 export const LINK_AUTH = { recuperacao: null, erro: null }
 

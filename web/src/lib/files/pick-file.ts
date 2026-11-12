@@ -31,7 +31,3 @@ export function pickFile(opts: { accept: string }): Promise<File | null> {
     input.click()
   })
 }
-
-export async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
-  return file.arrayBuffer()
-}

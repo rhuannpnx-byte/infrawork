@@ -6,7 +6,7 @@ export async function producaoVivaPorServico(
 ): Promise<Map<string, number | null>> {
   const ids = [...new Set(servicoIds.filter((x): x is string => !!x))]
   const m = new Map<string, number | null>()
-  if (ids.length === 0 || !supabase) return m
+  if (ids.length === 0) return m
   const { data, error } = await supabase
     .from('vw_servico_vivo')
     .select('servico_id, producao_diaria_qtde')

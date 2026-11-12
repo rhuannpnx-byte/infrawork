@@ -1,10 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Equipe } from '@/types/planejamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export function useEquipes(
   obraId: string | null | undefined,
@@ -15,7 +11,6 @@ export function useEquipes(
     queryKey: ['planejamento', 'equipes', obraId, opts.incluirInativas ?? false, incluirSistema],
     enabled: !!obraId,
     queryFn: async (): Promise<Equipe[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       let q = supabase
         .from('equipe')
         .select('*')
@@ -45,7 +40,6 @@ export function useCreateEquipe(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('equipe')
         .insert({
@@ -80,7 +74,6 @@ export function useUpdateEquipe(): ReturnType<typeof useMutation<void, Error, Up
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, obra_id: _o, ...rest }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('equipe').update(rest).eq('id', id)
       if (error) throw error
     },
@@ -96,7 +89,6 @@ export function useDeleteEquipe(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('equipe').delete().eq('id', id)
       if (error) throw error
     },
@@ -113,9 +105,8 @@ export function useReorderEquipes(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ ids }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const results = await Promise.all(
-        ids.map((id, idx) => supabase!.from('equipe').update({ ordem: idx }).eq('id', id))
+        ids.map((id, idx) => supabase.from('equipe').update({ ordem: idx }).eq('id', id))
       )
       const err = results.find((r) => r.error)?.error
       if (err) throw err
@@ -134,7 +125,6 @@ export function useVincularEquipesEncarregado(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ obra_id, encarregado_id, equipe_ids }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       let solta = supabase
         .from('equipe')
         .update({ encarregado_id: null })

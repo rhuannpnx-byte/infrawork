@@ -4,7 +4,6 @@
 import { supabase } from './client'
 
 async function authHeader(): Promise<HeadersInit> {
-  if (!supabase) throw new Error('Supabase desativado')
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new Error('Sem sessão ativa')
@@ -140,12 +139,6 @@ export const adminApi = {
     }>('import-orcamento', { method: 'POST', body }),
 
   // ─── Acompanhamento (Fase A) ──────────────────────────────────────────
-  acompanhamentoFotoSignedUrl: (body: { foto_id: string }) =>
-    call<{ url: string; expires_at: string }>('acompanhamento-foto-signed-url', {
-      method: 'POST',
-      body
-    }),
-
   acompanhamentoAlertasRecalcular: (body: { obra_id?: string }) =>
     call<{
       ok: boolean
@@ -164,7 +157,7 @@ export const adminApi = {
 
   acompanhamentoFotosListar: (body: {
     obra_id: string
-    filtros?: import('@renderer/types/acompanhamento').FotosListarFiltros
+    filtros?: import('@/types/acompanhamento').FotosListarFiltros
     page?: number
     page_size?: number
     with_urls?: boolean
@@ -175,10 +168,10 @@ export const adminApi = {
       resize?: 'cover' | 'contain' | 'fill'
     }
   }) =>
-    call<import('@renderer/types/acompanhamento').FotosListarResposta>(
-      'acompanhamento-fotos-listar',
-      { method: 'POST', body }
-    ),
+    call<import('@/types/acompanhamento').FotosListarResposta>('acompanhamento-fotos-listar', {
+      method: 'POST',
+      body
+    }),
 
   acompanhamentoFotoSignedUrlsBatch: (body: {
     foto_ids: string[]
@@ -191,7 +184,7 @@ export const adminApi = {
   }) =>
     call<{
       ok: boolean
-      urls: import('@renderer/types/acompanhamento').FotoSignedUrl[]
+      urls: import('@/types/acompanhamento').FotoSignedUrl[]
       ttl_seconds: number
     }>('acompanhamento-foto-signed-urls-batch', { method: 'POST', body }),
 
@@ -204,7 +197,7 @@ export const adminApi = {
     }>('acompanhamento-foto-delete', { method: 'POST', body }),
 
   acompanhamentoDashboardResumo: (body: { obra_id: string; periodo_dias?: number }) =>
-    call<import('@renderer/types/acompanhamento').DashboardResumoResposta>(
+    call<import('@/types/acompanhamento').DashboardResumoResposta>(
       'acompanhamento-dashboard-resumo',
       { method: 'POST', body }
     )

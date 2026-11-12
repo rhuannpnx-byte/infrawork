@@ -2,7 +2,6 @@
 import {
   divisorMetrosPorUnidade,
   formatMarcadorCompacto,
-  metrosToMarcador,
   type TrechoCtx
 } from '@/lib/format/posicao'
 import type { TrechoUnidadeConfig } from '@/lib/quantidades/grade'
@@ -65,12 +64,6 @@ export const estacaInicialTexto = (t: TrechoBase): string =>
 export const estacaFinalTexto = (t: TrechoBase): string => {
   const c = comprimentoEfetivo(t)
   return c > 0 ? formatMarcadorCompacto(c, ctxObraTrecho(t)) || '—' : '—'
-}
-
-/** Valor do marcador no fim do eixo (ex.: km 112,5). */
-export function valorMarcadorFinal(t: TrechoBase): number | null {
-  const c = comprimentoEfetivo(t)
-  return c > 0 ? metrosToMarcador(c, ctxObraTrecho(t)) : null
 }
 
 /**

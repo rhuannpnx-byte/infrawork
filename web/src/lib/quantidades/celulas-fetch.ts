@@ -13,7 +13,7 @@
 // até a página vir incompleta. Ordena por (segmento_id, coluna_id) — chave única
 // da célula — pra paginação determinística (sem pular nem duplicar nas bordas).
 
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 export interface CelulaRow {
   segmento_id: string
@@ -24,7 +24,6 @@ export interface CelulaRow {
 const PAGE = 1000
 
 export async function fetchCelulasDaVersao(versaoId: string): Promise<CelulaRow[]> {
-  if (!SUPABASE_ENABLED || !supabase) return []
   const out: CelulaRow[] = []
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase

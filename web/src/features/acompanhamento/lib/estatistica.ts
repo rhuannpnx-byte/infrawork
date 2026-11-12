@@ -26,53 +26,6 @@ export function mediana(xs: number[]): number {
   return quantil(xs, 0.5)
 }
 
-export interface ResumoEstatistico {
-  n: number
-  min: number
-  max: number
-  media: number
-  mediana: number
-  p25: number
-  p75: number
-  p90: number
-  desvioPadrao: number
-}
-
-export function resumo(xs: number[]): ResumoEstatistico {
-  if (xs.length === 0) {
-    return { n: 0, min: 0, max: 0, media: 0, mediana: 0, p25: 0, p75: 0, p90: 0, desvioPadrao: 0 }
-  }
-  const m = media(xs)
-  const variancia = xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length
-  return {
-    n: xs.length,
-    min: Math.min(...xs),
-    max: Math.max(...xs),
-    media: m,
-    mediana: mediana(xs),
-    p25: quantil(xs, 0.25),
-    p75: quantil(xs, 0.75),
-    p90: quantil(xs, 0.9),
-    desvioPadrao: Math.sqrt(variancia)
-  }
-}
-
-/** Limites de outlier pela regra 1.5×IQR. */
-export function iqrLimites(xs: number[]): { q1: number; q3: number; lo: number; hi: number } {
-  const q1 = quantil(xs, 0.25)
-  const q3 = quantil(xs, 0.75)
-  const iqr = q3 - q1
-  return { q1, q3, lo: q1 - 1.5 * iqr, hi: q3 + 1.5 * iqr }
-}
-
-/** Remove outliers (1.5×IQR). Retorna os valores filtrados e quantos saíram. */
-export function removerOutliers(xs: number[]): { limpos: number[]; removidos: number } {
-  if (xs.length < 4) return { limpos: xs, removidos: 0 }
-  const { lo, hi } = iqrLimites(xs)
-  const limpos = xs.filter((v) => v >= lo && v <= hi)
-  return { limpos, removidos: xs.length - limpos.length }
-}
-
 export interface Regressao {
   slope: number // variação por passo (dia)
   intercept: number
@@ -106,18 +59,6 @@ export function regressaoLinear(pontos: Array<{ x: number; y: number }>): Regres
   const rDen = Math.sqrt(denom * (n * syy - sy * sy))
   const r = rDen === 0 ? 0 : rNum / rDen
   return { slope, intercept, r2: r * r }
-}
-
-/** Média móvel simples de janela `janela`. Mantém o tamanho do array. */
-export function mediaMovel(xs: number[], janela: number): number[] {
-  if (janela <= 1) return [...xs]
-  const out: number[] = []
-  for (let i = 0; i < xs.length; i++) {
-    const ini = Math.max(0, i - janela + 1)
-    const slice = xs.slice(ini, i + 1)
-    out.push(media(slice))
-  }
-  return out
 }
 
 /**

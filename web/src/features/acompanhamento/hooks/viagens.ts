@@ -4,7 +4,7 @@
  * produção do dia do serviço é recomposta no banco (Σ das viagens).
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 
 export type TipoVeiculo =
@@ -149,10 +149,6 @@ export interface FichaViagens {
   viagens: Viagem[]
 }
 
-function sb(): NonNullable<typeof supabase> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-  return supabase
-}
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v))
 
 // ─── frota ──────────────────────────────────────────────────────────────────
@@ -169,7 +165,7 @@ export function useFrota(
     enabled: !!empresaId,
     queryFn: async () => {
       const data = await lerTodas((de, ate) =>
-        sb()
+        supabase
           .from('frota_veiculo')
           .select('*')
           .eq('empresa_id', empresaId!)
@@ -190,8 +186,8 @@ export function useSalvarVeiculo(): ReturnType<
     mutationFn: async (v) => {
       const { id, ...campos } = v
       const r = id
-        ? await sb().from('frota_veiculo').update(campos).eq('id', id)
-        : await sb().from('frota_veiculo').insert(campos)
+        ? await supabase.from('frota_veiculo').update(campos).eq('id', id)
+        : await supabase.from('frota_veiculo').insert(campos)
       if (r.error)
         throw new Error(
           /duplicate|unique/.test(r.error.message)
@@ -207,7 +203,7 @@ export function useExcluirVeiculo(): ReturnType<typeof useMutation<void, Error, 
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id) => {
-      const { error } = await sb().from('frota_veiculo').delete().eq('id', id)
+      const { error } = await supabase.from('frota_veiculo').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSettled: () => void qc.invalidateQueries({ queryKey: ['frota'] })
@@ -222,7 +218,7 @@ export function useVeiculosDaObra(
     queryKey: ['frota', 'obra', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb().rpc('veiculos_da_obra', { _obra_id: obraId! })
+      const { data, error } = await supabase.rpc('veiculos_da_obra', { _obra_id: obraId! })
       if (error) throw error
       return ((data ?? []) as Record<string, unknown>[])
         .map(veiculoDe)
@@ -245,7 +241,7 @@ export function useAplicarCapacidadeModelo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ empresa_id, modelo, ...cap }) => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('frota_veiculo')
         .update(cap)
         .eq('empresa_id', empresa_id)
@@ -267,7 +263,7 @@ export function useFleetObras(
     queryKey: ['fleet-obras', empresaId],
     enabled: !!empresaId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('fleet_obra')
         .select('id, fleet_id, nome')
         .eq('empresa_id', empresaId!)
@@ -285,7 +281,7 @@ export function useObraFleetObras(
     queryKey: ['obra-fleet', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('obra_fleet_obra')
         .select('fleet_obra_id')
         .eq('obra_id', obraId!)
@@ -301,7 +297,7 @@ export function useVincularFleetObra(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ obra_id, fleet_obra_id, vincular }) => {
-      const c = sb().from('obra_fleet_obra')
+      const c = supabase.from('obra_fleet_obra')
       const { error } = vincular
         ? await c.insert({ obra_id, fleet_obra_id })
         : await c.delete().eq('obra_id', obra_id).eq('fleet_obra_id', fleet_obra_id)
@@ -321,7 +317,7 @@ export function useUltimaSyncFleet(
     queryKey: ['fleet-sync', empresaId],
     enabled: !!empresaId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('fleet_sync_execucao')
         .select(
           'iniciado_em, terminado_em, ok, mensagem, novos, atualizados, inativados, capacidades'
@@ -349,7 +345,7 @@ export function useFleethubConfig(
     queryKey: ['fleethub-config', empresaId],
     enabled: !!empresaId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('fleethub_config')
         .select('empresa_id, email, conectado_em')
         .eq('empresa_id', empresaId!)
@@ -376,7 +372,7 @@ export function useFleethub(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      const { data, error } = await sb().functions.invoke('fleethub-sync', { body })
+      const { data, error } = await supabase.functions.invoke('fleethub-sync', { body })
       if (error) {
         const ctx = (error as { context?: Response }).context
         const corpo = ctx
@@ -407,8 +403,8 @@ export function useLocaisTransporte(
     enabled: !!obraId,
     queryFn: async () => {
       const [l, r] = await Promise.all([
-        sb().from('transporte_local').select('*').eq('obra_id', obraId!).order('nome'),
-        sb()
+        supabase.from('transporte_local').select('*').eq('obra_id', obraId!).order('nome'),
+        supabase
           .from('transporte_rota')
           .select('id, origem_id, destino_id, dmt_km')
           .eq('obra_id', obraId!)
@@ -435,8 +431,8 @@ export function useSalvarLocalTransporte(): ReturnType<
     mutationFn: async (v) => {
       const { id, ...campos } = v
       const r = id
-        ? await sb().from('transporte_local').update(campos).eq('id', id)
-        : await sb().from('transporte_local').insert(campos)
+        ? await supabase.from('transporte_local').update(campos).eq('id', id)
+        : await supabase.from('transporte_local').insert(campos)
       if (r.error)
         throw new Error(
           /duplicate|unique/.test(r.error.message)
@@ -452,7 +448,7 @@ export function useExcluirLocalTransporte(): ReturnType<typeof useMutation<void,
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id) => {
-      const { error } = await sb().from('transporte_local').delete().eq('id', id)
+      const { error } = await supabase.from('transporte_local').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSettled: () => void qc.invalidateQueries({ queryKey: ['transporte'] })
@@ -469,7 +465,7 @@ export function useSalvarRota(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (r) => {
-      const c = sb()
+      const c = supabase
       const res =
         r.dmt_km === null
           ? await c
@@ -495,7 +491,7 @@ export function useFichasViagens(
     enabled: !!obraId,
     queryFn: async () => {
       const data = await lerTodas((ini, fim) =>
-        sb()
+        supabase
           .from('viagem_ficha')
           .select('*, viagens:viagem(*)')
           .eq('obra_id', obraId!)
@@ -553,7 +549,7 @@ export function useSalvarFicha(): ReturnType<typeof useMutation<void, Error, Fic
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (f) => {
-      const { error } = await sb().rpc('campo_sync_ficha', { _ficha: { ...f, origem: 'web' } })
+      const { error } = await supabase.rpc('campo_sync_ficha', { _ficha: { ...f, origem: 'web' } })
       if (error) throw new Error(error.message)
     },
     onSettled: () => {
@@ -567,7 +563,7 @@ export function useExcluirFicha(): ReturnType<typeof useMutation<void, Error, st
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id) => {
-      const { error } = await sb().from('viagem_ficha').delete().eq('id', id)
+      const { error } = await supabase.from('viagem_ficha').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSettled: () => {

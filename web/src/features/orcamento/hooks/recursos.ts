@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Recurso, RecursoGrupo, RecursoPreco } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
-}
 
 // ─── Recursos ────────────────────────────────────────────────────────────
 
@@ -16,7 +12,6 @@ export function useRecursos(
     queryKey: ['orcamento', 'recursos', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Recurso[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('vw_recurso_com_preco')
         .select(
@@ -50,7 +45,6 @@ export function useCreateRecurso(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const insertRecurso = {
         obra_id: body.obra_id,
         codigo: body.codigo?.trim() || null,
@@ -103,7 +97,6 @@ export function useUpdateRecurso(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...patch }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('recurso')
         .update({ ...patch, updated_at: new Date().toISOString() })
@@ -123,7 +116,6 @@ export function useToggleAtivoRecurso(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ativo }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('recurso')
         .update({ ativo, updated_at: new Date().toISOString() })
@@ -137,26 +129,6 @@ export function useToggleAtivoRecurso(): ReturnType<
   })
 }
 
-/** Apaga um recurso. Cascade do schema remove recurso_preco vinculados.
- *  Se o recurso está usado em alguma CPU (cpu_item), o delete falha por FK. */
-export function useDeleteRecurso(): ReturnType<typeof useMutation<void, Error, { id: string }>> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { error } = await supabase.from('recurso').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidarCadeia(qc)
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'recursos'] })
-      // Cascata de delete pode ter mexido em cpu_item / cpu (recalc).
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpu'] })
-    }
-  })
-}
-
 // ─── Preços ──────────────────────────────────────────────────────────────
 
 export function useRecursoPrecos(
@@ -166,7 +138,6 @@ export function useRecursoPrecos(
     queryKey: ['orcamento', 'recurso-precos', recursoId],
     enabled: !!recursoId,
     queryFn: async (): Promise<RecursoPreco[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('recurso_preco')
         .select(
@@ -198,7 +169,6 @@ export function useAddRecursoPreco(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       // Apenas insere no histórico. A vigência é explícita: o usuário marca
       // qual preço vale (ou marcamos este, quando pedido).
       const { data, error } = await supabase
@@ -239,7 +209,6 @@ export function useSetRecursoPrecoVigente(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ preco_id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('set_recurso_preco_vigente', { _preco_id: preco_id })
       if (error) throw error
     },

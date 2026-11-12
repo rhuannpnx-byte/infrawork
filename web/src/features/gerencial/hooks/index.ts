@@ -4,7 +4,7 @@
 // - Escrita: via Edge Functions (adminApi) que aplicam defesa em profundidade.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { adminApi } from '@/lib/supabase/functions'
 import { useAuthStore } from '@/stores/auth-store'
 import type {
@@ -15,17 +15,12 @@ import type {
   UsuarioRow
 } from '@/types/gerencial'
 
-function notReady(): never {
-  throw new Error('Supabase não configurado (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
-}
-
 // ─── Empresas ────────────────────────────────────────────────────────────
 
 export function useEmpresas(): ReturnType<typeof useQuery<Empresa[]>> {
   return useQuery({
     queryKey: ['gerencial', 'empresas'],
     queryFn: async (): Promise<Empresa[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('empresas')
         .select('id, nome, cnpj, ativo, created_at')
@@ -62,7 +57,6 @@ export function useUsuarios(opts?: {
     // refetch periódico mantém "Online agora" atualizado (só ligado p/ God na UI).
     refetchInterval: opts?.refetchInterval,
     queryFn: async (): Promise<UsuarioComEmpresa[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       // RLS filtra: God vê tudo, Adm vê própria empresa, Eng vê os Apoios dele.
       const { data, error } = await supabase
         .from('profiles')
@@ -88,7 +82,6 @@ export function useEngenheiros(
     queryKey: ['gerencial', 'engenheiros', empresaId],
     enabled: !!empresaId,
     queryFn: async (): Promise<UsuarioRow[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('profiles')
         .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, whatsapp, created_at')
@@ -113,7 +106,6 @@ export function useClientes(
     queryKey: ['gerencial', 'clientes', empresaId],
     enabled: !!empresaId,
     queryFn: async (): Promise<UsuarioRow[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('profiles')
         .select('id, email, nome, role, empresa_id, engenheiro_id, ativo, whatsapp, created_at')
@@ -185,7 +177,6 @@ export function useObras(): ReturnType<typeof useQuery<ObraComEmpresa[]>> {
   return useQuery({
     queryKey: ['gerencial', 'obras'],
     queryFn: async (): Promise<ObraComEmpresa[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
         .select(
@@ -203,7 +194,6 @@ export function useObra(id: string | undefined): ReturnType<typeof useQuery<Obra
     queryKey: ['gerencial', 'obra', id],
     enabled: !!id,
     queryFn: async (): Promise<ObraComEmpresa> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
         .select(
@@ -283,7 +273,6 @@ export function useObraPermissoes(
     queryKey: ['gerencial', 'obra-permissoes', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<ObraPermissao[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obra_permissoes')
         .select(

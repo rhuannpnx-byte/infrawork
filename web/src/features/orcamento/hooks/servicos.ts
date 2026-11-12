@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Servico, ServicoTreeNode } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export function useServicos(
   obraId: string | null | undefined
@@ -14,7 +10,6 @@ export function useServicos(
     queryKey: ['orcamento', 'servicos', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Servico[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('servico')
         .select(
@@ -67,7 +62,6 @@ export function useCreateServico(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('servico')
         .insert({
@@ -91,68 +85,18 @@ export function useCreateServico(): ReturnType<
   })
 }
 
-export interface UpdateServicoInput {
-  id: string
-  codigo?: string
-  nome?: string
-  parent_id?: string | null
-  unidade?: string | null
-  ativo?: boolean
-  descricao?: string | null
-  referencia_externa?: string | null
-}
-
-export function useUpdateServico(): ReturnType<
-  typeof useMutation<void, Error, UpdateServicoInput>
-> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id, ...patch }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { error } = await supabase.from('servico').update(patch).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidarCadeia(qc)
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
-    }
-  })
-}
-
 export function useToggleAtivoServico(): ReturnType<
   typeof useMutation<void, Error, { id: string; ativo: boolean }>
 > {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ativo }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('servico').update({ ativo }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
       invalidarCadeia(qc)
       void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
-    }
-  })
-}
-
-/** Apaga um servico. Cascade: servico_cpu_link vai junto (FK CASCADE).
- *  Falha por FK RESTRICT se houver CPU própria, item_orcamentario, ou
- *  servico-filho apontando pra este. O fluxo de UI usa previewCascadeServicos
- *  pra avisar antes. */
-export function useDeleteServico(): ReturnType<typeof useMutation<void, Error, { id: string }>> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { error } = await supabase.from('servico').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidarCadeia(qc)
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'servico-custo-agregado'] })
     }
   })
 }

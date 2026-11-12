@@ -4,7 +4,7 @@
 //   - fotos do período (baixa os bytes e converte p/ base64 p/ embutir no xlsx)
 
 import { adminApi } from '@/lib/supabase/functions'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
 import { formatMarcadorCompacto } from '@/lib/format/posicao'
@@ -223,7 +223,6 @@ export async function carregarMateriaisProducao(
   ate: string
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>()
-  if (!SUPABASE_ENABLED || !supabase) return out
   const { data, error } = await supabase
     .from('acompanhamento_producao_material')
     .select(
@@ -289,7 +288,6 @@ export async function carregarViagensExport(
   ate: string
 ): Promise<ViagensExport> {
   const vazio: ViagensExport = { itens: new Set(), viagens: [], formatarPosicao: () => '' }
-  if (!SUPABASE_ENABLED || !supabase) return vazio
   const { data: params, error: e1 } = await supabase
     .from('servico_parametro')
     .select('item_orcamentario_id')

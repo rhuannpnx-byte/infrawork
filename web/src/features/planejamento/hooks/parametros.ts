@@ -3,7 +3,7 @@
  * por quantidade ou por viagens, com ou sem controle de material, observação e local obrigatório. Sem linha = padrão.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 export type ModoLancamento = 'quantidade' | 'viagens'
 /** Viagem medida por volume ou por peso (peso exige o ticket da balança); a quantidade é lançada na unidade do serviço. */
@@ -57,11 +57,6 @@ export interface ConsumoMaterial {
   media_por_unidade: number | null
 }
 
-function sb(): NonNullable<typeof supabase> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-  return supabase
-}
-
 const CHAVE = 'servico-parametro'
 
 /** Serviços (agrupadores com composição) da obra — o que se lança e se planeja. */
@@ -72,7 +67,7 @@ export function useServicosParametrizaveis(
     queryKey: [CHAVE, 'servicos', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('item_orcamentario')
         .select(
           'id, codigo, descricao, servico_id, unidade_referencia, servico:servico_id(unidade)'
@@ -107,7 +102,7 @@ export function useParametrosServicos(
     queryKey: [CHAVE, 'lista', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('servico_parametro')
         .select(
           'item_orcamentario_id, modo_lancamento, controla_material, material_recurso_id, material_unidade, material_obrigatorio, habilita_obs, exige_local, medicao_viagem'
@@ -133,7 +128,7 @@ export function useMateriaisObra(
     queryKey: [CHAVE, 'materiais', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('recurso')
         .select('id, codigo, nome, unidade')
         .eq('obra_id', obraId!)
@@ -154,7 +149,7 @@ export function useConsumoMaterial(
     queryKey: [CHAVE, 'consumo', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('vw_servico_consumo_material')
         .select(
           'item_orcamentario_id, recurso_id, unidade, lancamentos, material_total, producao_total, media_por_unidade'
@@ -178,17 +173,15 @@ export function useSalvarParametro(
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (p) => {
-      const { error } = await sb()
-        .from('servico_parametro')
-        .upsert(
-          {
-            ...p,
-            obra_id: obraId,
-            material_recurso_id: p.controla_material ? p.material_recurso_id : null,
-            material_unidade: p.controla_material ? p.material_unidade : null
-          },
-          { onConflict: 'item_orcamentario_id' }
-        )
+      const { error } = await supabase.from('servico_parametro').upsert(
+        {
+          ...p,
+          obra_id: obraId,
+          material_recurso_id: p.controla_material ? p.material_recurso_id : null,
+          material_unidade: p.controla_material ? p.material_unidade : null
+        },
+        { onConflict: 'item_orcamentario_id' }
+      )
       if (error) throw new Error(error.message)
     },
     // a grade responde na hora; erro volta ao que estava

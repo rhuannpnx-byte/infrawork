@@ -1,11 +1,7 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { CriterioRateio } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 function invalidar(qc: QueryClient, _obraId: string): void {
   invalidarCadeia(qc)
@@ -18,7 +14,6 @@ export function useCriarServico(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ obra_id, descricao }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('item_orcamentario')
         .insert({
@@ -44,7 +39,6 @@ export function useExcluirServico(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('item_orcamentario').delete().eq('id', id)
       if (error) throw error
     },
@@ -63,7 +57,6 @@ export function useAlocarReceitas(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ grupo_id, receita_ids }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('alocar_receitas', {
         _grupo_id: grupo_id,
         _receita_ids: receita_ids
@@ -94,7 +87,6 @@ export function useSalvarRateio(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ receita_id, criterio, destinos }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('salvar_rateio_receita', {
         _receita_id: receita_id,
         _criterio: criterio,
@@ -113,7 +105,6 @@ export function useRemoverAlocacoes(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ ids }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('remover_alocacoes', { _ids: ids })
       if (error) throw error
       return Number(data ?? 0)
@@ -129,7 +120,6 @@ export function useSetCompoe(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, compoe }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('set_alocacao_compoe', { _id: id, _compoe: compoe })
       if (error) throw error
     },

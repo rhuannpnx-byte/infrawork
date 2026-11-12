@@ -1,4 +1,4 @@
-// Confirm dialog tematico (substituto do window.confirm nativo do Electron).
+// Diálogo de confirmação no tema do sistema (no lugar do window.confirm).
 //
 // Uso:
 //   const confirm = useConfirm()

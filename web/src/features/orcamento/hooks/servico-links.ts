@@ -7,17 +7,8 @@
 
 import { invalidarCadeia } from '@/lib/query/cadeia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
-import type {
-  ServicoCpuLink,
-  ServicoCpuOperacao,
-  ServicoCustoAgregado,
-  Cpu
-} from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
+import { supabase } from '@/lib/supabase/client'
+import type { ServicoCpuLink, ServicoCpuOperacao, Cpu } from '@/types/orcamento'
 
 export interface ServicoCpuLinkComCpu extends ServicoCpuLink {
   cpu?: Pick<
@@ -42,7 +33,6 @@ export function useServicoCpuLinks(
     queryKey: ['orcamento', 'servico-cpu-links', servicoId],
     enabled: !!servicoId,
     queryFn: async (): Promise<ServicoCpuLinkComCpu[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('servico_cpu_link')
         .select(
@@ -73,7 +63,6 @@ export function useUpsertServicoCpuLink(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const payload = {
         servico_id: body.servico_id,
         cpu_id: body.cpu_id,
@@ -109,7 +98,6 @@ export function useDeleteServicoCpuLink(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('servico_cpu_link').delete().eq('id', id)
       if (error) throw error
     },
@@ -117,27 +105,6 @@ export function useDeleteServicoCpuLink(): ReturnType<
       invalidarCadeia(qc)
       void qc.invalidateQueries({ queryKey: ['orcamento', 'servico-cpu-links', vars.servico_id] })
       void qc.invalidateQueries({ queryKey: ['orcamento', 'servico-custo-agregado'] })
-    }
-  })
-}
-
-export function useServicoCustoAgregado(
-  obraId: string | null | undefined
-): ReturnType<typeof useQuery<ServicoCustoAgregado[]>> {
-  return useQuery({
-    queryKey: ['orcamento', 'servico-custo-agregado', obraId],
-    enabled: !!obraId,
-    queryFn: async (): Promise<ServicoCustoAgregado[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { data, error } = await supabase
-        .from('vw_servico_custo_agregado')
-        .select(
-          'servico_id, obra_id, codigo, nome, unidade, cpus_vinculadas, custo_unit_agregado, ' +
-            'producao_diaria_efetiva, producao_diaria_unidade_efetiva, modo'
-        )
-        .eq('obra_id', obraId!)
-      if (error) throw error
-      return (data ?? []) as unknown as ServicoCustoAgregado[]
     }
   })
 }
@@ -161,7 +128,6 @@ export function useCpusOrfas(
     queryKey: ['orcamento', 'cpus-orfas', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('cpu')
         .select(
@@ -172,71 +138,6 @@ export function useCpusOrfas(
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as CpuOrfa[]
-    }
-  })
-}
-
-/** Cria 1 servico-folha por CPU órfã + vínculo (servico_cpu_link com fator 1).
- *  Nome do servico: extraído das notas ("nome original: ...") ou fallback. */
-export interface PromoteCpusInput {
-  obra_id: string
-  cpus: {
-    id: string
-    nome: string
-    unidade: string
-    /** Código sugerido (ex.: IMP-001). Será garantido único na obra. */
-    codigo: string
-  }[]
-}
-
-export function usePromoverCpusEmServicos(): ReturnType<
-  typeof useMutation<{ criados: number }, Error, PromoteCpusInput>
-> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      let criados = 0
-      for (const cpu of body.cpus) {
-        const { data: novoServ, error: errServ } = await supabase
-          .from('servico')
-          .insert({
-            obra_id: body.obra_id,
-            codigo: cpu.codigo,
-            nome: cpu.nome,
-            unidade: cpu.unidade,
-            descricao: 'Promovido de CPU importada.'
-          })
-          .select('id')
-          .single()
-        if (errServ || !novoServ) throw errServ ?? new Error('Falha ao criar servico')
-
-        const { error: errLink } = await supabase.from('servico_cpu_link').insert({
-          servico_id: novoServ.id as string,
-          cpu_id: cpu.id,
-          fator: 1,
-          ordem: 0
-        })
-        if (errLink) throw errLink
-
-        // Vincula a CPU ao servico (servico_id) — agora ela tem dono.
-        const { error: errUp } = await supabase
-          .from('cpu')
-          .update({ servico_id: novoServ.id as string })
-          .eq('id', cpu.id)
-        if (errUp) throw errUp
-
-        criados++
-      }
-      return { criados }
-    },
-    onSuccess: () => {
-      invalidarCadeia(qc)
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus-orfas'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'servico-cpu-links'] })
-      void qc.invalidateQueries({ queryKey: ['orcamento', 'servico-custo-agregado'] })
     }
   })
 }
@@ -259,7 +160,6 @@ export function useCreateServicoFromCpu(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data: serv, error: errServ } = await supabase
         .from('servico')
         .insert({
@@ -313,7 +213,6 @@ export function useUpdateServicoProducao(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...patch }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('servico').update(patch).eq('id', id)
       if (error) throw error
     },

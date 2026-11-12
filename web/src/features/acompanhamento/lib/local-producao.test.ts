@@ -45,7 +45,10 @@ describe('resolverLocalProducao', () => {
       posicao_inicio_m: 2000,
       posicao_fim_m: 2110
     })
-    expect(resolverLocalProducao(est, '100', '105')).toMatchObject({ ok: true, posicao_fim_m: 2100 })
+    expect(resolverLocalProducao(est, '100', '105')).toMatchObject({
+      ok: true,
+      posicao_fim_m: 2100
+    })
   })
   it('eixo: estaca faltando, fora do eixo ou faixa vazia → erro', () => {
     expect(resolverLocalProducao(eixo, '', '2')).toMatchObject({ ok: false })

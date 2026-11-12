@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import { XLSX_MIME } from '@/lib/files/download'
-import type { ColumnSpec, SheetSpec, TemplateCtx, TemplateSpec } from './types'
+import type { ColumnSpec, TemplateCtx, TemplateSpec } from './types'
 import {
   COR,
   estiloCampo,
@@ -326,10 +326,6 @@ export async function buildTemplateWorkbook(
 
   const buf = await wb.xlsx.writeBuffer()
   return new Blob([buf], { type: XLSX_MIME })
-}
-
-export function sheetSpecFor(spec: TemplateSpec, name: string): SheetSpec | undefined {
-  return spec.sheets.find((s) => s.name === name)
 }
 
 /** `worksheet.dataValidations` existe em runtime no ExcelJS, mas não na tipagem. */

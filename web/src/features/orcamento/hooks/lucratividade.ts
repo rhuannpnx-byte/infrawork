@@ -1,10 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { LucratividadeResumo } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 /**
  * Lucratividade real-time da obra (sem duplicar indireto).
@@ -25,8 +21,6 @@ export function useLucratividade(
     queryKey: ['orcamento', 'lucratividade', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<LucratividadeResumo> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-
       const { data: raw, error } = await supabase
         .from('vw_orcamento_consolidado')
         .select(

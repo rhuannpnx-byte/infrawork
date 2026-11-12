@@ -80,20 +80,6 @@ export interface ServicoCpuLink {
   updated_at: string
 }
 
-/** Linha da view vw_servico_custo_agregado. */
-export interface ServicoCustoAgregado {
-  servico_id: string
-  obra_id: string
-  codigo: string
-  nome: string
-  unidade: string | null
-  cpus_vinculadas: number
-  custo_unit_agregado: number | null
-  producao_diaria_efetiva: number | null
-  producao_diaria_unidade_efetiva: string
-  modo: 'legado' | 'agregador'
-}
-
 /**
  * Conjunto de taxas (impostos sobre receita) aplicado como deflator no
  * cálculo de lucro. Antes chamado "Encargos Sociais"; mantém o nome de
@@ -119,9 +105,6 @@ export interface TaxaRegime {
   ativo: boolean
   created_at: string
 }
-
-/** @deprecated use TaxaRegime */
-export type EncargosSociaisRegime = TaxaRegime
 
 export interface Cpu {
   id: string
@@ -308,18 +291,6 @@ export interface AlocInfo {
   destinos: AlocDestino[]
 }
 
-export const ITEM_TIPO_LABEL: Record<ItemTipo, string> = {
-  etapa: 'Índice',
-  servico_grupo: 'Serviço',
-  receita: 'Receita'
-}
-
-export const QTD_REF_MODO_LABEL: Record<QtdRefModo, string> = {
-  manual: 'Manual',
-  heranca: 'Herdada da receita',
-  soma_filhos: 'Soma das receitas'
-}
-
 export interface CpuSnapshotPayloadCpuItem {
   id: string
   grupo: CpuItemGrupo
@@ -489,114 +460,4 @@ export interface Anexo {
   tamanho_bytes: number | null
   autor_id: string | null
   created_at: string
-}
-
-// ─── Fase 4: Importação Excel/PDF ────────────────────────────────────────
-
-export type ImportJobStatus = 'criado' | 'parseado' | 'mapeado' | 'aplicado' | 'erro' | 'cancelado'
-
-export interface TemplateImportacao {
-  id: string
-  obra_id: string
-  nome: string
-  descricao: string | null
-  formato: 'xlsx' | 'pdf'
-  mapping: unknown
-  eh_default: boolean
-  ativo: boolean
-  criado_por: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface ImportItemParsed {
-  idx: number
-  codigo: string
-  descricao: string
-  unidade: string | null
-  quantidade: number | null
-  venda_unitaria: number | null
-  is_folha: boolean
-}
-
-export interface ImportIndiretoParsed {
-  idx: number
-  codigo: string | null
-  descricao: string
-  tipo: IndiretoTipo
-  valor_total: number
-}
-
-export interface ImportPayloadParse {
-  itens: ImportItemParsed[]
-  indireto: ImportIndiretoParsed[]
-}
-
-export interface ImportMatch {
-  servico_id: string
-  tipo: 'forte' | 'fraco'
-}
-
-export interface ImportPayloadMatch {
-  matches: Record<number, ImportMatch>
-}
-
-export interface ImportJob {
-  id: string
-  obra_id: string
-  template_id: string | null
-  arquivo_nome: string
-  arquivo_tamanho: number | null
-  arquivo_storage_path: string | null
-  status: ImportJobStatus
-  payload_parse: ImportPayloadParse | null
-  payload_match: ImportPayloadMatch | null
-  total_itens: number
-  matches_fortes: number
-  matches_fracos: number
-  sem_match: number
-  itens_aplicados: number | null
-  error_msg: string | null
-  criado_por: string | null
-  created_at: string
-  updated_at: string
-  finished_at: string | null
-}
-
-export interface ImportMatchFraco {
-  id: string
-  job_id: string
-  item_idx: number
-  codigo_origem: string | null
-  descricao_origem: string
-  sugestoes: {
-    servico_id: string
-    codigo: string | null
-    nome: string
-    score: number
-  }[]
-  escolha_servico_id: string | null
-  escolha_em: string | null
-  escolha_por: string | null
-}
-
-export const IMPORT_JOB_STATUS_LABEL: Record<ImportJobStatus, string> = {
-  criado: 'Criado',
-  parseado: 'Parseado',
-  mapeado: 'Mapeado',
-  aplicado: 'Aplicado',
-  erro: 'Erro',
-  cancelado: 'Cancelado'
-}
-
-export const IMPORT_JOB_STATUS_VARIANT: Record<
-  ImportJobStatus,
-  'default' | 'accent' | 'success' | 'warn' | 'danger'
-> = {
-  criado: 'default',
-  parseado: 'warn',
-  mapeado: 'accent',
-  aplicado: 'success',
-  erro: 'danger',
-  cancelado: 'default'
 }

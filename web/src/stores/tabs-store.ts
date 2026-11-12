@@ -33,7 +33,6 @@ interface TabsStore {
   /** Atualiza a localização lembrada de uma aba (chamado pelo router da aba). */
   setTabLocation: (id: string, location: string) => void
   closeTab: (id: string) => void
-  reorderTabs: (from: number, to: number) => void
   reopenLastClosed: () => void
   cycleActive: (delta: number) => void
   /**
@@ -223,16 +222,6 @@ export const useTabsStore = create<TabsStore>((set, get) => {
         activeTabId: nextActiveId,
         mountedTabIds: mounted,
         recentlyClosed: [closed, ...state.recentlyClosed].slice(0, 10)
-      })
-      persist()
-    },
-
-    reorderTabs: (from, to) => {
-      set((s) => {
-        const tabs = [...s.tabs]
-        const [m] = tabs.splice(from, 1)
-        tabs.splice(to, 0, m)
-        return { tabs }
       })
       persist()
     },

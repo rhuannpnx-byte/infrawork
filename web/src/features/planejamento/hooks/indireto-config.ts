@@ -4,12 +4,8 @@
 // atomicidade pela transação do banco.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
-import type { CustoPeriodicidade, IndiretoConfig, ReceitaModoIndireto } from '@/types/planejamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
+import { supabase } from '@/lib/supabase/client'
+import type { CustoPeriodicidade, ReceitaModoIndireto } from '@/types/planejamento'
 
 /** Payload mínimo pra criar — campos derivados (periodos_calc) ficam null. */
 export interface IndiretoConfigInput {
@@ -49,7 +45,6 @@ export function useCriarTarefaIndireta(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('criar_tarefa_indireta', {
         p_planejamento_id: body.planejamento_id,
         p_item_orcamentario_id: body.item_orcamentario_id,
@@ -73,32 +68,6 @@ export function useCriarTarefaIndireta(): ReturnType<
   })
 }
 
-export interface AtualizarTarefaIndiretaInput {
-  tarefa_id: string
-  planejamento_id: string
-  patch: Partial<IndiretoConfigInput>
-}
-
-export function useAtualizarTarefaIndireta(): ReturnType<
-  typeof useMutation<void, Error, AtualizarTarefaIndiretaInput>
-> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { error } = await supabase.rpc('atualizar_tarefa_indireta', {
-        p_tarefa_id: body.tarefa_id,
-        p_indireto_config: configToJsonb(body.patch)
-      })
-      if (error) throw error
-    },
-    onSuccess: (_d, vars) => {
-      void qc.invalidateQueries({ queryKey: ['planejamento', 'tarefas', vars.planejamento_id] })
-      void qc.invalidateQueries({ queryKey: ['cronograma', 'entrada', vars.planejamento_id] })
-    }
-  })
-}
-
 function configToJsonb(c: Partial<IndiretoConfigInput>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   if (c.custo_periodicidade !== undefined) out.custo_periodicidade = c.custo_periodicidade
@@ -115,20 +84,4 @@ function configToJsonb(c: Partial<IndiretoConfigInput>): Record<string, unknown>
   if (c.taxa_regime_id !== undefined && c.taxa_regime_id != null)
     out.taxa_regime_id = c.taxa_regime_id
   return out
-}
-
-/** Helper: deriva IndiretoConfigInput a partir da config vinda da view (read). */
-export function configFromView(c: IndiretoConfig): IndiretoConfigInput {
-  return {
-    custo_periodicidade: c.custo_periodicidade,
-    custo_unitario: c.custo_unitario,
-    receita_modo: c.receita_modo,
-    receita_unitaria: c.receita_unitaria,
-    receita_percentual: c.receita_percentual,
-    offset_dias_antes: c.offset_dias_antes,
-    offset_dias_depois: c.offset_dias_depois,
-    receita_extrapola: c.receita_extrapola,
-    aplica_taxas: c.aplica_taxas,
-    taxa_regime_id: c.taxa_regime_id
-  }
 }

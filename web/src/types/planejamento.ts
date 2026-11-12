@@ -25,19 +25,6 @@ export type ScheduleMode = 'asap' | 'alap'
  */
 export type ConstraintType = 'snet' | 'snlt' | 'fnet' | 'fnlt' | 'mso' | 'mfo'
 
-export const CONSTRAINT_LABEL: Record<ConstraintType, string> = {
-  snet: 'Não iniciar antes de',
-  snlt: 'Não iniciar depois de',
-  fnet: 'Não terminar antes de',
-  fnlt: 'Não terminar depois de',
-  mso: 'Deve iniciar em',
-  mfo: 'Deve terminar em'
-}
-
-export const SCHEDULE_MODE_LABEL: Record<ScheduleMode, string> = {
-  asap: 'O mais cedo possível',
-  alap: 'O mais tarde possível'
-}
 /**
  * Tipo do nó na EAP da tarefa:
  *   tarefa — folha do CPM, exige item_orcamentario_id (servico_grupo)
@@ -45,15 +32,6 @@ export const SCHEDULE_MODE_LABEL: Record<ScheduleMode, string> = {
  *   marco  — evento sem duração, exibido como losango no Gantt
  */
 export type TipoNo = 'tarefa' | 'grupo' | 'marco'
-/**
- * Shape de distribuição semanal de quantidade ao longo de uma tarefa.
- *
- * 2026-06: shapes não-uniformes (sino/rampa/etc) removidas. Toda tarefa opera
- * com 'uniforme'. CHECK constraint `chk_plan_tar_perfil_flat_uniforme` no DB
- * garante invariante; o motor (edge + client) usa `calcularDuracaoDiaria` +
- * `agruparPorSemana` em vez do `gerarPerfilSemanal` antigo (deletado).
- */
-export type PerfilNome = 'uniforme'
 
 /** Uma semana do perfil semanal de uma tarefa (vindo da view v2). */
 export interface SemanaPerfil {
@@ -81,32 +59,6 @@ export const EQUIPE_CORES_PADRAO = [
   '#f97316' // laranja
 ]
 
-export interface ObraCalendario {
-  obra_id: string
-  /** Bitmask: bit0=seg, bit1=ter, ..., bit6=dom. 62 = seg-sex. */
-  dias_uteis_bitmask: number
-  created_at: string
-  updated_at: string
-}
-
-export interface ObraCalendarioExcecao {
-  id: string
-  obra_id: string
-  data: string
-  motivo: string
-  /** false = bloqueia dia útil; true = libera fim-de-semana. */
-  eh_util: boolean
-  created_at: string
-}
-
-export interface ObraProdutividadeMes {
-  obra_id: string
-  ano_mes: string // YYYY-MM-01
-  fator: number
-  motivo: string | null
-  created_at: string
-}
-
 export interface Equipe {
   id: string
   obra_id: string
@@ -122,16 +74,6 @@ export interface Equipe {
   encarregado_id: string | null
   created_at: string
   created_by: string | null
-}
-
-/** Taxa de produção diária de uma equipe para um serviço do catálogo. */
-export interface EquipeProdutividade {
-  equipe_id: string
-  servico_id: string
-  producao_diaria: number
-  unidade: string | null
-  observacao: string | null
-  updated_at: string
 }
 
 export interface Planejamento {
@@ -335,172 +277,4 @@ export interface PlanejamentoTarefaCompleta extends PlanejamentoTarefa {
   sucessoras: SucessoraRef[]
   /** Perfil semanal agregado (ordenado por semana_segunda asc). Vazio em grupo/marco. */
   perfil_semanas: SemanaPerfil[]
-}
-
-export interface PlanejamentoDependencia {
-  id: string
-  planejamento_id: string
-  predecessora_id: string
-  sucessora_id: string
-  tipo: DependenciaTipo
-  lag_dias: number
-  origem: DependenciaOrigem
-  created_at: string
-}
-
-export interface PlanejamentoTarefaEquipe {
-  tarefa_id: string
-  equipe_id: string
-  qtd_equipes: number
-  producao_diaria_override: number | null
-}
-
-export const STATUS_LABEL: Record<PlanejamentoStatus, string> = {
-  rascunho: 'Rascunho',
-  ativo: 'Ativo',
-  arquivado: 'Arquivado'
-}
-
-export const DEPENDENCIA_LABEL: Record<DependenciaTipo, string> = {
-  FS: 'Fim → Início',
-  SS: 'Início → Início',
-  FF: 'Fim → Fim',
-  SF: 'Início → Fim'
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// Helpers de bitmask de dias úteis
-// ────────────────────────────────────────────────────────────────────────
-
-export const DIAS_LABEL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-
-export function bitmaskToDias(b: number): number[] {
-  const out: number[] = []
-  for (let i = 0; i < 7; i++) if ((b >> i) & 1) out.push(i)
-  return out
-}
-
-export function diasToBitmask(dias: number[]): number {
-  return dias.reduce((acc, d) => acc | (1 << d), 0)
-}
-
-/** dow 0=dom, 1=seg, ..., 6=sab → bit 0=seg ... 6=dom */
-export function dowToBit(dow: number): number {
-  return dow === 0 ? 6 : dow - 1
-}
-
-export function isWorkDayByBitmask(date: Date, bitmask: number): boolean {
-  const dow = date.getUTCDay()
-  const bit = dowToBit(dow)
-  return ((bitmask >> bit) & 1) === 1
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// Marcha-Tempo (TILOS) — visualização tempo × caminho
-// ────────────────────────────────────────────────────────────────────────
-
-/** Granularidade do eixo de tempo. */
-export type GranularidadeTempo = 'diario' | 'semanal' | 'mensal' | 'auto'
-
-/** Opções da visualização marcha-tempo, persistidas no estado da página. */
-export interface MarchaTempoOpcoes {
-  /** true (default) = tempo no eixo X; false = caminho no X (tempo desce no Y). */
-  eixoXTempo: boolean
-  /**
-   * 'perfilada': trajetória respeita a densidade do template (mais devagar
-   * em segmentos densos, pula regiões sem trabalho). Requer qtd_link + template
-   * + perfil_semanas.
-   * 'uniforme': linha reta entre (data_inicio, pos_inicio) e (data_fim, pos_fim).
-   */
-  geom: 'perfilada' | 'uniforme'
-  /** Granularidade dos ticks do eixo tempo. */
-  granularidadeTempo: GranularidadeTempo
-  /**
-   * Passo do eixo posição em METROS. NULL = passo automático (1/2/5 × 10^k).
-   * Quando setado, ticks são gerados a cada `passoPosicaoM` metros.
-   */
-  passoPosicaoM: number | null
-  mostrarMarcos: boolean
-  mostrarDependencias: boolean
-  mostrarTodayLine: boolean
-  /** Anéis vermelhos onde 2 trajetórias se cruzam no espaço-tempo. */
-  mostrarConflitos: boolean
-  /** Sombreamento dos dias não-úteis (sábado/domingo/feriado). */
-  mostrarNaoTrabalhado: boolean
-  /** Eixos espelhados (ticks em ambos os lados). */
-  eixosEspelhados: boolean
-  /**
-   * Nomes das colunas do template a expor como faixa lateral à esquerda do
-   * eixo posição. Cada coluna marcada vira uma faixa estreita com blocos
-   * coloridos mostrando o valor da célula em cada segmento + total somado.
-   */
-  colunasQuantidade: string[]
-  /** Estilo por série (código de serviço → cor/traço/largura/visibilidade). */
-  estilosSerie: Record<string, EstiloSerie>
-  /** Threshold em METROS para o pós-processamento `joinIlhasProximas`.
-   *  Ilhas separadas por gaps ≤ esse valor são unidas; maiores ficam
-   *  visíveis como saltos. 0 = sem join (renderiza cada fatia separada). */
-  joinThresholdM: number
-}
-
-/** Estilo configurável por série (= código de servico). */
-export interface EstiloSerie {
-  visivel: boolean
-  cor: string
-  dash: 'solido' | 'tracejado' | 'pontilhado'
-  width: number
-}
-
-/** Um ponto da polilinha de uma tarefa no plano tempo×caminho. */
-export interface PontoTraco {
-  /** Data ISO 'YYYY-MM-DD' do ponto. */
-  data: string
-  /** Posição em metros (no eixo do trecho). */
-  posicaoM: number
-  /** Quantidade acumulada ATÉ esse ponto, na unidade do qtd_link. */
-  qtdAcc?: number
-  /** Quantidade produzida NESTE dia (0 = não-trabalhado). */
-  qtdDia?: number
-}
-
-/** Trajetória de uma tarefa direta (marcha-tempo). */
-export interface TracoTarefa {
-  tarefaId: string
-  trechoId: string
-  /**
-   * Polilinhas em ilhas independentes. Cada ilha = polilinha contínua dentro
-   * de uma região com trabalho > 0. Quando o template tem segmentos `valor=0`
-   * (ou gaps sem cobertura) entre fatias com trabalho, a polilinha se quebra
-   * em múltiplas ilhas — visualmente a frente "salta" e regiões sem trabalho
-   * ficam vazias no eixo posição.
-   *
-   * Modo 'uniforme' sempre retorna 1 ilha com 2 pontos. Modo 'perfilada' pode
-   * retornar 1+ ilhas conforme o template.
-   */
-  ilhas: PontoTraco[][]
-  /**
-   * 'perfilada' = derivada do template + perfil_semanas.
-   * 'uniforme'  = fallback linear (sinaliza com tracejado fino na UI).
-   */
-  modo: 'perfilada' | 'uniforme'
-  cor: string
-  /** Label para tooltip/legenda: `${codigo} ${descricao}`. */
-  label: string
-  /** Código EAP ou código do servico_grupo, pra agrupar/colorir. */
-  codigo: string | null
-  /** Quantidade total (mesma unidade do qtd_link ou unidade_servico). */
-  qtdTotal: number
-  unidadeQtd: string | null
-  /** Produção média (qtd/dia útil). */
-  prodMediaPorDia: number
-  /** Produção espacial média (|Δpos| / dias úteis), em metros. */
-  prodMediaEspacial: number
-  dataInicio: string
-  dataFim: string
-  /** Posição de início (1ª ilha, 1º ponto). */
-  posIniM: number
-  /** Posição de fim (última ilha, último ponto). */
-  posFimM: number
-  /** Sinal: 1 = avanço crescente em pos, -1 = retrocede. */
-  direcao: 1 | -1
 }

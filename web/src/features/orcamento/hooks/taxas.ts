@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { TaxaRegime } from '@/types/orcamento'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const TAXA_COLUNAS =
   'id, obra_id, nome, iss_perc, pis_perc, cofins_perc, csll_perc, irpj_perc, ' +
@@ -19,7 +15,6 @@ export function useTaxas(
     queryKey: ['orcamento', 'taxas', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<TaxaRegime[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('encargos_sociais_regime')
         .select(TAXA_COLUNAS)
@@ -43,7 +38,6 @@ export function useTaxaVigente(
     queryKey: ['orcamento', 'taxa-vigente', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<TaxaRegime | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const hoje = new Date().toISOString().slice(0, 10)
       const { data, error } = await supabase
         .from('encargos_sociais_regime')
@@ -79,7 +73,6 @@ export function useCreateTaxa(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('encargos_sociais_regime')
         .insert({
@@ -113,7 +106,6 @@ export function useToggleAtivoTaxa(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ativo }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('encargos_sociais_regime')
         .update({ ativo })

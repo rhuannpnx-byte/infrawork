@@ -4,8 +4,6 @@ export interface ModuleNavItem {
   icon: string
   label: string
   route: string
-  badge?: string | number
-  status?: 'ok' | 'warn' | 'danger'
   /** Se omitido, é visível para todos os papéis autenticados. */
   requiredRoles?: Role[]
   /**
@@ -21,27 +19,6 @@ export interface ModuleSection {
   requiredRoles?: Role[]
 }
 
-export interface ModulePill {
-  icon: string
-  label: string
-  route: string
-  requiredRoles?: Role[]
-}
-
-export interface ModuleInfoCard {
-  title: string
-  description: string
-  variant?: 'info' | 'warn' | 'success'
-}
-
-export interface ModuleAction {
-  label: string
-  icon?: string
-  primary?: boolean
-  onClick?: string
-  requiredRoles?: Role[]
-}
-
 export type ModuleCategory = 'engineering' | 'system'
 
 export interface ModuleConfig {
@@ -50,11 +27,7 @@ export interface ModuleConfig {
   icon: string
   shortcut: string
   routePrefix: string
-  color: string
-  pills?: ModulePill[]
-  infoCard?: ModuleInfoCard
   sections: ModuleSection[]
-  actions?: ModuleAction[]
   /** Se omitido, o módulo é visível para todos os papéis autenticados. */
   requiredRoles?: Role[]
   /**

@@ -1,7 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react'
-import { useSettingsStore } from '@/stores/settings-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { SUPABASE_ENABLED } from '@/lib/supabase/client'
 
 function timeAgoLabel(ms: number): string {
   const sec = Math.floor(ms / 1000)
@@ -12,7 +10,6 @@ function timeAgoLabel(ms: number): string {
 }
 
 export function StatusBar(): ReactNode {
-  const zoom = useSettingsStore((s) => s.zoom)
   const status = useAuthStore((s) => s.status)
   const empresa = useAuthStore((s) => s.empresa)
   const obras = useAuthStore((s) => s.obras)
@@ -24,7 +21,7 @@ export function StatusBar(): ReactNode {
     return () => clearInterval(t)
   }, [])
 
-  const connected = SUPABASE_ENABLED && status === 'authenticated'
+  const connected = status === 'authenticated'
 
   return (
     <div
@@ -35,13 +32,7 @@ export function StatusBar(): ReactNode {
         <span
           className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success' : 'bg-text-faint'}`}
         />
-        <span>
-          {connected
-            ? `Conectado · ${timeAgoLabel(now - bootAt)}`
-            : SUPABASE_ENABLED
-              ? 'Offline'
-              : 'Modo local'}
-        </span>
+        <span>{connected ? `Conectado · ${timeAgoLabel(now - bootAt)}` : 'Offline'}</span>
       </div>
       {empresa ? (
         <>
@@ -53,14 +44,6 @@ export function StatusBar(): ReactNode {
       <span>
         {obras.length} {obras.length === 1 ? 'obra' : 'obras'}
       </span>
-
-      <div className="flex-1" />
-
-      <span>UTC-03</span>
-      <span>·</span>
-      <span>UTF-8</span>
-      <span>·</span>
-      <span>{zoom}%</span>
     </div>
   )
 }

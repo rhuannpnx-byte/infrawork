@@ -1,27 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
-import type { ModoQuantidade, TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
+import type { ModoQuantidade } from '@/types/quantidades'
 import type { SegmentoValores as SegmentoTrecho } from '@/lib/quantidades/segmentos'
-import { fetchTemplateAtual } from './trechos'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
-
-/** Compat. com a tela de trechos: [] ou [versão atual do template do trecho]. */
-export function useTemplatesQuantidade(
-  trechoId: string | null | undefined
-): ReturnType<typeof useQuery<TrechoQuantidadeVersaoCompleta[]>> {
-  return useQuery({
-    queryKey: ['quantidades', 'template-atual-lista', trechoId],
-    enabled: !!trechoId,
-    queryFn: async () => {
-      const t = await fetchTemplateAtual(trechoId!)
-      return t ? [t] : []
-    }
-  })
-}
 
 export interface VersaoResumo {
   id: string
@@ -38,7 +19,6 @@ export function useVersoesTrecho(
     queryKey: ['quantidades', 'versoes', trechoId],
     enabled: !!trechoId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data: tpl } = await supabase
         .from('trecho_quantidade_template')
         .select('id')
@@ -74,7 +54,6 @@ export function useAgrupadoresTrecho(
     queryKey: ['quantidades', 'agrupadores', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('item_orcamentario')
         .select('id, codigo, descricao, unidade_referencia, quantidade_referencia, indireto_id')
@@ -85,7 +64,7 @@ export function useAgrupadoresTrecho(
       if (error) throw error
       const lista = data ?? []
       const totais = await Promise.all(
-        lista.map((g) => supabase!.rpc('trechos_servico_total', { _item_id: g.id }))
+        lista.map((g) => supabase.rpc('trechos_servico_total', { _item_id: g.id }))
       )
       return lista.map((g, k) => ({
         id: g.id as string,
@@ -121,7 +100,6 @@ export function useSalvarQuantidadesTrecho(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (b) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('trecho_salvar_quantidades', {
         _trecho_id: b.trecho_id,
         _dados: {
@@ -154,7 +132,6 @@ export function useQuantidadesEmTarefas(
     queryKey: ['planejamento', 'locais-em-tarefas', planejamentoId],
     enabled: !!planejamentoId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const sb = supabase
       const data = await lerTodas((de, ate) =>
         sb
@@ -190,7 +167,6 @@ export function useMapeamentoQuantidades(
     queryKey: ['quantidades', 'mapeamento', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('trecho_quantidade_mapeamento')
         .select('chave, item_orcamentario_id')
@@ -216,7 +192,6 @@ export function useSalvarMapeamentoQuantidades(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ obra_id, itens }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       if (itens.length === 0) return
       const { error } = await supabase.from('trecho_quantidade_mapeamento').upsert(
         itens.map((i) => ({
@@ -241,7 +216,6 @@ export function useRestaurarVersaoTrecho(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ versao_id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('trecho_restaurar_versao', { _versao_id: versao_id })
       if (error) throw error
     },

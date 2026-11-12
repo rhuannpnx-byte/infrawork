@@ -1,5 +1,3 @@
-import type { StatusComparativo } from '@/types/acompanhamento'
-
 // Tokens via variáveis CSS: seguem marca e tema (dark/light) automaticamente.
 const TOKEN = {
   success: 'var(--success)',
@@ -48,19 +46,4 @@ export function corAderenciaSobreAcumulado(ratio: number | null | undefined): st
   if (r >= 0.95) return TOKEN.success
   if (r >= 0.7) return TOKEN.warn
   return TOKEN.danger
-}
-
-export const STATUS_COMP_COR_TOKENS: Record<StatusComparativo, string> = {
-  sem_plano: TOKEN.faint,
-  nao_iniciado: TOKEN.muted,
-  em_andamento: TOKEN.cyan,
-  no_prazo: TOKEN.success,
-  em_risco: TOKEN.warn,
-  atrasado: TOKEN.danger,
-  adiantado: TOKEN.lavanda,
-  concluido: TOKEN.teal
-}
-
-export function corStatusComparativo(status: StatusComparativo): string {
-  return STATUS_COMP_COR_TOKENS[status]
 }

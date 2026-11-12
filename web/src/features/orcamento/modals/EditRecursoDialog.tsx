@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useUpdateRecurso } from '../hooks/recursos'
 import { RECURSO_GRUPO_LABEL, type Recurso, type RecursoGrupo } from '@/types/orcamento'
 
@@ -48,7 +48,7 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
     if (!recurso) return
     setError(null)
     try {
-      if (grupo !== recurso.grupo && SUPABASE_ENABLED && supabase) {
+      if (grupo !== recurso.grupo && true) {
         // O grupo define em que bloco da composição o recurso entra; trocar
         // com uso em composições deixaria o cálculo incoerente.
         const { count } = await supabase

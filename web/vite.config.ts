@@ -15,7 +15,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       ...APEX_ALIASES,
-      '@renderer': resolve(__dirname, 'src'),
       '@': resolve(__dirname, 'src')
     }
   },

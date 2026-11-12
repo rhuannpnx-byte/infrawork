@@ -1,12 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import { adminApi } from '@/lib/supabase/functions'
 import type { DashboardResumoResposta, ProducaoEnriquecida } from '@/types/acompanhamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export function useDashboardResumo(
   obraId: string | null | undefined,
@@ -41,7 +37,6 @@ export function useProducoesDashboard(
     enabled: !!obraId,
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const sb = supabase
       const data = await lerTodas((de, ate) => {
         let q = sb

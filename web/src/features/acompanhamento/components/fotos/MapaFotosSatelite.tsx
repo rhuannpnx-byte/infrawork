@@ -11,6 +11,7 @@ import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import { addBaseMapEsri, aplicarVisibilidadeBase, type BaseMapLayers } from '@/lib/leaflet/tiles'
 import { useMapaPrefsStore } from '../../stores/mapa-prefs'
 import { useTabVisible } from '@/app/tab-visible'
+import { loadLeaflet } from '@/lib/leaflet/carregar'
 
 interface Props {
   fotos: FotoEnriquecida[]
@@ -63,15 +64,6 @@ function etiquetaSeqHtml(seq: SequenciaAtaque): string {
     .filter(Boolean)
     .join('')
   return `<div data-seq-card style="display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.35;background:rgba(11,23,38,.93);border:1px solid rgba(255,255,255,.18);border-left:3px solid ${seq.cor};border-radius:4px;padding:4px 7px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.55)">${linhas}</div>`
-}
-
-let LeafletModule: typeof import('leaflet') | null = null
-async function loadLeaflet(): Promise<typeof import('leaflet')> {
-  if (LeafletModule) return LeafletModule
-  const m = await import('leaflet')
-  await import('leaflet/dist/leaflet.css')
-  LeafletModule = m
-  return m
 }
 
 interface PointProps {

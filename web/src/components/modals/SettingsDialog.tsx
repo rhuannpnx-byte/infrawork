@@ -3,18 +3,17 @@ import { Sheet, SheetHeader, SheetTitle, SheetBody, SheetFooter } from '@/compon
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { Palette, Keyboard, User, Info } from 'lucide-react'
+import { Keyboard, User, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type Tab = 'aparencia' | 'atalhos' | 'conta' | 'sobre'
+type Tab = 'atalhos' | 'conta' | 'sobre'
 
 export function SettingsDialog(): ReactNode {
   const open = useUIStore((s) => s.activeModals.has('settings'))
   const close = (): void => useUIStore.getState().closeModal('settings')
-  const [tab, setTab] = useState<Tab>('aparencia')
+  const [tab, setTab] = useState<Tab>('atalhos')
   const profile = useAuthStore((s) => s.profile)
   const empresa = useAuthStore((s) => s.empresa)
 
@@ -25,12 +24,6 @@ export function SettingsDialog(): ReactNode {
       </SheetHeader>
       <SheetBody className="!px-0 !py-0 flex">
         <nav className="w-44 border-r border-border bg-bg-elevated p-2 flex flex-col gap-px">
-          <TabBtn
-            icon={<Palette size={12} />}
-            label="Aparência"
-            active={tab === 'aparencia'}
-            onClick={() => setTab('aparencia')}
-          />
           <TabBtn
             icon={<Keyboard size={12} />}
             label="Atalhos"
@@ -51,19 +44,7 @@ export function SettingsDialog(): ReactNode {
           />
         </nav>
         <div className="flex-1 overflow-auto p-4">
-          {tab === 'aparencia' ? (
-            <div className="space-y-3">
-              <div>
-                <Label>Tema</Label>
-                <Select defaultValue="dark">
-                  <option value="dark">Escuro (padrão)</option>
-                  <option value="darker" disabled>
-                    Escuro intenso (em breve)
-                  </option>
-                </Select>
-              </div>
-            </div>
-          ) : tab === 'atalhos' ? (
+          {tab === 'atalhos' ? (
             <div>
               <div className="text-2xs font-mono uppercase tracking-wider text-text-dim mb-2">
                 Navegação por módulo

@@ -10,7 +10,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useGrantPermissao, useObras, useRevokePermissao } from '../hooks'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
@@ -34,7 +34,6 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
     queryKey: chave,
     enabled: open && !!usuario,
     queryFn: async (): Promise<Set<string>> => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
       const { data, error } = await supabase
         .from('obra_permissoes')
         .select('obra_id')

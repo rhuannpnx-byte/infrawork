@@ -6,7 +6,7 @@
  * comando do ApeX ao último cálculo: a tela mostra o resultado na hora e o banco recebe só o que muda.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { editarNoWorker } from '../motor/cliente'
 import type { ComandoEdicao } from '../motor/edicao'
 import { desserializar } from '../motor/serial'
@@ -14,11 +14,6 @@ import type { TipoDependencia } from '../motor/tipos'
 import { invalidarCronograma } from './calculo'
 import { usePreviaStore } from './previa'
 import { fmtNum } from '../visoes/formato'
-
-function sb(): NonNullable<typeof supabase> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-  return supabase
-}
 
 async function ok<T>(p: PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
   const { data, error } = await p
@@ -93,7 +88,7 @@ export function useComandoVisao(): ReturnType<
       if (r.mudancas.aviso) return { aviso: r.mudancas.aviso }
       if (sig) definirPrevia(planejamentoId, { sig, resultado: desserializar(r.resultado) })
       try {
-        const c = sb()
+        const c = supabase
         if (r.mudancas.tarefas.length)
           await ok(
             c.rpc('planejamento_tarefas_atualizar', {
@@ -154,7 +149,7 @@ export function useAtualizarTarefa(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ id, campos }) => {
-      await ok(sb().from('planejamento_tarefa').update(campos).eq('id', id))
+      await ok(supabase.from('planejamento_tarefa').update(campos).eq('id', id))
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -178,7 +173,7 @@ export function useAtualizarTarefas(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, itens }) => {
       await ok(
-        sb().rpc('planejamento_tarefas_atualizar', {
+        supabase.rpc('planejamento_tarefas_atualizar', {
           _planejamento_id: planejamentoId,
           _itens: itens
         })
@@ -210,7 +205,7 @@ export function useCriarTarefas(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, tarefas, ordemInicial }) => {
       // tarefa + locais numa transação (RPC): com erro nos locais não sobra tarefa sem local
-      const c = sb()
+      const c = supabase
       const ids: string[] = []
       for (const [i, t] of tarefas.entries()) {
         const id = (await ok(
@@ -246,7 +241,7 @@ export function useCriarGrupo(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, nome, parent_id, nivel, ordem }) => {
       const r = await ok(
-        sb()
+        supabase
           .from('planejamento_tarefa')
           .insert({
             planejamento_id: planejamentoId,
@@ -276,7 +271,7 @@ export function useMoverTarefas(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, ids, pai, antes }) => {
       await ok(
-        sb().rpc('planejamento_mover_tarefas', {
+        supabase.rpc('planejamento_mover_tarefas', {
           _planejamento_id: planejamentoId,
           _ids: ids,
           _pai: pai,
@@ -295,7 +290,10 @@ export function useExcluirTarefas(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, ids }) =>
       (await ok(
-        sb().rpc('planejamento_excluir_tarefas', { _planejamento_id: planejamentoId, _ids: ids })
+        supabase.rpc('planejamento_excluir_tarefas', {
+          _planejamento_id: planejamentoId,
+          _ids: ids
+        })
       )) as number,
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -325,7 +323,7 @@ export function useSalvarLocais(): ReturnType<
   return useMutation({
     mutationFn: async ({ tarefaId, locais }) => {
       await ok(
-        sb().rpc('planejamento_tarefa_locais_salvar', { _tarefa_id: tarefaId, _locais: locais })
+        supabase.rpc('planejamento_tarefa_locais_salvar', { _tarefa_id: tarefaId, _locais: locais })
       )
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
@@ -346,7 +344,7 @@ export function useDividirEstaca(): ReturnType<
   return useMutation({
     mutationFn: async ({ tarefaId, trechoId, estacaM }) =>
       (await ok(
-        sb().rpc('planejamento_tarefa_dividir_estaca', {
+        supabase.rpc('planejamento_tarefa_dividir_estaca', {
           _tarefa_id: tarefaId,
           _trecho_id: trechoId,
           _estaca_m: estacaM
@@ -372,7 +370,7 @@ export function useDividirQuantidade(): ReturnType<
   return useMutation({
     mutationFn: async ({ tarefaId, partes }) =>
       (await ok(
-        sb().rpc('planejamento_tarefa_dividir_quantidade', {
+        supabase.rpc('planejamento_tarefa_dividir_quantidade', {
           _tarefa_id: tarefaId,
           _partes: partes
         })
@@ -388,7 +386,7 @@ export function useCombinarTarefas(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ ids }) =>
-      (await ok(sb().rpc('planejamento_tarefas_combinar', { _ids: ids }))) as string,
+      (await ok(supabase.rpc('planejamento_tarefas_combinar', { _ids: ids }))) as string,
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
 }
@@ -418,7 +416,7 @@ export function useCriarDasQuantidades(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, parentId, trechos, itens, opcoes }) =>
       ((await ok(
-        sb().rpc('planejamento_tarefas_criar_das_quantidades', {
+        supabase.rpc('planejamento_tarefas_criar_das_quantidades', {
           _planejamento_id: planejamentoId,
           _parent_id: parentId,
           _trechos: trechos,
@@ -438,7 +436,7 @@ export function useRenomearAuto(): ReturnType<
   return useMutation({
     mutationFn: async ({ planejamentoId, ids }) =>
       (await ok(
-        sb().rpc('planejamento_tarefas_renomear_auto', {
+        supabase.rpc('planejamento_tarefas_renomear_auto', {
           _planejamento_id: planejamentoId,
           _ids: ids ?? null
         })
@@ -459,7 +457,10 @@ export function useMudarTrecho(): ReturnType<
   return useMutation({
     mutationFn: async ({ tarefaId, trechoId }) =>
       (await ok(
-        sb().rpc('planejamento_tarefa_mudar_trecho', { _tarefa_id: tarefaId, _trecho_id: trechoId })
+        supabase.rpc('planejamento_tarefa_mudar_trecho', {
+          _tarefa_id: tarefaId,
+          _trecho_id: trechoId
+        })
       )) as { locais: number; avisos: string[] },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -472,7 +473,10 @@ export function useSalvarEquipesTarefa(): ReturnType<
   return useMutation({
     mutationFn: async ({ tarefaId, equipes }) => {
       await ok(
-        sb().rpc('planejamento_tarefa_equipes_salvar', { _tarefa_id: tarefaId, _equipes: equipes })
+        supabase.rpc('planejamento_tarefa_equipes_salvar', {
+          _tarefa_id: tarefaId,
+          _equipes: equipes
+        })
       )
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
@@ -494,10 +498,13 @@ export function useSalvarIndireto(): ReturnType<
   return useMutation({
     mutationFn: async ({ tarefaId, config }) => {
       await ok(
-        sb().rpc('atualizar_tarefa_indireta', { p_tarefa_id: tarefaId, p_indireto_config: config })
+        supabase.rpc('atualizar_tarefa_indireta', {
+          p_tarefa_id: tarefaId,
+          p_indireto_config: config
+        })
       )
       await ok(
-        sb()
+        supabase
           .from('planejamento_tarefa')
           .update({ updated_at: new Date().toISOString() })
           .eq('id', tarefaId)
@@ -533,7 +540,7 @@ export function useSalvarDependencia(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ planejamentoId, id, predecessora_id, sucessora_id, campos }) => {
-      const c = sb()
+      const c = supabase
       if (id) await ok(c.from('planejamento_dependencia').update(campos).eq('id', id))
       else
         await ok(
@@ -552,7 +559,7 @@ export function useExcluirDependencias(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ ids }) => {
-      await ok(sb().from('planejamento_dependencia').delete().in('id', ids))
+      await ok(supabase.from('planejamento_dependencia').delete().in('id', ids))
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -585,7 +592,7 @@ export function useSalvarMarco(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ planejamentoId, id, campos }) => {
-      const c = sb()
+      const c = supabase
       if (id) {
         await ok(c.from('planejamento_marco').update(campos).eq('id', id))
         return id
@@ -609,7 +616,7 @@ export function useExcluirMarco(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ id }) => {
-      await ok(sb().from('planejamento_marco').delete().eq('id', id))
+      await ok(supabase.from('planejamento_marco').delete().eq('id', id))
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -631,7 +638,7 @@ export function useSalvarLimite(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ planejamentoId, id, recurso_id, grupo_id, maximo }) => {
-      const c = sb()
+      const c = supabase
       if (id)
         await ok(
           c
@@ -656,7 +663,7 @@ export function useExcluirLimite(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ id }) => {
-      await ok(sb().from('planejamento_recurso_limite').delete().eq('id', id))
+      await ok(supabase.from('planejamento_recurso_limite').delete().eq('id', id))
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -680,7 +687,7 @@ export function useAtualizarPlano(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ planejamentoId, campos }) => {
-      await ok(sb().from('planejamento').update(campos).eq('id', planejamentoId))
+      await ok(supabase.from('planejamento').update(campos).eq('id', planejamentoId))
     },
     onSettled: (_d, _e, v) => depois(v.planejamentoId)
   })
@@ -702,7 +709,7 @@ export function useSalvarRegraServico(): ReturnType<
   const depois = useDepois()
   return useMutation({
     mutationFn: async ({ planejamentoId, predecessor_id, sucessor_id, atraso_dias }) => {
-      const c = sb()
+      const c = supabase
       const p = await ok(c.from('planejamento').select('obra_id').eq('id', planejamentoId).single())
       await ok(
         c.from('servico_dependencia').upsert(
@@ -727,7 +734,7 @@ export function useExcluirRegraServico(): ReturnType<
   return useMutation({
     mutationFn: async ({ predecessor_id, sucessor_id }) => {
       await ok(
-        sb()
+        supabase
           .from('servico_dependencia')
           .delete()
           .eq('predecessor_id', predecessor_id)

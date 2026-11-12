@@ -1,8 +1,6 @@
 import { type ReactNode } from 'react'
-import { X, Info, AlertTriangle, CheckCircle2, Lock } from 'lucide-react'
+import { X, Lock } from 'lucide-react'
 import { Icon } from './IconRenderer'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getModuleByRoute } from '@/config/modules'
@@ -14,12 +12,9 @@ import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { visibleFor } from '@/types/module'
 import { cn } from '@/lib/utils'
 
-const INFO_ICONS = { info: Info, warn: AlertTriangle, success: CheckCircle2 }
-
 export function SecondarySidebar(): ReactNode {
   const pathname = useActiveLocation().split('?')[0]
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
-  const openModal = useUIStore((s) => s.openModal)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const { obraId } = useCurrentScope()
@@ -28,14 +23,6 @@ export function SecondarySidebar(): ReactNode {
   // Quando fechada, não renderiza — o grid template do AppShell colapsa a
   // coluna de 268px → 0 e o main expande automaticamente.
   if (!mod || !sidebarOpen) return null
-
-  const InfoIcon = mod.infoCard ? INFO_ICONS[mod.infoCard.variant ?? 'info'] : null
-  const infoColor =
-    mod.infoCard?.variant === 'warn'
-      ? 'warn'
-      : mod.infoCard?.variant === 'success'
-        ? 'success'
-        : 'accent'
 
   return (
     <aside
@@ -52,53 +39,6 @@ export function SecondarySidebar(): ReactNode {
           <X size={12} />
         </IconButton>
       </div>
-
-      {/* Pills */}
-      {mod.pills && mod.pills.length > 0 ? (
-        <div className="px-3 py-2 flex gap-1 border-b border-border overflow-x-auto">
-          {visibleFor(mod.pills, role).map((p) => {
-            const isActive = pathname === p.route || pathname.startsWith(p.route + '/')
-            return (
-              <button
-                key={p.route}
-                type="button"
-                onClick={() => navigateActiveTab(p.route)}
-                className={cn(
-                  'flex items-center gap-1.5 px-2 py-1 rounded-sm text-2xs font-medium border whitespace-nowrap transition-colors',
-                  isActive
-                    ? 'bg-accent-glow text-accent border-accent-line'
-                    : 'border-border bg-transparent text-text-muted hover:text-text hover:bg-bg-hover'
-                )}
-              >
-                <Icon name={p.icon} size={11} strokeWidth={2} />
-                {p.label}
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {/* Info card */}
-      {mod.infoCard && InfoIcon ? (
-        <div
-          className={cn(
-            'mx-3 mt-3 mb-1 p-2 rounded border text-2xs',
-            infoColor === 'warn'
-              ? 'border-warn/30 bg-warn/10 text-warn'
-              : infoColor === 'success'
-                ? 'border-success/30 bg-success/10 text-success'
-                : 'border-accent-line bg-accent-glow text-accent'
-          )}
-        >
-          <div className="flex items-start gap-1.5">
-            <InfoIcon size={12} className="mt-0.5 shrink-0" />
-            <div>
-              <div className="font-semibold mb-0.5">{mod.infoCard.title}</div>
-              <div className="opacity-80 leading-snug">{mod.infoCard.description}</div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Sections */}
       <ScrollArea className="flex-1 px-2 py-2">
@@ -148,19 +88,6 @@ export function SecondarySidebar(): ReactNode {
                       <Icon name={item.icon} size={12} strokeWidth={1.8} className="shrink-0" />
                       <span className="text-xs truncate">{item.label}</span>
                     </div>
-                    {item.badge !== undefined ? (
-                      <Badge
-                        variant={
-                          item.status === 'warn'
-                            ? 'warn'
-                            : item.status === 'danger'
-                              ? 'danger'
-                              : 'default'
-                        }
-                      >
-                        {item.badge}
-                      </Badge>
-                    ) : null}
                   </button>
                 )
               })}
@@ -168,34 +95,6 @@ export function SecondarySidebar(): ReactNode {
           </div>
         ))}
       </ScrollArea>
-
-      {/* Actions footer */}
-      {mod.actions && mod.actions.length > 0 ? (
-        <div className="px-3 py-2 border-t border-border flex items-center gap-2">
-          {mod.actions.map((a) => (
-            <Button
-              key={a.label}
-              variant={a.primary ? 'default' : 'secondary'}
-              size="sm"
-              className="flex-1"
-              onClick={() => {
-                if (a.onClick) {
-                  // Map common command actions to modals
-                  const mapping: Record<string, string> = {
-                    'export-report': 'export',
-                    'export-bm': 'export'
-                  }
-                  const modalKey = mapping[a.onClick]
-                  if (modalKey) openModal(modalKey as never)
-                }
-              }}
-            >
-              {a.icon ? <Icon name={a.icon} size={11} strokeWidth={2} /> : null}
-              {a.label}
-            </Button>
-          ))}
-        </div>
-      ) : null}
     </aside>
   )
 }

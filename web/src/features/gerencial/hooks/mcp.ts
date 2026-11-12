@@ -35,11 +35,6 @@ export const MCP_URL: string =
 
 const CHAVE = ['mcp']
 
-function sb(): NonNullable<typeof supabase> {
-  if (!supabase) throw new Error('Supabase não configurado.')
-  return supabase
-}
-
 async function alcanca(
   url: string,
   conferir: (j: Record<string, unknown>) => boolean
@@ -85,7 +80,7 @@ export function useStatusMcp(): { status: StatusMcp; recarregar: () => void } {
     queryKey: [...CHAVE, 'tokens'],
     staleTime: 30_000,
     queryFn: async (): Promise<TokenIA[]> => {
-      const { data, error } = await sb()
+      const { data, error } = await supabase
         .from('mcp_token')
         .select(
           'id, nome, prefixo, criado_em, expira_em, ultimo_uso_em, revogado_em, tipo, refresh_expira_em'
@@ -119,7 +114,7 @@ export function useCriarTokenIA(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ nome, dias }) => {
-      const { data, error } = await sb().rpc('mcp_token_criar', { _nome: nome, _dias: dias })
+      const { data, error } = await supabase.rpc('mcp_token_criar', { _nome: nome, _dias: dias })
       if (error) throw new Error(error.message)
       return (data as { token: string }).token
     },
@@ -131,7 +126,7 @@ export function useRevogarTokenIA(): ReturnType<typeof useMutation<void, Error, 
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id) => {
-      const { error } = await sb().rpc('mcp_token_revogar', { _id: id })
+      const { error } = await supabase.rpc('mcp_token_revogar', { _id: id })
       if (error) throw new Error(error.message)
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: [...CHAVE, 'tokens'] })

@@ -4,7 +4,7 @@
  * `servico_equipe_viva` — com os itens e os recursos.
  */
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { RecursoGrupo } from '@/types/orcamento'
 
 export interface ItemComposicao {
@@ -38,7 +38,6 @@ export function useComposicoesServicos(
     enabled: !!obraId && ids.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
       const c = supabase
       const [{ data: links, error: e1 }, { data: vigentes, error: e2 }] = await Promise.all([
         c

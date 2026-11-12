@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type {
   AlocInfo,
   AlocStatus,
@@ -12,10 +12,6 @@ import type {
   ItemTreeNode,
   QtdRefModo
 } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const ITEM_COLUNAS =
   'id, obra_id, parent_id, nivel, codigo, descricao, tipo, unidade, servico_id, quantidade, ' +
@@ -47,7 +43,6 @@ export function usePlanOrc(
     queryKey: ['orcamento', 'plan-orc', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<PlanOrcData> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const [itensRes, alocRes] = await Promise.all([
         supabase
           .from('item_orcamentario')
@@ -190,7 +185,6 @@ export function useItemDetalhe(
     queryKey: ['orcamento', 'item-detalhe', id],
     enabled: !!id,
     queryFn: async (): Promise<ItemDetalhe> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('item_orcamentario')
         .select(ITEM_COLUNAS + ', servico:servico_id(id, codigo, nome, unidade)')
@@ -229,7 +223,6 @@ export function useUpsertItem(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...body }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       if (id) {
         const { error } = await supabase.from('item_orcamentario').update(body).eq('id', id)
         if (error) throw error
@@ -270,31 +263,7 @@ export function useDeleteItem(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('item_orcamentario').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidarCadeia(qc)
-    }
-  })
-}
-
-export function useMoveItem(): ReturnType<
-  typeof useMutation<
-    void,
-    Error,
-    { id: string; obra_id: string; parent_id: string | null; ordem: number }
-  >
-> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id, parent_id, ordem }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { error } = await supabase
-        .from('item_orcamentario')
-        .update({ parent_id, ordem })
-        .eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -313,7 +282,6 @@ export function useReorderItem(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, obra_id, direction }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data: item } = await supabase
         .from('item_orcamentario')
         .select('id, parent_id, ordem')
@@ -382,7 +350,6 @@ export function useAtualizarAgrupador(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (b) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const patch: Record<string, unknown> = {
         descricao: b.descricao,
         servico_id: b.servico_id,
@@ -409,7 +376,6 @@ export function useReparentItem(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, new_parent_id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('item_orcamentario')
         .update({ parent_id: new_parent_id })
@@ -450,7 +416,6 @@ export function useComposicaoViva(
     queryKey: ['orcamento', 'composicao-viva', servicoId],
     enabled: !!servicoId,
     queryFn: async (): Promise<ComposicaoViva | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data: v, error } = await supabase
         .from('vw_servico_vivo')
         .select(

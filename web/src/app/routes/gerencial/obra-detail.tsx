@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { useAuthStore } from '@/stores/auth-store'
-import { useUIStore } from '@/stores/ui-store'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import {
   useObra,
   useObraPermissoes,
@@ -38,7 +38,7 @@ export function ObraDetailPage(): ReactNode {
   const navigate = useNavigate()
   const role = useAuthStore((s) => s.profile?.role)
   const callerEmpresaId = useAuthStore((s) => s.profile?.empresa_id ?? null)
-  const openModal = useUIStore((s) => s.openModal)
+  const confirmar = useConfirm()
 
   const { data: obra, isLoading: loadingObra } = useObra(id)
   const { data: permissoes = [], isLoading: loadingPerms } = useObraPermissoes(id)
@@ -284,23 +284,24 @@ export function ObraDetailPage(): ReactNode {
                           variant="danger"
                           size="sm"
                           disabled={revoke.isPending}
-                          onClick={() => {
-                            openModal('confirmDelete', {
-                              entityName: `acesso de ${p.usuario?.nome ?? 'engenheiro'} à obra ${obra.codigo}`,
-                              linkedCount: apoios.length,
-                              linkedDescription:
-                                apoios.length > 0
-                                  ? `Ao revogar, ${apoios.length} ${apoios.length === 1 ? 'Apoio vinculado' : 'Apoios vinculados'} também perderão o acesso a esta obra.`
-                                  : undefined,
-                              onConfirm: () => {
-                                void revoke
-                                  .mutateAsync({ obra_id: obra.id, user_id: p.user_id })
-                                  .then(() => toast.success('Acesso revogado.'))
-                                  .catch((e) =>
-                                    toast.error(e instanceof Error ? e.message : 'Falha ao revogar')
-                                  )
-                              }
+                          onClick={async () => {
+                            const ok = await confirmar({
+                              title: 'Revogar acesso?',
+                              description:
+                                `${p.usuario?.nome ?? 'O engenheiro'} perde o acesso à obra ${obra.codigo}.` +
+                                (apoios.length > 0
+                                  ? ` ${apoios.length} ${apoios.length === 1 ? 'Apoio vinculado também perde' : 'Apoios vinculados também perdem'} o acesso.`
+                                  : ''),
+                              confirmLabel: 'Revogar',
+                              variant: 'danger'
                             })
+                            if (!ok) return
+                            try {
+                              await revoke.mutateAsync({ obra_id: obra.id, user_id: p.user_id })
+                              toast.success('Acesso revogado.')
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : 'Falha ao revogar')
+                            }
                           }}
                         >
                           <Trash2 size={11} /> Revogar

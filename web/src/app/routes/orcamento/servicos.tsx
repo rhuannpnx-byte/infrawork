@@ -22,7 +22,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { buildServicoTree, useServicos } from '@/features/orcamento/hooks/servicos'
 import { previewCascadeServicos } from '@/features/orcamento/hooks/cascade'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { ServicosTree } from '@/features/orcamento/components/ServicosTree'
 import { NewServicoDialog } from '@/features/orcamento/modals/NewServicoDialog'
 import { ServicoCpuLinksDialog } from '@/features/orcamento/modals/ServicoCpuLinksDialog'
@@ -144,11 +144,6 @@ function ServicosInner(): ReactNode {
       variant: 'danger'
     })
     if (!ok) return
-    if (!SUPABASE_ENABLED || !supabase) {
-      toast.error('Supabase não configurado.')
-      return
-    }
-
     // Limpa seleção imediatamente — UX responsiva.
     const idsParaApagar = preview.idsOrdenadosParaDelete
     setSelectedIds(new Set())

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import { adminApi } from '@/lib/supabase/functions'
 import type {
@@ -8,10 +8,6 @@ import type {
   AlertaStatus,
   AlertaTipo
 } from '@/types/acompanhamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export interface AlertasFiltros {
   status?: AlertaStatus[]
@@ -28,7 +24,6 @@ export function useAlertas(
     enabled: !!obraId,
     staleTime: 30 * 1000,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const sb = supabase
       const statuses = filtros.status?.length ? filtros.status : ['aberto']
       const data = await lerTodas((de, ate) => {
@@ -46,28 +41,6 @@ export function useAlertas(
           .range(de, ate)
       })
       return data as unknown as AcompanhamentoAlerta[]
-    }
-  })
-}
-
-/** Contagem de alertas críticos abertos — polling 60s para badge sidebar. */
-export function useContagemAlertasCriticos(
-  obraId: string | null | undefined
-): ReturnType<typeof useQuery<number>> {
-  return useQuery({
-    queryKey: ['acompanhamento', 'alertas-criticos-count', obraId],
-    enabled: !!obraId,
-    refetchInterval: 60 * 1000,
-    queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
-      const { count, error } = await supabase
-        .from('acompanhamento_alerta')
-        .select('id', { count: 'exact', head: true })
-        .eq('obra_id', obraId!)
-        .eq('status', 'aberto')
-        .eq('severidade', 'critical')
-      if (error) throw error
-      return count ?? 0
     }
   })
 }
@@ -99,7 +72,6 @@ export function useSilenciarAlerta(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, dias = 7 }: { id: string; obra_id: string; dias?: number }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const ate = new Date()
       ate.setDate(ate.getDate() + dias)
       const { error } = await supabase
@@ -124,7 +96,6 @@ export function useResolverAlerta(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }: { id: string; obra_id: string }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('acompanhamento_alerta')
         .update({
@@ -151,7 +122,6 @@ export function useReabrirAlerta(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }: { id: string; obra_id: string }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('acompanhamento_alerta')
         .update({

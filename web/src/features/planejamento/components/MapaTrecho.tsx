@@ -1,6 +1,6 @@
 // MapaTrecho — render reusavel de UMA polilinha em Leaflet.
 //
-// Lazy-load do Leaflet (pattern de MiniMapaSatelite). Tile layer: Esri Satellite.
+// Leaflet carregado sob demanda. Tile layer: Esri Satellite.
 // Marcadores INICIO/FIM sempre desenhados. Marcadores de referencia (km/estaca/etc)
 // opcionais via prop `marcadores`.
 //
@@ -11,16 +11,7 @@ import along from '@turf/along'
 import length from '@turf/length'
 import { lineString as turfLineString } from '@turf/helpers'
 import { addBaseMapEsri } from '@/lib/leaflet/tiles'
-
-// Lazy-load — pattern compartilhado com MiniMapaSatelite.tsx
-let LeafletModule: typeof import('leaflet') | null = null
-async function loadLeaflet(): Promise<typeof import('leaflet')> {
-  if (LeafletModule) return LeafletModule
-  const m = await import('leaflet')
-  await import('leaflet/dist/leaflet.css')
-  LeafletModule = m
-  return m
-}
+import { loadLeaflet } from '@/lib/leaflet/carregar'
 
 export interface MapaTrechoMarcador {
   /** Posicao em metros ao longo da polilinha (do inicio). */

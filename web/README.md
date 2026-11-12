@@ -8,16 +8,16 @@ proprietárias (não usa SIGA, nem a planilha de planejamento da TecPav).
 - Backend **Supabase** (`web/supabase`): Postgres + RLS, Edge Functions (Deno),
   Storage, `pg_cron`.
 - Multi-tenant por `empresas` → `obras`, papéis `god / adm / engenheiro /
-  apoio / cliente`.
+apoio / cliente`.
 
 ## Módulos
 
-| Módulo | O que faz |
-|---|---|
-| Gerencial | empresas, obras, usuários, permissões |
-| Orçamento | recursos, **composições** (CPU) simplificadas, planilha de venda + **serviços com rateio**, **aditivos**, **reajustes**, taxas — com **modelos XLSX** de importação (recursos, composições, orçamento) |
-| Planejamento | **cronograma** (Gantt) e **tempo-caminho** com o motor do ApeX, calendários, serviços (equipe = composição), recursos, curva-S, comparar, **planos e linhas de base**, trechos e quantidades, **modo controle** (realizado e previsão) |
-| Acompanhamento | **Lançar produção** (celular em `/lancar`), produção, fotos & mapa, previsto × realizado, valor agregado/medição, performance, alertas |
+| Módulo         | O que faz                                                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gerencial      | empresas, obras, usuários, permissões                                                                                                                                                                                                  |
+| Orçamento      | recursos, **composições** (CPU) simplificadas, planilha de venda + **serviços com rateio**, **aditivos**, **reajustes**, taxas — com **modelos XLSX** de importação (recursos, composições, orçamento)                                 |
+| Planejamento   | **cronograma** (Gantt) e **tempo-caminho** com o motor do ApeX, calendários, serviços (equipe = composição), recursos, curva-S, comparar, **planos e linhas de base**, trechos e quantidades, **modo controle** (realizado e previsão) |
+| Acompanhamento | **Lançar produção** (celular em `/lancar`), produção, fotos & mapa, previsto × realizado, valor agregado/medição, performance, alertas                                                                                                 |
 
 ### Cronograma e tempo-caminho (motor do ApeX)
 
@@ -54,7 +54,7 @@ fração — uma receita pode ser **rateada** entre vários serviços por %, por
 (quantidade física) ou proporcional à venda (recalcula sozinho).
 
 - venda do serviço = Σ venda da receita × fração; quantidade = Σ quantidade das
-  receitas que *compõem* × fração (ou manual); custo = composição × quantidade,
+  receitas que _compõem_ × fração (ou manual); custo = composição × quantidade,
   apropriado de volta às receitas/etapas pela venda alocada.
 - totais: venda = planilha de venda; custo direto = serviços.
 - receita alocada não pode ser excluída (remova a alocação antes).
@@ -180,7 +180,7 @@ supabase start -x logflare,vector,imgproxy,studio   # Postgres 17 + API + Storag
 ```
 
 Para o `npm run dev` apontar ao stack local, crie `web/.env.development.local`
-(ignorado pelo git; só vale em modo *development*):
+(ignorado pelo git; só vale em modo _development_):
 
 ```
 VITE_SUPABASE_URL=http://127.0.0.1:55321
@@ -218,30 +218,28 @@ de integração com o banco local roda com `CRONOGRAMA_LOCAL=<planejamento_id>`)
 > `supabase/config.toml` mantém `[auth.email] enable_signup = true`: no CLI
 > esse flag liga/desliga o **provedor** e-mail inteiro (com `false` o login por
 > senha para de funcionar). O cadastro de usuários continua só pela function
-> `create-usuario`. No projeto remoto, deixe *Enable Email provider* ligado e
-> *Allow new users to sign up* desligado (Auth → Providers → Email).
+> `create-usuario`. No projeto remoto, deixe _Enable Email provider_ ligado e
+> _Allow new users to sign up_ desligado (Auth → Providers → Email).
 
-## Deploy (projeto remoto)
+## Publicação
 
-```bash
-cd web
-supabase link --project-ref <ref>        # pede a senha do banco
-supabase db push                         # migrações
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service role>   # usada pelas functions
-npm run fn:deploy                        # supabase functions deploy --use-api
-```
+- **Site (Vercel):** `push` na `main` publica em produção; outras branches geram preview. O projeto
+  `infrawork-web` tem a raiz em `web/` e só reconstrói quando essa pasta mudou (`ignoreCommand` no
+  `vercel.json`, que também traz o rewrite da SPA e os headers CSP). O bundle do MCP sai no
+  `npm run build`. Variáveis: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+  (MCP) e, opcionais, `VITE_STORAGE_PREFIX` e `VITE_CAMPO_URL`.
+- **Banco e Edge Functions (Supabase):** manuais e com autorização. Os comandos estão no `AGENTS.md`
+  da raiz (migração por `supabase db query --remote -f`; functions por `supabase functions deploy`).
 
-Uma vez por ambiente, no SQL Editor, cadastre os segredos do cron de alertas:
+Uma vez por ambiente, no SQL Editor, cadastre os segredos usados pelos agendamentos (alertas e
+FleetHub):
 
 ```sql
 select vault.create_secret('https://<ref>.supabase.co', 'project_url');
 select vault.create_secret('<service role key>', 'service_role_key');
 ```
 
-Auth → URL Configuration: *Site URL* e *Redirect URLs* com o domínio da SPA.
-Hospedagem estática (Vercel: `rootDirectory = web`, `vercel.json` já traz o
-rewrite SPA e os headers CSP). Variáveis: `VITE_SUPABASE_URL`,
-`VITE_SUPABASE_ANON_KEY` e, opcional, `VITE_STORAGE_PREFIX`.
+Auth → URL Configuration: _Site URL_ e _Redirect URLs_ com o domínio do site.
 
 ## Design
 

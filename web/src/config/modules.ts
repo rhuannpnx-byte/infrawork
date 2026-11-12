@@ -18,10 +18,8 @@ export const MODULES: ModuleConfig[] = [
     icon: 'shield',
     shortcut: 'g g',
     routePrefix: '/gerencial',
-    color: 'var(--accent)',
     category: 'system',
     requiredRoles: ['god', 'adm', 'engenheiro'],
-    pills: [],
     sections: [
       {
         title: 'CADASTROS',
@@ -54,10 +52,8 @@ export const MODULES: ModuleConfig[] = [
     icon: 'calculator',
     shortcut: 'g o',
     routePrefix: '/orcamento',
-    color: 'var(--accent)',
     category: 'engineering',
     requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
-    pills: [],
     sections: [
       {
         title: 'OBRA',
@@ -126,10 +122,8 @@ export const MODULES: ModuleConfig[] = [
     icon: 'calendar',
     shortcut: 'g p',
     routePrefix: '/planejamento',
-    color: 'var(--accent)',
     category: 'engineering',
     requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
-    pills: [],
     sections: [
       {
         title: 'GERAL',
@@ -214,10 +208,8 @@ export const MODULES: ModuleConfig[] = [
     icon: 'activity',
     shortcut: 'g a',
     routePrefix: '/acompanhamento',
-    color: 'var(--accent)',
     category: 'engineering',
     requiredRoles: ['god', 'adm', 'engenheiro', 'apoio', 'cliente'],
-    pills: [],
     sections: [
       {
         title: 'OBRA',

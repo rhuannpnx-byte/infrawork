@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { ObraComEmpresa } from '@/types/gerencial'
 import { VinculoFleetHub } from '../components/VinculoFleetHub'
 
@@ -52,7 +52,6 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
       const ext = f.extensao_km.trim()
         ? Number(f.extensao_km.replace(/\./g, '').replace(',', '.'))
         : null

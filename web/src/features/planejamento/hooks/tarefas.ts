@@ -1,11 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { PlanejamentoTarefaCompleta } from '@/types/planejamento'
 import { producaoVivaPorServico } from './servico-vivo'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export function useTarefas(
   planejamentoId: string | null | undefined
@@ -14,7 +10,6 @@ export function useTarefas(
     queryKey: ['planejamento', 'tarefas', planejamentoId],
     enabled: !!planejamentoId,
     queryFn: async (): Promise<PlanejamentoTarefaCompleta[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       // Ordenação primária por `ordem` (drag-drop respeita). Empate → código
       // do item (estabilidade visual para tarefas legadas com ordem=0).
       // Hierarquia/agrupamento por parent_id é feita no client via buildTaskTree.
@@ -81,7 +76,6 @@ export function useItensSincronizaveis(
     queryKey: ['planejamento', 'itens-sincronizaveis', planejamento_id, obra_id],
     enabled: !!planejamento_id && !!obra_id,
     queryFn: async (): Promise<ItemSincronizavel[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       // Carrega itens servico_grupo da obra + suas tarefas-folha (planejamento).
       // Duas queries pequenas; preferimos isso a uma view nova só pra isso.
       const [{ data: itens, error: itensErr }, { data: tarefas, error: tarErr }] =

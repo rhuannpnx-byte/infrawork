@@ -4,14 +4,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import exifr from 'exifr'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { Encarregado, LancamentoInput, ProducaoEnriquecida } from '@/types/acompanhamento'
 import { PROD_COLS } from './producao'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const ACOMP_KEYS = [
   'producao',
@@ -56,7 +52,6 @@ export function useItensLancaveis(
     enabled: !!obraId,
     staleTime: 60 * 1000,
     queryFn: async (): Promise<ItemLancavel[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const [itensRes, realRes] = await Promise.all([
         supabase
           .from('item_orcamentario')
@@ -117,7 +112,6 @@ export function useEncarregados(
     enabled: !!obraId,
     staleTime: 60 * 1000,
     queryFn: async (): Promise<Encarregado[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       let q = supabase.from('encarregado').select('*').eq('obra_id', obraId!).order('nome')
       if (!incluirInativos) q = q.eq('ativo', true)
       const { data, error } = await q
@@ -141,7 +135,6 @@ export function useCreateEncarregado(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input): Promise<Encarregado> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('encarregado')
         .insert({
@@ -166,7 +159,6 @@ export function useUpdateEncarregado(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...patch }): Promise<void> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const body: Record<string, unknown> = {}
       if (patch.nome !== undefined) body.nome = patch.nome.trim()
       if (patch.apelido !== undefined) body.apelido = patch.apelido?.trim() || null
@@ -193,7 +185,6 @@ export function useLancamentosDia(
     enabled: !!obraId && !!dataISO,
     staleTime: 15 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('vw_acompanhamento_producao_enriquecida')
         .select(PROD_COLS)
@@ -230,7 +221,6 @@ export function useCreateLancamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input): Promise<{ id: string }> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('acompanhamento_producao')
         .insert({ ...rowDe(input), origem: 'app' })
@@ -263,7 +253,6 @@ export function useUpdateLancamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...input }): Promise<void> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase
         .from('acompanhamento_producao')
         .update(rowDe(input))
@@ -298,7 +287,6 @@ export function useDeleteLancamento(): ReturnType<typeof useMutation<void, Error
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }): Promise<void> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('acompanhamento_producao').delete().eq('id', id)
       if (error) throw error
     },
@@ -321,7 +309,6 @@ export function useMateriaisLancamento(producaoId: string | null | undefined): R
     queryKey: ['acompanhamento', 'materiais', producaoId],
     enabled: !!producaoId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('acompanhamento_producao_material')
         .select('id, nome, quantidade, unidade, recurso_id')
@@ -350,7 +337,6 @@ export function useCreateLancamentosLote(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ linhas, origem }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       if (linhas.length === 0) return { inseridos: 0, importacao_id: null }
       const importacao_id = origem === 'importacao' ? crypto.randomUUID() : null
       const rows = linhas.map((l) => ({ ...rowDe(l), origem, importacao_id }))
@@ -395,7 +381,6 @@ export function useDesfazerImportacao(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ importacao_id }): Promise<number> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error, count } = await supabase
         .from('acompanhamento_producao')
         .delete({ count: 'exact' })
@@ -484,7 +469,6 @@ export function useUploadFotosLancamento(): ReturnType<
       files,
       onProgress
     }): Promise<UploadFotoResultado> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const empresa = empresaId ?? obras.find((o) => o.id === obra_id)?.empresa_id ?? 'sem-empresa'
       const erros: string[] = []
       let enviadas = 0
@@ -551,7 +535,6 @@ export function useFrentesObra(
     enabled: !!obraId,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<string[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('vw_acompanhamento_frente_kpis')
         .select('frente')

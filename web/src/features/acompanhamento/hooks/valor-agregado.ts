@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useBaseline, useTarefas } from '@/features/planejamento/hooks'
 import type { OpcoesCurvaS } from '@/features/planejamento/hooks/cronograma'
 import type { Planejamento } from '@/types/planejamento'
@@ -25,7 +25,6 @@ function todayIso(): string {
 
 /** Leitura usada pela tela e pelo MCP. */
 export async function carregarCurvaSDia(obraId: string): Promise<CurvaSDiaRow[]> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
   // a API devolve no máximo 1000 linhas por chamada: pagina (a CO.081 já passa de 1800)
   const out: CurvaSDiaRow[] = []
   const passo = 1000
@@ -46,7 +45,6 @@ export async function carregarCurvaSDia(obraId: string): Promise<CurvaSDiaRow[]>
 
 /** Leitura usada pela tela e pelo MCP. */
 export async function carregarEapGrupos(obraId: string): Promise<EapGrupo[]> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
   const [itensRes, alocRes] = await Promise.all([
     supabase
       .from('item_orcamentario')
@@ -93,7 +91,6 @@ export async function carregarEapGrupos(obraId: string): Promise<EapGrupo[]> {
 
 /** Leitura usada pela tela e pelo MCP. */
 export async function carregarHistoricoPrecos(obraId: string): Promise<HistoricoPrecos> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
   const [rj, it] = await Promise.all([
     supabase
       .from('orcamento_reajuste')
@@ -170,7 +167,6 @@ function usePerfilDiaDoPlano(
     enabled: !!planejamentoId,
     staleTime: 60_000,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
       const m = new Map<string, { dia: string; quantidade: number }[]>()
       const passo = 1000
       for (let de = 0; ; de += passo) {

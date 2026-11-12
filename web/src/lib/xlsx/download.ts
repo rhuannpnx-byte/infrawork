@@ -11,9 +11,7 @@ export { downloadBlob } from '@/lib/files/download'
 async function semComentarios(buf: ArrayBuffer): Promise<ArrayBuffer> {
   const { default: JSZip } = await import('jszip')
   const zip = await JSZip.loadAsync(buf)
-  const rels = Object.keys(zip.files).filter((p) =>
-    /^xl\/worksheets\/_rels\/[^/]+\.rels$/i.test(p)
-  )
+  const rels = Object.keys(zip.files).filter((p) => /^xl\/worksheets\/_rels\/[^/]+\.rels$/i.test(p))
   for (const p of rels) {
     const xml = await zip.file(p)!.async('string')
     const limpo = xml.replace(

@@ -23,7 +23,7 @@ const MODELO = new Uint8Array(
 describe.skipIf(!PLANO)('cronograma contra o banco local', () => {
   it('carrega, calcula, grava e chega ao ponto fixo', async () => {
     expect(String(import.meta.env.VITE_SUPABASE_URL)).toMatch(/127\.0\.0\.1|localhost/)
-    const { error } = await supabase!.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: process.env.E2E_EMAIL!,
       password: process.env.E2E_PASSWORD!
     })
@@ -53,7 +53,7 @@ describe.skipIf(!PLANO)('cronograma contra o banco local', () => {
     )
     expect(r1.tarefas.size).toBeGreaterThan(0)
 
-    const g1 = await supabase!.rpc('planejamento_gravar_calculo', {
+    const g1 = await supabase.rpc('planejamento_gravar_calculo', {
       _planejamento_id: PLANO,
       _dados: payloadGravacao(e1, r1)
     })

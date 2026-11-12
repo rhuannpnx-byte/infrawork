@@ -29,7 +29,6 @@ import { AditivosPage } from '@/app/routes/orcamento/aditivos'
 import { PlanilhaInicialPage } from '@/app/routes/orcamento/planilha-inicial'
 import { ReajustesPage } from '@/app/routes/orcamento/reajustes'
 import { PlanejamentoIndex } from '@/app/routes/planejamento'
-import { PlanejamentoProgramacaoPage } from '@/app/routes/planejamento/programacao'
 import { PlanejamentoCronogramaPage } from '@/app/routes/planejamento/cronograma'
 import { PlanejamentoTempoCaminhoPage } from '@/app/routes/planejamento/tempo-caminho'
 import { PlanejamentoRecursosPage } from '@/app/routes/planejamento/recursos'
@@ -38,7 +37,6 @@ import { PlanejamentoCalendarioPage } from '@/app/routes/planejamento/calendario
 import { PlanejamentoEquipesPage } from '@/app/routes/planejamento/equipes'
 import { PlanejamentoCurvaSPage } from '@/app/routes/planejamento/curva-s'
 import { PlanejamentoCompararPage } from '@/app/routes/planejamento/comparar'
-import { PlanejamentoRevisaoDetalhePage } from '@/app/routes/planejamento/revisao-detalhe'
 import { PlanejamentoTrechosPage } from '@/app/routes/planejamento/trechos'
 import { AcompanhamentoIndex } from '@/app/routes/acompanhamento'
 import { AcompanhamentoCalendarioPage } from '@/app/routes/acompanhamento/calendario'
@@ -188,6 +186,7 @@ function buildRouteTree() {
     path: 'planejamento',
     component: () => <Outlet />
   })
+  // endereços antigos (abas salvas, favoritos) redirecionam para a tela atual
   const planejamentoTree = planejamentoLayout.addChildren([
     createRoute({
       getParentRoute: () => planejamentoLayout,
@@ -207,7 +206,6 @@ function buildRouteTree() {
     createRoute({
       getParentRoute: () => planejamentoLayout,
       path: 'servicos',
-      // as dependências entre serviços são criadas no próprio cronograma (diálogo da dependência)
       beforeLoad: () => {
         throw redirect({ to: '/planejamento/cronograma' })
       }
@@ -220,7 +218,9 @@ function buildRouteTree() {
     createRoute({
       getParentRoute: () => planejamentoLayout,
       path: 'marcha-tempo',
-      component: PlanejamentoTempoCaminhoPage
+      beforeLoad: () => {
+        throw redirect({ to: '/planejamento/tempo-caminho' })
+      }
     }),
     createRoute({
       getParentRoute: () => planejamentoLayout,
@@ -235,7 +235,9 @@ function buildRouteTree() {
     createRoute({
       getParentRoute: () => planejamentoLayout,
       path: 'programacao',
-      component: PlanejamentoProgramacaoPage
+      beforeLoad: () => {
+        throw redirect({ to: '/planejamento/cronograma' })
+      }
     }),
     createRoute({
       getParentRoute: () => planejamentoLayout,
@@ -255,7 +257,9 @@ function buildRouteTree() {
     createRoute({
       getParentRoute: () => planejamentoLayout,
       path: 'histograma',
-      component: PlanejamentoRecursosPage
+      beforeLoad: () => {
+        throw redirect({ to: '/planejamento/recursos' })
+      }
     }),
     createRoute({
       getParentRoute: () => planejamentoLayout,
@@ -272,7 +276,9 @@ function buildRouteTree() {
     createRoute({
       getParentRoute: () => planejamentoLayout,
       path: 'revisoes/$id',
-      component: PlanejamentoRevisaoDetalhePage
+      beforeLoad: () => {
+        throw redirect({ to: '/planejamento/cronograma' })
+      }
     })
   ])
 

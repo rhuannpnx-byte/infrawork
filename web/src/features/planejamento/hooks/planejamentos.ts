@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { invalidarCadeia } from '@/lib/query/cadeia'
 import type { Planejamento } from '@/types/planejamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const COLUNAS =
   'id, obra_id, nome, descricao, is_baseline, vigente, vigente_em, travada_em, recalculo_pendente, premissa_calendario, status, ' +
@@ -28,7 +24,6 @@ export function usePlanejamentos(
     queryKey: ['planejamento', 'lista', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Planejamento[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('planejamento')
         .select(COLUNAS)
@@ -53,7 +48,6 @@ export function usePlanejamentoAtivo(
     queryKey: ['planejamento', 'ativo', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Planejamento | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('planejamento')
         .select(COLUNAS)
@@ -84,7 +78,6 @@ export function useBaseline(
     queryKey: ['planejamento', 'baseline', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<PlanoReferencia | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('planejamento')
         .select(COLUNAS)
@@ -109,7 +102,6 @@ export function useCadeiaTrava(
     queryKey: ['orcamento', 'cadeia-trava', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<string | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('cadeia_trava_motivo', { _obra_id: obraId! })
       if (error) throw error
       return (data as string | null) ?? null
@@ -142,7 +134,6 @@ export function useLbPremissasDiff(
     queryKey: ['planejamento', 'premissas-diff', planejamentoId],
     enabled: !!planejamentoId && enabled,
     queryFn: async (): Promise<PremissasDiff> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('lb_premissas_diff', {
         _planejamento_id: planejamentoId!
       })
@@ -173,7 +164,6 @@ export function useCreatePlanejamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('planejamento')
         .insert({
@@ -198,7 +188,6 @@ export function useDeletePlanejamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('planejamento').delete().eq('id', id)
       if (error) throw error
     },
@@ -216,7 +205,6 @@ export function useCopiarPlanejamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ origem_id, nome_novo, ajuste_data_inicio }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('planejamento_copiar', {
         _origem_id: origem_id,
         _nome: nome_novo,
@@ -248,7 +236,6 @@ async function promover(
   planejamento_id: string,
   marcar_vigente?: boolean
 ): Promise<{ baseline_id: string; snapshot_id: string; vigente: boolean }> {
-  if (!SUPABASE_ENABLED || !supabase) notReady()
   const { data, error } = await supabase.rpc('planejamento_promover', {
     _planejamento_id: planejamento_id,
     _marcar_vigente: marcar_vigente ?? null
@@ -263,7 +250,6 @@ export function useMarcarVigente(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ planejamento_id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('marcar_vigente', { _planejamento_id: planejamento_id })
       if (error) throw error
     },
@@ -277,7 +263,6 @@ export function useDesmarcarVigente(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ obra_id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('desmarcar_vigente', { _obra_id: obra_id })
       if (error) throw error
     },
@@ -300,7 +285,6 @@ export function useRestaurarLinhaBase(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ planejamento_id, nome_novo, marcar_vigente }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data: lb } = await supabase
         .from('planejamento')
         .select('is_baseline')
@@ -341,7 +325,7 @@ async function calcularEGravar(planejamentoId: string): Promise<void> {
     const entrada = await carregarPlanoEntrada(planejamentoId)
     const calc = await calcularNoWorker(entrada)
     if (!calc.payload) return
-    const { data, error } = await supabase!.rpc('planejamento_gravar_calculo', {
+    const { data, error } = await supabase.rpc('planejamento_gravar_calculo', {
       _planejamento_id: planejamentoId,
       _dados: calc.payload
     })

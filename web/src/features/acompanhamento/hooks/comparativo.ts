@@ -1,12 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import { useAuthStore } from '@/stores/auth-store'
 import type { PrevistoRealizadoItem, CurvaSPonto } from '@/types/acompanhamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 // O Cliente não tem RLS direto nas views (que dependeriam das tabelas de
 // orçamento e vazariam preço). Em vez disso lê via funções SECURITY DEFINER
@@ -23,7 +19,6 @@ export function usePrevistoXRealizado(
     enabled: !!obraId,
     staleTime: 30 * 1000,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const q = isCliente
         ? supabase
             .rpc('cliente_previsto_realizado', { _obra_id: obraId! })
@@ -51,7 +46,6 @@ export function useCurvaS(
     enabled: !!obraId,
     staleTime: 60 * 1000,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const limite = new Date()
       limite.setDate(limite.getDate() - diasAtras)
       const desde = limite.toISOString().slice(0, 10)

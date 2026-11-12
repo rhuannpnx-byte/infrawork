@@ -1,10 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export interface Reajuste {
   id: string
@@ -45,7 +41,6 @@ export function useReajustes(
     queryKey: ['orcamento', 'reajustes', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Reajuste[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('orcamento_reajuste')
         .select(
@@ -70,7 +65,6 @@ export function useReajusteDetalhe(
     queryKey: ['orcamento', 'reajuste-detalhe', reajusteId],
     enabled: !!reajusteId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const [g, i] = await Promise.all([
         supabase
           .from('orcamento_reajuste_grupo')
@@ -108,7 +102,6 @@ export function useDataBase(
     queryKey: ['orcamento', 'data-base', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<string | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obras')
         .select('data_base_orcamento')
@@ -126,7 +119,6 @@ export function useDefinirDataBase(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ obra_id, data }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.rpc('definir_data_base', { _obra_id: obra_id, _data: data })
       if (error) throw error
     },
@@ -145,7 +137,6 @@ export function useCriarReajuste(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (b) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('orcamento_reajuste')
         .insert({ obra_id: b.obra_id, data: b.data, descricao: b.descricao?.trim() || null })
@@ -202,7 +193,6 @@ export function useAtualizarReajuste(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...patch }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('orcamento_reajuste').update(patch).eq('id', id)
       if (error) throw error
     },
@@ -214,7 +204,6 @@ export function useExcluirReajuste(): ReturnType<typeof useMutation<void, Error,
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('orcamento_reajuste').delete().eq('id', id)
       if (error) throw error
     },
@@ -228,7 +217,6 @@ export function useSalvarGrupo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...b }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = id
         ? await supabase.from('orcamento_reajuste_grupo').update(b).eq('id', id)
         : await supabase.from('orcamento_reajuste_grupo').insert(b)
@@ -245,7 +233,6 @@ export function useExcluirGrupo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('orcamento_reajuste_grupo').delete().eq('id', id)
       if (error) throw error
     },
@@ -265,7 +252,6 @@ export function useClassificar(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ reajuste_id, receita_ids, grupo_id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       if (receita_ids.length === 0) return
       if (grupo_id === null) {
         const { error } = await supabase
@@ -297,7 +283,6 @@ export function useAplicarReajuste(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('aplicar_reajuste', { _reajuste_id: id })
       if (error) throw error
       return data as never

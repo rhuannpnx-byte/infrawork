@@ -19,28 +19,6 @@ export function dec(v: Numeric): Decimal {
   return new Decimal(v)
 }
 
-export function add(a: Numeric, b: Numeric): Decimal {
-  return dec(a).plus(dec(b))
-}
-
-export function sub(a: Numeric, b: Numeric): Decimal {
-  return dec(a).minus(dec(b))
-}
-
-export function mul(a: Numeric, b: Numeric): Decimal {
-  return dec(a).times(dec(b))
-}
-
-export function div(a: Numeric, b: Numeric): Decimal {
-  const denom = dec(b)
-  if (denom.isZero()) return new Decimal(0)
-  return dec(a).dividedBy(denom)
-}
-
-export function sum(values: Numeric[]): Decimal {
-  return values.reduce<Decimal>((acc, v) => acc.plus(dec(v)), new Decimal(0))
-}
-
 const BRL_FMT = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
@@ -65,12 +43,6 @@ const NUM_FMT_4 = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 4
 })
 
-const PCT_FMT = new Intl.NumberFormat('pt-BR', {
-  style: 'percent',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-})
-
 /** Formata como R$ 1.234,56 (2 casas). */
 export function fmtBRL(v: Numeric): string {
   return BRL_FMT.format(dec(v).toNumber())
@@ -81,19 +53,9 @@ export function fmtBRL4(v: Numeric): string {
   return BRL_FMT_4.format(dec(v).toNumber())
 }
 
-/** Formata como 1.234,56. */
-export function fmtNum(v: Numeric): string {
-  return NUM_FMT_2.format(dec(v).toNumber())
-}
-
 /** Formata até 4 casas, removendo zeros à direita. */
 export function fmtQtd(v: Numeric): string {
   return NUM_FMT_4.format(dec(v).toNumber())
-}
-
-/** Recebe um decimal já em forma fracionária (0.27 → 27%). */
-export function fmtPct(v: Numeric): string {
-  return PCT_FMT.format(dec(v).toNumber())
 }
 
 /** Recebe um decimal já em forma fracionária (0.27 → "27,00%"). */
@@ -140,9 +102,4 @@ export function parseBR(s: string): Decimal {
   } catch {
     return new Decimal(0)
   }
-}
-
-/** Para uso em forms: serializa Decimal como string com ponto (formato Postgres). */
-export function toDbNumeric(v: Numeric): string {
-  return dec(v).toFixed(4)
 }

@@ -10,7 +10,6 @@
  * Linha de unidades opcional entre o cabeçalho e os dados. Erros sempre citam aba e célula.
  */
 import ExcelJS from 'exceljs'
-import { loadWorkbookFromFile } from '@/lib/xlsx/download'
 import { marcadorToMetros, parseMarcador, type TrechoCtx } from '@/lib/format/posicao'
 import { type TrechoUnidadeConfig } from './grade'
 import { faixasDosPontos, type SegmentoValores } from './segmentos'
@@ -286,11 +285,6 @@ export function lerPlanilhaQuantidades(wb: ExcelJS.Workbook): LeituraBoq {
     else ignoradas.push(ws.name)
   }
   return { abas, ignoradas, erros }
-}
-
-export async function lerPlanilhaQuantidadesArquivo(file: File): Promise<LeituraBoq> {
-  const wb = await loadWorkbookFromFile(file)
-  return lerPlanilhaQuantidades(wb)
 }
 
 // ── conversão em faixas do local ───────────────────────────────────────────────────────────────────────────────

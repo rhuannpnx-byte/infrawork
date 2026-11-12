@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { Anexo, AnexoEscopo } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const COLS =
   'id, obra_id, escopo, escopo_id, nome, storage_path, mime, tamanho_bytes, autor_id, created_at'
@@ -18,7 +14,6 @@ export function useAnexos(
     queryKey: ['orcamento', 'anexos', escopo, escopoId],
     enabled: !!escopoId,
     queryFn: async (): Promise<Anexo[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('anexo')
         .select(COLS)
@@ -45,7 +40,6 @@ export function useUploadAnexo(): ReturnType<
   const callerId = useAuthStore((s) => s.profile?.id ?? null)
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       // Storage path: <obra_id>/<escopo>/<escopo_id>/<timestamp>-<nome>
       const ts = Date.now()
       const safe = body.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -95,7 +89,6 @@ export function useDeleteAnexo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, storage_path }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('anexo').delete().eq('id', id)
       if (error) throw error
       await supabase.storage.from('orcamento').remove([storage_path])
@@ -110,7 +103,6 @@ export function useDeleteAnexo(): ReturnType<
  * Cria URL temporária assinada (1h) para download/preview.
  */
 export async function getAnexoSignedUrl(storagePath: string): Promise<string | null> {
-  if (!SUPABASE_ENABLED || !supabase) return null
   const { data } = await supabase.storage.from('orcamento').createSignedUrl(storagePath, 3600)
   return data?.signedUrl ?? null
 }

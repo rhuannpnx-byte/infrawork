@@ -142,33 +142,6 @@ export function setaSvg(t: Tracado): string | null {
   return pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z'
 }
 
-/** Distância de um ponto ao traçado (seleção por clique, tolerância do ApeX ~5 px). */
-export function distanciaAoTracado(p: Ponto, t: Tracado): number {
-  const pts: Ponto[] = [t.p1, t.p2]
-  if (t.raio > 0) {
-    for (let i = 1; i < 8; i++) {
-      const s = i / 8,
-        u = 1 - s
-      pts.push({
-        x: u * u * t.p2.x + 2 * u * s * t.canto.x + s * s * t.p3.x,
-        y: u * u * t.p2.y + 2 * u * s * t.canto.y + s * s * t.p3.y
-      })
-    }
-    pts.push(t.p3)
-  }
-  pts.push(t.p4)
-  let best = Infinity
-  for (let i = 0; i + 1 < pts.length; i++) best = Math.min(best, distSeg(p, pts[i]!, pts[i + 1]!))
-  return best
-}
-
-function distSeg(p: Ponto, a: Ponto, b: Ponto): number {
-  const d = sub(b, a)
-  const l2 = d.x * d.x + d.y * d.y
-  const k = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * d.x + (p.y - a.y) * d.y) / l2)) : 0
-  return Math.hypot(p.x - (a.x + d.x * k), p.y - (a.y + d.y * k))
-}
-
 export const NOME_TIPO: Record<TipoDependencia, string> = {
   FS: 'Término → início',
   SS: 'Início → início',

@@ -4,7 +4,7 @@
  * calendário marca os planos em edição para recalcular (gatilhos); a entrada do cronograma é relida.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type {
   CalendarioEntrada,
   DefinicaoCalendario,
@@ -14,11 +14,6 @@ import type {
 } from '../motor/tipos'
 import { CHAVE_CRONOGRAMA } from './calculo'
 import { traduzirErro } from './edicao'
-
-function sb(): NonNullable<typeof supabase> {
-  if (!SUPABASE_ENABLED || !supabase) throw new Error('Supabase não configurado.')
-  return supabase
-}
 
 export interface DefinicaoRow extends DefinicaoCalendario {
   id: string
@@ -49,7 +44,7 @@ export function useCalendariosObra(
     queryKey: chave(obraId),
     enabled: !!obraId,
     queryFn: async () => {
-      const c = sb()
+      const c = supabase
       const [cals, defs, fat] = await Promise.all([
         c
           .from('calendario')
@@ -135,7 +130,7 @@ export function useSalvarCalendario(obraId: string): ReturnType<
   const depois = useDepois(obraId)
   return useMutation({
     mutationFn: async ({ id, nome, semana, padrao, copiarDe }) => {
-      const c = sb()
+      const c = supabase
       if (id) {
         const campos: Record<string, unknown> = {}
         if (nome !== undefined) campos.nome = nome
@@ -175,7 +170,7 @@ export function useExcluirCalendario(
   const depois = useDepois(obraId)
   return useMutation({
     mutationFn: async (id) => {
-      await ok(sb().from('calendario').delete().eq('id', id))
+      await ok(supabase.from('calendario').delete().eq('id', id))
     },
     onSettled: () => depois()
   })
@@ -200,7 +195,7 @@ export function useSalvarDefinicoes(
   const depois = useDepois(obraId)
   return useMutation({
     mutationFn: async (lista) => {
-      const c = sb()
+      const c = supabase
       for (const { id, ...d } of lista) {
         if (id) await ok(c.from('calendario_definicao').update(d).eq('id', id))
         else await ok(c.from('calendario_definicao').insert(d))
@@ -216,7 +211,7 @@ export function useExcluirDefinicao(
   const depois = useDepois(obraId)
   return useMutation({
     mutationFn: async (id) => {
-      await ok(sb().from('calendario_definicao').delete().eq('id', id))
+      await ok(supabase.from('calendario_definicao').delete().eq('id', id))
     },
     onSettled: () => depois()
   })
@@ -231,7 +226,7 @@ export function useSalvarFator(
   return useMutation({
     mutationFn: async (f) => {
       await ok(
-        sb()
+        supabase
           .from('obra_produtividade_mes')
           .upsert({ obra_id: obraId, ...f }, { onConflict: 'obra_id,ano_mes' })
       )
@@ -247,7 +242,7 @@ export function useExcluirFator(
   return useMutation({
     mutationFn: async (anoMes) => {
       await ok(
-        sb().from('obra_produtividade_mes').delete().eq('obra_id', obraId).eq('ano_mes', anoMes)
+        supabase.from('obra_produtividade_mes').delete().eq('obra_id', obraId).eq('ano_mes', anoMes)
       )
     },
     onSettled: () => depois()

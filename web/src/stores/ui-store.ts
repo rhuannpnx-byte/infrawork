@@ -1,13 +1,7 @@
 import { create } from 'zustand'
 import { storageKey } from '@/lib/storage-keys'
 
-export type ModalKey =
-  | 'commandPalette'
-  | 'projectSwitcher'
-  | 'export'
-  | 'confirmDelete'
-  | 'settings'
-  | 'shortcuts'
+export type ModalKey = 'commandPalette' | 'projectSwitcher' | 'export' | 'settings' | 'shortcuts'
 
 interface UIStore {
   sidebarOpen: boolean
@@ -17,7 +11,6 @@ interface UIStore {
   activeModals: Set<ModalKey>
   openModal: (key: ModalKey, payload?: unknown) => void
   closeModal: (key: ModalKey) => void
-  toggleModal: (key: ModalKey) => void
   modalPayload: Record<string, unknown>
 
   density: 'compact' | 'normal'
@@ -37,7 +30,7 @@ function writeSidebarPref(open: boolean): void {
   window.localStorage.setItem(SIDEBAR_KEY, open ? '1' : '0')
 }
 
-export const useUIStore = create<UIStore>((set, get) => ({
+export const useUIStore = create<UIStore>((set) => ({
   sidebarOpen: readSidebarPref(),
   toggleSidebar: () =>
     set((s) => {
@@ -70,16 +63,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
       return { activeModals: next }
     }),
 
-  toggleModal: (key) => {
-    const open = get().activeModals.has(key)
-    if (open) get().closeModal(key)
-    else get().openModal(key)
-  },
-
   density: 'normal',
   setDensity: (density) => set({ density })
 }))
-
-export function useModalOpen(key: ModalKey): boolean {
-  return useUIStore((s) => s.activeModals.has(key))
-}

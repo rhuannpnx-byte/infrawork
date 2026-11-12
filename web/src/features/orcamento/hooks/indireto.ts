@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { Indireto, IndiretoTipo } from '@/types/orcamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export function useIndireto(
   obraId: string | null | undefined
@@ -14,7 +10,6 @@ export function useIndireto(
     queryKey: ['orcamento', 'indireto', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Indireto[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('indireto_item')
         .select(
@@ -47,7 +42,6 @@ export function useUpsertIndireto(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...body }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const payload = {
         obra_id: body.obra_id,
         parent_id: body.parent_id ?? null,
@@ -85,7 +79,6 @@ export function useDeleteIndireto(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('indireto_item').delete().eq('id', id)
       if (error) throw error
     },

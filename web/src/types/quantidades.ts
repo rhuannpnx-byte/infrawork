@@ -14,13 +14,6 @@
 
 export type ModoQuantidade = 'analitico' | 'simplificado'
 
-export interface TrechoQuantidadeTemplate {
-  id: string
-  trecho_id: string
-  modo: ModoQuantidade
-  created_at: string
-}
-
 export interface TrechoQuantidadeVersao {
   id: string
   template_id: string
@@ -51,25 +44,6 @@ export interface TrechoQuantidadeSegmento {
   posicao_fim_m: number
   unidade_inicio_label: string | null
   unidade_fim_label: string | null
-}
-
-export interface TrechoQuantidadeCelula {
-  segmento_id: string
-  coluna_id: string
-  valor: number
-}
-
-/** Card resumo de template na lista (template + dados da versão atual). */
-export interface TrechoQuantidadeTemplateResumo extends TrechoQuantidadeTemplate {
-  total_versoes: number
-  versao_atual: {
-    id: string
-    numero: number
-    comentario: string | null
-    created_at: string
-    total_colunas: number
-    total_segmentos: number
-  } | null
 }
 
 /** Versão completa: dados + colunas + segmentos com células agregadas. */

@@ -17,7 +17,7 @@ import {
   useQueryClient,
   type QueryClient
 } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { carregarPlanoEntrada } from '../dados'
 import { calcularNoWorker, faixasNoWorker } from '../motor/cliente'
 import type { TimingBands } from '@apex/engine'
@@ -121,7 +121,7 @@ export function useCalculoCronograma(planejamentoId: string | null | undefined):
   // gravação dos resultados (uma por revisão dos dados, mesmo com várias telas abertas no plano)
   const gravar = useMutation({
     mutationFn: async ({ plano, payload }: { plano: string; payload: Record<string, unknown> }) => {
-      const { data, error } = await supabase!.rpc('planejamento_gravar_calculo', {
+      const { data, error } = await supabase.rpc('planejamento_gravar_calculo', {
         _planejamento_id: plano,
         _dados: payload
       })
@@ -148,7 +148,6 @@ export function useCalculoCronograma(planejamentoId: string | null | undefined):
 
   useEffect(() => {
     if (!precisaGravar || !entrada || !calcQ.data?.payload) return
-    if (!SUPABASE_ENABLED || !supabase) return
     const plano = entrada.plano.id
     const chave = `${entrada.plano.dados_rev}:${hash(sig ?? '')}`
     if (ultimaGravacao.get(plano) === chave) return

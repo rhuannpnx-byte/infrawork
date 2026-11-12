@@ -302,28 +302,6 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
   return { metros }
 }
 
-/**
- * Helper: marcador real do início e do fim do trecho, em string formatada.
- * Útil pra mostrar "intervalo válido" abaixo do input.
- */
-export function intervaloMarcadorDoTrecho(trecho: TrechoCtx): {
-  inicio: string
-  fim: string | null
-} {
-  const inicial = Number(trecho.marcador_valor_inicial ?? 0)
-  const inicio = formatPosicao(
-    inicial * divisorMetrosPorUnidade(trecho),
-    trecho.unidade_espaco_padrao
-  )
-  if (!trecho.geometry_comprimento_m) return { inicio, fim: null }
-  const fimMarcador = metrosToMarcador(trecho.geometry_comprimento_m, trecho)
-  const fim = formatPosicao(
-    fimMarcador * divisorMetrosPorUnidade(trecho),
-    trecho.unidade_espaco_padrao
-  )
-  return { inicio, fim }
-}
-
 // ─── Helpers privados ───────────────────────────────────────────────────────
 
 /**

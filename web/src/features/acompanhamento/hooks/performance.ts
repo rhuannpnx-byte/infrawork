@@ -4,17 +4,13 @@
 // - usePerfHistorico: benchmark histórico em outras obras da empresa (RPC), por código do serviço.
 
 import { useQuery } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import type {
   PerfHistorico,
   ProducaoEnriquecida,
   ProdutividadeEquipeItem
 } from '@/types/acompanhamento'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 const PERF_COLS =
   'id, obra_id, data, qtd, qtd_convertida, unidade_plano, ' +
@@ -33,7 +29,6 @@ export function useProducaoPerformance(
     enabled: !!obraId,
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ProducaoEnriquecida[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const sb = supabase
       const data = await lerTodas((de, ate) =>
         sb
@@ -60,7 +55,6 @@ export function useProdutividadeObra(
     enabled: !!obraId,
     staleTime: 60 * 1000,
     queryFn: async (): Promise<ProdutividadeEquipeItem[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('vw_acompanhamento_produtividade_equipe')
         .select('*')
@@ -88,7 +82,6 @@ export function usePerfHistorico(
     enabled: !!obraAtualId && servicoCodigos.length > 0,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<PerfHistorico | null> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('acompanhamento_perf_historico', {
         p_servico_codigos: servicoCodigos,
         p_obra_atual: obraAtualId!

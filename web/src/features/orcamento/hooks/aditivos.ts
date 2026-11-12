@@ -1,10 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export type AditivoStatus = 'rascunho' | 'aplicado'
 export type AditivoItemTipo = 'quantidade' | 'exclusao' | 'novo'
@@ -52,7 +48,6 @@ export function useAditivos(
     queryKey: ['orcamento', 'aditivos', obraId],
     enabled: !!obraId,
     queryFn: async (): Promise<Aditivo[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('orcamento_aditivo')
         .select(
@@ -77,7 +72,6 @@ export function useAditivoItens(
     queryKey: ['orcamento', 'aditivo-itens', aditivoId],
     enabled: !!aditivoId,
     queryFn: async (): Promise<AditivoItem[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('orcamento_aditivo_item')
         .select(
@@ -108,7 +102,6 @@ export function usePlanilhaInicial(obraId: string | null | undefined): ReturnTyp
     queryKey: ['orcamento', 'planilha-inicial', obraId],
     enabled: !!obraId,
     queryFn: async () => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('orcamento_planilha_inicial')
         .select('criada_em, snapshot')
@@ -126,7 +119,6 @@ export function useCriarAditivo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (b) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('orcamento_aditivo')
         .insert({ obra_id: b.obra_id, data: b.data, descricao: b.descricao?.trim() || null })
@@ -145,7 +137,6 @@ export function useAtualizarAditivo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...patch }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('orcamento_aditivo').update(patch).eq('id', id)
       if (error) throw error
     },
@@ -157,7 +148,6 @@ export function useExcluirAditivo(): ReturnType<typeof useMutation<void, Error, 
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('orcamento_aditivo').delete().eq('id', id)
       if (error) throw error
     },
@@ -177,7 +167,6 @@ export function useSalvarAditivoItem(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...b }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = id
         ? await supabase.from('orcamento_aditivo_item').update(b).eq('id', id)
         : await supabase.from('orcamento_aditivo_item').insert(b)
@@ -194,7 +183,6 @@ export function useExcluirAditivoItem(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { error } = await supabase.from('orcamento_aditivo_item').delete().eq('id', id)
       if (error) throw error
     },
@@ -213,7 +201,6 @@ export function useAplicarAditivo(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('aplicar_aditivo', { _aditivo_id: id })
       if (error) throw error
       return data as never

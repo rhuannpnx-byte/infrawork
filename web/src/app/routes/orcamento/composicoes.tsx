@@ -17,7 +17,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCpus } from '@/features/orcamento/hooks/cpus'
 import { previewCascadeCpus } from '@/features/orcamento/hooks/cascade'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { formatNumber } from '@/lib/format'
 import { fmtBRL4 } from '@/lib/money'
 import { formatDate } from '@/lib/format'
@@ -79,10 +79,6 @@ function ComposicoesInner(): ReactNode {
       variant: 'danger'
     })
     if (!ok) return
-    if (!SUPABASE_ENABLED || !supabase) {
-      toast.error('Supabase não configurado.')
-      return
-    }
     clear()
     setBulkDeleting(true)
     try {

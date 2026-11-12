@@ -20,9 +20,3 @@ export function addDiasISO(iso: string, dias: number): string {
   const dt = new Date(y, m - 1, d + dias)
   return toLocalISO(dt)
 }
-
-/** Data ISO → Date local à meia-noite. */
-export function parseLocalISO(iso: string): Date {
-  const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10))
-  return new Date(y, m - 1, d)
-}

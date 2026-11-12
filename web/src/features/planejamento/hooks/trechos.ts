@@ -6,14 +6,10 @@
 
 import { useMemo } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { fetchCelulasDaVersao } from '@/lib/quantidades/celulas-fetch'
 import type { ObraTrecho, UnidadeEspacoPadrao } from '@/types/gerencial'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 /**
  * Trechos da obra. `incluirSistema` (default false) controla se trecho-sistema
@@ -30,7 +26,6 @@ export function useObraTrechos(
     queryKey: ['planejamento', 'trechos', obraId, incluirSistema],
     enabled: !!obraId,
     queryFn: async (): Promise<ObraTrecho[]> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const q = supabase
         .from('obra_trecho')
         .select('*')
@@ -65,7 +60,6 @@ export function useCreateTrecho(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase
         .from('obra_trecho')
         .insert({
@@ -121,7 +115,6 @@ export function useUpdateTrecho(): ReturnType<typeof useMutation<void, Error, Up
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, obra_id: _o, ...rest }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const payload: Record<string, unknown> = {}
       if (rest.nome !== undefined) payload.nome = rest.nome.trim()
       if (rest.ordem !== undefined) payload.ordem = rest.ordem
@@ -187,7 +180,6 @@ export function useSalvarGeometriaTrecho(): ReturnType<
 export async function fetchTemplateAtual(
   trechoId: string
 ): Promise<TrechoQuantidadeVersaoCompleta | null> {
-  if (!SUPABASE_ENABLED || !supabase) notReady()
   const { data: tpl, error: tErr } = await supabase
     .from('trecho_quantidade_template')
     .select('id, modo')
@@ -314,7 +306,6 @@ export function useDeleteTrecho(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       // FK ON DELETE RESTRICT — se houver tarefas referenciando, falha com
       // 23503. Mensagem traduzida pra UX em chamadores.
       const { error } = await supabase.from('obra_trecho').delete().eq('id', id)

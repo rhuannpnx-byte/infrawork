@@ -39,8 +39,7 @@ export function ExportDialog(): ReactNode {
   const [incluirCabecalho, setIncluirCabecalho] = useState(true)
   const [exporting, setExporting] = useState(false)
 
-  // Sem config → mantém o stub legado (não quebra outras telas).
-  if (open && !config) return <StubDialog close={close} />
+  if (!config) return null
 
   const fmt: Format = formatosDisp.includes(format) ? format : formatosDisp[0]
 
@@ -199,25 +198,6 @@ export function ExportDialog(): ReactNode {
         </Button>
         <Button variant="default" onClick={handleExport} disabled={exporting}>
           {exporting ? 'Exportando…' : 'Exportar'}
-        </Button>
-      </DialogFooter>
-    </Dialog>
-  )
-}
-
-/** Diálogo placeholder antigo — usado quando a tabela não fornece config de export. */
-function StubDialog({ close }: { close: () => void }): ReactNode {
-  return (
-    <Dialog open onOpenChange={(o) => !o && close()} size="md">
-      <DialogHeader>
-        <DialogTitle>Exportar</DialogTitle>
-      </DialogHeader>
-      <DialogBody>
-        <p className="text-xs text-text-muted">Exportação não disponível para esta tabela.</p>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="default" onClick={close}>
-          Fechar
         </Button>
       </DialogFooter>
     </Dialog>

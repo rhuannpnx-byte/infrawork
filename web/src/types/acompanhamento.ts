@@ -19,64 +19,6 @@ export interface Encarregado {
   updated_at: string
 }
 
-export interface AcompanhamentoProducao {
-  id: string
-  obra_id: string
-  data: string
-  item_orcamentario_id: string | null
-  servico_id: string | null
-  servico_nome: string
-  unidade: string | null
-  equipe_id: string | null
-  encarregado_id: string | null
-  quantidade: number
-  fator_conversao: number
-  frente: string | null
-  estaca_inicial: string | null
-  estaca_final: string | null
-  /** local do lançamento (eixo ou área) e a faixa em metros internos do eixo (área: null) */
-  trecho_id: string | null
-  posicao_inicio_m: number | null
-  posicao_fim_m: number | null
-  obs: string | null
-  origem: ProducaoOrigem
-  importacao_id: string | null
-  criado_por: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface ProducaoMaterial {
-  id: string
-  producao_id: string
-  nome: string
-  quantidade: number | null
-  unidade: string | null
-}
-
-export interface AcompanhamentoFoto {
-  id: string
-  obra_id: string
-  producao_id: string | null
-  item_orcamentario_id: string | null
-  servico_nome: string | null
-  encarregado_id: string | null
-  lat: number | null
-  lng: number | null
-  captured_at: string | null
-  storage_bucket: string
-  storage_key: string
-  mime: string | null
-  size_bytes: number | null
-  width: number | null
-  height: number | null
-  obs: string | null
-  enviado_por: string | null
-  excluida_em: string | null
-  excluida_por: string | null
-  created_at: string
-}
-
 /** Payload de criação/edição de um lançamento de produção. */
 export interface LancamentoInput {
   obra_id: string
@@ -141,15 +83,6 @@ export const ALERTA_TIPO_LABEL: Record<AlertaTipo, string> = {
   sem_foto_periodo: 'Sem evidência fotográfica',
   produtividade_baixa: 'Produtividade abaixo da meta',
   lancamento_sem_equipe: 'Lançamentos sem equipe'
-}
-
-export const ALERTA_TIPO_ICON: Record<AlertaTipo, string> = {
-  producao_zero_dias: 'pause-circle',
-  desvio_quantidade: 'trending-down',
-  desvio_prazo: 'clock-alert',
-  sem_foto_periodo: 'image-off',
-  produtividade_baixa: 'gauge',
-  lancamento_sem_equipe: 'users'
 }
 
 // ─── Views enriquecidas ──────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { LINK_AUTH, supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { LINK_AUTH, supabase, SUPABASE_CONFIGURADO } from '@/lib/supabase/client'
 import { useTabsStore } from '@/stores/tabs-store'
 import type { AuthEmpresa, AuthObra, AuthProfile, MePayload, Role } from '@/types/auth'
 
@@ -53,9 +53,9 @@ function pararHeartbeat(): void {
 }
 
 function iniciarHeartbeat(): void {
-  if (!supabase || heartbeatTimer) return
+  if (heartbeatTimer) return
   heartbeatTimer = setInterval(() => {
-    void supabase!.rpc('registrar_presenca').then(
+    void supabase.rpc('registrar_presenca').then(
       () => {},
       () => {} // best-effort — nunca quebra a sessão
     )
@@ -64,7 +64,6 @@ function iniciarHeartbeat(): void {
 
 /** Registra 1 acesso (login OU abertura do app com sessão) e liga o heartbeat. */
 async function registrarAcessoEHeartbeat(): Promise<void> {
-  if (!supabase) return
   try {
     await supabase.rpc('registrar_acesso')
   } catch {
@@ -74,7 +73,6 @@ async function registrarAcessoEHeartbeat(): Promise<void> {
 }
 
 async function fetchMe(): Promise<MePayload | null> {
-  if (!supabase) return null
   const { data: sessionData } = await supabase.auth.getSession()
   const accessToken = sessionData.session?.access_token
   if (!accessToken) return null
@@ -100,24 +98,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   avisoLogin: avisoDoLink(LINK_AUTH.erro),
 
   async bootstrap() {
-    if (!SUPABASE_ENABLED) {
-      // Modo mock: cria uma sessão sintética como God (apenas DEV).
-      set({
-        status: 'authenticated',
-        profile: {
-          id: 'mock-god',
-          email: 'god@local',
-
-          nome: 'God Administrador (mock)',
-          role: 'god',
-          empresa_id: null,
-          engenheiro_id: null,
-          ativo: true
-        },
-        empresa: null,
-        obras: []
-      })
-      sanitizarAbasParaPapel('god')
+    if (!SUPABASE_CONFIGURADO) {
+      set({ status: 'guest', profile: null, empresa: null, obras: [] })
       return
     }
     set({ status: 'loading', error: null })
@@ -125,14 +107,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
       if (LINK_AUTH.recuperacao) {
         const tokens = LINK_AUTH.recuperacao
         LINK_AUTH.recuperacao = null
-        const { error } = await supabase!.auth.setSession(tokens)
+        const { error } = await supabase.auth.setSession(tokens)
         if (error) {
           set({ status: 'guest', avisoLogin: avisoDoLink('invalido') })
           return
         }
         set({ recuperacaoSenha: true })
       }
-      const { data } = await supabase!.auth.getSession()
+      const { data } = await supabase.auth.getSession()
       if (!data.session) {
         set({ status: 'guest', profile: null, empresa: null, obras: [] })
         return
@@ -157,9 +139,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   async signInWithPassword(email, password) {
-    if (!SUPABASE_ENABLED || !supabase) {
-      throw new Error('Supabase desativado neste ambiente.')
-    }
     // Sem status 'loading' aqui: o AuthGate trocaria a tela de login pelo
     // "Carregando…" e, se o login falhar, a mensagem de erro se perderia.
     set({ error: null, avisoLogin: null })
@@ -202,7 +181,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   async enviarLinkRecuperacao(email) {
-    if (!supabase) throw new Error('Supabase desativado neste ambiente.')
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin + '/'
     })
@@ -210,7 +188,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   async definirNovaSenha(senha) {
-    if (!supabase) throw new Error('Supabase desativado neste ambiente.')
     const { error } = await supabase.auth.updateUser({ password: senha })
     if (error) throw error
     set({ recuperacaoSenha: false })
@@ -222,7 +199,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   async refreshMe() {
-    if (!SUPABASE_ENABLED) return
+    if (!SUPABASE_CONFIGURADO) return
     try {
       const me = await fetchMe()
       if (!me) {

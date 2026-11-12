@@ -1,12 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { invalidarCadeia } from '@/lib/query/cadeia'
-import { supabase, SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { CpuItemGrupo } from '@/types/orcamento'
 import type { ComposicaoResultadoLinha, ModoExistente } from './importacao'
-
-function notReady(): never {
-  throw new Error('Supabase não configurado.')
-}
 
 export interface ComposicaoItemInput {
   grupo: CpuItemGrupo
@@ -40,7 +36,6 @@ export function useSalvarComposicao(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input): Promise<ComposicaoResultadoLinha> => {
-      if (!SUPABASE_ENABLED || !supabase) notReady()
       const { data, error } = await supabase.rpc('importar_composicoes', {
         _obra_id: input.obra_id,
         _composicoes: [

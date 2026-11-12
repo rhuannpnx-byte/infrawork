@@ -21,9 +21,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
-import { SUPABASE_ENABLED } from '@/lib/supabase/client'
+import { SUPABASE_CONFIGURADO } from '@/lib/supabase/client'
 import infraworkWordmark from '@/assets/infrawork-wordmark.png'
-import loginCover from '@/assets/login-cover.png'
+import loginCover from '@/assets/login-cover.webp'
 import { LoginWallpaper } from './LoginWallpaper'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -304,15 +304,15 @@ function LoginShell({ children }: { children: ReactNode }): ReactNode {
   )
 }
 
-function SupabaseDesativado(): ReactNode {
+function SemConfiguracao(): ReactNode {
   return (
     <div className="flex items-center justify-center h-screen bg-bg text-text">
       <div className="max-w-md text-center p-6 border border-warn/30 bg-warn/10 rounded">
         <AlertTriangle size={20} className="text-warn mx-auto mb-2" />
-        <div className="text-sm font-medium mb-1">Supabase desativado</div>
+        <div className="text-sm font-medium mb-1">Sistema sem configuração</div>
         <div className="text-xs text-text-muted">
-          Defina <code className="font-mono">VITE_USE_SUPABASE=true</code> e as credenciais para
-          usar a tela de login.
+          Esta publicação saiu sem <code className="font-mono">VITE_SUPABASE_URL</code> e{' '}
+          <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>. Avise o administrador.
         </div>
       </div>
     </div>
@@ -327,7 +327,7 @@ export function LoginPage(): ReactNode {
   const [modo, setModo] = useState<Modo>('entrar')
   const [email, setEmail] = useState('')
 
-  if (!SUPABASE_ENABLED) return <SupabaseDesativado />
+  if (!SUPABASE_CONFIGURADO) return <SemConfiguracao />
 
   return (
     <LoginShell>
