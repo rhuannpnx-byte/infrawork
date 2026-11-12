@@ -52,16 +52,32 @@ function linha(obra: string, l: Lancamento) {
   }
 }
 
-const materiaisDe = (id: string, l: Lancamento) =>
-  (l.materiais ?? [])
-    .filter((m) => m.nome.trim() || m.recurso_id)
-    .map((m) => ({
-      producao_id: id,
-      nome: m.nome.trim(),
-      quantidade: m.quantidade,
-      unidade: m.unidade?.trim() || null,
-      recurso_id: m.recurso_id ?? null
-    }))
+/** Registro da producao_salvar: produção + materiais numa transação (sem `materiais` na edição = não mexe). */
+const registro = (obra: string, l: Lancamento, id?: string) => ({
+  ...linha(obra, l),
+  ...(id ? { id } : {}),
+  ...(l.materiais
+    ? {
+        materiais: l.materiais
+          .filter((m) => m.nome.trim() || m.recurso_id)
+          .map((m) => ({
+            nome: m.nome.trim(),
+            quantidade: m.quantidade,
+            unidade: m.unidade?.trim() || null,
+            recurso_id: m.recurso_id ?? null
+          }))
+      }
+    : {})
+})
+
+const salvar = async (registros: unknown[], origem: 'app' | 'importacao', importacao?: string) =>
+  (
+    await rpc<{ ids: string[] }>('producao_salvar', {
+      _registros: registros,
+      _origem: origem,
+      _importacao_id: importacao ?? null
+    })
+  ).ids
 
 export const producao = ferramenta({
   nome: 'producao',
@@ -94,7 +110,10 @@ export const producao = ferramenta({
     confirmar: CONFIRMAR
   },
   destrutiva: true,
-  cobre: { tabelas: ['acompanhamento_producao', 'acompanhamento_producao_material'] },
+  cobre: {
+    tabelas: ['acompanhamento_producao', 'acompanhamento_producao_material'],
+    rpcs: ['producao_salvar']
+  },
   async executar(a) {
     switch (a.acao) {
       case 'listar':
@@ -110,23 +129,13 @@ export const producao = ferramenta({
         })
       case 'lancar': {
         const l = exigir(a.lancamento, 'lancamento', a.acao)
-        const [r] = await gravar<{ id: string }>('acompanhamento_producao', 'insert', {
-          ...linha(a.obra_id, l),
-          origem: 'app'
-        })
-        const mats = materiaisDe(r!.id, l)
-        if (mats.length) await gravar('acompanhamento_producao_material', 'insert', mats)
-        return r
+        const [id] = await salvar([registro(a.obra_id, l)], 'app')
+        return { id }
       }
       case 'editar': {
         const id = exigir(a.id, 'id', a.acao)
         const l = exigir(a.lancamento, 'lancamento', a.acao)
-        await gravar('acompanhamento_producao', 'update', linha(a.obra_id, l), [eq('id', id)])
-        if (l.materiais) {
-          await gravar('acompanhamento_producao_material', 'delete', null, [eq('producao_id', id)])
-          const mats = materiaisDe(id, l)
-          if (mats.length) await gravar('acompanhamento_producao_material', 'insert', mats)
-        }
+        await salvar([registro(a.obra_id, l, id)], 'app')
         return { id }
       }
       case 'excluir': {
@@ -210,19 +219,13 @@ export const producao = ferramenta({
         const pedido = pedirConfirmacao(a.confirmar, 'lançar produção em lote', previa)
         if (pedido) return pedido
         const importacao_id = randomUUID()
-        let inseridos = 0
-        for (let i = 0; i < linhas.length; i += 500) {
-          const parte = linhas.slice(i, i + 500)
-          const ids = await gravar<{ id: string }>(
-            'acompanhamento_producao',
-            'insert',
-            parte.map((l) => ({ ...linha(a.obra_id, l), origem: 'importacao', importacao_id }))
-          )
-          inseridos += ids.length
-          const mats = parte.flatMap((l, k) => (ids[k] ? materiaisDe(ids[k]!.id, l) : []))
-          if (mats.length) await gravar('acompanhamento_producao_material', 'insert', mats)
-        }
-        return { inseridos, importacao_id }
+        // tudo ou nada: uma linha recusada desfaz o lote inteiro
+        const ids = await salvar(
+          linhas.map((l) => registro(a.obra_id, l)),
+          'importacao',
+          importacao_id
+        )
+        return { inseridos: ids.length, importacao_id }
       }
       case 'desfazer_importacao': {
         const imp = exigir(a.importacao_id, 'importacao_id', a.acao)

@@ -160,35 +160,19 @@ export function useCreateServicoFromCpu(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body) => {
-      const { data: serv, error: errServ } = await supabase
-        .from('servico')
-        .insert({
-          obra_id: body.obra_id,
-          codigo: body.codigo,
-          nome: body.nome,
-          unidade: body.unidade,
-          parent_id: body.parent_id ?? null
-        })
-        .select('id')
-        .single()
-      if (errServ || !serv) throw errServ ?? new Error('Falha ao criar servico')
-
-      const { error: errLink } = await supabase.from('servico_cpu_link').insert({
-        servico_id: serv.id as string,
-        cpu_id: body.cpu_id,
-        fator: body.fator,
-        operacao: body.operacao ?? 'dividir',
-        ordem: 0
+      // serviço + vínculo + a CPU passa a ter o serviço como dono, numa transação
+      const { data, error } = await supabase.rpc('servico_criar_da_cpu', {
+        _obra_id: body.obra_id,
+        _codigo: body.codigo,
+        _nome: body.nome,
+        _unidade: body.unidade,
+        _cpu_id: body.cpu_id,
+        _fator: body.fator,
+        _operacao: body.operacao ?? 'dividir',
+        _parent_id: body.parent_id ?? null
       })
-      if (errLink) throw errLink
-
-      // Vincula a CPU ao servico (servico_id) — fica como dono.
-      await supabase
-        .from('cpu')
-        .update({ servico_id: serv.id as string })
-        .eq('id', body.cpu_id)
-
-      return { id: serv.id as string }
+      if (error) throw error
+      return { id: data as string }
     },
     onSuccess: () => {
       invalidarCadeia(qc)

@@ -320,6 +320,30 @@ const [pOutroEnc] = await q('acompanhamento_producao', (t) =>
 )
 check('encarregado vem da equipe quando não informado', pSoEquipe.encarregado_id === enc.id && pOutroEnc.encarregado_id === enc2.id, `${pSoEquipe.encarregado_id} / ${pOutroEnc.encarregado_id}`)
 await q('acompanhamento_producao', (t) => t.delete().in('id', [pSoEquipe.id, pOutroEnc.id]).select())
+// migração 0058: o lote grava tudo ou nada; a edição troca os materiais na mesma transação
+const antesLote = await q('acompanhamento_producao', (t) => t.select('id').eq('obra_id', obraId))
+const loteRuim = await sb.rpc('producao_salvar', {
+  _registros: [
+    { obra_id: obraId, data: iso(ontem), item_orcamentario_id: wrapper.id, quantidade: 2, materiais: [{ nome: 'Brita', quantidade: 1 }] },
+    { obra_id: obraId, data: '2099-01-01', item_orcamentario_id: wrapper.id, quantidade: 3 }
+  ],
+  _origem: 'importacao',
+  _importacao_id: crypto.randomUUID()
+})
+const depoisLote = await q('acompanhamento_producao', (t) => t.select('id').eq('obra_id', obraId))
+check('lote com uma linha recusada não grava nenhuma', !!loteRuim.error && depoisLote.length === antesLote.length, loteRuim.error?.message?.slice(0, 60))
+const okLote = await rpc('producao_salvar', {
+  _registros: [{ obra_id: obraId, data: iso(ontem), item_orcamentario_id: wrapper.id, quantidade: 2, materiais: [{ nome: 'Brita', quantidade: 1 }] }],
+  _origem: 'app'
+})
+const idLote = okLote.ids[0]
+const editRuim = await sb.rpc('producao_salvar', {
+  _registros: [{ id: idLote, obra_id: obraId, data: '2099-01-01', item_orcamentario_id: wrapper.id, quantidade: 2, materiais: [] }],
+  _origem: 'app'
+})
+const matsDepois = await q('acompanhamento_producao_material', (t) => t.select('nome').eq('producao_id', idLote))
+check('edição recusada não apaga os materiais', !!editRuim.error && matsDepois.length === 1, `${matsDepois.length} material(is)`)
+await q('acompanhamento_producao', (t) => t.delete().eq('id', idLote).select())
 await q('encarregado', (t) => t.delete().eq('id', enc2.id).select())
 await q('equipe', (t) => t.update({ encarregado_id: null }).eq('id', eqA.id).select())
 const [pe] = await q('vw_acompanhamento_producao_enriquecida', (t) =>

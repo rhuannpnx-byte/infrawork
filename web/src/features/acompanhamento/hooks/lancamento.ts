@@ -201,6 +201,7 @@ export function useLancamentosDia(
   })
 }
 
+/** Registro para a producao_salvar: produção + materiais numa transação (materiais ausentes = não mexe). */
 function rowDe(input: LancamentoInput): Record<string, unknown> {
   return {
     obra_id: input.obra_id,
@@ -215,8 +216,34 @@ function rowDe(input: LancamentoInput): Record<string, unknown> {
     trecho_id: input.trecho_id ?? null,
     posicao_inicio_m: input.trecho_id ? (input.posicao_inicio_m ?? null) : null,
     posicao_fim_m: input.trecho_id ? (input.posicao_fim_m ?? null) : null,
-    obs: input.obs?.trim() || null
+    obs: input.obs?.trim() || null,
+    ...(input.materiais
+      ? {
+          materiais: input.materiais
+            .filter((m) => m.nome.trim() || m.recurso_id)
+            .map((m) => ({
+              nome: m.nome.trim(),
+              quantidade: m.quantidade,
+              unidade: m.unidade?.trim() || null,
+              recurso_id: m.recurso_id ?? null
+            }))
+        }
+      : {})
   }
+}
+
+async function salvarProducao(
+  registros: Record<string, unknown>[],
+  origem: 'app' | 'importacao',
+  importacaoId: string | null = null
+): Promise<string[]> {
+  const { data, error } = await supabase.rpc('producao_salvar', {
+    _registros: registros,
+    _origem: origem,
+    _importacao_id: importacaoId
+  })
+  if (error) throw error
+  return (data as { ids: string[] }).ids
 }
 
 export function useCreateLancamento(): ReturnType<
@@ -225,26 +252,7 @@ export function useCreateLancamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input): Promise<{ id: string }> => {
-      const { data, error } = await supabase
-        .from('acompanhamento_producao')
-        .insert({ ...rowDe(input), origem: 'app' })
-        .select('id')
-        .single()
-      if (error) throw error
-      const id = data.id as string
-      const mats = (input.materiais ?? []).filter((m) => m.nome.trim() || m.recurso_id)
-      if (mats.length > 0) {
-        const { error: errMat } = await supabase.from('acompanhamento_producao_material').insert(
-          mats.map((m) => ({
-            producao_id: id,
-            nome: m.nome.trim(),
-            quantidade: m.quantidade,
-            unidade: m.unidade?.trim() || null,
-            recurso_id: m.recurso_id ?? null
-          }))
-        )
-        if (errMat) throw errMat
-      }
+      const [id] = await salvarProducao([rowDe(input)], 'app')
       return { id }
     },
     onSuccess: () => invalidarAcompanhamento(qc)
@@ -257,31 +265,7 @@ export function useUpdateLancamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...input }): Promise<void> => {
-      const { error } = await supabase
-        .from('acompanhamento_producao')
-        .update(rowDe(input))
-        .eq('id', id)
-      if (error) throw error
-      if (input.materiais) {
-        const { error: errDel } = await supabase
-          .from('acompanhamento_producao_material')
-          .delete()
-          .eq('producao_id', id)
-        if (errDel) throw errDel
-        const mats = input.materiais.filter((m) => m.nome.trim() || m.recurso_id)
-        if (mats.length > 0) {
-          const { error: errMat } = await supabase.from('acompanhamento_producao_material').insert(
-            mats.map((m) => ({
-              producao_id: id,
-              nome: m.nome.trim(),
-              quantidade: m.quantidade,
-              unidade: m.unidade?.trim() || null,
-              recurso_id: m.recurso_id ?? null
-            }))
-          )
-          if (errMat) throw errMat
-        }
-      }
+      await salvarProducao([{ ...rowDe(input), id }], 'app')
     },
     onSuccess: () => invalidarAcompanhamento(qc)
   })
@@ -343,37 +327,9 @@ export function useCreateLancamentosLote(): ReturnType<
     mutationFn: async ({ linhas, origem }) => {
       if (linhas.length === 0) return { inseridos: 0, importacao_id: null }
       const importacao_id = origem === 'importacao' ? crypto.randomUUID() : null
-      const rows = linhas.map((l) => ({ ...rowDe(l), origem, importacao_id }))
-      // lotes de 500 — PostgREST lida bem, mas evita payloads gigantes
-      let inseridos = 0
-      for (let i = 0; i < rows.length; i += 500) {
-        const { data, error } = await supabase
-          .from('acompanhamento_producao')
-          .insert(rows.slice(i, i + 500))
-          .select('id')
-        if (error) throw error
-        const ids = (data ?? []).map((r) => r.id as string)
-        inseridos += ids.length
-        // material controlado de cada linha (a ordem do retorno é a da inserção)
-        const mats = linhas.slice(i, i + 500).flatMap((l, k) =>
-          (l.materiais ?? [])
-            .filter((m) => ids[k] && (m.nome.trim() || m.recurso_id))
-            .map((m) => ({
-              producao_id: ids[k],
-              nome: m.nome.trim(),
-              quantidade: m.quantidade,
-              unidade: m.unidade?.trim() || null,
-              recurso_id: m.recurso_id ?? null
-            }))
-        )
-        if (mats.length) {
-          const { error: errMat } = await supabase
-            .from('acompanhamento_producao_material')
-            .insert(mats)
-          if (errMat) throw errMat
-        }
-      }
-      return { inseridos, importacao_id }
+      // tudo ou nada: uma linha recusada desfaz o lote inteiro
+      const ids = await salvarProducao(linhas.map(rowDe), origem, importacao_id)
+      return { inseridos: ids.length, importacao_id }
     },
     onSuccess: () => invalidarAcompanhamento(qc)
   })

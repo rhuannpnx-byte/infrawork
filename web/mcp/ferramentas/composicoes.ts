@@ -360,7 +360,8 @@ export const servicosCatalogo = ferramenta({
   descricao:
     'Ajustes finos do catálogo de composições: editar um serviço de custo (nome, unidade, produção diária, ' +
     'ativo), juntar várias CPUs num serviço (servico_cpu_link com fator e operação dividir|multiplicar), editar ' +
-    'itens de uma CPU ou publicar uma versão. acao: editar_servico | criar_servico | vincular_cpu | ' +
+    'itens de uma CPU ou publicar uma versão. acao: editar_servico | criar_servico (com cpu_id cria já vinculado ' +
+    'à CPU, numa transação) | vincular_cpu | ' +
     'editar_vinculo | remover_vinculo | item_cpu (cria/edita insumo de uma CPU) | remover_item_cpu | ' +
     'publicar_cpu (marca a versão como vigente).',
   entrada: {
@@ -389,10 +390,26 @@ export const servicosCatalogo = ferramenta({
     item_id: z.string().uuid().optional(),
     item: ITEM_COMPOSICAO.extend({ ordem: z.number().int().optional() }).optional()
   },
-  cobre: { tabelas: ['servico', 'servico_cpu_link', 'cpu', 'cpu_item'] },
+  cobre: {
+    tabelas: ['servico', 'servico_cpu_link', 'cpu', 'cpu_item'],
+    rpcs: ['servico_criar_da_cpu']
+  },
   async executar(a) {
     switch (a.acao) {
       case 'criar_servico':
+        // com cpu_id: cria, vincula e torna o serviço dono da CPU numa transação
+        if (a.cpu_id)
+          return {
+            id: await rpc<string>('servico_criar_da_cpu', {
+              _obra_id: exigir(a.obra_id, 'obra_id', a.acao),
+              _codigo: exigir(a.codigo, 'codigo', a.acao).trim(),
+              _nome: exigir(a.nome, 'nome', a.acao).trim(),
+              _unidade: a.unidade ?? null,
+              _cpu_id: a.cpu_id,
+              _fator: a.fator ?? 1,
+              _operacao: a.operacao ?? 'dividir'
+            })
+          }
         return (
           await gravar('servico', 'insert', {
             obra_id: exigir(a.obra_id, 'obra_id', a.acao),
