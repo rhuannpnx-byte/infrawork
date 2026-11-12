@@ -899,6 +899,38 @@ await sbAp.auth.signOut()
   const anon = await novoCliente().rpc('campo_obras')
   check('campo_obras recusa chamada anônima', !!anon.error, anon.error?.message?.slice(0, 60))
 
+  // migração 0053: sem login nada do banco fica exposto; função sensível confere a permissão na obra
+  const api = await (await fetch(`${URL}/rest/v1/`, { headers: { apikey: ANON } })).json()
+  const exposto = Object.keys(api.paths ?? {}).filter((p) => p !== '/')
+  check('sem login a API não expõe tabela nem função', !!api.paths && exposto.length === 0, exposto.slice(0, 5).join(', '))
+  const semLogin = novoCliente()
+  const tabAnon = await semLogin.from('obras').select('id').limit(1)
+  check('anônimo não lê tabela', !!tabAnon.error, tabAnon.error?.message?.slice(0, 60))
+  const sensiveis = [
+    ['snapshot_orcamento_atual', { _obra_id: obraId }],
+    ['recalcular_orcamento', { _obra_id: obraId }],
+    ['trecho_sync_tarefas', { _obra_id: obraId }],
+    ['lb_premissas_diff', { _planejamento_id: plan.id }],
+    ['set_recurso_preco_vigente', { _preco_id: np.id }],
+    ['importar_orcamento', { _obra_id: obraId, _itens: [], _alocacoes: [], _servicos: [], _opcoes: {} }]
+  ]
+  for (const [f, a] of sensiveis) {
+    const an = await semLogin.rpc(f, a)
+    const ou = await u.admB.c.rpc(f, a)
+    check(`${f}: recusa anônimo e adm de outra empresa`, !!an.error && !!ou.error, `${an.error?.code ?? 'passou'} / ${ou.error?.code ?? 'passou'}`)
+  }
+  for (const f of ['recalcular_orcamento', 'lb_premissas_diff']) {
+    const a = sensiveis.find((s) => s[0] === f)[1]
+    const daObra = await u.eng.c.rpc(f, a)
+    const cliente = await u.cli.c.rpc(f, a)
+    check(`${f}: engenheiro da obra chama, cliente não`, !daObra.error && !!cliente.error, daObra.error?.message?.slice(0, 80))
+  }
+  const precoA = await u.admA.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
+  const precoB = await u.admB.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
+  check('receita_preco_em: a outra empresa recebe vazio', precoA.data != null && !precoB.error && precoB.data == null, `A=${precoA.data} B=${precoB.data}`)
+  const travaB = await u.admB.c.rpc('cadeia_trava_motivo', { _obra_id: obraId })
+  check('cadeia_trava_motivo: a outra empresa recebe vazio', !travaB.error && travaB.data == null, String(travaB.data))
+
   // engenheiro: libera e revoga obra do apontador, redefine a senha dele; não a de outros
   const lib = await fnComo(u.eng.token, 'grant-obra-permissao', { obra_id: obraId, user_id: apt.id })
   check('engenheiro libera a obra para o apontador', lib.status >= 200 && lib.status < 300, JSON.stringify(lib.j).slice(0, 100))

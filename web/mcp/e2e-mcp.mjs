@@ -370,6 +370,12 @@ try {
     confirmar: true
   })
   check('linha de base travada e vigente', lb.vigente === true, JSON.stringify(lb))
+  const trava = await chamar('planos', { acao: 'trava', obra_id: O })
+  check('trava da cadeia cita o plano vigente', String(trava).includes('vigente'), String(trava))
+  const diff = await chamar('planos', { acao: 'premissas_diff', planejamento_id: plano.id })
+  check('premissas da linha de base sem mudança', diff.mudou === false, JSON.stringify(diff))
+  const orcRecalc = await chamar('orcamento_resumo', { acao: 'recalcular', obra_id: O })
+  check('recálculo do orçamento pelo MCP', orcRecalc.ok === true, JSON.stringify(orcRecalc))
 
   // ── 5. Produção ────────────────────────────────────────────────────────────────────────────────
   const ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10)

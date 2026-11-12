@@ -27,6 +27,20 @@ faça também:
 
 Detalhes (conexão dos clientes, login OAuth/token, ferramentas): `web/docs/MCP.md`.
 
+## Funções do banco: quem pode chamar
+
+Desde a migração 0053 o papel `anon` não tem acesso a nada do esquema `public`, e função nova nasce executável só por
+`authenticated` e `service_role`. Toda função `security definer` nova precisa de uma destas três coisas:
+
+- **o usuário chama** (web, campo ou MCP): confira a permissão na obra no começo — `pode_*`, ou
+  `chamada_autorizada(obra, 'ver' | 'orcamento' | 'planejar')` quando a mesma função também roda por gatilho ou pelo
+  serviço;
+- **só outra função `security definer` chama**: `revoke execute … from authenticated`;
+- **só o serviço chama** (Edge Function com a service key, pg_cron): `revoke execute … from authenticated`.
+
+Política nova usa `to authenticated`. O `scripts/e2e-local.mjs` (seção 11) confere que sem login a API não expõe nada
+e que as funções sensíveis recusam quem não é da obra — acrescente lá a função nova.
+
 ## Publicação na Vercel
 
 Os projetos `infrawork-web` (raiz `web/`) e `infrawork-campo` (raiz `campo/`) estão ligados ao GitHub

@@ -135,6 +135,7 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   tarefa_obra: RLS,
   acomp_producao_obra: RLS,
   calendario_obra: RLS,
+  chamada_autorizada: 'checagem de permissão dentro das funções que o usuário chama',
   preco_vigente_recurso: INTERNA,
   fn_cpu_recalc: INTERNA,
   snapshot_orcamento_atual: INTERNA,
