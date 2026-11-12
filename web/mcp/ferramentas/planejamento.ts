@@ -34,7 +34,7 @@ export const planos = ferramenta({
   titulo: 'Planos e linhas de base',
   descricao:
     'Planos de planejamento da obra. Só existe um plano em edição por obra; linhas de base (LB) são travadas e ' +
-    'uma delas pode ser a vigente (referência do previsto). acao: listar | criar (nome, data_referencia_inicio) | ' +
+    'uma delas pode ser a vigente (referência do previsto). acao: listar | criar (nome; data_referencia_inicio, sem ela o início planejado da obra) | ' +
     'editar (nome, início, prazo, calendário, modo programacao|controle, data de controle) | excluir | copiar ' +
     '(nova cópia em edição) | promover (trava como LB; recusa se o cálculo estiver desatualizado — calcule ' +
     'antes) | vigente (marca uma LB como vigente) | desmarcar_vigente | restaurar (copia uma LB, calcula com as ' +
@@ -96,15 +96,17 @@ export const planos = ferramenta({
         return { referencia_do_previsto: referencia, planos: lista }
       }
       case 'criar': {
+        const obraId = exigir(a.obra_id, 'obra_id', a.acao)
+        const [o] = await ler<{ data_inicio_planejada: string | null }>('obras', {
+          colunas: 'data_inicio_planejada',
+          filtros: [eq('id', obraId)]
+        })
+        const inicio = a.data_referencia_inicio ?? o?.data_inicio_planejada
         const [p] = await gravar<{ id: string }>('planejamento', 'insert', {
-          obra_id: exigir(a.obra_id, 'obra_id', a.acao),
+          obra_id: obraId,
           nome: exigir(a.nome, 'nome', a.acao).trim(),
           descricao: a.descricao?.trim() || null,
-          data_referencia_inicio: exigir(
-            a.data_referencia_inicio,
-            'data_referencia_inicio',
-            a.acao
-          ),
+          data_referencia_inicio: exigir(inicio ?? undefined, 'data_referencia_inicio', a.acao),
           status: 'ativo'
         })
         return p

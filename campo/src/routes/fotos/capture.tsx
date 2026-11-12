@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { lerOrigemArquivo, type OrigemArquivo } from '@/lib/exifArquivo'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   Camera as CameraIcon,
@@ -49,11 +49,23 @@ import { saveFoto } from '@/features/fotos/fotoRepo'
  */
 type Mode = 'live' | 'form'
 
+/** Foto de um lançamento da sessão de produção: já sabe serviço, encarregado e equipe e fica ligada a ele. */
+export interface ContextoFoto {
+  producaoId: string
+  servicoId: string
+  servicoNome: string
+  encarregadoId: string | null
+  encarregadoNome: string | null
+  equipeId: string | null
+  equipeNome: string | null
+}
+
 export function FotosCaptureRoute() {
   const authed = useIsAuthenticated()
   const session = useSession()
   const navigate = useNavigate()
   const obra = useObra(session?.obraAtualId)
+  const contexto = (useLocation().state as { foto?: ContextoFoto } | null)?.foto ?? null
 
   const [mode, setMode] = useState<Mode>('live')
   const [rawBlob, setRawBlob] = useState<Blob | null>(null)
@@ -367,8 +379,9 @@ export function FotosCaptureRoute() {
       dataFoto={origem?.data ?? null}
       obraId={session!.obraAtualId!}
       obraCodigo={obra?.codigo ?? '—'}
+      contexto={contexto}
       onRetake={handleRetake}
-      onSaved={() => navigate('/fotos', { replace: true })}
+      onSaved={() => (contexto ? navigate(-1) : navigate('/fotos', { replace: true }))}
     />
   )
 }
@@ -385,6 +398,7 @@ interface FormModeProps {
   dataFoto: Date | null
   obraId: string
   obraCodigo: string
+  contexto: ContextoFoto | null
   onRetake: () => void
   onSaved: () => void
 }
@@ -395,6 +409,7 @@ function FormMode({
   dataFoto,
   obraId,
   obraCodigo,
+  contexto,
   onRetake,
   onSaved,
 }: FormModeProps) {
@@ -404,12 +419,14 @@ function FormMode({
   const encarregados = catalogo?.encarregados ?? []
   const todasEquipes = catalogo?.equipes ?? []
 
-  const [servicoId, setServicoId] = useState<string | null>(null)
-  const [servicoNome, setServicoNome] = useState<string | null>(null)
-  const [encarregadoId, setEncarregadoId] = useState<string | null>(null)
-  const [encarregadoNome, setEncarregadoNome] = useState<string | null>(null)
-  const [equipeId, setEquipeId] = useState<string | null>(null)
-  const [equipeNome, setEquipeNome] = useState<string | null>(null)
+  const [servicoId, setServicoId] = useState<string | null>(contexto?.servicoId ?? null)
+  const [servicoNome, setServicoNome] = useState<string | null>(contexto?.servicoNome ?? null)
+  const [encarregadoId, setEncarregadoId] = useState<string | null>(contexto?.encarregadoId ?? null)
+  const [encarregadoNome, setEncarregadoNome] = useState<string | null>(
+    contexto?.encarregadoNome ?? null,
+  )
+  const [equipeId, setEquipeId] = useState<string | null>(contexto?.equipeId ?? null)
+  const [equipeNome, setEquipeNome] = useState<string | null>(contexto?.equipeNome ?? null)
   const equipes = equipesDoEncarregado(todasEquipes, encarregadoId)
   const [obs, setObs] = useState('')
 
@@ -485,7 +502,7 @@ function FormMode({
       await saveFoto({
         obraId,
         obraCodigo,
-        producaoId: null,
+        producaoId: contexto?.producaoId ?? null,
         servicoId,
         servicoNome,
         encarregadoId,

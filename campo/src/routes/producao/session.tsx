@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, X } from 'lucide-react'
+import { ArrowLeft, Camera, Plus, X } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useIsAuthenticated } from '@/core/auth/SessionStore'
 import { PickerSheet } from '@/features/common/PickerSheet'
@@ -12,6 +12,7 @@ import { ServicoFormSheet } from '@/features/producao/ServicoFormSheet'
 import { excluirApontamento, saveProducaoSession } from '@/features/producao/producaoRepo'
 import type { ServicoDto } from '@/types/dtos'
 import { formatBR, formatNumero } from '@/lib/datas'
+import type { ContextoFoto } from '@/routes/fotos/capture'
 
 /**
  * Sessão de produção: os apontamentos do dia (um por serviço).
@@ -103,6 +104,21 @@ export function ProducaoSessionRoute() {
                     setEditingServico(item.servico)
                     setEditingDraft(item)
                   }}
+                  onFoto={() =>
+                    navigate('/fotos/capture', {
+                      state: {
+                        foto: {
+                          producaoId: item.id,
+                          servicoId: item.servico.id,
+                          servicoNome: item.servico.descricao,
+                          encarregadoId: store.encarregadoId,
+                          encarregadoNome: store.encarregadoNome,
+                          equipeId: store.equipeId,
+                          equipeNome: store.equipeNome,
+                        } satisfies ContextoFoto,
+                      },
+                    })
+                  }
                   onDelete={() => {
                     if (!window.confirm(`Excluir o apontamento de ${item.servico.descricao}?`))
                       return
@@ -218,10 +234,12 @@ export function ProducaoSessionRoute() {
 function ApontamentoCard({
   item,
   onClick,
+  onFoto,
   onDelete,
 }: {
   item: ApontamentoDraft
   onClick: () => void
+  onFoto: () => void
   onDelete: () => void
 }) {
   const tags = [
@@ -236,7 +254,9 @@ function ApontamentoCard({
     <div className="card-surface flex items-stretch overflow-hidden">
       <button type="button" onClick={onClick} className="min-w-0 flex-1 p-4 text-left">
         <div className="flex items-start gap-2">
-          <p className="min-w-0 flex-1 truncate font-medium text-on-surface">{item.servico.descricao}</p>
+          <p className="min-w-0 flex-1 truncate font-medium text-on-surface">
+            {item.servico.descricao}
+          </p>
           <Situacao item={item} />
         </div>
         <div className="mt-1 flex flex-wrap items-baseline gap-3">
@@ -254,6 +274,14 @@ function ApontamentoCard({
             {item.failureReason} — toque para corrigir.
           </p>
         ) : null}
+      </button>
+      <button
+        type="button"
+        onClick={onFoto}
+        className="flex items-center px-3 text-accent transition-colors hover:bg-accent/10"
+        aria-label="Foto deste lançamento"
+      >
+        <Camera className="h-5 w-5" />
       </button>
       <button
         type="button"

@@ -16,36 +16,34 @@ import {
   useCopiarPlanejamento,
   usePlanejamentos
 } from '../hooks/planejamentos'
+import { useObra } from '@/features/gerencial/hooks'
+import { hojeLocalISO } from '@/lib/format/local-date'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   obraId: string
-  dataInicioPadrao?: string | null
   onCreated?: (id: string) => void
 }
 
-export function NewPlanejamentoDialog({
-  open,
-  onOpenChange,
-  obraId,
-  dataInicioPadrao,
-  onCreated
-}: Props): ReactNode {
+export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }: Props): ReactNode {
   const create = useCreatePlanejamento()
   const copiar = useCopiarPlanejamento()
   const { data: planejamentos = [] } = usePlanejamentos(obraId)
+  const { data: obra } = useObra(obraId)
 
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [dataRef, setDataRef] = useState(dataInicioPadrao ?? new Date().toISOString().slice(0, 10))
+  // sem edição, a data é o início planejado da obra (Gerencial › Obras) ou hoje
+  const [dataEditada, setDataRef] = useState<string | null>(null)
+  const dataRef = dataEditada ?? obra?.data_inicio_planejada ?? hojeLocalISO()
   const [copiarDe, setCopiarDe] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
 
   const reset = (): void => {
     setNome('')
     setDescricao('')
-    setDataRef(dataInicioPadrao ?? new Date().toISOString().slice(0, 10))
+    setDataRef(null)
     setCopiarDe('')
     setError(null)
   }
@@ -151,8 +149,8 @@ export function NewPlanejamentoDialog({
               ))}
             </select>
             <div className="text-2xs text-text-dim font-mono mt-1">
-              Se começar do zero, distribua os serviços do orçamento entre as equipes na tela
-              Programação por equipes.
+              Se começar do zero, crie as tarefas no cronograma a partir das quantidades por local
+              ou dos serviços do orçamento.
             </div>
           </div>
         </DialogBody>

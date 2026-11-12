@@ -72,6 +72,26 @@ function Inner(): ReactNode {
   const salvar = (l: LocalTransporte, patch: Partial<LocalTransporte>): void =>
     salvarLocal.mutate({ id: l.id, obra_id: obraId, nome: l.nome, ...patch }, { onError: erro })
   const eixoNovo = trechoDe(novo.trecho)?.tipo === 'eixo' ? trechoDe(novo.trecho) : undefined
+  // cada eixo da obra vira um local de pista (a viagem informa a estaca nele)
+  const eixosSemPista = trechos.filter(
+    (t) => t.tipo === 'eixo' && !locais.some((l) => l.tipo === 'pista' && l.trecho_id === t.id)
+  )
+  const criarPistas = async (): Promise<void> => {
+    try {
+      for (const t of eixosSemPista) {
+        const nomePista = locais.some((l) => l.nome === t.nome) ? `Pista — ${t.nome}` : t.nome
+        await salvarLocal.mutateAsync({
+          obra_id: obraId,
+          nome: nomePista,
+          tipo: 'pista',
+          trecho_id: t.id
+        })
+      }
+      toast.success(`${eixosSemPista.length} local(is) de pista criado(s) a partir dos eixos.`)
+    } catch (e) {
+      erro(e as Error)
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -81,9 +101,23 @@ function Inner(): ReactNode {
       />
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-4 overflow-hidden p-4">
         <section className="flex min-h-0 flex-col rounded border border-border bg-bg-panel">
-          <h3 className="border-b border-border px-3 py-2 text-2xs font-mono uppercase tracking-wider text-text-muted">
-            Locais de carga e descarga
-          </h3>
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">
+              Locais de carga e descarga
+            </h3>
+            {!ro && eixosSemPista.length > 0 ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="ml-auto"
+                disabled={salvarLocal.isPending}
+                onClick={() => void criarPistas()}
+                title={eixosSemPista.map((t) => t.nome).join(', ')}
+              >
+                Criar pista dos eixos ({eixosSemPista.length})
+              </Button>
+            ) : null}
+          </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <table className="w-full text-xs">
               <thead>

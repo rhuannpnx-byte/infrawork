@@ -43,6 +43,8 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
 - **Produção**: sem data futura; serviço lançado por viagens não aceita produção manual (a produção vem das fichas,
   uma por dia/serviço/local/equipe/encarregado — equipe e encarregado vêm da ficha); serviço com exige_local pede
   trecho e faixa.
+- **Encarregado**: com a equipe informada e sem encarregado, o banco grava o encarregado da equipe (produção e
+  ficha de viagens). Informe o encarregado só quando for outro.
 - **Viagens**: origem e destino obrigatórios. DMT = acesso da origem + |estaca de carga − estaca de descarga| +
   acesso do destino, pelo eixo do mesmo trecho. Local pista entra com a estaca da viagem (estaca_carga_m /
   estaca_descarga_m); jazida, caixa de empréstimo, bota-fora etc. entram com estaca_acesso_m + distancia_acesso_km

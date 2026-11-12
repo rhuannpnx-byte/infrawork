@@ -309,6 +309,19 @@ const prodSemVinculo = await sb.from('acompanhamento_producao').insert({ obra_id
 check('produção em agrupamento sem composição é recusada', !!prodSemVinculo.error, prodSemVinculo.error?.message)
 const futuro = await sb.from('acompanhamento_producao').insert({ obra_id: obraId, data: '2099-01-01', item_orcamentario_id: wrapper.id, quantidade: 1 })
 check('data futura é rejeitada', !!futuro.error, futuro.error?.message?.slice(0, 80))
+// migração 0057: equipe sem encarregado informado recebe o encarregado da equipe; escolha explícita fica
+await q('equipe', (t) => t.update({ encarregado_id: enc.id }).eq('id', eqA.id).select())
+const [enc2] = await q('encarregado', (t) => t.insert({ obra_id: obraId, nome: 'Maria' }).select())
+const [pSoEquipe] = await q('acompanhamento_producao', (t) =>
+  t.insert({ obra_id: obraId, data: iso(ontem), item_orcamentario_id: wrapper.id, equipe_id: eqA.id, quantidade: 1 }).select()
+)
+const [pOutroEnc] = await q('acompanhamento_producao', (t) =>
+  t.insert({ obra_id: obraId, data: iso(ontem), item_orcamentario_id: wrapper.id, equipe_id: eqA.id, encarregado_id: enc2.id, quantidade: 1 }).select()
+)
+check('encarregado vem da equipe quando não informado', pSoEquipe.encarregado_id === enc.id && pOutroEnc.encarregado_id === enc2.id, `${pSoEquipe.encarregado_id} / ${pOutroEnc.encarregado_id}`)
+await q('acompanhamento_producao', (t) => t.delete().in('id', [pSoEquipe.id, pOutroEnc.id]).select())
+await q('encarregado', (t) => t.delete().eq('id', enc2.id).select())
+await q('equipe', (t) => t.update({ encarregado_id: null }).eq('id', eqA.id).select())
 const [pe] = await q('vw_acompanhamento_producao_enriquecida', (t) =>
   t
     .select('qtd, qtd_convertida, equipe_display_nome, encarregado_display_nome, servico_display_nome, servico_grupo_codigo, tarefa_baseline_id, fotos_count, origem')

@@ -50,14 +50,19 @@ async function doPush(): Promise<PushSummary> {
     .filter((f) => f.fileBlob != null || f.fileData != null)
     .modify({ fileBlob: null, fileData: null })
   const agora = Date.now()
-  // a foto de um lançamento só sobe depois do lançamento (o registro liga pelo app_uuid)
-  const prodPendentes = new Set(
-    (await db.out_producao.where('syncStatus').noneOf(['SYNCED']).primaryKeys()) as string[],
+  // a foto de um lançamento só sobe depois que o lançamento chega ao servidor (o registro liga pelo app_uuid);
+  // lançamento que nunca foi finalizado ou foi excluído não segura a foto por mais de um dia
+  const prodEnviadas = new Set(
+    (await db.out_producao.where('syncStatus').equals('SYNCED').primaryKeys()) as string[],
   )
+  const espera = (f: { producaoId: string | null; capturedAt: string }): boolean =>
+    !!f.producaoId &&
+    !prodEnviadas.has(f.producaoId) &&
+    agora - new Date(f.capturedAt).getTime() < 24 * 3600_000
   const pending = (
     await db.out_foto.where('syncStatus').anyOf('PENDING', 'FAILED').sortBy('capturedAt')
   )
-    .filter((f) => !f.producaoId || !prodPendentes.has(f.producaoId))
+    .filter((f) => !espera(f))
     // recusada: espera crescente entre as tentativas (antes reenviava a cada ciclo de 60 s)
     .filter(
       (f) =>
