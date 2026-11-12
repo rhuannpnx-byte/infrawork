@@ -38,7 +38,12 @@ Desde a migração 0053 o papel `anon` não tem acesso a nada do esquema `public
 - **só outra função `security definer` chama**: `revoke execute … from authenticated`;
 - **só o serviço chama** (Edge Function com a service key, pg_cron): `revoke execute … from authenticated`.
 
-Política nova usa `to authenticated`. O `scripts/e2e-local.mjs` (seção 11) confere que sem login a API não expõe nada
+Política nova usa `to authenticated` e, em tabela que cresce, compara com o conjunto calculado uma vez por consulta
+(`obra_id in (select public.obras_permitidas('equipe' | 'ver' | 'acompanhamento' | 'planejar' | 'orcamento' |
+'lancar'))`, ou `planos_permitidos`/`tarefas_permitidas`), nunca `pode_x(obra_id)` por linha. Regra de gravação é
+`for insert/update/delete`, não `for all` (o `for all` também entra na leitura). Edge Function confere a obra com
+`assertObraAccess` (`_shared/orc.ts`), que pergunta ao banco com a sessão do usuário — não reescreva a regra no TS.
+Gravação em vários passos (cabeçalho + filhos) vai numa função do banco, numa transação (ex.: `producao_salvar`). O `scripts/e2e-local.mjs` (seção 11) confere que sem login a API não expõe nada
 e que as funções sensíveis recusam quem não é da obra — acrescente lá a função nova.
 
 ## Publicação na Vercel
