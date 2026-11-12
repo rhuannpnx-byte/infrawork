@@ -167,6 +167,8 @@ export interface FichaDto {
   equipe_id: string | null
   obs: string | null
   origem: 'campo'
+  /** versão do servidor em que a edição se baseou */
+  versao?: string | null
   viagens: ViagemDto[]
   excluir?: boolean
 }

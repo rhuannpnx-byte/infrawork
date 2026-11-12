@@ -810,6 +810,13 @@ pv = await prodViagens()
 check('mudar a data da ficha move a produção', pv.length === 1 && pv[0].data === iso(hoje), JSON.stringify(pv.map((p) => p.data)))
 const vgQtdManual = await sb.from('acompanhamento_producao').update({ quantidade: 99 }).eq('id', pv[0].id)
 check('produção das viagens não aceita quantidade à mão', !!vgQtdManual.error, vgQtdManual.error?.message)
+// migração 0059: o app reenvia a versão em que se baseou; se o web mudou a ficha depois, o reenvio é recusado
+const v1 = (await rpc('campo_sync_ficha', { _ficha: ficha([viagemDe(vg[0], 500), viagemDe(vg[1], 800)], iso(hoje)) })).versao
+const v2 = (await rpc('campo_sync_ficha', { _ficha: { ...ficha([viagemDe(vg[0], 500), viagemDe(vg[1], 800), viagemDe(vg[2], 900)], iso(hoje)), origem: 'web', versao: v1 } })).versao
+const velho = await sb.rpc('campo_sync_ficha', { _ficha: { ...ficha([viagemDe(vg[0], 500), viagemDe(vg[1], 800)], iso(hoje)), versao: v1 } })
+const aposConflito = await q('viagem', (t) => t.select('id').eq('ficha_id', fichaId))
+check('reenvio com versão velha é recusado e não apaga a viagem do web', !!v1 && !!v2 && !!velho.error && aposConflito.length === 3, velho.error?.message?.slice(0, 70))
+await rpc('campo_sync_ficha', { _ficha: { ...ficha([viagemDe(vg[0], 500), viagemDe(vg[1], 800)], iso(hoje)), versao: v2 } })
 
 // apontador: só o app de campo, só nas obras liberadas
 const apEmail = `apontador-${STAMP}@e2e.local`

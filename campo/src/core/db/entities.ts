@@ -112,6 +112,8 @@ export interface FichaCabecalho {
 
 export interface OutFicha extends FichaCabecalho {
   viagens: ViagemLocal[]
+  /** versão que o servidor devolveu no último envio aceito (o reenvio confere que ninguém mudou a ficha depois) */
+  versaoServidor?: string | null
   capturedAt: string
   cadastradorNome: string
   excluir?: boolean

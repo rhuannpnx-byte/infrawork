@@ -38,13 +38,14 @@ async function doPush(): Promise<PushSummary> {
     summary.attempted++
     await db.out_ficha.update(f.id, { syncStatus: 'SYNCING' })
     try {
-      await syncEndpoints.ficha(paraDto(f))
+      const r = await syncEndpoints.ficha(paraDto(f))
       if (f.excluir) await db.out_ficha.delete(f.id)
       else
         await db.out_ficha.update(f.id, {
           syncStatus: 'SYNCED',
           lastSyncAttempt: Date.now(),
           failureReason: null,
+          versaoServidor: r?.versao ?? null,
         })
       summary.accepted++
     } catch (err) {
@@ -92,6 +93,7 @@ function paraDto(f: OutFicha): FichaDto {
     equipe_id: f.equipeId,
     obs: f.obs,
     origem: 'campo',
+    versao: f.versaoServidor ?? null,
     viagens: f.viagens.map((v) => ({
       id: v.id,
       item_orcamentario_id: v.servicoId,

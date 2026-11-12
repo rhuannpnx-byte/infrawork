@@ -101,7 +101,11 @@ export const syncEndpoints = {
     rpc<ProducaoBatchResponse>('campo_sync_producao', { _registros: registros }, PRAZO_ENVIO),
 
   ficha: (ficha: FichaDto) =>
-    rpc<{ ficha_id: string; viagens: number }>('campo_sync_ficha', { _ficha: ficha }, PRAZO_ENVIO),
+    rpc<{ ficha_id: string; viagens: number; versao?: string }>(
+      'campo_sync_ficha',
+      { _ficha: ficha },
+      PRAZO_ENVIO,
+    ),
 
   /** Upload direto ao bucket (a política de storage confere a obra) + registro idempotente da foto. */
   async foto(meta: FotoMetaDto, arquivo: Blob): Promise<{ id: string; duplicada: boolean }> {

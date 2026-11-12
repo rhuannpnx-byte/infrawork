@@ -22,7 +22,9 @@ export async function salvarFicha(f: FichaEmEdicao): Promise<{ pushResult: PushS
     failureReason: null,
   }
   await db.transaction('rw', db.out_ficha, db.draft_ficha, async () => {
-    await db.out_ficha.put(out)
+    // a versão do último envio aceito acompanha a correção (o servidor confere que ninguém mudou a ficha depois)
+    const atual = await db.out_ficha.get(f.id)
+    await db.out_ficha.put({ ...out, versaoServidor: atual?.versaoServidor ?? null })
     await db.draft_ficha.delete(f.id)
   })
   let pushResult: PushSummary | null = null

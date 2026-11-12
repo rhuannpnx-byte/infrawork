@@ -146,6 +146,8 @@ export interface FichaViagens {
   obs: string | null
   origem: 'web' | 'campo'
   criado_por: string | null
+  /** versão gravada (o envio confere que a ficha não mudou depois dela) */
+  updated_at: string
   viagens: Viagem[]
 }
 
@@ -540,8 +542,10 @@ export type ViagemInput = Pick<
   | 'carregador_id'
 > & { dmt_km: number | null }
 
-export type FichaInput = Omit<FichaViagens, 'origem' | 'criado_por' | 'viagens'> & {
+export type FichaInput = Omit<FichaViagens, 'origem' | 'criado_por' | 'viagens' | 'updated_at'> & {
   viagens: ViagemInput[]
+  /** versão em que a edição se baseou (ausente na ficha nova) */
+  versao: string | null
 }
 
 /** Grava a ficha e as viagens (mesma RPC do app de campo, origem 'web'). */

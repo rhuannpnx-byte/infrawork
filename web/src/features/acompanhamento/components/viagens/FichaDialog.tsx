@@ -300,7 +300,8 @@ function Form({
         encarregado_id: encarregado || null,
         equipe_id: equipe || null,
         obs: obs.trim() || null,
-        viagens
+        viagens,
+        versao: ficha?.updated_at ?? null
       })
       toast.success(`Ficha gravada: ${viagens.length} viagem(ns).`)
       onOpenChange(false)
