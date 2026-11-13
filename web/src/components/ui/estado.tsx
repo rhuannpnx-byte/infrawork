@@ -130,3 +130,27 @@ export function EstadoConsulta({
     )
   return children
 }
+
+/**
+ * Retorno da edição direta (o campo grava ao sair): "Salvando…" enquanto alguma gravação está em curso e a falha
+ * da última, com a mensagem do servidor. Recebe as mutações da tela.
+ */
+export function EstadoGravacao({
+  gravacoes
+}: {
+  gravacoes: Array<{ isPending: boolean; error: Error | null }>
+}): ReactNode {
+  const salvando = gravacoes.some((g) => g.isPending)
+  const erro = gravacoes.find((g) => g.error)?.error
+  return (
+    <span role="status" aria-live="polite" className="text-sm">
+      {salvando ? (
+        <span className="text-text-muted">Salvando…</span>
+      ) : erro ? (
+        <span className="font-medium text-danger">
+          Não foi possível salvar a última alteração. {erro.message}
+        </span>
+      ) : null}
+    </span>
+  )
+}

@@ -68,19 +68,20 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 
 Antes de montar um bloco à mão, use o que já existe:
 
-| Para                                        | Componente                                                                                      |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Indicadores (número com rótulo e apoio)     | `ui/indicador`: `FaixaIndicadores`, `Indicador`, `BarraAvanco`                                  |
-| Bloco com título, nota e "ver mais"         | `ui/secao`: `Secao`                                                                             |
-| Carregando, erro de consulta e vazio        | `ui/estado`: `EstadoConsulta`, `ErroConsulta`, `Carregando`, `Vazio`                            |
-| Campo de formulário com rótulo, dica e erro | `ui/campo`: `Campo` (ou `aria-invalid` no `Input`/`Select`)                                     |
-| Escolha única entre poucas opções           | `ui/segmentado`: `Segmentado`                                                                   |
-| Filtros da página                           | `ui/filtros`: `BarraFiltros`, `Filtro`, `FiltroMulti`; `ui/filtro-chips`; `ui/DateRangePopover` |
-| Curva S (previsto e realizado)              | `charts/CurvaS`                                                                                 |
-| Diálogo, painel lateral, menu, popover      | `ui/dialog`, `ui/sheet`, `ui/dropdown`, `ui/popover`                                            |
-| Dica ao passar o mouse ou focar             | `ui/tooltip` (o `IconButton` já usa o `aria-label` como dica)                                   |
-| Barra de ferramentas do plano               | `features/cronograma/components/BarraPlano` (grupos, zoom, somente leitura)                     |
-| Fundo de vazio e de carregamento            | `layout/CurvasDeNivel` (já usado pelo `EmptyState`)                                             |
+| Para                                          | Componente                                                                                      |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Indicadores (número com rótulo e apoio)       | `ui/indicador`: `FaixaIndicadores`, `Indicador`, `BarraAvanco`                                  |
+| Bloco com título, nota e "ver mais"           | `ui/secao`: `Secao`                                                                             |
+| Carregando, erro de consulta e vazio          | `ui/estado`: `EstadoConsulta`, `ErroConsulta`, `Carregando`, `Vazio`                            |
+| Retorno de edição direta ("Salvando…", falha) | `ui/estado`: `EstadoGravacao`                                                                   |
+| Campo de formulário com rótulo, dica e erro   | `ui/campo`: `Campo` (ou `aria-invalid` no `Input`/`Select`)                                     |
+| Escolha única entre poucas opções             | `ui/segmentado`: `Segmentado`                                                                   |
+| Filtros da página                             | `ui/filtros`: `BarraFiltros`, `Filtro`, `FiltroMulti`; `ui/filtro-chips`; `ui/DateRangePopover` |
+| Curva S (previsto e realizado)                | `charts/CurvaS`                                                                                 |
+| Diálogo, painel lateral, menu, popover        | `ui/dialog`, `ui/sheet`, `ui/dropdown`, `ui/popover`                                            |
+| Dica ao passar o mouse ou focar               | `ui/tooltip` (o `IconButton` já usa o `aria-label` como dica)                                   |
+| Barra de ferramentas do plano                 | `features/cronograma/components/BarraPlano` (grupos, zoom, somente leitura)                     |
+| Fundo de vazio e de carregamento              | `layout/CurvasDeNivel` (já usado pelo `EmptyState`)                                             |
 
 Regras que valem para todos:
 

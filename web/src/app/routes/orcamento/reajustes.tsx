@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Campo } from '@/components/ui/campo'
 import { Select } from '@/components/ui/select'
 import { IconButton } from '@/components/ui/IconButton'
-import { Carregando, ErroConsulta, EstadoConsulta } from '@/components/ui/estado'
+import { Carregando, ErroConsulta, EstadoConsulta, EstadoGravacao } from '@/components/ui/estado'
 import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -56,26 +56,6 @@ const somaMeses = (iso: string, meses: number): string => {
 }
 
 /** Retorno das edições que salvam ao sair do campo: salvando ou a falha da última gravação. */
-function EstadoGravacao({
-  gravacoes
-}: {
-  gravacoes: Array<{ isPending: boolean; error: Error | null }>
-}): ReactNode {
-  const salvando = gravacoes.some((g) => g.isPending)
-  const erro = gravacoes.find((g) => g.error)?.error
-  return (
-    <span role="status" aria-live="polite" className="text-sm">
-      {salvando ? (
-        <span className="text-text-muted">Salvando…</span>
-      ) : erro ? (
-        <span className="font-medium text-danger">
-          Não foi possível salvar a última alteração. {erro.message}
-        </span>
-      ) : null}
-    </span>
-  )
-}
-
 function ReajustesInner(): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!
