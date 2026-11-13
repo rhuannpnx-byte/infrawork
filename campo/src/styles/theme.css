@@ -1,0 +1,79 @@
+/* Identidade "Prancheta técnica" (a mesma do InfraWork Web, ver web/DESIGN.md e web/src/styles/theme.css):
+ * papel claro por padrão, tinta quase preta, azul de carimbo como destaque. O escuro é a variante.
+ * O tema vem de `data-theme` em <html> (public/theme-boot.js e core/ui/temaStore.ts). Sem o atributo vale o claro.
+ * Os nomes de classe do app (bg-base, on-surface, ok, bad…) são ligados a estas variáveis em tailwind.config.ts. */
+
+:root {
+  color-scheme: light;
+
+  /* Fundos: a mesa (bg), a folha (panel) e o bloco dentro da folha (elevated) */
+  --bg: oklch(97.6% 0.004 90);
+  --bg-panel: oklch(99.3% 0.002 90);
+  --bg-elevated: oklch(96% 0.005 90);
+
+  /* Linhas: a fina separa, a forte contorna campo e botão (3:1 sobre a folha) */
+  --border: oklch(86% 0.009 90);
+  --border-strong: oklch(65% 0.011 90);
+
+  /* Tinta: on-surface, on-surface-dim (apoio), on-surface-muted (mínimo para texto, 4,5:1) e faint (decoração) */
+  --text: oklch(21% 0.006 280);
+  --text-muted: oklch(41% 0.008 90);
+  --text-dim: oklch(49% 0.009 90);
+  --text-faint: oklch(68% 0.009 90);
+
+  /* Azul de carimbo */
+  --accent: oklch(41% 0.165 266);
+  --accent-hover: oklch(35% 0.16 266);
+  --accent-glow: color-mix(in oklab, var(--accent) 9%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 45%, transparent);
+  --on-accent: oklch(98.5% 0.004 266);
+
+  /* Estados (ok, warn, bad, info); texto sobre o estado em fundo cheio usa --on-status */
+  --success: oklch(45% 0.1 158);
+  --warn: oklch(49% 0.105 75);
+  --danger: oklch(46% 0.155 28);
+  --info: oklch(47% 0.085 215);
+  --on-status: var(--bg-panel);
+
+  /* Gráficos da visão estratégica */
+  --chart-real: oklch(48% 0.17 266);
+  --chart-grade: var(--border);
+
+  /* O que flutua: fundo atrás de folha/diálogo e sombra */
+  --veu: oklch(21% 0.006 280 / 0.38);
+  --sombra-flutuante: 0 8px 24px oklch(21% 0.006 280 / 0.14), 0 1px 2px oklch(21% 0.006 280 / 0.1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: oklch(17.5% 0.003 90);
+  --bg-panel: oklch(22% 0.004 90);
+  --bg-elevated: oklch(25.5% 0.004 90);
+
+  --border: oklch(31% 0.005 90);
+  --border-strong: oklch(50% 0.008 90);
+
+  --text: oklch(93.5% 0.012 90);
+  --text-muted: oklch(76% 0.014 90);
+  --text-dim: oklch(64% 0.013 90);
+  --text-faint: oklch(44% 0.008 90);
+
+  --accent: oklch(78% 0.105 268);
+  --accent-hover: oklch(84% 0.085 268);
+  --accent-glow: color-mix(in oklab, var(--accent) 13%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 45%, transparent);
+  --on-accent: oklch(20% 0.05 268);
+
+  --success: oklch(77% 0.12 158);
+  --warn: oklch(80% 0.12 85);
+  --danger: oklch(74% 0.13 30);
+  --info: oklch(80% 0.09 215);
+  --on-status: var(--bg);
+
+  --chart-real: var(--accent);
+  --chart-grade: var(--border);
+
+  --veu: oklch(0% 0 0 / 0.62);
+  --sombra-flutuante: 0 10px 28px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.4);
+}

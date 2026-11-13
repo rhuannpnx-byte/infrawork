@@ -132,9 +132,9 @@ function drawWatermarkOverlay(
   const fontSize = Math.max(18, Math.round(h * 0.022))
   const padding = Math.round(fontSize * 0.6)
   const lineHeight = Math.round(fontSize * 1.25)
-  // Plex Sans como primário; system-ui de fallback caso a fonte ainda não tenha
+  // Archivo (a fonte do app, servida junto com ele); system-ui de fallback caso a fonte ainda não tenha
   // carregado quando a foto for tirada (cold start → captura imediata).
-  ctx.font = `bold ${fontSize}px "IBM Plex Sans", system-ui, -apple-system, sans-serif`
+  ctx.font = `bold ${fontSize}px "Archivo Variable", system-ui, -apple-system, sans-serif`
   ctx.textBaseline = 'top'
 
   // Mede largura máxima

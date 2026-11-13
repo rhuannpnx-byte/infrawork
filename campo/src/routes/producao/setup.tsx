@@ -7,6 +7,7 @@ import { PickerSheet } from '@/features/common/PickerSheet'
 import { useCatalogo, useObra, useSessoesDaObra } from '@/core/db/daos'
 import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
+import { contar } from '@/lib/texto'
 import { useProducaoStore } from '@/features/producao/producaoStore'
 import { loadSessionItensAsDrafts } from '@/features/producao/producaoRepo'
 import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
@@ -14,7 +15,7 @@ import type { EncarregadoDto } from '@/types/dtos'
 
 /**
  * Nova sessão de produção: a obra (escolhida no Home), o dia (hoje ou ontem), o encarregado e depois uma das equipes
- * dele. Encarregado e equipe valem para todos os apontamentos da sessão.
+ * dele. Encarregado e equipe valem para todos os lançamentos da sessão.
  */
 export function ProducaoSetupRoute() {
   const authed = useIsAuthenticated()
@@ -76,7 +77,9 @@ export function ProducaoSetupRoute() {
       )
       navigate('/producao/session')
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Falha ao carregar a sessão')
+      window.alert(
+        e instanceof Error ? e.message : 'Não foi possível abrir a sessão. Tente de novo.',
+      )
     } finally {
       setAbrindo(false)
     }
@@ -84,8 +87,8 @@ export function ProducaoSetupRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-2 px-2 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
             size="icon"
@@ -94,15 +97,15 @@ export function ProducaoSetupRoute() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold text-on-surface">Nova sessão de produção</h1>
+          <h1 className="text-lg font-semibold text-on-surface">Nova sessão de produção</h1>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 p-4">
-        <InfoRow label="OBRA" value={obra ? `${obra.codigo} — ${obra.nome}` : '—'} />
-        <div className="card-surface-variant px-4 py-3">
-          <p className="text-xs font-medium uppercase text-on-surface-dim">DATA</p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+        <InfoRow label="Obra" value={obra ? `${obra.codigo} · ${obra.nome}` : '—'} />
+        <div>
+          <p className="rotulo">Data</p>
+          <div className="mt-1 grid grid-cols-2 gap-2">
             {[
               { dt: hojeLocal(), r: 'Hoje' },
               { dt: ontemLocal(), r: 'Ontem' },
@@ -110,28 +113,29 @@ export function ProducaoSetupRoute() {
               <button
                 key={o.dt}
                 type="button"
+                aria-pressed={store.dt === o.dt}
                 onClick={() => store.setDt(o.dt)}
                 className={cn(
-                  'min-h-touch rounded-lg border px-3 py-2 text-left',
+                  'min-h-touch rounded-md border px-3 py-2 text-left',
                   store.dt === o.dt
                     ? 'border-accent bg-accent/10 text-on-surface'
-                    : 'border-border text-on-surface-dim',
+                    : 'border-border-strong bg-bg-panel text-on-surface-dim',
                 )}
               >
-                <span className="block text-sm font-medium">{o.r}</span>
-                <span className="block text-xs">{formatBR(o.dt)}</span>
+                <span className="block text-sm font-semibold">{o.r}</span>
+                <span className="block text-xs tabular">{formatBR(o.dt)}</span>
               </button>
             ))}
           </div>
         </div>
         <PickerField
-          label="ENCARREGADO"
+          label="Encarregado"
           value={store.encarregadoNome ?? 'Selecionar…'}
           onClick={() => setPicker('encarregado')}
           hint={encarregados.length === 0 ? 'Sem encarregados cadastrados na obra' : undefined}
         />
         <PickerField
-          label="EQUIPE"
+          label="Equipe"
           value={store.equipeNome ?? 'Selecionar…'}
           onClick={() => setPicker('equipe')}
           disabled={semEncarregado}
@@ -141,23 +145,24 @@ export function ProducaoSetupRoute() {
               : todasEquipes.length === 0
                 ? 'Sem equipes cadastradas na obra'
                 : store.encarregadoId && !temEquipesVinculadas(todasEquipes, store.encarregadoId)
-                  ? 'Encarregado sem equipes vinculadas — mostrando as equipes sem encarregado'
+                  ? 'Encarregado sem equipes vinculadas: a lista mostra as equipes sem encarregado'
                   : undefined
           }
         />
         {catalogo === null && (
-          <div className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm text-on-surface">
-            O catálogo desta obra ainda não foi baixado. Conecte-se à internet uma vez para
+          <div className="rounded-md border border-warn/50 bg-warn/10 p-4 text-sm text-on-surface">
+            Os dados desta obra ainda não foram baixados. Conecte-se à internet uma vez para
             trabalhar sem sinal.
           </div>
         )}
         {existente && (
-          <div className="flex gap-3 rounded-xl border border-warn/40 bg-warn/10 p-4">
+          <div className="flex gap-3 rounded-md border border-warn/50 bg-warn/10 p-4">
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warn" />
             <div className="flex-1">
               <p className="text-sm text-on-surface">
                 Já existe sessão deste dia com este encarregado e equipe (
-                <strong>{existente.total} apontamento(s)</strong>). Continuar abaixo cria uma sessão
+                <strong>{contar(existente.total, 'lançamento', 'lançamentos')}</strong>). Continuar
+                abaixo cria uma sessão
                 separada.
               </p>
               <Button
@@ -174,7 +179,7 @@ export function ProducaoSetupRoute() {
         )}
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base/95 p-4 backdrop-blur pl-safe pr-safe pb-safe-plus-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
         <Button
           variant="primary"
           size="lg"
@@ -205,7 +210,7 @@ export function ProducaoSetupRoute() {
         <PickerSheet
           open
           title="Equipe"
-          items={[{ id: '', nome: '— sem equipe —' }, ...equipes]}
+          items={[{ id: '', nome: 'Sem equipe' }, ...equipes]}
           label={(e) => e.nome}
           onPick={(e) => {
             store.setEquipe(e.id || null, e.id ? e.nome : null)
@@ -241,14 +246,14 @@ function PickerField({
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       className={cn(
-        'card-surface-variant w-full px-4 py-3 text-left',
+        'w-full rounded-md border border-border-strong bg-bg-panel px-4 py-3 text-left',
         'flex min-h-touch items-center gap-3',
-        disabled ? 'cursor-not-allowed opacity-50' : 'transition-colors hover:bg-surface-2/80',
+        disabled ? 'cursor-not-allowed opacity-50' : 'transition-colors hover:border-accent',
       )}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium uppercase text-on-surface-dim">{label}</p>
-        <p className="mt-0.5 truncate text-on-surface">{value}</p>
+        <p className="rotulo">{label}</p>
+        <p className="mt-0.5 truncate text-base text-on-surface">{value}</p>
         {hint && <p className="mt-0.5 text-xs text-on-surface-dim">{hint}</p>}
       </div>
       {!disabled && <ChevronRight className="h-5 w-5 flex-shrink-0 text-on-surface-dim" />}
@@ -259,7 +264,7 @@ function PickerField({
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="card-surface-variant px-4 py-3">
-      <p className="text-xs font-medium uppercase text-on-surface-dim">{label}</p>
+      <p className="rotulo">{label}</p>
       <p className="mt-0.5 text-on-surface">{value}</p>
     </div>
   )

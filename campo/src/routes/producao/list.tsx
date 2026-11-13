@@ -4,11 +4,12 @@ import { ArrowLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useIsAuthenticated, useSession } from '@/core/auth/SessionStore'
 import { useObra, useSessoesDaObra, type SessaoProducao } from '@/core/db/daos'
-import { SyncStatusIndicator } from '@/features/common/SyncStatusIndicator'
+import { SeloEnvio, SyncStatusIndicator } from '@/features/common/SyncStatusIndicator'
 import { cn } from '@/lib/cn'
+import { formatBR } from '@/lib/datas'
+import { contar, plural } from '@/lib/texto'
 import { useProducaoStore } from '@/features/producao/producaoStore'
 import { loadSessionItensAsDrafts } from '@/features/producao/producaoRepo'
-import type { SyncStatus } from '@/core/db/entities'
 
 /**
  * Ponto de entrada do fluxo de Produção. Lista APENAS sessões com itens
@@ -60,7 +61,7 @@ export function ProducaoListRoute() {
   function handleDescartarRascunho() {
     if (
       !window.confirm(
-        `Descartar ${rascunhoItens.length} apontamento(s) da sessão em construção? Esta ação não pode ser desfeita.`,
+        `Descartar ${contar(rascunhoItens.length, 'lançamento', 'lançamentos')} da sessão em construção? Esta ação não pode ser desfeita.`,
       )
     ) {
       return
@@ -87,7 +88,9 @@ export function ProducaoListRoute() {
       navigate('/producao/session')
     } catch (e) {
       console.error('[producao/list] abrirSessao falhou:', e)
-      window.alert(e instanceof Error ? e.message : 'Falha ao carregar sessão')
+      window.alert(
+        e instanceof Error ? e.message : 'Não foi possível abrir a sessão. Tente de novo.',
+      )
     } finally {
       setOpening(false)
     }
@@ -97,16 +100,16 @@ export function ProducaoListRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-2 px-2 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-2 px-2 py-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Voltar">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold text-on-surface">Produção</h1>
+            <h1 className="text-lg font-semibold text-on-surface">Produção</h1>
             <p className="truncate text-xs text-on-surface-dim">
-              {obra?.codigo ?? '—'} · {sessoes?.length ?? 0} sessão(ões)
-              {totalPendentes > 0 && ` · ${totalPendentes} pendente(s)`}
+              {obra?.codigo ?? '—'} · {contar(sessoes?.length ?? 0, 'sessão', 'sessões')}
+              {totalPendentes > 0 && ` · ${totalPendentes} a enviar`}
             </p>
           </div>
           <SyncStatusIndicator />
@@ -115,10 +118,11 @@ export function ProducaoListRoute() {
 
       <div className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-4 pb-32">
         {rascunhoIsAtual && (
-          <div className="mb-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
-            <p className="text-xs font-bold uppercase text-accent">Sessão em construção</p>
+          <div className="mb-4 rounded-md border border-accent-line bg-accent/10 p-4">
+            <p className="rotulo text-accent">Sessão em construção</p>
             <p className="mt-1 text-on-surface">
-              <strong>{rascunhoItens.length}</strong> apontamento(s) não finalizado(s)
+              <strong>{contar(rascunhoItens.length, 'lançamento', 'lançamentos')}</strong>{' '}
+              {plural(rascunhoItens.length, 'não finalizado', 'não finalizados')}
               {rascunhoEncarregadoNome &&
                 ` · ${rascunhoEncarregadoNome}${rascunhoEquipeNome ? ` / ${rascunhoEquipeNome}` : ''}`}
               {rascunhoDt && ` · ${formatBR(rascunhoDt)}`}
@@ -146,15 +150,15 @@ export function ProducaoListRoute() {
             <div className="text-center">
               <p className="font-medium text-on-surface">Nenhuma sessão nos últimos 7 dias</p>
               <p className="mt-2 text-sm text-on-surface-dim">
-                Toque em "+ Nova sessão" para começar a apontar.
+                Toque em "Nova sessão" para lançar a produção do dia.
               </p>
             </div>
           </div>
         ) : sessoes.length > 0 ? (
           <>
             <p className="mb-3 text-xs text-on-surface-dim">
-              Toque numa sessão para ver/adicionar lançamentos. Sessões somem automaticamente quando
-              100% sincronizadas.
+              Toque numa sessão para ver ou adicionar lançamentos. As sessões já enviadas ficam
+              nesta lista por 7 dias.
             </p>
             <ul className="space-y-3">
               {sessoes.map((s) => (
@@ -167,7 +171,7 @@ export function ProducaoListRoute() {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base/95 p-4 backdrop-blur pl-safe pr-safe pb-safe-plus-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
         <Button variant="primary" size="lg" onClick={handleNovaSessao} className="w-full gap-2">
           <Plus className="h-5 w-5" />
           Nova sessão
@@ -190,14 +194,6 @@ function SessaoCard({
   onClick: () => void
   disabled?: boolean
 }) {
-  const statusInfo: Record<SyncStatus, { label: string; cls: string }> = {
-    PENDING: { label: 'pendente', cls: 'bg-warn/15 text-warn' },
-    SYNCING: { label: 'enviando', cls: 'bg-info/15 text-info' },
-    SYNCED: { label: 'enviada', cls: 'bg-ok/15 text-ok' },
-    FAILED: { label: 'falhou', cls: 'bg-bad/15 text-bad' },
-    REJEITADA: { label: 'recusada', cls: 'bg-bad/15 text-bad' },
-  }
-  const s = statusInfo[sessao.statusDominante]
   const reasons = [
     ...new Set(
       sessao.itens
@@ -216,43 +212,32 @@ function SessaoCard({
       className={cn(
         'card-surface flex w-full items-start gap-3 p-4 text-left',
         'transition-colors',
-        disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-surface-1/70 active:bg-surface-1/50',
+        disabled ? 'cursor-not-allowed opacity-50' : 'active:bg-bg-elevated',
       )}
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium text-on-surface">{formatBR(sessao.dt)}</p>
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-              s.cls,
-            )}
-          >
-            {s.label}
-          </span>
+          <p className="font-medium text-on-surface tabular">{formatBR(sessao.dt)}</p>
+          <SeloEnvio status={sessao.statusDominante} />
         </div>
         <p className="mt-1 truncate text-sm text-on-surface-dim">
           {[sessao.encarregadoNome, sessao.equipeNome].filter(Boolean).join(' · ') ||
-            '(sem encarregado/equipe)'}
+            'Sem encarregado nem equipe'}
         </p>
-        <p className="mt-2 text-sm text-on-surface">
-          <span className="font-bold">{sessao.total}</span> apontamento(s)
+        <p className="mt-2 text-sm text-on-surface tabular">
+          {contar(sessao.total, 'lançamento', 'lançamentos')}
           {sessao.pendentes > 0 && sessao.pendentes !== sessao.total && (
-            <span className="text-warn"> · {sessao.pendentes} pendente(s)</span>
+            <span className="text-warn"> · {sessao.pendentes} a enviar</span>
           )}
         </p>
         {reasons.length > 0 && (
           <p className="mt-1 text-xs text-bad">
-            Recusado: {reasons.join('; ')} — toque para corrigir
+            Motivo: {reasons.join('; ')}
+            <span className="block">Toque para corrigir.</span>
           </p>
         )}
       </div>
       <ChevronRight className="mt-1 h-5 w-5 flex-shrink-0 text-on-surface-muted" />
     </button>
   )
-}
-
-function formatBR(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-')
-  return `${d}/${m}/${y}`
 }

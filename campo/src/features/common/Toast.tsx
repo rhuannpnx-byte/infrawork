@@ -60,43 +60,36 @@ export function ToastHost() {
   )
 }
 
+// Fundo cheio na cor do estado com o texto em --on-status: 6:1 ou mais nos dois temas (antes era branco sobre
+// verde/ciano claros, abaixo de 2:1).
+const TOM: Record<ToastKind, string> = {
+  ok: 'bg-ok',
+  warn: 'bg-warn',
+  bad: 'bg-bad',
+  info: 'bg-info',
+}
+
 function ToastItem({ toast, onDismiss }: { toast: ActiveToast; onDismiss: () => void }) {
   const { kind, message } = toast
-  const cls =
-    kind === 'ok'
-      ? 'bg-ok text-white'
-      : kind === 'warn'
-        ? 'bg-warn text-bg-base'
-        : kind === 'bad'
-          ? 'bg-bad text-white'
-          : 'bg-info text-white'
-
-  const Icon =
-    kind === 'ok'
-      ? CheckCircle2
-      : kind === 'warn'
-        ? AlertTriangle
-        : kind === 'bad'
-          ? AlertTriangle
-          : Info
+  const Icon = kind === 'ok' ? CheckCircle2 : kind === 'info' ? Info : AlertTriangle
 
   return (
     <div
       className={cn(
-        'pointer-events-auto flex w-full max-w-md items-start gap-2 rounded-lg px-4 py-3 shadow-xl',
-        cls,
+        'pointer-events-auto flex w-full max-w-md items-center gap-2 rounded-md pl-4 text-on-status shadow-flutuante',
+        TOM[kind],
       )}
-      role="status"
+      role={kind === 'bad' || kind === 'warn' ? 'alert' : 'status'}
     >
-      <Icon className="mt-0.5 h-5 w-5 flex-shrink-0" />
-      <p className="flex-1 text-sm font-medium">{message}</p>
+      <Icon className="h-5 w-5 flex-shrink-0" aria-hidden />
+      <p className="flex-1 py-3 text-sm font-medium">{message}</p>
       <button
         type="button"
         onClick={onDismiss}
-        className="-mr-1 -mt-1 p-1 opacity-80 hover:opacity-100"
-        aria-label="Fechar"
+        className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
+        aria-label="Fechar aviso"
       >
-        <X className="h-4 w-4" />
+        <X className="h-5 w-5" />
       </button>
     </div>
   )

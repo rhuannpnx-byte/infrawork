@@ -41,7 +41,7 @@ export function BarraAvanco({
   )
 }
 
-/** Curva-S semanal acumulada: planejado (tracejado) × realizado (azul), com a linha de hoje. */
+/** Curva-S semanal acumulada: previsto (tracejado) × realizado (azul), com a linha de hoje. */
 export function CurvaS({
   pontos,
   idxHoje,
@@ -53,11 +53,11 @@ export function CurvaS({
 }) {
   const W = 320
   const H = altura
-  const pad = { l: 30, r: 8, t: 8, b: 18 }
+  const pad = { l: 34, r: 8, t: 8, b: 20 }
   if (pontos.length < 2) {
     return (
-      <p className="py-6 text-center text-xs text-on-surface-muted">
-        Curva disponível quando houver linha de base com cronograma calculado.
+      <p className="py-6 text-center text-xs text-on-surface-dim">
+        A curva aparece quando houver linha de base com cronograma calculado.
       </p>
     )
   }
@@ -77,7 +77,7 @@ export function CurvaS({
       viewBox={`0 0 ${W} ${H}`}
       className="h-auto w-full"
       role="img"
-      aria-label="Curva S: planejado e realizado acumulados"
+      aria-label="Curva S: previsto e realizado acumulados"
     >
       {[0, 0.25, 0.5, 0.75, 1].map((g) => (
         <g key={g}>
@@ -86,18 +86,18 @@ export function CurvaS({
             x2={W - pad.r}
             y1={y(g * maxY)}
             y2={y(g * maxY)}
-            stroke="#1b1e26"
+            stroke="var(--chart-grade)"
             strokeWidth={1}
           />
-          <text x={pad.l - 4} y={y(g * maxY) + 3} textAnchor="end" fontSize={8} fill="#5b626c">
+          <text x={pad.l - 4} y={y(g * maxY) + 3} textAnchor="end" fontSize={10} fill="var(--text-dim)">
             {Math.round(g * maxY * 100)}%
           </text>
         </g>
       ))}
-      <text x={pad.l} y={H - 4} fontSize={8} fill="#5b626c">
+      <text x={pad.l} y={H - 4} fontSize={10} fill="var(--text-dim)">
         {mes(pontos[0]!.s)}
       </text>
-      <text x={W - pad.r} y={H - 4} fontSize={8} fill="#5b626c" textAnchor="end">
+      <text x={W - pad.r} y={H - 4} fontSize={10} fill="var(--text-dim)" textAnchor="end">
         {mes(pontos[pontos.length - 1]!.s)}
       </text>
       {idxHoje >= 0 && (
@@ -107,14 +107,14 @@ export function CurvaS({
             x2={x(idxHoje)}
             y1={pad.t}
             y2={H - pad.b}
-            stroke="#5b626c"
+            stroke="var(--text-dim)"
             strokeDasharray="2 3"
           />
           <text
             x={x(idxHoje) + 3}
-            y={pad.t + 8}
-            fontSize={8}
-            fill="#9aa1ab"
+            y={pad.t + 9}
+            fontSize={10}
+            fill="var(--text-muted)"
             textAnchor={idxHoje > pontos.length * 0.8 ? 'end' : 'start'}
             dx={idxHoje > pontos.length * 0.8 ? -6 : 0}
           >
@@ -125,13 +125,13 @@ export function CurvaS({
       <polyline
         points={linha('p')}
         fill="none"
-        stroke="#9aa1ab"
+        stroke="var(--text-muted)"
         strokeWidth={1.5}
         strokeDasharray="4 3"
       />
-      <polyline points={linha('r')} fill="none" stroke="#4d8eff" strokeWidth={2} />
+      <polyline points={linha('r')} fill="none" stroke="var(--chart-real)" strokeWidth={2} />
       {ultimoReal && (
-        <circle cx={x(pontos.indexOf(ultimoReal))} cy={y(ultimoReal.r!)} r={3} fill="#4d8eff" />
+        <circle cx={x(pontos.indexOf(ultimoReal))} cy={y(ultimoReal.r!)} r={3} fill="var(--chart-real)" />
       )}
     </svg>
   )
@@ -147,7 +147,7 @@ export function Barras14({ valores, unidade }: { valores: number[]; unidade?: st
   const bw = (W - gap * (vs.length - 1)) / Math.max(vs.length, 1)
   return (
     <svg
-      viewBox={`0 0 ${W} ${H + 12}`}
+      viewBox={`0 0 ${W} ${H + 14}`}
       className="h-auto w-full"
       role="img"
       aria-label={`Produção dos últimos ${vs.length} dias${unidade ? ` em ${unidade}` : ''}`}
@@ -163,16 +163,17 @@ export function Barras14({ valores, unidade }: { valores: number[]; unidade?: st
               width={bw}
               height={h}
               rx={1.5}
-              fill={hoje ? '#4d8eff' : '#4d8eff80'}
+              fill="var(--chart-real)"
+              fillOpacity={hoje ? 1 : 0.5}
             />
-            {v === 0 && <rect x={i * (bw + gap)} y={H - 1} width={bw} height={1} fill="#2a2f3a" />}
+            {v === 0 && <rect x={i * (bw + gap)} y={H - 1} width={bw} height={1} fill="var(--border-strong)" />}
           </g>
         )
       })}
-      <text x={0} y={H + 10} fontSize={8} fill="#5b626c">
+      <text x={0} y={H + 11} fontSize={10} fill="var(--text-dim)">
         {vs.length} dias atrás
       </text>
-      <text x={W} y={H + 10} fontSize={8} fill="#9aa1ab" textAnchor="end">
+      <text x={W} y={H + 11} fontSize={10} fill="var(--text-muted)" textAnchor="end">
         hoje
       </text>
     </svg>
@@ -180,7 +181,8 @@ export function Barras14({ valores, unidade }: { valores: number[]; unidade?: st
 }
 
 const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-const ALFA_CALOR = [0, 0.2, 0.42, 0.68, 1]
+// degraus do verde do tema (classe inteira, para o Tailwind gerar) e o texto que contrasta com cada um
+const FUNDO_CALOR = ['bg-bg-elevated', 'bg-ok/20', 'bg-ok/35', 'bg-ok/50', 'bg-ok']
 
 /**
  * Mapa de calor da produção diária (mesmo desenho da Performance do web): uma semana por linha, cor mais forte
@@ -202,19 +204,20 @@ export function MapaCalor({
   const vazias = dias.length ? diaDaSemana(dias[0]!) : 0
   return (
     <div>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center font-mono text-[10px] text-on-surface-muted">
+      <div className="mb-1 grid grid-cols-7 gap-0.5 text-center text-2xs text-on-surface-muted">
         {SEMANA.map((l, i) => (
           <div key={i}>{l}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1" data-testid="mapa-calor">
+      <div className="grid grid-cols-7 gap-0.5" data-testid="mapa-calor">
         {Array.from({ length: vazias }, (_, i) => (
           <div key={`v${i}`} className="aspect-square" />
         ))}
         {dias.map((d) => {
           const q = porDia.get(d) ?? 0
           const n = nivelCalor(q, max)
-          const forte = n >= 3
+          // só o degrau cheio pede texto claro; nos outros a tinta normal passa de 4,5:1 nos dois temas
+          const forte = n >= 4
           return (
             <button
               key={d}
@@ -226,15 +229,14 @@ export function MapaCalor({
               aria-pressed={selecionado === d}
               className={cn(
                 'relative flex aspect-square items-center justify-center overflow-hidden rounded-sm',
-                n === 0 && 'bg-bg-elevated',
+                FUNDO_CALOR[n],
                 selecionado === d && 'ring-2 ring-on-surface',
               )}
-              style={n > 0 ? { background: `rgba(74, 222, 128, ${ALFA_CALOR[n]})` } : undefined}
             >
               <span
                 className={cn(
-                  'absolute left-1 top-0.5 font-mono text-[8px] leading-none',
-                  forte ? 'text-black/55' : 'text-on-surface-muted',
+                  'absolute left-1 top-0.5 text-[10px] leading-none tabular',
+                  forte ? 'text-on-status' : n === 0 ? 'text-on-surface-muted' : 'text-on-surface',
                 )}
               >
                 {Number(d.slice(8, 10))}
@@ -242,8 +244,8 @@ export function MapaCalor({
               {q > 0 && (
                 <span
                   className={cn(
-                    'font-mono text-[11px] font-semibold leading-none tabular',
-                    forte ? 'text-black/80' : 'text-on-surface',
+                    'mt-2 text-2xs font-semibold leading-none tabular',
+                    forte ? 'text-on-status' : 'text-on-surface',
                   )}
                 >
                   {qtdCurta(q)}

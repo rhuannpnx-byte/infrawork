@@ -4,7 +4,13 @@ import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
 import { parseNum } from '@/lib/numero'
-import { estacaFinalTexto, estacaInicialTexto, estacaParaMetros, nomePosicao } from '@/lib/estaca'
+import {
+  estacaFinalTexto,
+  estacaInicialTexto,
+  estacaParaMetros,
+  nomePosicao,
+  tecladoPosicao,
+} from '@/lib/estaca'
 import { formatNumero } from '@/lib/datas'
 import { calcularDmt, pedeEstaca, type LocalDmt } from '@/lib/dmt'
 import type { ViagemLocal } from '@/core/db/entities'
@@ -159,22 +165,20 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   const unidadeServico = servico?.unidade ?? 'un'
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm sm:items-center sm:justify-center"
+      className="fixed inset-0 z-50 flex items-end bg-veu sm:items-center sm:justify-center"
       onClick={onDismiss}
     >
       <div
-        className="card-surface flex max-h-[90vh] w-full flex-col rounded-t-2xl sm:max-w-md sm:rounded-2xl"
+        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl sm:max-w-md sm:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-center pb-1 pt-3 sm:hidden">
-          <div className="h-1 w-12 rounded-full bg-on-surface-muted" />
+          <div className="h-1 w-12 rounded-full bg-border-strong" />
         </div>
         <div className="flex items-start justify-between border-b border-border px-4 pb-3 pt-4">
           <div className="min-w-0 flex-1 pr-2">
-            <p className="text-xs font-bold uppercase text-accent">
-              {nova ? 'Nova viagem' : 'Editar viagem'}
-            </p>
-            <h2 className="mt-1 truncate text-lg font-bold text-on-surface">
+            <p className="rotulo">{nova ? 'Nova viagem' : 'Editar viagem'}</p>
+            <h2 className="mt-1 truncate text-lg font-semibold text-on-surface">
               {servico?.descricao ?? 'Escolha o serviço'}
             </h2>
           </div>
@@ -185,20 +189,20 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
           <PickerField
-            label="SERVIÇO *"
+            label="Serviço *"
             value={servico ? `${servico.codigo} ${servico.descricao}` : 'Selecionar…'}
             onClick={() => setPicker('servico')}
             empty={!servico}
           />
           <div className="grid grid-cols-2 gap-3">
             <PickerField
-              label="ORIGEM *"
+              label="Origem *"
               value={origem?.nome ?? 'Selecionar…'}
               onClick={() => setPicker('origem')}
               empty={!origem}
             />
             <PickerField
-              label="DESTINO *"
+              label="Destino *"
               value={destino?.nome ?? 'Selecionar…'}
               onClick={() => setPicker('destino')}
               empty={!destino}
@@ -212,6 +216,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
                   value={estacaCarga}
                   onChange={setEstacaCarga}
                   placeholder={estacaInicialTexto(eixoCarga)}
+                  inputMode={tecladoPosicao(eixoCarga)}
                 />
               ) : (
                 <div />
@@ -222,16 +227,17 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
                   value={estacaDescarga}
                   onChange={setEstacaDescarga}
                   placeholder={estacaInicialTexto(eixoDescarga)}
+                  inputMode={tecladoPosicao(eixoDescarga)}
                 />
               ) : null}
             </div>
           )}
           {maquinas.length > 0 && (
             <PickerField
-              label="CARREGADO POR"
+              label="Carregado por"
               value={carregador ? rotuloVeiculo(carregador) : 'Opcional'}
               onClick={() => setPicker('carregador')}
-              empty={!carregador}
+              opcional={!carregador}
             />
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -239,7 +245,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
             <TimeField label="Hora descarga" value={horaDescarga} onChange={setHoraDescarga} />
           </div>
           <NumericField
-            label={`Quantidade (${unidadeServico}) *${capacidade != null && !porPeso ? ` · caçamba ${formatNumero(capacidade, 1)} m³` : ''}`}
+            label={`Quantidade (${unidadeServico}) *${capacidade != null && !porPeso ? ` (caçamba de ${formatNumero(capacidade, 1)} m³)` : ''}`}
             value={qtd}
             onChange={setQtd}
           />
@@ -252,8 +258,8 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
               />
             ) : (
               <ReadOnlyRow
-                label="MATERIAL"
-                value={`${servico.material?.nome ?? '—'} = quantidade da viagem`}
+                label="Material"
+                value={`${servico.material?.nome ?? '—'}: a quantidade da viagem`}
               />
             ))}
           <div>
@@ -282,7 +288,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
                 }}
                 className={dmtManual ? 'text-accent' : ''}
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-5 w-5" />
               </Button>
             </div>
             {!dmtManual && calc.km == null && calc.motivo && (
@@ -300,7 +306,11 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
             onChange={setNf}
             placeholder={porPeso ? '' : 'Opcional'}
           />
-          {erro && <p className="text-sm text-bad">{erro}</p>}
+          {erro && (
+            <p role="alert" className="text-sm text-bad">
+              {erro}
+            </p>
+          )}
         </div>
 
         <div className="border-t border-border p-4 pb-safe-plus-4">
@@ -378,12 +388,12 @@ function TimeField({
 }) {
   return (
     <div>
-      <label className="text-xs font-medium uppercase text-on-surface-dim">{label}</label>
+      <label className="rotulo block">{label}</label>
       <input
         type="time"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 min-h-touch w-full rounded-lg border border-border bg-surface-1 px-3 text-on-surface focus-visible:border-accent focus-visible:outline-none"
+        className="mt-1 block min-h-touch w-full rounded-md border border-border-strong bg-bg-panel px-3 text-base text-on-surface tabular focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0"
       />
     </div>
   )

@@ -10,6 +10,7 @@ import {
   nomePosicao,
   resolverLocal,
   rotuloLocal,
+  tecladoPosicao,
 } from '@/lib/estaca'
 import type { LocalDto, ServicoDto } from '@/types/dtos'
 import { novoApontamento, type ApontamentoDraft } from './producaoStore'
@@ -23,7 +24,7 @@ interface Props {
 }
 
 /**
- * Apontamento de um serviço. Os campos seguem a parametrização do serviço (Planejamento › Parametrização do
+ * Lançamento de um serviço. Os campos seguem a parametrização do serviço (Planejamento › Parametrização do
  * InfraWork Web): quantidade sempre; material (fixo, só a quantidade) quando o serviço controla material; local e
  * estacas (obrigatórios quando o serviço exige); observação quando habilitada.
  */
@@ -71,20 +72,22 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm sm:items-center sm:justify-center"
+      className="fixed inset-0 z-50 flex items-end bg-veu sm:items-center sm:justify-center"
       onClick={onDismiss}
     >
       <div
-        className="card-surface flex max-h-[90vh] w-full flex-col rounded-t-2xl sm:max-w-md sm:rounded-2xl"
+        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl sm:max-w-md sm:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-center pb-1 pt-3 sm:hidden">
-          <div className="h-1 w-12 rounded-full bg-on-surface-muted" />
+          <div className="h-1 w-12 rounded-full bg-border-strong" />
         </div>
         <div className="flex items-start justify-between border-b border-border px-4 pb-3 pt-4">
           <div className="min-w-0 flex-1 pr-2">
-            <p className="text-xs font-bold uppercase text-accent">Serviço · {servico.codigo}</p>
-            <h2 className="mt-1 truncate text-lg font-bold text-on-surface">{servico.descricao}</h2>
+            <p className="rotulo">Serviço · {servico.codigo}</p>
+            <h2 className="mt-1 truncate text-lg font-semibold text-on-surface">
+              {servico.descricao}
+            </h2>
             <p className="mt-0.5 text-xs text-on-surface-dim">
               {[
                 mat ? `material: ${mat.nome}` : null,
@@ -109,7 +112,7 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
           {mat && (
             <>
               <ReadOnlyRow
-                label="MATERIAL"
+                label="Material"
                 value={`${mat.nome}${mat.unidade ? ` (${mat.unidade})` : ''}`}
               />
               <NumericField
@@ -120,7 +123,7 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
             </>
           )}
           <PickerField
-            label={`LOCAL${servico.exige_local ? ' *' : ''}`}
+            label={`Local${servico.exige_local ? ' *' : ''}`}
             value={local ? rotuloLocal(local) : servico.exige_local ? 'Selecionar…' : 'Sem local'}
             onClick={() => setPicker(true)}
             empty={servico.exige_local && !local}
@@ -139,24 +142,30 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
                 value={estIni}
                 onChange={setEstIni}
                 placeholder={estacaInicialTexto(local)}
+                inputMode={tecladoPosicao(local)}
               />
               <LabeledInput
                 label={`${nomePosicao(local)} final *`}
                 value={estFim}
                 onChange={setEstFim}
                 placeholder={estacaFinalTexto(local)}
+                inputMode={tecladoPosicao(local)}
               />
             </div>
           )}
           {servico.habilita_obs && (
             <LabeledInput label="Observação" value={obs} onChange={setObs} placeholder="Opcional" />
           )}
-          {erro && <p className="text-sm text-bad">{erro}</p>}
+          {erro && (
+            <p role="alert" className="text-sm text-bad">
+              {erro}
+            </p>
+          )}
         </div>
 
         <div className="border-t border-border p-4 pb-safe-plus-4">
           <Button variant="primary" size="lg" onClick={salvar} className="w-full">
-            {initial ? 'Atualizar apontamento' : 'Adicionar apontamento'}
+            {initial ? 'Atualizar lançamento' : 'Adicionar lançamento'}
           </Button>
         </div>
       </div>

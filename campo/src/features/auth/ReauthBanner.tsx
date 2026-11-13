@@ -20,7 +20,7 @@ export function ReauthBanner() {
   if (!authed || !recusado || pathname === '/login') return null
 
   return (
-    <div className="sticky top-0 z-40 border-b border-warn/40 bg-bg-elevated">
+    <div className="sticky top-0 z-40 border-b border-warn/50 bg-bg-elevated">
       <div className="mx-auto flex max-w-2xl items-center gap-2 px-3 py-2 text-xs">
         <KeyRound className="h-4 w-4 shrink-0 text-warn" aria-hidden />
         <p className="min-w-0 flex-1 text-on-surface">
@@ -32,7 +32,7 @@ export function ReauthBanner() {
         <button
           type="button"
           onClick={() => navigate('/login')}
-          className="h-8 shrink-0 rounded-md bg-warn px-3 font-semibold text-black"
+          className="min-h-touch shrink-0 rounded-md bg-warn px-4 font-semibold text-on-status"
         >
           Entrar
         </button>

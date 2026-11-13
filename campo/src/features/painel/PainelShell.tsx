@@ -68,8 +68,8 @@ export function PainelShell({
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-2 px-2 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
             size="icon"
@@ -79,7 +79,7 @@ export function PainelShell({
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-on-surface">{titulo}</h1>
+            <h1 className="truncate text-lg font-semibold text-on-surface">{titulo}</h1>
             <p className="truncate text-xs text-on-surface-dim">
               {obra?.codigo ?? painel?.obra.codigo ?? '—'} · Visão estratégica
             </p>
@@ -91,26 +91,35 @@ export function PainelShell({
             disabled={atualizando}
             aria-label="Atualizar"
           >
-            <RefreshCw className={cn('h-4 w-4', atualizando && 'animate-spin')} />
+            <RefreshCw className={cn('h-5 w-5', atualizando && 'animate-spin')} />
           </Button>
         </div>
         {idade && (
           <div
             className={cn(
-              'flex items-center gap-2 px-4 pb-2 text-[11px]',
+              'flex items-center gap-2 px-4 pb-2 text-xs',
               idade.antigo ? 'text-warn' : 'text-on-surface-muted',
             )}
             data-testid="painel-idade"
           >
-            <span className={cn('h-1.5 w-1.5 rounded-full', idade.antigo ? 'bg-warn' : 'bg-ok')} />
+            <span
+              className={cn(
+                'h-2 w-2 flex-shrink-0 rounded-full',
+                idade.antigo ? 'bg-warn' : 'bg-ok',
+              )}
+            />
             <span>
               Dados de {idade.texto}
-              {idade.antigo && ' — mais de 24 h; conecte-se e toque em atualizar'}
+              {idade.antigo && ' (mais de 24 h). Conecte-se e toque em atualizar.'}
               {!idade.antigo && erro?.offline && ' · sem conexão, mostrando o último retrato'}
             </span>
           </div>
         )}
-        {erro && !erro.offline && <div className="px-4 pb-2 text-[11px] text-bad">{erro.msg}</div>}
+        {erro && !erro.offline && (
+          <div role="alert" className="px-4 pb-2 text-xs text-bad">
+            {erro.msg}
+          </div>
+        )}
       </header>
 
       <div className={cn('mx-auto w-full max-w-2xl flex-1 px-4 pt-4', semAbas ? 'pb-8' : 'pb-24')}>
@@ -143,7 +152,7 @@ function SemRetrato({
         <>
           <p className="text-sm text-on-surface">
             {erro?.offline
-              ? 'Sem conexão. Conecte-se à internet uma vez para baixar a visão estratégica — depois ela abre sem sinal.'
+              ? 'Sem conexão. Conecte-se à internet uma vez para baixar a visão estratégica; depois ela abre sem sinal.'
               : (erro?.msg ?? 'Ainda não há dados guardados.')}
           </p>
           <Button className="mt-4" variant="outline" onClick={onTentar}>
@@ -173,8 +182,10 @@ function AbasPainel() {
             replace
             className={({ isActive }) =>
               cn(
-                'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors',
-                isActive ? 'text-accent' : 'text-on-surface-dim hover:text-on-surface',
+                'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 border-t-2 py-1.5 text-2xs font-medium transition-colors',
+                isActive
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-on-surface-dim hover:text-on-surface',
               )
             }
           >
@@ -202,9 +213,7 @@ export function Secao({
   return (
     <section className={cn('rounded-lg border border-border bg-bg-panel p-4', className)}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-dim">
-          {titulo}
-        </h2>
+        <h2 className="rotulo">{titulo}</h2>
         {acao}
       </div>
       {children}
@@ -226,10 +235,10 @@ export function Kpi({
 }) {
   return (
     <div className={cn('min-w-0', className)}>
-      <p className="truncate font-mono text-xl text-on-surface tabular" data-testid={testId}>
+      <p className="truncate text-xl font-medium text-on-surface tabular" data-testid={testId}>
         {valor}
       </p>
-      <p className="mt-0.5 truncate text-[11px] text-on-surface-dim">{legenda}</p>
+      <p className="mt-0.5 text-2xs text-on-surface-dim">{legenda}</p>
     </div>
   )
 }

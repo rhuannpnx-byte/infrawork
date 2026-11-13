@@ -52,7 +52,11 @@ localhost; com `dev-cert.pem`/`dev-key.pem` do mkcert o certificado é confiáve
 
 ## Deploy
 
-Vercel, projeto `infrawork-campo` → https://infrawork-campo.vercel.app (`vercel deploy --prod` dentro de `campo/`).
+Vercel, projeto `infrawork-campo` → https://infrawork-campo.vercel.app. O push na `main` publica quando a pasta
+`campo/` mudou.
+
+A identidade visual é a mesma do site ("Prancheta técnica", `web/DESIGN.md`): tema claro por padrão, cores por
+variável em `src/styles/theme.css`, Archivo servida junto com o app e alvos de toque de 44 px.
 `vercel.json` traz o fallback da SPA, o service worker sem cache e a CSP (o `connect-src` libera o Supabase do
 InfraWork Web — trocar se o projeto Supabase mudar). Variáveis do projeto: `VITE_SUPABASE_URL` e
 `VITE_SUPABASE_ANON_KEY`. No Supabase, Auth › URL Configuration: incluir a URL do app em *Redirect URLs*. No web,

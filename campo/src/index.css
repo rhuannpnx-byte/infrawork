@@ -1,27 +1,12 @@
-/* IBM Plex Sans + Mono — tipografia InfraWork.
-   @import precisa vir ANTES das diretivas @tailwind (CSS spec). */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import './styles/theme.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* CSS custom properties — uso em utilities Tailwind arbitrárias
-     (ex: shadow-[0_0_0_1px_var(--accent-line)]) sem precisar listar cores
-     em todos os componentes. */
   :root {
-    --bg: #08090b;
-    --bg-panel: #0e1014;
-    --bg-elevated: #161922;
-    --accent: #4d8eff;
-    --accent-dark: #1d4fb0;
-    --accent-glow: rgba(77, 142, 255, 0.12);
-    --accent-line: rgba(77, 142, 255, 0.5);
-    --border: #1b1e26;
-    --border-strong: #2a2f3a;
     --transition-snap: 150ms ease-out;
-    color-scheme: dark;
   }
 
   html,
@@ -31,15 +16,13 @@
   }
 
   body {
-    @apply bg-bg-base text-on-surface antialiased font-sans;
-    /* Base mobile 14px (vs 12px desktop) — preserva proporção, mais legível em fone */
-    font-size: 14px;
+    @apply bg-bg-base font-sans text-on-surface antialiased;
+    font-size: 15px;
     line-height: 1.4;
     /* iOS safe area + impede over-scroll bounce */
     overscroll-behavior-y: none;
   }
 
-  /* Inputs herdam tema dark */
   input,
   textarea,
   select,
@@ -47,37 +30,58 @@
     @apply font-sans;
   }
 
-  /* Foco visível, sem outline azul padrão do navegador em dark */
   :focus-visible {
     @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg-base;
+  }
+
+  /* números e códigos: a mesma família, com algarismos tabulares */
+  .font-mono,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
 @layer components {
-  /* Cartão padrão — hover sutil pra "ficar técnico" mesmo em interação leve */
+  /* Folha: bloco branco com borda fina (sem sombra; sombra só no que flutua) */
   .card-surface {
-    @apply bg-bg-panel rounded-md border border-border;
+    @apply rounded-md border border-border bg-bg-panel;
     transition:
       border-color var(--transition-snap),
       background-color var(--transition-snap);
   }
-  .card-surface:hover {
-    @apply border-border-strong;
+  @media (hover: hover) {
+    .card-surface:hover {
+      @apply border-border-strong;
+    }
   }
 
-  /* Variant pra picker / áreas elevadas (modais, sheets) */
+  /* Bloco dentro da folha (linha de leitura, grupo de opções) */
   .card-surface-variant {
-    @apply bg-bg-elevated rounded-md;
+    @apply rounded-md border border-border bg-bg-elevated;
   }
 
-  /* Indicador "barra de 2px" — usado no item ativo de nav/picker (replica
-     a estética .nav-item-active-bar do desktop). Adicionar `.active-bar` na
-     classe + ::before fica como a barrinha à esquerda. */
-  .active-bar {
-    @apply relative;
+  /* Rótulo de campo, de coluna e de grupo */
+  .rotulo {
+    @apply text-2xs font-semibold uppercase tracking-[0.08em] text-on-surface-dim;
   }
-  .active-bar::before {
-    content: '';
-    @apply absolute left-0 top-2 bottom-2 w-[2px] bg-accent rounded-full;
+
+  /* Selo de situação (envio, estado do serviço) */
+  .selo {
+    @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-[0.06em];
+  }
+
+  /* Folha que sobe de baixo (seletor, formulário): flutua, então tem sombra */
+  .folha-flutuante {
+    @apply border border-border bg-bg-panel shadow-flutuante;
   }
 }

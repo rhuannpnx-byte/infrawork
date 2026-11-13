@@ -76,37 +76,23 @@ function useReady(): boolean {
 }
 
 /**
- * LoaderScreen — splash com identidade InfraWork. Usado em três momentos:
+ * LoaderScreen — tela de espera com a marca. Usado em três momentos:
  *  - Boot inicial (antes do useSyncExternalStore resolver localStorage)
  *  - Carregamento de dados em rotas (passando `label` opcional)
  *  - Transições autenticadas (ex.: aguardando session refresh)
- *
- * Visual: icon centralizado com glow azul radial sutil de fundo, wordmark logo
- * abaixo, spinner discreto. Mesma vibe da Tela de Início standalone do PWA.
  */
 export function LoaderScreen({ label }: { label?: string } = {}) {
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-bg-base">
-      {/* Glow radial sutil — ecoa o efeito do icon-source.png */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            'radial-gradient(circle at center, rgba(77,142,255,0.18) 0%, transparent 55%)',
-        }}
-      />
-      <div className="relative flex flex-col items-center gap-8 px-8">
-        {/* Wordmark com glow — peça única (icon + texto INFRAWORK).
-            Largura responsiva, max-w pra não estourar em tablet. */}
+    <div className="flex min-h-svh flex-col items-center justify-center bg-bg-base">
+      <div className="flex flex-col items-center gap-6 px-8">
         <img
           src="/logo-wordmark-glow-640.webp"
           alt="InfraWork"
           className="h-auto w-full max-w-[320px]"
           decoding="async"
         />
-        <div className="flex items-center gap-2 text-xs text-on-surface-dim">
-          <div className="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent" />
+        <div className="flex items-center gap-2 text-sm text-on-surface-dim">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           <span>{label ?? 'Carregando…'}</span>
         </div>
       </div>

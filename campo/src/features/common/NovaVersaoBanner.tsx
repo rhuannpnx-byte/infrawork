@@ -16,7 +16,7 @@ export function NovaVersaoBanner() {
   }, [])
   if (!pronta) return null
   return (
-    <div className="sticky top-0 z-40 border-b border-accent/40 bg-bg-elevated">
+    <div className="sticky top-0 z-40 border-b border-accent-line bg-bg-elevated">
       <div className="mx-auto flex max-w-2xl items-center gap-2 px-3 py-2 text-sm">
         <RefreshCw className="h-4 w-4 shrink-0 text-accent" aria-hidden />
         <p className="min-w-0 flex-1 text-on-surface">Nova versão do app disponível.</p>
@@ -27,7 +27,7 @@ export function NovaVersaoBanner() {
             setAtualizando(true)
             aplicarNovaVersao()
           }}
-          className="h-9 shrink-0 rounded-md bg-accent px-3 font-semibold text-bg-base disabled:opacity-60"
+          className="min-h-touch shrink-0 rounded-md bg-accent px-4 font-semibold text-accent-fg disabled:opacity-60"
         >
           {atualizando ? 'Atualizando…' : 'Atualizar'}
         </button>

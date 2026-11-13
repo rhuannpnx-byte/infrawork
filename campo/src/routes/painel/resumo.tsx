@@ -56,7 +56,7 @@ function Resumo({ p }: { p: CatPainel }) {
         <div className="flex items-end justify-between gap-3">
           <div>
             <p
-              className={cn('font-mono text-4xl tabular', TOM_TEXTO[tomFisico])}
+              className={cn('text-4xl font-medium tabular', TOM_TEXTO[tomFisico])}
               data-testid="painel-avanco"
             >
               {pct(r.avanco)}
@@ -69,7 +69,7 @@ function Resumo({ p }: { p: CatPainel }) {
             <p className={cn('text-right font-mono text-sm tabular', TOM_TEXTO[tomFisico])}>
               {desvioPp >= 0 ? '+' : '−'}
               {Math.abs(desvioPp * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} p.p.
-              <span className="block font-sans text-[11px] text-on-surface-dim">
+              <span className="block text-xs text-on-surface-dim">
                 {desvioPp >= 0 ? 'à frente do plano' : 'atrás do plano'}
               </span>
             </p>
@@ -81,7 +81,7 @@ function Resumo({ p }: { p: CatPainel }) {
           tom={tomFisico}
           className="mt-3"
         />
-        <p className="mt-2 text-[10px] text-on-surface-muted">
+        <p className="mt-2 text-xs text-on-surface-muted">
           Ponderado pelo valor de venda de cada serviço.
         </p>
       </Secao>
@@ -110,8 +110,10 @@ function Resumo({ p }: { p: CatPainel }) {
         )}
         {Number(f.servicos_alem_contrato) > 0 && (
           <p className="mt-2 text-xs text-warn">
-            {f.servicos_alem_contrato} serviço(s) produziram além da quantidade do contrato — o
-            excedente não agrega valor.
+            {Number(f.servicos_alem_contrato) === 1
+              ? '1 serviço produziu'
+              : `${f.servicos_alem_contrato} serviços produziram`}{' '}
+            além da quantidade do contrato. O excedente não agrega valor.
           </p>
         )}
       </Secao>
@@ -119,13 +121,13 @@ function Resumo({ p }: { p: CatPainel }) {
       <Secao
         titulo="Curva S (acumulado semanal)"
         acao={
-          <span className="flex items-center gap-3 text-[10px] text-on-surface-dim">
+          <span className="flex items-center gap-3 text-2xs text-on-surface-dim">
             <span className="flex items-center gap-1">
               <span className="inline-block h-0 w-3 border-t border-dashed border-on-surface-dim" />
               previsto
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-0.5 w-3 bg-accent" />
+              <span className="inline-block h-0.5 w-3 bg-[var(--chart-real)]" />
               realizado
             </span>
           </span>
@@ -162,31 +164,36 @@ function Resumo({ p }: { p: CatPainel }) {
               const st = statusInfo(s.status)
               return (
                 <li key={s.id}>
-                  <Link to={`/painel/servicos/${s.id}`} className="flex items-center gap-3 py-2.5">
+                  <Link
+                    to={`/painel/servicos/${s.id}`}
+                    className="flex min-h-touch items-center gap-3 py-2.5"
+                  >
                     <AlertTriangle className={cn('h-4 w-4 flex-shrink-0', TOM_TEXTO[st.tom])} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-on-surface">
                         <span className="font-mono text-on-surface-dim">{s.codigo}</span>{' '}
                         {s.descricao}
                       </p>
-                      <p className={cn('text-[11px]', TOM_TEXTO[st.tom])}>
+                      <p className={cn('text-xs', TOM_TEXTO[st.tom])}>
                         {st.label} · {pct(s.pct_avanco)} de {pct(s.pct_esperado)} esperado
                       </p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-on-surface-muted" />
+                    <ChevronRight className="h-5 w-5 flex-shrink-0 text-on-surface-muted" />
                   </Link>
                 </li>
               )
             })}
             {semHoje.length > 0 && (
               <li>
-                <Link to="/painel/equipes" className="flex items-center gap-3 py-2.5">
+                <Link to="/painel/equipes" className="flex min-h-touch items-center gap-3 py-2.5">
                   <AlertTriangle className="h-4 w-4 flex-shrink-0 text-warn" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-on-surface">
-                      {semHoje.length} equipe(s) da semana sem lançamento hoje
+                      {semHoje.length === 1
+                        ? '1 equipe da semana sem lançamento hoje'
+                        : `${semHoje.length} equipes da semana sem lançamento hoje`}
                     </p>
-                    <p className="truncate text-[11px] text-on-surface-dim">
+                    <p className="truncate text-xs text-on-surface-dim">
                       {semHoje
                         .slice(0, 3)
                         .map((e) => e.nome)
@@ -194,7 +201,7 @@ function Resumo({ p }: { p: CatPainel }) {
                       {semHoje.length > 3 ? '…' : ''}
                     </p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-on-surface-muted" />
+                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-on-surface-muted" />
                 </Link>
               </li>
             )}
@@ -217,29 +224,29 @@ function UltimosLancamentos({ ultimos }: { ultimos: CatPainel['ultimos'] }) {
         ultimos.length > 8 && (
           <button
             type="button"
-            className="text-[11px] text-accent"
+            className="-my-3 inline-flex min-h-touch items-center px-1 text-sm font-medium text-accent"
             onClick={() => setTodos((v) => !v)}
           >
-            {todos ? 'ver menos' : `ver ${ultimos.length}`}
+            {todos ? 'Ver menos' : `Ver os ${ultimos.length}`}
           </button>
         )
       }
     >
       {lista.length === 0 ? (
-        <p className="text-xs text-on-surface-muted">Nenhum lançamento ainda.</p>
+        <p className="text-xs text-on-surface-dim">Nenhum lançamento ainda.</p>
       ) : (
         <ul className="divide-y divide-border" data-testid="painel-ultimos">
           {lista.map((u, i) => (
             <li key={i} className="py-2">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="min-w-0 truncate text-sm text-on-surface">
-                  <span className="font-mono text-on-surface-dim">{u.codigo}</span> {u.descricao}
+                  <span className="text-on-surface-dim tabular">{u.codigo}</span> {u.descricao}
                 </p>
                 <p className="flex-shrink-0 font-mono text-sm text-on-surface tabular">
                   {qtd(u.qtd, u.unidade)}
                 </p>
               </div>
-              <p className="truncate text-[11px] text-on-surface-dim">
+              <p className="truncate text-xs text-on-surface-dim">
                 {formatBR(u.data)}
                 {u.equipe ? ` · ${u.equipe}` : ''}
                 {u.encarregado ? ` · ${u.encarregado}` : ''}
@@ -260,8 +267,8 @@ const ORIGEM: Record<string, string> = { app: 'web', importacao: 'importado', vi
 
 function Aviso({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2 rounded-lg border border-warn/40 bg-warn/10 p-3 text-xs text-warn">
-      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+    <div className="flex gap-2 rounded-md border border-warn/50 bg-warn/10 p-3 text-xs text-on-surface">
+      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warn" aria-hidden />
       <p>{children}</p>
     </div>
   )

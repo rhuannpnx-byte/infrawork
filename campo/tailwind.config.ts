@@ -1,71 +1,84 @@
 import type { Config } from 'tailwindcss'
 
-// Paleta InfraWork — replicada do app desktop pra unificar identidade:
-// - Stack de bg em escala curta (bg-base → bg-panel → bg-elevated)
-// - Accent azul #4d8eff com glow translúcido em estado ativo/focus
-// - Status semânticos alinhados com Tailwind defaults (success/warn/danger)
-// - Raios pequenos (3-8px) pra estética técnica/CAD-like
+// Identidade "Prancheta técnica" (web/DESIGN.md). As cores vêm das variáveis de src/styles/theme.css; os nomes de
+// classe do app (bg-base, on-surface, ok, bad…) continuam os mesmos.
+// Cor por variável que aceita transparência: `bg-bad/10` vira color-mix; sem `/NN` sai a variável pura.
+const cor = (nome: string) =>
+  (({ opacityValue }: { opacityValue?: string }) =>
+    opacityValue === undefined || String(opacityValue).startsWith('var(')
+      ? `var(--${nome})`
+      : `color-mix(in oklab, var(--${nome}) calc(${opacityValue} * 100%), transparent)`) as unknown as string
+
+const ARCHIVO = ['"Archivo Variable"', 'Archivo', 'system-ui', '-apple-system', 'sans-serif']
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Camadas de background
-        'bg-base': '#08090b',
-        'bg-panel': '#0e1014',
-        'bg-elevated': '#161922',
-        // Aliases mantidos pra não quebrar classes existentes (surface-1/2)
-        'surface-1': '#0e1014',
-        'surface-2': '#161922',
+        'bg-base': cor('bg'),
+        'bg-panel': cor('bg-panel'),
+        'bg-elevated': cor('bg-elevated'),
+        'surface-1': cor('bg-panel'),
+        'surface-2': cor('bg-elevated'),
 
-        // Texto
-        'on-surface': '#e6e8eb',
-        'on-surface-dim': '#9aa1ab',
-        'on-surface-muted': '#5b626c',
+        'on-surface': cor('text'),
+        'on-surface-dim': cor('text-muted'),
+        'on-surface-muted': cor('text-dim'),
+        // só decoração (não atinge 4,5:1)
+        'on-surface-faint': cor('text-faint'),
 
-        // Bordas
-        border: '#1b1e26',
-        'border-strong': '#2a2f3a',
+        border: cor('border'),
+        'border-strong': cor('border-strong'),
 
-        // Accent (azul InfraWork)
         accent: {
-          DEFAULT: '#4d8eff',
-          dark: '#1d4fb0',
-          fg: '#ffffff',
-          line: '#4d8eff80', // 50% alpha — borda fina translúcida
-          glow: '#4d8eff1f', // 12% alpha — bg sutil em hover/focus
+          DEFAULT: cor('accent'),
+          dark: cor('accent-hover'),
+          fg: cor('on-accent'),
+          line: cor('accent-line'),
+          glow: cor('accent-glow'),
         },
 
-        // Info (ciano pra hyperlinks / badges informativos)
-        info: {
-          DEFAULT: '#56c7ff',
-          dark: '#1b7ba8',
-          fg: '#002c3f',
-        },
-
-        // Status semântico (alinhado com paleta desktop)
-        ok: '#4ade80',
-        warn: '#fbbf24',
-        bad: '#f87171',
+        info: cor('info'),
+        ok: cor('success'),
+        warn: cor('warn'),
+        bad: cor('danger'),
+        // texto sobre ok/warn/bad/info em fundo cheio
+        'on-status': cor('on-status'),
+        veu: cor('veu'),
       },
       fontFamily: {
-        // IBM Plex Sans pra UI; Plex Mono pra números (tabular-nums).
-        // `display` usa o mesmo Plex Sans em peso 700 (sem Archivo).
-        sans: ['"IBM Plex Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'Menlo', 'monospace'],
+        // uma família só; `font-mono` é a mesma com algarismos tabulares (ver index.css)
+        sans: ARCHIVO,
+        display: ARCHIVO,
+        mono: ARCHIVO,
+      },
+      // Sob sol, texto de leitura não fica abaixo de 14 px: `xs` é o piso de leitura; `2xs` é só para rótulo.
+      fontSize: {
+        '2xs': ['12px', { lineHeight: '16px' }],
+        xs: ['14px', { lineHeight: '20px' }],
+        sm: ['15px', { lineHeight: '22px' }],
+        base: ['16px', { lineHeight: '24px' }],
+        lg: ['18px', { lineHeight: '26px' }],
+        xl: ['20px', { lineHeight: '28px' }],
       },
       borderRadius: {
-        // Raios pequenos InfraWork (antes 12/16/20)
-        sm: '3px',
-        md: '4px',
-        lg: '6px',
-        xl: '8px',
-        '2xl': '12px',
+        sm: '1px',
+        DEFAULT: '2px',
+        md: '2px',
+        lg: '3px',
+        xl: '3px',
+        // só o topo das folhas que sobem de baixo
+        '2xl': '8px',
+      },
+      boxShadow: {
+        flutuante: 'var(--sombra-flutuante)',
       },
       minHeight: {
-        touch: '44px', // alvo de toque iOS glove-friendly
+        touch: '44px',
+      },
+      minWidth: {
+        touch: '44px',
       },
       // env(safe-area-inset-*) resolvido pelo browser quando viewport-fit=cover.
       spacing: {
@@ -78,7 +91,6 @@ export default {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       transitionDuration: {
-        // Default InfraWork — 120-160ms ease-out
         '150': '150ms',
       },
     },
@@ -104,8 +116,11 @@ export default {
         '.pb-safe-plus-3': { paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' },
         '.pb-safe-plus-4': { paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' },
         '.mt-safe': { marginTop: 'env(safe-area-inset-top)' },
-        // Tabular numbers — usar em qualquer span com valor numérico
-        '.tabular': { fontVariantNumeric: 'tabular-nums' },
+        // respiro lateral de 16 px que cresce com a área segura (barras de ação de baixo)
+        '.px-safe-4': {
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))',
+        },
       })
     },
   ],

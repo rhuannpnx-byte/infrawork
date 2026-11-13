@@ -238,10 +238,9 @@ export function FotosCaptureRoute() {
   // MODE 'live' — branch entre provider nativo (UI Android sistema) vs web
   // (stream getUserMedia + <video> + canvas).
   if (mode === 'live' && isNativeCamera) {
-    const usable = isUsablePosition(position)
     return (
       <main className="grid h-svh grid-rows-[auto_1fr_auto] overflow-hidden bg-bg-base">
-        <header className="flex items-center justify-between border-b border-border px-4 py-3 pl-safe pr-safe pt-safe-plus-3">
+        <header className="flex items-center justify-between border-b border-border px-safe-4 pb-2 pt-safe-plus-2">
           <Button
             variant="ghost"
             size="icon"
@@ -258,21 +257,26 @@ export function FotosCaptureRoute() {
         <div className="flex flex-col items-center justify-center gap-6 p-6 text-center">
           <CameraIcon className="h-24 w-24 text-on-surface-dim" />
           <div>
-            <p className="text-lg font-medium text-on-surface">Pronto pra tirar a foto</p>
+            <p className="text-lg font-medium text-on-surface">Pronto para tirar a foto</p>
             <p className="mt-1 text-sm text-on-surface-dim">
-              A câmera nativa do Android abre ao tocar abaixo.
+              A câmera do aparelho abre ao tocar no botão abaixo.
             </p>
           </div>
-          {cameraError && <p className="text-sm text-bad">{cameraError}</p>}
+          {cameraError && (
+            <p role="alert" className="text-sm text-bad">
+              {cameraError}
+            </p>
+          )}
           <GpsGateMessage geo={geo} position={position} semGps={semGps} />
         </div>
 
-        <div className="border-t border-border px-4 py-3 pl-safe pr-safe pb-safe-plus-3">
+        <div className="border-t border-border px-safe-4 pb-safe-plus-3 pt-3">
           <Button
             variant="primary"
             size="lg"
             onClick={handleNativeCapture}
-            disabled={!usable || shooting}
+            // mesma regra do caminho com a câmera na tela: sem GPS em 20 s (ou negado) a foto sai sem coordenadas
+            disabled={!podeFotografar || shooting}
             className="w-full"
           >
             <CameraIcon className="h-5 w-5" />
@@ -290,7 +294,7 @@ export function FotosCaptureRoute() {
       // era `min-h-svh flex flex-col` com header absolute — em viewports curtas
       // o footer com shutter saía pra fora e o operador precisava scrollar.
       <main className="grid h-svh grid-rows-[auto_1fr_auto] overflow-hidden bg-black">
-        <header className="relative z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent p-3 pl-safe pr-safe pt-safe-plus-3">
+        <header className="relative z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-safe-4 pb-3 pt-safe-plus-3">
           <Button
             variant="ghost"
             size="icon"
@@ -308,8 +312,8 @@ export function FotosCaptureRoute() {
             <div className="p-6 text-center text-white">
               <p className="font-medium">Câmera indisponível</p>
               <p className="mt-2 text-sm opacity-80">{cameraError}</p>
-              <p className="mt-3 text-xs opacity-60">
-                Use o botão de upload abaixo para enviar uma foto da galeria.
+              <p className="mt-3 text-xs opacity-80">
+                Use o botão da esquerda, abaixo, para escolher uma foto da galeria.
               </p>
             </div>
           ) : (
@@ -323,15 +327,15 @@ export function FotosCaptureRoute() {
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-2 bg-black/90 px-6 py-3 pl-safe pr-safe pb-safe-plus-3">
+        <div className="flex flex-col items-center gap-2 bg-black/90 px-safe-4 pb-safe-plus-3 pt-3">
           {/* GATE: shutter só libera com GPS abaixo de N metros de precisão.
               Operador vê motivo claro pra espera + accuracy em tempo real. */}
-          <GpsGateMessage geo={geo} position={position} semGps={semGps} />
+          <GpsGateMessage geo={geo} position={position} semGps={semGps} sobreCamera />
           <div className="flex w-full items-center justify-center gap-8">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Enviar foto da galeria"
             >
               <Upload className="h-5 w-5" />
@@ -347,7 +351,7 @@ export function FotosCaptureRoute() {
               <span className="absolute inset-2 rounded-full bg-white" />
             </button>
 
-            <div className="h-12 w-12 p-3" />
+            <div className="h-12 w-12" />
           </div>
         </div>
 
@@ -529,12 +533,12 @@ function FormMode({
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-2 px-2 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-2 px-2 py-2">
           <Button variant="ghost" size="icon" onClick={onRetake} aria-label="Refazer">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold text-on-surface">Pré-visualizar foto</h1>
+          <h1 className="text-lg font-semibold text-on-surface">Conferir a foto</h1>
         </div>
       </header>
 
@@ -554,7 +558,7 @@ function FormMode({
             </div>
           )}
           {rendering && stampedUrl && (
-            <div className="absolute right-2 top-2 flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-1 text-xs text-white">
+            <div className="absolute right-2 top-2 flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-xs text-white">
               <Loader2 className="h-3 w-3 animate-spin" />
               atualizando
             </div>
@@ -563,11 +567,13 @@ function FormMode({
 
         <div className="mx-auto max-w-2xl space-y-3 p-4">
           {error && (
-            <div className="rounded-lg bg-bad/15 p-3 text-sm text-bad">
-              <p className="font-medium">
-                {erroAoSalvar ? 'Erro ao salvar' : 'Erro ao renderizar'}
+            <div role="alert" className="rounded-md border border-bad/40 bg-bad/10 p-3 text-sm">
+              <p className="font-semibold text-bad">
+                {erroAoSalvar
+                  ? 'Não foi possível salvar a foto'
+                  : 'Não foi possível aplicar a marca d\'água'}
               </p>
-              <p className="mt-1 text-xs opacity-90">{error}</p>
+              <p className="mt-1 text-xs text-on-surface">{error}</p>
               <Button variant="outline" size="sm" onClick={onRetake} className="mt-2">
                 <RotateCcw className="mr-1 h-4 w-4" />
                 Refazer foto
@@ -576,24 +582,23 @@ function FormMode({
           )}
 
           <p className="text-xs text-on-surface-dim">
-            A foto será gravada exatamente como na pré-visualização acima. Mude os campos abaixo pra
-            atualizar a marca d'água em tempo real.
+            A foto será gravada como aparece acima. Os campos abaixo mudam a marca d'água.
           </p>
 
           <PickerField
-            label="SERVIÇO"
+            label="Serviço"
             value={servicoNome ?? 'Selecionar…'}
             onClick={() => setPicker('servico')}
           />
 
           <PickerField
-            label="ENCARREGADO"
+            label="Encarregado"
             value={encarregadoNome ?? 'Selecionar…'}
             onClick={() => setPicker('encarregado')}
           />
 
           <PickerField
-            label="EQUIPE"
+            label="Equipe"
             value={equipes.length === 0 ? 'Sem equipes na obra' : (equipeNome ?? 'Selecionar…')}
             onClick={() => setPicker('equipe')}
             disabled={equipes.length === 0}
@@ -608,32 +613,35 @@ function FormMode({
           />
 
           <div>
-            <label className="text-xs font-medium uppercase text-on-surface-dim">Observações</label>
+            <label className="rotulo" htmlFor="foto-obs">
+              Observações
+            </label>
             <textarea
               value={obs}
               onChange={(e) => setObs(e.target.value)}
               rows={3}
+              id="foto-obs"
               className={cn(
-                'mt-1 w-full rounded-lg border border-border bg-surface-1 px-3 py-2',
+                'mt-1 block w-full rounded-md border border-border-strong bg-bg-panel px-3 py-2 text-base',
                 'text-on-surface placeholder:text-on-surface-muted',
-                'focus-visible:border-accent focus-visible:outline-none',
+                'focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0',
               )}
               placeholder="Descreva a foto…"
             />
           </div>
 
           {position ? (
-            <p className="text-xs text-on-surface-dim">
+            <p className="text-xs text-on-surface-dim tabular">
               GPS: {position.lat.toFixed(5)}, {position.lng.toFixed(5)} · ±
-              {Math.round(position.accuracy)}m
+              {Math.round(position.accuracy)} m
             </p>
           ) : (
-            <p className="text-xs text-warn">Sem GPS — a foto será enviada sem coordenadas.</p>
+            <p className="text-xs text-warn">Sem GPS: a foto será enviada sem coordenadas.</p>
           )}
         </div>
       </div>
 
-      <div className="sticky bottom-0 flex gap-3 border-t border-border bg-bg-base/95 p-4 backdrop-blur pl-safe pr-safe pb-safe-plus-4">
+      <div className="sticky bottom-0 flex gap-3 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
         <Button variant="outline" size="lg" onClick={onRetake} className="flex-1">
           Refazer
         </Button>
@@ -644,7 +652,7 @@ function FormMode({
           onClick={handleSave}
           className="flex-1"
         >
-          {saving ? 'Salvando…' : rendering ? 'Renderizando…' : 'Salvar foto'}
+          {saving ? 'Salvando…' : rendering ? 'Preparando…' : 'Salvar foto'}
         </Button>
       </div>
 
@@ -720,24 +728,27 @@ function GeoBadge({ geo }: { geo: GeoResult }) {
   const isStaleOk = geo.status === 'ok' && geo.stale
   const accurate = acc != null && acc <= GPS_ACCURACY_THRESHOLD_METERS
   const label = isStaleOk
-    ? `GPS cache ±${Math.round(acc!)}m`
+    ? `GPS anterior ±${Math.round(acc!)} m`
     : geo.status === 'ok'
-      ? `GPS ±${Math.round(acc!)}m${accurate ? ' ✓' : ''}`
+      ? `GPS ±${Math.round(acc!)} m${accurate ? ' ✓' : ''}`
       : geo.status === 'pending'
         ? 'Buscando GPS…'
         : geo.status === 'denied'
           ? 'GPS negado'
           : 'Sem GPS'
+  // fundo cheio com texto em --on-status: legível sobre a câmera e sobre o papel, nos dois temas
   const tone = accurate
-    ? 'bg-ok/80 text-white'
+    ? 'bg-ok text-on-status'
     : geo.status === 'ok'
-      ? 'bg-warn/80 text-bg-base'
+      ? 'bg-warn text-on-status'
       : geo.status === 'pending'
-        ? 'bg-white/20 text-white'
-        : 'bg-bad/80 text-white'
+        ? 'bg-black/60 text-white'
+        : 'bg-bad text-on-status'
 
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${tone}`}>
+    <span
+      className={`inline-flex items-center rounded px-3 py-1 text-xs font-semibold tabular ${tone}`}
+    >
       {label}
     </span>
   )
@@ -748,23 +759,27 @@ function GeoBadge({ geo }: { geo: GeoResult }) {
  *  - Sem fix ou erro → bloqueia + mensagem amarela
  *  - 50-150m → libera + aviso "precisão reduzida ±Xm"
  *  - ≤ 50m → some (operador pronto)
+ * `sobreCamera`: a mensagem fica na faixa preta da câmera, então usa âmbar fixo em vez do token do tema.
  */
 function GpsGateMessage({
   geo,
   position,
   semGps,
+  sobreCamera,
 }: {
   geo: GeoResult
   position: FixedPosition | null
   semGps: boolean
+  sobreCamera?: boolean
 }) {
+  const cls = cn('max-w-xs text-center text-xs', sobreCamera ? 'text-amber-300' : 'text-warn')
   if (isAccurateEnough(position)) return null
   if (semGps && !isUsablePosition(position)) {
     return (
-      <p className="max-w-xs text-center text-xs text-warn">
+      <p className={cls}>
         {geo.status === 'denied'
-          ? 'GPS negado — a foto sai sem coordenadas (habilite a localização nas permissões).'
-          : 'Sem sinal de GPS — a foto sai sem coordenadas.'}
+          ? 'GPS negado: a foto sai sem coordenadas (habilite a localização nas permissões).'
+          : 'Sem sinal de GPS: a foto sai sem coordenadas.'}
       </p>
     )
   }
@@ -772,24 +787,24 @@ function GpsGateMessage({
   // Tem fix utilizável (50-150m): aviso amarelo + libera shutter.
   if (isUsablePosition(position)) {
     return (
-      <p className="max-w-xs text-center text-xs text-warn">
-        Precisão reduzida — ±{Math.round(position!.accuracy)}m (ideal ≤
-        {GPS_ACCURACY_THRESHOLD_METERS}m)
+      <p className={cls}>
+        Precisão reduzida: ±{Math.round(position!.accuracy)} m (ideal até{' '}
+        {GPS_ACCURACY_THRESHOLD_METERS} m)
       </p>
     )
   }
 
   let label: string
   if (geo.status === 'denied') {
-    label = 'GPS negado — habilite localização nas permissões do app.'
+    label = 'GPS negado. Habilite a localização nas permissões do app.'
   } else if (geo.status === 'unavailable') {
     label = 'GPS indisponível neste dispositivo.'
   } else if (position == null) {
-    label = 'Aguardando GPS… vá pra área aberta pra acelerar.'
+    label = 'Aguardando GPS… vá para uma área aberta para acelerar.'
   } else {
-    label = `Aguardando GPS — atual ±${Math.round(position.accuracy)}m, máx ${GPS_ACCURACY_MAX_METERS}m`
+    label = `Aguardando GPS: agora ±${Math.round(position.accuracy)} m, máximo ${GPS_ACCURACY_MAX_METERS} m`
   }
-  return <p className="max-w-xs text-center text-xs text-warn">{label}</p>
+  return <p className={cls}>{label}</p>
 }
 
 function PickerField({
@@ -809,20 +824,20 @@ function PickerField({
 }) {
   return (
     <div>
-      <label className="text-xs font-medium uppercase text-on-surface-dim">{label}</label>
+      <label className="rotulo block">{label}</label>
       <div className="mt-1 flex items-stretch gap-2">
         <button
           type="button"
           onClick={disabled ? undefined : onClick}
           disabled={disabled}
           className={cn(
-            'flex-1 rounded-lg border bg-surface-1 px-3 text-left',
-            'flex min-h-touch items-center justify-between transition-colors',
+            'min-w-0 flex-1 rounded-md border bg-bg-panel px-3 text-left text-base',
+            'flex min-h-touch items-center justify-between gap-2 transition-colors',
             disabled
               ? 'cursor-not-allowed border-border opacity-50'
               : required
-                ? 'border-warn/60 hover:border-warn'
-                : 'border-border hover:border-accent/60',
+                ? 'border-warn hover:border-warn'
+                : 'border-border-strong hover:border-accent',
           )}
         >
           <span className="truncate text-on-surface">{value}</span>
@@ -830,7 +845,7 @@ function PickerField({
         </button>
         {onClear && !disabled && (
           <Button variant="ghost" size="icon" onClick={onClear} aria-label="Limpar">
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         )}
       </div>

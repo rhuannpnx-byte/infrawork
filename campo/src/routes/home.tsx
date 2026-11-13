@@ -12,6 +12,8 @@ import { useSyncStatus } from '@/core/sync/useSyncStatus'
 import { refreshAllCatalogs, refreshCatalogo } from '@/core/sync/catalogSync'
 import { cn } from '@/lib/cn'
 import { ModuleCard } from '@/features/common/ModuleCard'
+import { SeletorTema } from '@/features/common/SeletorTema'
+import { contar, plural } from '@/lib/texto'
 import { podeVerPainel } from '@/features/painel/papel'
 
 /**
@@ -20,6 +22,7 @@ import { podeVerPainel } from '@/features/painel/papel'
  *  2. Obra atual (abre a escolha da obra)
  *  3. Pendências de envio e situação dos dados offline da obra
  *  4. Módulos: Visão estratégica (só engenheiro, adm e god), Produção, Viagens, Fotos
+ *  5. Tema (claro, escuro ou o do sistema)
  */
 export function HomeRoute() {
   const authed = useIsAuthenticated()
@@ -54,7 +57,7 @@ export function HomeRoute() {
       await refreshAllCatalogs()
       setSincronizou(true)
     } catch {
-      setCatalogError('Sem conexão — usando os dados guardados no aparelho.')
+      setCatalogError('Sem conexão. O app usa os dados guardados no aparelho.')
     }
   }
 
@@ -78,8 +81,8 @@ export function HomeRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-3 px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-3 py-2 pl-4 pr-2">
           <img
             src="/icon-288.webp"
             alt="InfraWork"
@@ -87,7 +90,7 @@ export function HomeRoute() {
             decoding="async"
           />
           {session?.userNome && (
-            <p className="min-w-0 flex-1 truncate border-l border-border pl-3 text-xs text-on-surface-dim">
+            <p className="min-w-0 flex-1 truncate border-l border-border pl-3 text-sm text-on-surface-dim">
               {session.userNome}
             </p>
           )}
@@ -95,15 +98,15 @@ export function HomeRoute() {
             <AndroidInstallButton />
             <SyncStatusIndicator />
             <Button variant="ghost" size="icon" onClick={() => void logout()} aria-label="Sair">
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
         {catalogError && <div className="px-4 pb-2 text-xs text-warn">{catalogError}</div>}
         {espaco && espaco.usado / espaco.total > 0.8 && (
           <div className="px-4 pb-2 text-xs text-bad">
-            Pouco espaço no aparelho ({Math.round((100 * espaco.usado) / espaco.total)}% usado) —
-            conecte à internet para enviar as fotos pendentes.
+            Pouco espaço no aparelho ({Math.round((100 * espaco.usado) / espaco.total)}% usado).
+            Conecte-se à internet para enviar as fotos que estão aguardando.
           </div>
         )}
       </header>
@@ -118,26 +121,30 @@ export function HomeRoute() {
         />
 
         {outbox && (outbox.total > 0 || outbox.recusados > 0) && (
-          <div className="flex items-center gap-2 px-1 text-xs text-on-surface-dim">
+          <div className="flex items-start gap-2 px-1 text-xs text-on-surface-dim">
             <span
               className={cn(
-                'h-1.5 w-1.5 rounded-full',
+                'mt-1.5 h-2 w-2 flex-shrink-0 rounded-full',
                 outbox.recusados > 0 ? 'bg-bad' : 'animate-pulse bg-warn',
               )}
             />
             <span>
               {[
-                outbox.producao > 0 ? `${outbox.producao} produção` : null,
-                outbox.fichas > 0 ? `${outbox.fichas} ficha(s) de viagens` : null,
-                outbox.fotos > 0 ? `${outbox.fotos} foto(s)` : null,
+                outbox.producao > 0
+                  ? contar(outbox.producao, 'lançamento de produção', 'lançamentos de produção')
+                  : null,
+                outbox.fichas > 0
+                  ? contar(outbox.fichas, 'ficha de viagens', 'fichas de viagens')
+                  : null,
+                outbox.fotos > 0 ? contar(outbox.fotos, 'foto', 'fotos') : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
-              {outbox.total > 0 ? ' aguardando envio' : ''}
+              {outbox.total > 0 ? ' aguardando rede' : ''}
               {outbox.recusados > 0 && (
                 <span className="text-bad">
                   {outbox.total > 0 ? ' · ' : ''}
-                  {outbox.recusados} recusado(s) — corrija
+                  {contar(outbox.recusados, 'recusado', 'recusados')}: abra e corrija
                 </span>
               )}
             </span>
@@ -167,7 +174,7 @@ export function HomeRoute() {
           <ModuleCard
             icon={<HardHat className="h-5 w-5" strokeWidth={1.8} />}
             title="Produção"
-            subtitle="Apontamento dos serviços executados no dia"
+            subtitle="Lançamento dos serviços executados no dia"
             badge={outbox?.producao ?? 0}
             enabled={pronto}
             onClick={() => navigate('/producao')}
@@ -193,14 +200,16 @@ export function HomeRoute() {
             onClick={() => navigate('/fotos')}
           />
         </div>
+
+        <SeletorTema className="pt-2" />
       </div>
 
       <footer className="sticky bottom-0 border-t border-border bg-bg-panel pb-safe pl-safe pr-safe">
-        <div className="mx-auto flex h-9 w-full max-w-2xl items-center justify-between px-4 font-mono text-[11px] text-on-surface-muted tabular">
+        <div className="mx-auto flex h-9 w-full max-w-2xl items-center justify-between px-4 text-2xs text-on-surface-muted tabular">
           <span className="flex items-center gap-1.5">
             <span
               className={cn(
-                'h-1.5 w-1.5 rounded-full',
+                'h-2 w-2 rounded-full',
                 sync.syncing
                   ? 'animate-pulse bg-info'
                   : sync.lastSyncAt
@@ -208,13 +217,13 @@ export function HomeRoute() {
                     : 'bg-on-surface-muted',
               )}
             />
-            {sync.lastSyncAt
-              ? `sync ${new Date(sync.lastSyncAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-              : sync.syncing
-                ? 'sincronizando…'
-                : 'sync pendente'}
+            {sync.syncing
+              ? 'Enviando…'
+              : sync.lastSyncAt
+                ? `Sincronizado às ${new Date(sync.lastSyncAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Ainda não sincronizado'}
           </span>
-          <span>InfraWork Campo v{__APP_VERSION__}</span>
+          <span>Campo v{__APP_VERSION__}</span>
         </div>
       </footer>
 
@@ -257,38 +266,35 @@ function ObraAtualCard({
       type="button"
       onClick={onPick}
       className={cn(
-        'group relative w-full overflow-hidden rounded-lg text-left',
+        'group w-full rounded-md text-left',
         'border border-border-strong bg-bg-panel',
         'transition-colors duration-150 ease-out',
-        'hover:border-accent/60 active:border-accent',
+        'hover:border-accent active:border-accent',
       )}
     >
-      <div className="h-[2px] w-full bg-gradient-to-r from-accent/60 via-accent to-accent/60" />
       <div className="flex items-center gap-4 px-4 py-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-on-surface-dim">
-            Obra atual
-          </p>
+          <p className="rotulo">Obra atual</p>
           <p
             className={cn(
-              'mt-1.5 truncate font-mono text-xl tabular',
-              temObra ? 'text-on-surface' : 'italic text-on-surface-muted',
+              'mt-1 truncate text-xl font-semibold tabular',
+              temObra ? 'text-on-surface' : 'text-on-surface-muted',
             )}
           >
             {temObra ? codigo : 'Selecionar obra'}
           </p>
-          <p className="mt-1 truncate text-[11px] text-on-surface-muted">
+          <p className={cn('mt-0.5 text-xs text-on-surface-dim', temObra && 'truncate')}>
             {temObra
               ? nome
               : totalObras > 0
-                ? `${totalObras} obra(s) liberada(s)`
+                ? `${contar(totalObras, 'obra', 'obras')} ${plural(totalObras, 'liberada', 'liberadas')}`
                 : sincronizou
-                  ? 'Nenhuma obra liberada para você — peça ao engenheiro para liberar a obra.'
-                  : 'Aguardando sincronização'}
+                  ? 'Nenhuma obra liberada para você. Peça ao engenheiro para liberar a obra.'
+                  : 'Buscando as obras liberadas…'}
           </p>
         </div>
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-border-strong text-on-surface-dim transition-colors group-hover:border-accent/60 group-hover:text-accent">
-          <ChevronRight className="h-4 w-4" />
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md border border-border-strong text-on-surface-dim transition-colors group-hover:border-accent group-hover:text-accent">
+          <ChevronRight className="h-5 w-5" />
         </div>
       </div>
     </button>

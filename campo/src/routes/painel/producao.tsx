@@ -27,7 +27,7 @@ const TODOS = { id: '', nome: 'Todos', total: 0 } satisfies Opcao
 
 const fmtDia = (iso: string) => iso.split('-').reverse().join('/').slice(0, 5)
 const nomeServico = (s: OpcaoServico) =>
-  [s.codigo, s.descricao].filter(Boolean).join(' — ') || '(serviço removido)'
+  [s.codigo, s.descricao].filter(Boolean).join(' · ') || 'Serviço removido'
 
 /** Visão estratégica › Produção: mapa de calor da produção diária, por serviço, encarregado e equipe. */
 export function PainelProducaoRoute() {
@@ -153,7 +153,7 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         titulo="Mapa de calor"
         acao={
           <div className="flex items-center gap-1">
-            <span className="mr-1 font-mono text-[10px] text-on-surface-muted">
+            <span className="mr-1 text-2xs text-on-surface-muted tabular">
               {janela.length ? `${fmtDia(janela[0]!)} – ${fmtDia(janela[janela.length - 1]!)}` : ''}
             </span>
             <BotaoJanela
@@ -161,14 +161,14 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
               disabled={offset >= totalJanelas - 1}
               onClick={() => setOffset((o) => o + 1)}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-5 w-5" />
             </BotaoJanela>
             <BotaoJanela
               rotulo="30 dias seguintes"
               disabled={offset === 0}
               onClick={() => setOffset((o) => Math.max(0, o - 1))}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-5 w-5" />
             </BotaoJanela>
           </div>
         }
@@ -182,19 +182,19 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         />
         <div className="mt-3 border-t border-border pt-3 text-xs" data-testid="producao-detalhe">
           {!diaSel ? (
-            <p className="text-on-surface-muted">Toque num dia para ver quem produziu.</p>
+            <p className="text-on-surface-dim">Toque num dia para ver quem produziu.</p>
           ) : qDia <= 0 ? (
-            <p className="text-on-surface-dim">{fmtDia(diaSel)} — sem produção.</p>
+            <p className="text-on-surface-dim">{fmtDia(diaSel)}: sem produção.</p>
           ) : (
             <>
               <p className="text-on-surface">
-                {fmtDia(diaSel)} — <span className="font-mono">{qtd(qDia, un)}</span>
+                {fmtDia(diaSel)}: <span className="font-semibold tabular">{qtd(qDia, un)}</span>
               </p>
               <ul className="mt-1.5 space-y-1">
                 {detalhe.map((o) => (
                   <li key={o.id} className="flex justify-between gap-2">
                     <span className="truncate text-on-surface-dim">{o.nome}</span>
-                    <span className="flex-shrink-0 font-mono text-on-surface tabular">
+                    <span className="flex-shrink-0 text-on-surface tabular">
                       {qtd(o.total, un)}
                     </span>
                   </li>
@@ -267,8 +267,8 @@ function BotaoJanela({
       disabled={disabled}
       aria-label={rotulo}
       className={cn(
-        'flex h-8 w-8 items-center justify-center rounded border border-border',
-        disabled ? 'text-on-surface-muted/40' : 'text-on-surface hover:bg-bg-elevated',
+        'flex h-11 w-11 items-center justify-center rounded border border-border-strong',
+        disabled ? 'opacity-40' : 'text-on-surface hover:border-accent',
       )}
     >
       {children}

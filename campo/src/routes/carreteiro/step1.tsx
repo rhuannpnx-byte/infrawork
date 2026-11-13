@@ -7,8 +7,8 @@ import { useCatalogo } from '@/core/db/daos'
 import type { ViagemLocal } from '@/core/db/entities'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { ViagemFormSheet } from '@/features/carreteiro/ViagemFormSheet'
-import { cn } from '@/lib/cn'
 import { formatBR, formatNumero } from '@/lib/datas'
+import { contar } from '@/lib/texto'
 import { uuidv7 } from '@/lib/uuidv7'
 
 /**
@@ -65,8 +65,8 @@ export function CarreteiroStep1Route() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-2 px-2 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
             size="icon"
@@ -76,7 +76,7 @@ export function CarreteiroStep1Route() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-on-surface">Viagens</h1>
+            <h1 className="truncate text-lg font-semibold text-on-surface">Viagens</h1>
             <p className="truncate text-xs text-on-surface-dim">
               {[formatBR(ficha.dt), ficha.veiculoNome, ficha.motorista].filter(Boolean).join(' · ')}
             </p>
@@ -103,7 +103,7 @@ export function CarreteiroStep1Route() {
                   onClick={() => setEditando({ v, nova: false })}
                   className="min-w-0 flex-1 p-3 text-left"
                 >
-                  <p className="text-xs text-on-surface-dim">
+                  <p className="text-xs text-on-surface-dim tabular">
                     #{i + 1}
                     {v.horaCarga ? ` · ${v.horaCarga}` : ''}
                     {v.horaDescarga ? ` → ${v.horaDescarga}` : ''}
@@ -117,7 +117,7 @@ export function CarreteiroStep1Route() {
                       (v.estacaDescarga ? ` (${v.estacaDescarga})` : '') +
                       (v.estaca && v.estacaCarga === undefined ? ` · est. ${v.estaca}` : '')}
                   </p>
-                  <p className="mt-0.5 font-bold text-accent">
+                  <p className="mt-0.5 font-semibold text-accent tabular">
                     {formatNumero(v.quantidade, 2)} {v.unidade ?? ''}
                     <span className="text-xs font-normal text-on-surface-dim">
                       {v.dmtKm != null
@@ -139,9 +139,9 @@ export function CarreteiroStep1Route() {
                       nfTicket: null,
                     })
                   }
-                  className="flex items-center px-3 text-on-surface-dim hover:text-accent"
+                  className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-on-surface-dim hover:text-accent"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-5 w-5" />
                 </button>
                 <button
                   type="button"
@@ -149,7 +149,7 @@ export function CarreteiroStep1Route() {
                   onClick={() =>
                     window.confirm(`Excluir a viagem #${i + 1}?`) && removerViagem(v.id)
                   }
-                  className="flex items-center px-3 text-bad hover:bg-bad/10"
+                  className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-bad hover:bg-bad/10"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -163,15 +163,13 @@ export function CarreteiroStep1Route() {
       <button
         type="button"
         onClick={novaViagem}
-        className={cn('fixed bottom-24 right-4 z-20 flex justify-end')}
+        className="fixed bottom-28 right-4 z-20 inline-flex min-h-[48px] items-center gap-2 rounded-md bg-accent px-5 font-semibold text-accent-fg shadow-flutuante hover:bg-accent-dark active:bg-accent-dark"
       >
-        <span className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 font-semibold text-bg-base shadow-lg hover:opacity-90 active:opacity-80">
-          <Plus className="h-5 w-5" />
-          Nova viagem
-        </span>
+        <Plus className="h-5 w-5" />
+        Nova viagem
       </button>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base/95 p-4 backdrop-blur pl-safe pr-safe pb-safe-plus-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
         <Button
           variant="primary"
           size="lg"
@@ -179,7 +177,7 @@ export function CarreteiroStep1Route() {
           onClick={() => navigate('/carreteiro/step2')}
           className="w-full"
         >
-          Revisar ({ficha.viagens.length} viagem(ns) · {formatNumero(total, 2)})
+          Revisar ({contar(ficha.viagens.length, 'viagem', 'viagens')} · {formatNumero(total, 2)})
         </Button>
       </div>
 

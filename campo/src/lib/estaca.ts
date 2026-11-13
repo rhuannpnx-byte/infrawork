@@ -45,6 +45,15 @@ export function nomePosicao(t: LocalDto): string {
   }
 }
 
+/**
+ * Teclado do celular para digitar a posição no eixo. Estaca e km aceitam dígitos, "+", vírgula e ponto ("125+10",
+ * "2+500,5"): o teclado de telefone é o numérico que tem o "+" (o `decimal` do iOS não tem). Metros e unidade
+ * própria são só número com decimal.
+ */
+export function tecladoPosicao(t: LocalDto): 'tel' | 'decimal' {
+  return t.unidade_espaco_padrao === 'm' || t.unidade_espaco_padrao === 'custom' ? 'decimal' : 'tel'
+}
+
 export function rotuloLocal(t: LocalDto): string {
   return t.tipo === 'area'
     ? `Área ${t.nome}`

@@ -64,15 +64,15 @@ function Servicos({ p }: { p: CatPainel }) {
               aria-selected={ativo}
               onClick={() => setParams(f === 'todos' ? {} : { status: f }, { replace: true })}
               className={cn(
-                'flex flex-shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs',
+                'flex min-h-touch flex-shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm',
                 ativo
-                  ? 'border-accent bg-accent-glow text-on-surface'
-                  : 'border-border-strong text-on-surface-dim',
+                  ? 'border-accent bg-accent/10 font-semibold text-on-surface'
+                  : 'border-border-strong bg-bg-panel text-on-surface-dim',
               )}
             >
-              {info && <span className={cn('h-1.5 w-1.5 rounded-full', TOM_FUNDO[info.tom])} />}
+              {info && <span className={cn('h-2 w-2 rounded-full', TOM_FUNDO[info.tom])} />}
               {info ? info.label : 'Todos'}
-              <span className="font-mono text-on-surface-muted tabular">
+              <span className="text-on-surface-muted tabular">
                 {f === 'todos' ? (p.servicos ?? []).length : contagem[f]}
               </span>
             </button>
@@ -80,19 +80,19 @@ function Servicos({ p }: { p: CatPainel }) {
         })}
       </div>
 
-      <label className="flex items-center gap-2 rounded-md border border-border bg-bg-panel px-3">
+      <label className="flex items-center gap-2 rounded-md border border-border-strong bg-bg-panel px-3 focus-within:border-accent">
         <Search className="h-4 w-4 text-on-surface-muted" />
         <input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar serviço"
-          className="h-10 flex-1 bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-muted"
+          className="h-11 min-w-0 flex-1 bg-transparent text-base text-on-surface outline-none placeholder:text-on-surface-muted focus-visible:ring-0"
         />
       </label>
 
       {lista.length === 0 ? (
-        <p className="py-8 text-center text-xs text-on-surface-muted">
-          Nenhum serviço nesse filtro.
+        <p className="py-8 text-center text-sm text-on-surface-dim">
+          Nenhum serviço neste filtro.
         </p>
       ) : (
         <ul className="space-y-2" data-testid="painel-servicos">
@@ -108,15 +108,15 @@ function Servicos({ p }: { p: CatPainel }) {
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-on-surface">
-                        <span className="font-mono text-on-surface-dim">{s.codigo}</span>{' '}
+                        <span className="text-on-surface-dim tabular">{s.codigo}</span>{' '}
                         {s.descricao}
                       </p>
-                      <p className="mt-0.5 text-[11px]">
+                      <p className="mt-0.5 text-xs">
                         <span className={TOM_TEXTO[st.tom]}>{st.label}</span>
                         {dv && <span className={TOM_TEXTO[dv.tom]}> · {dv.texto}</span>}
                       </p>
                     </div>
-                    <ChevronRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-on-surface-muted" />
+                    <ChevronRight className="mt-0.5 h-5 w-5 flex-shrink-0 text-on-surface-muted" />
                   </div>
                   <BarraAvanco
                     real={s.pct_avanco}
@@ -124,14 +124,14 @@ function Servicos({ p }: { p: CatPainel }) {
                     tom={st.tom}
                     className="mt-2.5"
                   />
-                  <div className="mt-1.5 flex items-baseline justify-between gap-2 whitespace-nowrap font-mono text-[11px] text-on-surface-dim tabular">
+                  <div className="mt-1.5 flex items-baseline justify-between gap-2 whitespace-nowrap text-xs text-on-surface-dim tabular">
                     <span>
                       <span className="text-on-surface">{pct(s.pct_avanco)}</span>
                       {s.pct_esperado != null && ` · esp. ${pct(s.pct_esperado)}`}
                     </span>
                     <span className="text-on-surface">{moeda(s.valor_executado)}</span>
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-[10px] text-on-surface-muted tabular">
+                  <p className="mt-0.5 truncate text-2xs text-on-surface-muted tabular">
                     {qtd(s.qtd_real)} de {qtd(s.qtd_plan, s.unidade)}
                   </p>
                 </Link>

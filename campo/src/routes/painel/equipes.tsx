@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { formatBR } from '@/lib/datas'
 import { cn } from '@/lib/cn'
+import { contar } from '@/lib/texto'
 import type { CatPainel } from '@/core/db/entities'
 import type { PainelEquipeDto } from '@/types/dtos'
 import { PainelShell, Secao } from '@/features/painel/PainelShell'
@@ -28,7 +29,7 @@ function Equipes({ p }: { p: CatPainel }) {
   return (
     <div className="space-y-4">
       <div
-        className="grid grid-cols-2 rounded-md border border-border bg-bg-panel p-1"
+        className="grid grid-cols-2 rounded-md border border-border-strong bg-bg-panel p-0.5"
         role="tablist"
       >
         {(['equipes', 'encarregados'] as const).map((a) => (
@@ -39,8 +40,8 @@ function Equipes({ p }: { p: CatPainel }) {
             aria-selected={aba === a}
             onClick={() => setParams(a === 'equipes' ? {} : { aba: a }, { replace: true })}
             className={cn(
-              'rounded py-2 text-sm',
-              aba === a ? 'bg-bg-elevated font-semibold text-on-surface' : 'text-on-surface-dim',
+              'min-h-touch rounded-sm px-2 text-sm',
+              aba === a ? 'bg-accent font-semibold text-accent-fg' : 'text-on-surface-dim',
             )}
           >
             {a === 'equipes'
@@ -51,7 +52,7 @@ function Equipes({ p }: { p: CatPainel }) {
       </div>
 
       {semHoje.length > 0 && (
-        <Secao titulo="Sem lançamento hoje" className="border-warn/40">
+        <Secao titulo="Sem lançamento hoje" className="border-warn/50">
           <ul className="space-y-1.5" data-testid="painel-sem-hoje">
             {semHoje.map((e) => (
               <li key={e.id ?? e.nome} className="flex justify-between gap-2 text-sm">
@@ -62,14 +63,14 @@ function Equipes({ p }: { p: CatPainel }) {
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[10px] text-on-surface-muted">
+          <p className="mt-2 text-xs text-on-surface-muted">
             Trabalharam nesta semana e ainda não têm produção lançada hoje.
           </p>
         </Secao>
       )}
 
       {ordenada.length === 0 ? (
-        <p className="py-8 text-center text-xs text-on-surface-muted">
+        <p className="py-8 text-center text-sm text-on-surface-dim">
           Nenhuma produção com {aba === 'equipes' ? 'equipe' : 'encarregado'} nos últimos 30 dias.
         </p>
       ) : (
@@ -104,7 +105,8 @@ function CartaoEquipe({
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="flex w-full items-center gap-3 p-3 text-left"
+        className="flex min-h-touch w-full items-center gap-3 p-3 text-left"
+        aria-expanded={aberto}
       >
         <span
           className={cn(
@@ -115,14 +117,14 @@ function CartaoEquipe({
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-on-surface">{e.nome}</p>
-          <p className="text-[11px] text-on-surface-dim">
+          <p className="text-xs text-on-surface-dim">
             {e.lancou_hoje ? 'lançou hoje' : `último ${e.ultimo ? formatBR(e.ultimo) : '—'}`} ·{' '}
-            {e.registros_7d} lanç. em 7 d · {e.dias_30d} dia(s) em 30 d
+            {e.registros_7d} lanç. em 7 d · {contar(Number(e.dias_30d ?? 0), 'dia', 'dias')} em 30 d
           </p>
         </div>
         <ChevronDown
           className={cn(
-            'h-4 w-4 text-on-surface-muted transition-transform',
+            'h-5 w-5 flex-shrink-0 text-on-surface-muted transition-transform',
             aberto && 'rotate-180',
           )}
         />
@@ -130,11 +132,11 @@ function CartaoEquipe({
       {aberto && (
         <div className="border-t border-border px-3 pb-3 pt-2">
           {servicos.length === 0 ? (
-            <p className="text-xs text-on-surface-muted">Sem produção nos últimos 30 dias.</p>
+            <p className="text-xs text-on-surface-dim">Sem produção nos últimos 30 dias.</p>
           ) : (
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-on-surface-muted">
+                <tr className="rotulo text-left">
                   <th className="pb-1 font-medium">Serviço</th>
                   <th className="pb-1 text-right font-medium">Hoje</th>
                   <th className="pb-1 text-right font-medium">7 d</th>
@@ -155,12 +157,12 @@ function CartaoEquipe({
                   return (
                     <tr key={s.id}>
                       <td className="max-w-0 py-1.5 pr-2">
-                        <span className="block truncate text-on-surface">
-                          <span className="font-mono text-on-surface-dim">{s.codigo}</span>{' '}
+                        <span className="line-clamp-2 text-on-surface">
+                          <span className="text-on-surface-dim tabular">{s.codigo}</span>{' '}
                           {s.descricao}
                         </span>
-                        <span className="text-[10px] text-on-surface-muted">
-                          {s.unidade} · {s.dias} dia(s)
+                        <span className="text-2xs text-on-surface-muted">
+                          {s.unidade} · {contar(Number(s.dias ?? 0), 'dia', 'dias')}
                         </span>
                       </td>
                       <td className="py-1.5 text-right font-mono tabular">{qtd(s.hoje)}</td>
@@ -190,7 +192,7 @@ function CartaoEquipe({
           )}
           <Link
             to={`/painel/producao?${filtro}=${e.id ?? 'sem'}`}
-            className="mt-2 inline-block text-xs text-accent"
+            className="mt-1 inline-flex min-h-touch items-center text-sm font-medium text-accent"
           >
             Ver produção dia a dia
           </Link>

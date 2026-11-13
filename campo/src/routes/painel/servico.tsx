@@ -46,7 +46,7 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="font-mono text-sm text-on-surface-dim">{s.codigo}</p>
+        <p className="text-sm text-on-surface-dim tabular">{s.codigo}</p>
         <h2 className="text-base font-semibold text-on-surface">{s.descricao}</h2>
         <p className="mt-1 text-xs">
           <span className={TOM_TEXTO[st.tom]}>{st.label}</span>
@@ -57,25 +57,25 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
       <Secao titulo="Avanço">
         <div className="flex items-end justify-between gap-3">
           <p
-            className={cn('font-mono text-3xl tabular', TOM_TEXTO[st.tom])}
+            className={cn('text-3xl font-medium tabular', TOM_TEXTO[st.tom])}
             data-testid="servico-avanco"
           >
             {pct(s.pct_avanco)}
           </p>
           <p className="text-right text-xs text-on-surface-dim">
-            esperado hoje <span className="font-mono text-on-surface">{pct(s.pct_esperado)}</span>
+            esperado hoje <span className="text-on-surface tabular">{pct(s.pct_esperado)}</span>
           </p>
         </div>
         <BarraAvanco real={s.pct_avanco} esperado={s.pct_esperado} tom={st.tom} className="mt-3" />
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Kpi valor={qtd(s.qtd_real, s.unidade)} legenda="realizado" />
           <Kpi valor={qtd(s.qtd_plan, s.unidade)} legenda="do contrato" />
-          <Kpi valor={s.inicio ? formatBR(s.inicio) : '—'} legenda="início planejado" />
-          <Kpi valor={s.fim ? formatBR(s.fim) : '—'} legenda="término planejado" />
+          <Kpi valor={s.inicio ? formatBR(s.inicio) : '—'} legenda="início previsto" />
+          <Kpi valor={s.fim ? formatBR(s.fim) : '—'} legenda="término previsto" />
         </div>
         {s.excedente_qtd != null && Number(s.excedente_qtd) > 0 && (
           <p className="mt-3 text-xs text-warn">
-            Produziu {qtd(s.excedente_qtd, s.unidade)} além do contrato — o excedente não agrega
+            Produziu {qtd(s.excedente_qtd, s.unidade)} além do contrato. O excedente não agrega
             valor.
           </p>
         )}
@@ -86,7 +86,7 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
         acao={
           <Link
             to={`/painel/producao?servico=${s.id}`}
-            className="text-xs text-accent"
+            className="-my-3 inline-flex min-h-touch items-center px-1 text-sm font-medium text-accent"
             data-testid="servico-dia-a-dia"
           >
             Ver dia a dia
@@ -114,11 +114,11 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
 
       <Secao titulo="Quem produziu (30 dias)">
         {quem.length === 0 ? (
-          <p className="text-xs text-on-surface-muted">Sem produção nos últimos 30 dias.</p>
+          <p className="text-xs text-on-surface-dim">Sem produção nos últimos 30 dias.</p>
         ) : (
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-on-surface-muted">
+              <tr className="rotulo text-left">
                 <th className="pb-1 font-medium">Nome</th>
                 <th className="pb-1 text-right font-medium">Hoje</th>
                 <th className="pb-1 text-right font-medium">7 d</th>
@@ -130,7 +130,7 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
                 <tr key={i}>
                   <td className="py-1.5 pr-2">
                     <span className="text-on-surface">{q.nome}</span>
-                    <span className="block text-[10px] text-on-surface-muted">{q.tipo}</span>
+                    <span className="block text-2xs text-on-surface-muted">{q.tipo}</span>
                   </td>
                   <td className="py-1.5 text-right font-mono tabular">{qtd(q.sv!.hoje)}</td>
                   <td className="py-1.5 text-right font-mono tabular">{qtd(q.sv!.d7)}</td>

@@ -107,29 +107,29 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm sm:items-center sm:justify-center"
+      className="fixed inset-0 z-50 flex items-end bg-veu sm:items-center sm:justify-center"
       onClick={onDismiss}
     >
       <div
         className={cn(
-          'card-surface w-full sm:max-w-md sm:rounded-2xl',
+          'folha-flutuante w-full sm:max-w-md sm:rounded-lg',
           // Mobile: altura FIXA grande pra item filtrado não "sumir" lá embaixo.
           // Desktop (sm+): adapta ao conteúdo.
           'flex h-[85vh] flex-col sm:h-auto sm:max-h-[80vh]',
-          'rounded-t-2xl pb-safe sm:rounded-b-2xl',
+          'rounded-t-2xl pb-safe sm:rounded-b-lg',
         )}
         style={{ height: maxH }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
         <div className="flex items-center justify-center pb-1 pt-3 sm:hidden">
-          <div className="h-1 w-12 rounded-full bg-on-surface-muted" />
+          <div className="h-1 w-12 rounded-full bg-border-strong" />
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
-          <h2 className="font-display text-lg font-bold text-on-surface">{title}</h2>
-          <Button variant="ghost" size="icon" onClick={onDismiss}>
+          <h2 className="text-lg font-semibold text-on-surface">{title}</h2>
+          <Button variant="ghost" size="icon" onClick={onDismiss} aria-label="Fechar">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -164,16 +164,16 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
               )}
             </div>
           ) : (
-            <ul className="space-y-1">
+            <ul className="divide-y divide-border">
               {filtered.map((item, idx) => (
                 <li key={idx}>
                   <button
                     type="button"
                     onClick={() => onPick(item)}
                     className={cn(
-                      'w-full rounded-lg px-3 py-3 text-left',
-                      'transition-colors hover:bg-surface-2 active:bg-surface-2/70',
-                      'min-h-touch',
+                      'w-full rounded-md px-3 py-3 text-left text-base',
+                      'transition-colors hover:bg-bg-elevated active:bg-bg-elevated',
+                      'min-h-[48px]',
                     )}
                   >
                     <div className="text-on-surface">{label(item)}</div>

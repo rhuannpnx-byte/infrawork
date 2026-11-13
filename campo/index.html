@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#4d8eff" />
+    <meta name="theme-color" content="#f8f7f4" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="InfraWork" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!--
@@ -19,6 +19,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
     <title>InfraWork</title>
+    <!-- tema antes da primeira pintura (arquivo externo: a CSP não aceita script embutido) -->
+    <script src="/theme-boot.js"></script>
   </head>
   <body class="bg-bg-base text-on-surface">
     <div id="root"></div>

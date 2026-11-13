@@ -6,19 +6,20 @@ import { useIsAuthenticated } from '@/core/auth/SessionStore'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { servicosPorModo, useCatalogo } from '@/core/db/daos'
 import { refreshAllCatalogs } from '@/core/sync/catalogSync'
-import { cn } from '@/lib/cn'
+import { SeloEnvio } from '@/features/common/SyncStatusIndicator'
 import { useProducaoStore, type ApontamentoDraft } from '@/features/producao/producaoStore'
 import { ServicoFormSheet } from '@/features/producao/ServicoFormSheet'
 import { excluirApontamento, saveProducaoSession } from '@/features/producao/producaoRepo'
 import type { ServicoDto } from '@/types/dtos'
 import { formatBR, formatNumero } from '@/lib/datas'
+import { contar } from '@/lib/texto'
 import type { ContextoFoto } from '@/routes/fotos/capture'
 
 /**
- * Sessão de produção: os apontamentos do dia (um por serviço).
+ * Sessão de produção: os lançamentos do dia (um por serviço).
  *
  * - "Adicionar serviço" → serviços da obra lançados por quantidade (os de viagens ficam no módulo Viagens)
- * - Cada apontamento abre o `ServicoFormSheet` (guiado pela parametrização do serviço)
+ * - Cada lançamento abre o `ServicoFormSheet` (guiado pela parametrização do serviço)
  * - "Finalizar sessão" grava na fila e tenta enviar na hora
  */
 export function ProducaoSessionRoute() {
@@ -50,7 +51,9 @@ export function ProducaoSessionRoute() {
       // Volta pra lista; o usuário vê a sessão dele já listada (sincronizada ou pendente).
       navigate('/producao', { replace: true })
     } catch (e) {
-      setFinalizeError(e instanceof Error ? e.message : 'Erro ao finalizar')
+      setFinalizeError(
+        e instanceof Error ? e.message : 'Não foi possível gravar a sessão. Tente de novo.',
+      )
     } finally {
       setFinalizing(false)
     }
@@ -61,8 +64,8 @@ export function ProducaoSessionRoute() {
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
       {/* Top bar — Voltar vai pra LISTA, não pro Setup. Setup é só pra criar nova. */}
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base/95 backdrop-blur pt-safe pl-safe pr-safe">
-        <div className="flex items-center gap-2 px-2 py-3">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+        <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
             size="icon"
@@ -72,12 +75,12 @@ export function ProducaoSessionRoute() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-on-surface">Sessão de produção</h1>
+            <h1 className="truncate text-lg font-semibold text-on-surface">Sessão de produção</h1>
             <p className="truncate text-xs text-on-surface-dim">
               {[store.obraCodigo, store.encarregadoNome, store.equipeNome, formatBR(store.dt)]
                 .filter(Boolean)
                 .join(' · ')}{' '}
-              · {store.itens.length} apontamento(s)
+              · {contar(store.itens.length, 'lançamento', 'lançamentos')}
             </p>
           </div>
         </div>
@@ -88,7 +91,7 @@ export function ProducaoSessionRoute() {
         {store.itens.length === 0 ? (
           <div className="flex h-full items-center justify-center p-8">
             <div className="text-center">
-              <p className="font-medium text-on-surface">Nenhum serviço apontado ainda</p>
+              <p className="font-medium text-on-surface">Nenhum serviço lançado ainda</p>
               <p className="mt-2 text-sm text-on-surface-dim">
                 Toque em "Adicionar serviço" para começar.
               </p>
@@ -120,7 +123,7 @@ export function ProducaoSessionRoute() {
                     })
                   }
                   onDelete={() => {
-                    if (!window.confirm(`Excluir o apontamento de ${item.servico.descricao}?`))
+                    if (!window.confirm(`Excluir o lançamento de ${item.servico.descricao}?`))
                       return
                     store.removeItem(item.id)
                     // já gravado (sessão reaberta): sai da fila ou vira exclusão no servidor
@@ -130,7 +133,7 @@ export function ProducaoSessionRoute() {
               </li>
             ))}
             {/* Espaço pro FAB não tampar o último card */}
-            <li className="h-20" />
+            <li className="h-24" />
           </ul>
         )}
       </div>
@@ -139,27 +142,24 @@ export function ProducaoSessionRoute() {
       <button
         type="button"
         onClick={() => setShowServicoPicker(true)}
-        className={cn(
-          'fixed bottom-24 right-4 z-20 sm:right-1/2 sm:w-full sm:max-w-md sm:translate-x-1/2 sm:pr-4',
-          'flex justify-end',
-        )}
+        className={
+          store.itens.length > 0
+            ? 'fixed bottom-28 right-4 z-20 inline-flex min-h-[48px] items-center gap-2 rounded-md bg-accent px-5 font-semibold text-accent-fg shadow-flutuante hover:bg-accent-dark active:bg-accent-dark'
+            : 'fixed bottom-6 right-4 z-20 inline-flex min-h-[48px] items-center gap-2 rounded-md bg-accent px-5 font-semibold text-accent-fg shadow-flutuante hover:bg-accent-dark active:bg-accent-dark'
+        }
       >
-        <span
-          className={cn(
-            'inline-flex items-center gap-2 rounded-full bg-accent text-bg-base',
-            'px-5 py-3 font-semibold shadow-lg',
-            'transition-opacity hover:opacity-90 active:opacity-80',
-          )}
-        >
-          <Plus className="h-5 w-5" />
-          Adicionar serviço
-        </span>
+        <Plus className="h-5 w-5" />
+        Adicionar serviço
       </button>
 
       {/* Bottom action */}
       {store.itens.length > 0 && (
-        <div className="sticky bottom-0 space-y-2 border-t border-border bg-bg-base/95 p-4 backdrop-blur pl-safe pr-safe pb-safe-plus-4">
-          {finalizeError && <p className="text-center text-sm text-bad">{finalizeError}</p>}
+        <div className="sticky bottom-0 space-y-2 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+          {finalizeError && (
+            <p role="alert" className="text-center text-sm text-bad">
+              {finalizeError}
+            </p>
+          )}
           <Button
             variant="primary"
             size="lg"
@@ -228,7 +228,7 @@ export function ProducaoSessionRoute() {
 }
 
 // ----------------------------------------------------------------------------
-//  Card de apontamento
+//  Card de lançamento
 // ----------------------------------------------------------------------------
 
 function ApontamentoCard({
@@ -261,7 +261,7 @@ function ApontamentoCard({
         </div>
         <div className="mt-1 flex flex-wrap items-baseline gap-3">
           {item.qtd != null && (
-            <span className="text-lg font-bold text-accent">
+            <span className="text-lg font-semibold text-accent tabular">
               {formatNumero(item.qtd)} {item.servico.unidade ?? ''}
             </span>
           )}
@@ -270,15 +270,16 @@ function ApontamentoCard({
           )}
         </div>
         {item.syncStatus === 'REJEITADA' && item.failureReason ? (
-          <p className="mt-2 rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">
-            {item.failureReason} — toque para corrigir.
+          <p className="mt-2 rounded-md bg-bad/10 px-3 py-2 text-sm text-bad">
+            Motivo: {item.failureReason}
+            <span className="block">Toque para corrigir.</span>
           </p>
         ) : null}
       </button>
       <button
         type="button"
         onClick={onFoto}
-        className="flex items-center px-3 text-accent transition-colors hover:bg-accent/10"
+        className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-accent transition-colors hover:bg-accent/10"
         aria-label="Foto deste lançamento"
       >
         <Camera className="h-5 w-5" />
@@ -286,8 +287,8 @@ function ApontamentoCard({
       <button
         type="button"
         onClick={onDelete}
-        className="flex items-center px-3 text-bad transition-colors hover:bg-bad/10"
-        aria-label="Excluir"
+        className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-bad transition-colors hover:bg-bad/10"
+        aria-label="Excluir lançamento"
       >
         <X className="h-5 w-5" />
       </button>
@@ -296,17 +297,5 @@ function ApontamentoCard({
 }
 
 function Situacao({ item }: { item: ApontamentoDraft }) {
-  const st = item.syncStatus
-  if (!st) return null
-  const [txt, cls] =
-    st === 'SYNCED'
-      ? ['enviado', 'bg-ok/15 text-ok']
-      : st === 'REJEITADA'
-        ? ['recusado', 'bg-bad/15 text-bad']
-        : ['na fila', 'bg-warn/15 text-warn']
-  return (
-    <span className={cn('flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold', cls)}>
-      {txt}
-    </span>
-  )
+  return item.syncStatus ? <SeloEnvio status={item.syncStatus} /> : null
 }
