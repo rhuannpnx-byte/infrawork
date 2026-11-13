@@ -12,6 +12,7 @@ import length from '@turf/length'
 import { lineString as turfLineString } from '@turf/helpers'
 import { addBaseMapEsri } from '@/lib/leaflet/tiles'
 import { loadLeaflet } from '@/lib/leaflet/carregar'
+import { filtrarPorZoom } from '../lib/marcadores-mapa'
 
 export interface MapaTrechoMarcador {
   /** Posicao em metros ao longo da polilinha (do inicio). */
@@ -263,48 +264,4 @@ export function MapaTrecho({
       style={{ height: altura, width: '100%', background: '#1a1a1a' }}
     />
   )
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-/**
- * Decima marcadores conforme zoom — evita pile-up de tooltips quando o usuario
- * da zoom-out. Mantem o intervalo VISUAL entre marcadores >= MIN_PIXEL_SPACING.
- *
- * Web Mercator: 1 pixel ≈ 156543.03 × cos(lat) / 2^zoom metros (no equador,
- * x cos(lat) corrige pra latitudes maiores). Se 1 unidade no DB = X metros,
- * X / metros_por_pixel = pixels entre marcadores. Se < MIN, pula proporcional.
- */
-const MIN_PIXEL_SPACING = 60
-
-function filtrarPorZoom<T extends { posicaoM: number }>(
-  todos: T[],
-  zoom: number,
-  centerLat: number
-): T[] {
-  if (todos.length <= 2) return todos
-
-  // Distancia em metros entre dois marcadores consecutivos (assumindo grid uniforme).
-  // |abs|: trechos invertidos geram posicaoM decrescente (passo negativo) — sem o
-  // abs a decimação seria pulada e TODOS os rótulos apareceriam empilhados.
-  const passoMetros = todos.length > 1 ? Math.abs(todos[1].posicaoM - todos[0].posicaoM) : 0
-  if (passoMetros <= 0) return todos
-
-  const metrosPorPixel = (156543.03 * Math.cos((centerLat * Math.PI) / 180)) / Math.pow(2, zoom)
-  const passoPixels = passoMetros / metrosPorPixel
-
-  // Se ja cabe (passo visual > spacing minimo), mostra todos.
-  if (passoPixels >= MIN_PIXEL_SPACING) return todos
-
-  // Calcula step: quantos marcadores pular pra cada um exibido.
-  const step = Math.max(1, Math.ceil(MIN_PIXEL_SPACING / passoPixels))
-  const out: T[] = []
-  for (let i = 0; i < todos.length; i += step) {
-    out.push(todos[i])
-  }
-  // Garante o ultimo se nao caiu na grade.
-  if (out[out.length - 1] !== todos[todos.length - 1]) {
-    out.push(todos[todos.length - 1])
-  }
-  return out
 }

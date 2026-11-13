@@ -15,6 +15,11 @@ import { loadLeaflet } from '@/lib/leaflet/carregar'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import type { ObraTrecho } from '@/types/gerencial'
+import {
+  filtrarPorZoom,
+  marcadoresDoTrecho,
+  posicionarMarcadores
+} from '@/features/planejamento/lib/marcadores-mapa'
 
 interface Props {
   fotos: FotoEnriquecida[]
@@ -78,6 +83,10 @@ interface PointProps {
 }
 type Valida = Omit<FotoEnriquecida, 'lat' | 'lng'> & { lat: number; lng: number; _idx: number }
 type TrechoGeo = ObraTrecho & { geometry_geojson: GeoJSON.LineString }
+type MarcadorNoMapa = { posicaoM: number; label: string; lat: number; lng: number }
+
+/** Abaixo deste zoom a obra inteira cabe na tela e os rótulos de km/estaca só poluem. */
+const ZOOM_MIN_MARCADORES = 11
 
 /** Fundo do cluster: pizza (conic-gradient) com fatias proporcionais por serviço.
  *  Antes usávamos só a cor DOMINANTE — ao diminuir o zoom, um cluster com CBUQ +
@@ -117,6 +126,7 @@ export function MapaFotosSatelite({
   const seqLayerRef = useRef<import('leaflet').LayerGroup | null>(null)
   const trechosLayerRef = useRef<import('leaflet').LayerGroup | null>(null)
   const trechosRendererRef = useRef<import('leaflet').Renderer | null>(null)
+  const marcadoresLayerRef = useRef<import('leaflet').LayerGroup | null>(null)
   const supRef = useRef<Supercluster<PointProps> | null>(null)
   const supSigRef = useRef<string>('')
   const seqRendererRef = useRef<import('leaflet').Renderer | null>(null)
@@ -146,6 +156,15 @@ export function MapaFotosSatelite({
         (t): t is TrechoGeo => (t.geometry_geojson?.coordinates?.length ?? 0) >= 2
       ),
     [trechosObra]
+  )
+  // Régua de cada trecho (km, estaca…) como definida na importação, já posicionada sobre a linha.
+  const marcadoresTrechos = useMemo(
+    () =>
+      trechos.map((t) => ({
+        cor: t.cor,
+        pontos: posicionarMarcadores(t.geometry_geojson.coordinates, marcadoresDoTrecho(t))
+      })),
+    [trechos]
   )
   const legendaTrechos = useMemo<LegendaItem[]>(
     () => (mostrarTrechos ? trechos.map((t) => ({ label: t.nome, cor: t.cor })) : []),
@@ -196,6 +215,8 @@ export function MapaFotosSatelite({
     validas,
     fotosByIdx,
     sequencias,
+    marcadoresTrechos,
+    mostrarTrechos,
     corPor,
     mostrarFotos,
     mostrarSequenciaAtaque
@@ -204,6 +225,8 @@ export function MapaFotosSatelite({
     validas,
     fotosByIdx,
     sequencias,
+    marcadoresTrechos,
+    mostrarTrechos,
     corPor,
     mostrarFotos,
     mostrarSequenciaAtaque
@@ -388,6 +411,38 @@ export function MapaFotosSatelite({
     }
   }
 
+  // ── Render: MARCADORES DOS TRECHOS (redesenha no zoom/pan: só o que está na tela, desbastado) ──
+  const renderMarcadores = (): void => {
+    const L = LRef.current,
+      map = mapRef.current,
+      lay = marcadoresLayerRef.current
+    if (!L || !map || !lay) return
+    lay.clearLayers()
+    const { marcadoresTrechos, mostrarTrechos } = st.current
+    if (!mostrarTrechos || map.getZoom() < ZOOM_MIN_MARCADORES) return
+    const rnd = trechosRendererRef.current ?? undefined
+    const bnd = map.getBounds().pad(0.1)
+    const zoom = map.getZoom()
+    const lat = map.getCenter().lat
+    for (const { cor, pontos } of marcadoresTrechos) {
+      for (const m of filtrarPorZoom<MarcadorNoMapa>(pontos, zoom, lat)) {
+        if (!bnd.contains([m.lat, m.lng])) continue
+        L.circleMarker([m.lat, m.lng], {
+          pane: 'trechos',
+          renderer: rnd,
+          interactive: false,
+          radius: 4,
+          color: '#fff',
+          weight: 1.5,
+          fillColor: cor,
+          fillOpacity: 1
+        })
+          .bindTooltip(esc(m.label), { permanent: true, direction: 'top', offset: [0, -5] })
+          .addTo(lay)
+      }
+    }
+  }
+
   // ── Render: SEQUÊNCIA DE ATAQUE ──
   const renderSeq = (): void => {
     const L = LRef.current,
@@ -534,10 +589,14 @@ export function MapaFotosSatelite({
         if (tp) tp.style.zIndex = '350'
         trechosRendererRef.current = L.svg({ pane: 'trechos' })
         trechosLayerRef.current = L.layerGroup().addTo(map)
+        marcadoresLayerRef.current = L.layerGroup().addTo(map)
         seqLayerRef.current = L.layerGroup().addTo(map)
         fotosLayerRef.current = L.layerGroup().addTo(map)
         // Re-render do que depende de zoom/pan (clusters + decimação de marcadores).
-        map.on('moveend zoomend', () => renderFotos())
+        map.on('moveend zoomend', () => {
+          renderMarcadores()
+          renderFotos()
+        })
       }
       if (!canceled) setReady(true)
     })()
@@ -556,6 +615,7 @@ export function MapaFotosSatelite({
       camadaRodovias
     })
     renderTrechos()
+    renderMarcadores()
     renderSeq()
     renderFotos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -564,6 +624,7 @@ export function MapaFotosSatelite({
     validas,
     sequencias,
     trechos,
+    marcadoresTrechos,
     corPor,
     mostrarFotos,
     mostrarTrechos,
@@ -578,7 +639,7 @@ export function MapaFotosSatelite({
     if (!ready) return
     const map = mapRef.current
     if (!map) return
-    const pts: Array<[number, number]> = validas.map((v) => [v.lat, v.lng])
+    const pts: Array<[number, number]> = mostrarFotos ? validas.map((v) => [v.lat, v.lng]) : []
     if (mostrarTrechos)
       for (const t of trechos)
         for (const c of t.geometry_geojson.coordinates) pts.push([c[1], c[0]])
@@ -602,7 +663,7 @@ export function MapaFotosSatelite({
         ],
         { padding: [40, 40], maxZoom: 16, animate: false }
       )
-  }, [ready, validas, trechos, mostrarTrechos])
+  }, [ready, validas, mostrarFotos, trechos, mostrarTrechos])
 
   // ResizeObserver — invalida tamanho quando o container muda.
   useEffect(() => {
