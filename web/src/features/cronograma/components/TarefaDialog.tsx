@@ -194,7 +194,7 @@ function Conteudo({
   const [ind, setInd] = useState(() => formDoConfig(t.indireto))
   const resInd = calc.resultado?.indiretos.find((x) => x.tarefa_id === t.id)
 
-  const corPadrao = (t.servico_id && cores.get(t.servico_id)) || 'oklch(67% 0.17 255)'
+  const corPadrao = (t.servico_id && cores.get(t.servico_id)) || 'var(--serie-1)'
   const n = Math.max(1, Math.round(lerNumero(qtdEquipes) ?? t.qtd_equipes))
   const coefN = lerNumero(coef) ?? t.coef_producao
   const prodComp = Number(equipe?.producao_diaria) || 0

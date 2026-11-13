@@ -104,19 +104,8 @@ export function fmtEstacaCompacta(m: number, t: TrechoEntrada | undefined): stri
   return s || `${fmtNum(m, 0)} m`
 }
 
-/** Paleta das séries (serviços), na ordem estável do InfraWork. */
-export const PALETA = [
-  'oklch(67% 0.17 255)',
-  'oklch(76% 0.13 200)',
-  'oklch(74% 0.16 150)',
-  'oklch(80% 0.15 85)',
-  'oklch(70% 0.16 300)',
-  'oklch(72% 0.17 25)',
-  'oklch(74% 0.14 350)',
-  'oklch(72% 0.10 180)',
-  'oklch(75% 0.15 55)',
-  'oklch(68% 0.12 230)'
-]
+/** Paleta das séries (serviços), na ordem estável do InfraWork. As cores vêm do tema (`--serie-N` em theme.css). */
+export const PALETA = Array.from({ length: 10 }, (_, i) => `var(--serie-${i + 1})`)
 
 /** Cor de cada serviço pela ordem do código (a mesma em todas as visões). */
 export function coresServicos(servicos: { id: string; codigo: string }[]): Map<string, string> {

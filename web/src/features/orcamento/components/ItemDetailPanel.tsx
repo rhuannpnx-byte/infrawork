@@ -463,7 +463,7 @@ function GeralTab({
                   }}
                   className={
                     origem === o.v
-                      ? 'px-3 py-1 text-2xs bg-accent text-primary-foreground'
+                      ? 'px-3 py-1 text-2xs bg-accent text-[color:var(--on-accent)]'
                       : 'px-3 py-1 text-2xs text-text-muted hover:bg-bg-hover'
                   }
                 >

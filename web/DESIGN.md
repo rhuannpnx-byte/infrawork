@@ -39,7 +39,8 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 - Destaque: `accent` (azul de carimbo) para a ação principal, o item ativo e os links. Texto sobre ele usa
   `--on-accent`. Estados: `success`, `warn`, `danger`; fundo de estado é a própria cor com transparência
   (`bg-danger/10`), que funciona porque as cores do Tailwind são geradas com `color-mix`.
-- Gráficos usam `--chart-1…6`; superfícies flutuantes usam `--popover`, `--sombra-flutuante` e `--veu` (fundo atrás
+- Gráficos usam `--chart-1…6`; as séries do cronograma (uma cor por serviço) usam `--serie-1…10`, mais escuras no
+  claro e mais claras no escuro; superfícies flutuantes usam `--popover`, `--sombra-flutuante` e `--veu` (fundo atrás
   de diálogo).
 - Token novo entra nos dois temas. `src/styles/theme.test.ts` falha se o código usar variável que o tema não define.
 
@@ -132,7 +133,8 @@ Com o servidor de desenvolvimento no ar e as variáveis `E2E_EMAIL`, `E2E_PASSWO
 | `node scripts/conferir-csp.mjs [../campo]`        | serve o build com a CSP do `vercel.json` e acusa o que for bloqueado    |
 
 Sem servidor, no `npm test`: `theme.test.ts` (toda variável usada existe), `contraste.test.ts` (texto com 4,5:1 e
-contorno de campo com 3:1, nos dois temas), `cores.test.ts` (sem cor literal) e `icones.test.ts`.
+contorno de campo com 3:1, nos dois temas), `cores.test.ts` (sem cor literal), `classes.test.ts` (classe de cor usada existe no `tailwind.config.js`) e
+`icones.test.ts`.
 
 - Toda mudança visual é conferida nos dois temas.
 - Tela de acompanhamento se confere com dados: a obra local quase não tem produção, então semeie produção de
