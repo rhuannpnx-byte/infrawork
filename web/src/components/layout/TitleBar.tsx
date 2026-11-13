@@ -47,13 +47,11 @@ export function TitleBar(): ReactNode {
       <button
         type="button"
         onClick={() => navigateActiveTab('/')}
-        className="flex items-center gap-1.5 pr-2 shrink-0 rounded"
+        className="flex items-center pr-1 shrink-0 rounded"
         title="Início"
+        aria-label="InfraWork: ir para o início"
       >
         <img src={infraworkIcon} alt="" className="h-7 w-7 select-none" draggable={false} />
-        <span className="hidden md:inline text-xl font-bold tracking-tight text-text">
-          InfraWork
-        </span>
       </button>
 
       <ScopePill />
