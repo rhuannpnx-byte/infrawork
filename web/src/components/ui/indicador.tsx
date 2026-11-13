@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Tom = 'neutro' | 'success' | 'warn' | 'danger'
@@ -48,6 +49,8 @@ interface IndicadorProps {
   titulo?: string
   /** Linhas de apoio abaixo do valor (uma por filho). */
   children?: ReactNode
+  /** Torna o indicador um atalho: a faixa inteira abre a página do número. */
+  aoClicar?: () => void
   className?: string
 }
 
@@ -60,19 +63,31 @@ export function Indicador({
   carregando,
   titulo,
   children,
+  aoClicar,
   className
 }: IndicadorProps): ReactNode {
+  const Caixa = aoClicar ? 'button' : 'div'
   return (
-    <div
+    <Caixa
+      type={aoClicar ? 'button' : undefined}
+      onClick={aoClicar}
       title={titulo}
       className={cn(
-        'px-4 py-3 min-w-0 flex flex-col gap-1 text-sm text-text-muted',
+        'group px-4 py-3 min-w-0 flex flex-col gap-1 text-left text-sm text-text-muted',
         'shadow-[1px_0_0_0_var(--border),0_1px_0_0_var(--border)]',
+        aoClicar &&
+          'hover:bg-bg-hover focus-visible:outline-none focus-visible:bg-bg-active transition-colors',
         className
       )}
     >
-      <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+      <span className="flex items-center justify-between gap-2 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
         {rotulo}
+        {aoClicar ? (
+          <ArrowRight
+            size={12}
+            className="shrink-0 text-accent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+          />
+        ) : null}
       </span>
       {carregando ? (
         <span
@@ -85,7 +100,7 @@ export function Indicador({
       ) : (
         <span
           className={cn(
-            'font-semibold tabular leading-tight whitespace-nowrap',
+            'max-w-full truncate font-semibold tabular leading-tight',
             tamanho === 'sm' ? 'text-xl' : 'text-3xl',
             TOM[tom]
           )}
@@ -97,7 +112,7 @@ export function Indicador({
         </span>
       )}
       {carregando ? null : children}
-    </div>
+    </Caixa>
   )
 }
 

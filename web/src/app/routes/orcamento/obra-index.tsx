@@ -1,15 +1,13 @@
 import { type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { ListTree, Briefcase, TrendingUp, ArrowRight } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge } from '@/components/ui/badge'
+import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useLucratividade } from '@/features/orcamento/hooks/lucratividade'
 import { usePlanOrc } from '@/features/orcamento/hooks/plan-orc'
 import { useIndireto, totalIndireto } from '@/features/orcamento/hooks/indireto'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
-import { cn } from '@/lib/utils'
 import { contar } from '@/lib/rotulos'
 import { ProntidaoObra } from '@/features/gerencial/components/ProntidaoObra'
 import { rotuloStatusObra } from '@/features/gerencial/lib/status-obra'
@@ -41,103 +39,60 @@ function ObraDashboard(): ReactNode {
         subtitle={`Código ${scope.obra?.codigo ?? '—'} · ${rotuloStatusObra(scope.obra?.status)}`}
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
-        <div className="grid grid-cols-4 gap-3">
-          <Card
-            icon={<ListTree size={16} />}
-            label="Itens da planilha"
-            value={totalItens.toString()}
-            hint={contar(totalReceitas, 'receita', 'receitas')}
-            onClick={() => navigate({ to: '/orcamento/obra/plan-orc' })}
-          />
-          <Card
-            icon={<Briefcase size={16} />}
-            label="Indireto total"
-            value={fmtBRL(indiretoTotal)}
-            hint={contar(indiretos.length, 'lançamento', 'lançamentos')}
-            onClick={() => navigate({ to: '/orcamento/obra/indireto' })}
-          />
-          <Card
-            icon={<TrendingUp size={16} />}
-            label="Venda total"
-            value={fmtBRL(lucr?.venda_total ?? 0)}
-            hint="Soma das receitas"
-            onClick={() => navigate({ to: '/orcamento/obra/lucratividade' })}
-          />
-          <Card
-            icon={<TrendingUp size={16} />}
-            label="Lucratividade"
-            value={
+        <FaixaIndicadores rotulo="Resumo do orçamento">
+          <Indicador
+            rotulo="Venda total"
+            tamanho="sm"
+            valor={fmtBRL(lucr?.venda_total ?? 0)}
+            aoClicar={() => void navigate({ to: '/orcamento/obra/lucratividade' })}
+          >
+            <span>soma das receitas da planilha</span>
+          </Indicador>
+          <Indicador
+            rotulo="Lucratividade"
+            tamanho="sm"
+            tom={
+              !lucr
+                ? 'neutro'
+                : lucr.lucro_liquido < 0
+                  ? 'danger'
+                  : (lucr.margem_perc ?? 0) < 0.1
+                    ? 'warn'
+                    : 'success'
+            }
+            valor={
               lucr?.margem_perc !== null && lucr?.margem_perc !== undefined
                 ? fmtPct2(lucr.margem_perc)
                 : '—'
             }
-            hint={lucr ? fmtBRL(lucr.lucro_liquido) : '—'}
-            onClick={() => navigate({ to: '/orcamento/obra/lucratividade' })}
-            tone={
-              lucr && lucr.lucro_liquido < 0
-                ? 'danger'
-                : lucr && (lucr.margem_perc ?? 0) < 0.1
-                  ? 'warn'
-                  : 'success'
-            }
-          />
-        </div>
+            aoClicar={() => void navigate({ to: '/orcamento/obra/lucratividade' })}
+          >
+            <span>
+              {lucr
+                ? `${fmtBRL(lucr.lucro_liquido)}${lucr.lucro_liquido < 0 ? ' de prejuízo' : (lucr.margem_perc ?? 0) < 0.1 ? ' (margem baixa)' : ' de lucro'}`
+                : 'sem orçamento calculado'}
+            </span>
+          </Indicador>
+          <Indicador
+            rotulo="Indireto"
+            tamanho="sm"
+            valor={fmtBRL(indiretoTotal)}
+            aoClicar={() => void navigate({ to: '/orcamento/obra/indireto' })}
+          >
+            <span>{contar(indiretos.length, 'lançamento', 'lançamentos')}</span>
+          </Indicador>
+          <Indicador
+            rotulo="Itens da planilha"
+            tamanho="sm"
+            valor={totalItens.toLocaleString('pt-BR')}
+            aoClicar={() => void navigate({ to: '/orcamento/obra/plan-orc' })}
+          >
+            <span>{contar(totalReceitas, 'receita', 'receitas')}</span>
+          </Indicador>
+        </FaixaIndicadores>
 
         <ProntidaoObra obraId={obraId} />
       </div>
     </div>
-  )
-}
-
-function Card({
-  icon,
-  label,
-  value,
-  hint,
-  onClick,
-  tone
-}: {
-  icon: ReactNode
-  label: string
-  value: string
-  hint?: string
-  onClick: () => void
-  tone?: 'success' | 'warn' | 'danger'
-}): ReactNode {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'group text-left rounded border bg-bg-panel p-4 transition-colors',
-        tone === 'danger'
-          ? 'border-danger/40 hover:border-danger'
-          : tone === 'warn'
-            ? 'border-warn/40 hover:border-warn'
-            : tone === 'success'
-              ? 'border-success/40 hover:border-success'
-              : 'border-border hover:border-border-accent hover:bg-bg-hover'
-      )}
-    >
-      <div className="flex items-center justify-between text-text-dim mb-2">
-        <div className="flex items-center gap-2 text-2xs font-mono uppercase tracking-wider">
-          {icon}
-          {label}
-        </div>
-        <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-      <div className="text-2xl font-semibold text-text font-mono">{value}</div>
-      {hint ? <div className="text-2xs text-text-muted font-mono mt-1">{hint}</div> : null}
-      {tone === 'danger' ? (
-        <Badge variant="danger" className="mt-2">
-          prejuízo
-        </Badge>
-      ) : null}
-      {tone === 'warn' ? (
-        <Badge variant="warn" className="mt-2">
-          margem baixa
-        </Badge>
-      ) : null}
-    </button>
   )
 }
