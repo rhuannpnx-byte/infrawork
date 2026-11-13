@@ -3,19 +3,13 @@ import { CadeiaTravaBanner } from '@/features/orcamento/components/CadeiaTravaBa
 import { useCadeiaTrava } from '@/features/planejamento/hooks/planejamentos'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  Plus,
-  Search,
-  X,
-  FoldVertical,
-  UnfoldVertical,
-  FolderTree,
-  Upload,
-  Trash2
-} from 'lucide-react'
+import { Plus, Search, X, FoldVertical, UnfoldVertical, Upload, Trash2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Carregando, ErroConsulta } from '@/components/ui/estado'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -42,7 +36,7 @@ function ServicosInner(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
   const navigate = useNavigate()
   const obraId = scope.obraId!
-  const { data: servicos = [], isLoading, error } = useServicos(obraId)
+  const { data: servicos = [], isLoading, error, refetch } = useServicos(obraId)
   const [openNew, setOpenNew] = useState(false)
   const [parentInicial, setParentInicial] = useState<string | null>(null)
 
@@ -85,35 +79,35 @@ function ServicosInner(): ReactNode {
         servicos.map((s) => ({ id: s.id, parent_id: s.parent_id, nivel: s.nivel }))
       )
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao avaliar dependências')
+      toast.error(
+        `Não foi possível conferir onde os serviços são usados. ${err instanceof Error ? err.message : ''}`.trim()
+      )
       return
     }
 
     if (preview.bloqueado) {
       await confirm({
-        title: 'Exclusão bloqueada',
+        title: 'Não é possível excluir',
         description: (
-          <div className="space-y-2 text-xs">
-            <p>Os serviços selecionados estão em uso:</p>
-            <ul className="ml-4 list-disc text-text-muted">
-              {preview.itensOrcamentoBloqueando > 0 ? (
-                <li>
-                  <span className="text-warn">
-                    {contar(
-                      preview.itensOrcamentoBloqueando,
-                      'item orçamentário',
-                      'itens orçamentários'
-                    )}
-                  </span>{' '}
-                  {preview.itensOrcamentoBloqueando === 1 ? 'aponta' : 'apontam'} pra esses serviços
-                  — {preview.itensOrcamentoBloqueando === 1 ? 'remova-o' : 'remova-os'} do orçamento
-                  primeiro.
-                </li>
-              ) : null}
-            </ul>
+          <div className="space-y-2">
+            <p>Os serviços selecionados estão em uso no orçamento.</p>
+            {preview.itensOrcamentoBloqueando > 0 ? (
+              <p>
+                <strong className="font-semibold text-text">
+                  {contar(
+                    preview.itensOrcamentoBloqueando,
+                    'item da planilha orçamentária usa',
+                    'itens da planilha orçamentária usam'
+                  )}
+                </strong>{' '}
+                esses serviços. Remova{' '}
+                {preview.itensOrcamentoBloqueando === 1 ? 'esse item' : 'esses itens'} da planilha e
+                tente de novo.
+              </p>
+            ) : null}
           </div>
         ),
-        confirmLabel: 'OK',
+        confirmLabel: 'Entendi',
         cancelLabel: 'Fechar',
         variant: 'warn'
       })
@@ -123,42 +117,49 @@ function ServicosInner(): ReactNode {
     const ok = await confirm({
       title: `Excluir ${contar(selectedIds.size, 'serviço', 'serviços')}?`,
       description: (
-        <div className="space-y-2 text-xs">
+        <div className="space-y-2">
           {preview.descendentesEmCascata > 0 ? (
             <p>
-              <span className="text-warn">
-                {contar(preview.descendentesEmCascata, 'sub-serviço', 'sub-serviços')}
-              </span>{' '}
-              {preview.descendentesEmCascata === 1 ? 'será apagado' : 'serão apagados'} em cascata.
+              <strong className="font-semibold text-text">
+                {contar(
+                  preview.descendentesEmCascata,
+                  'serviço de dentro dos grupos',
+                  'serviços de dentro dos grupos'
+                )}
+              </strong>{' '}
+              também {preview.descendentesEmCascata === 1 ? 'será excluído' : 'serão excluídos'}.
             </p>
           ) : null}
           {preview.vinculosCpuLink > 0 ? (
             <p>
-              <span className="text-text-dim">
-                {contar(preview.vinculosCpuLink, 'vínculo', 'vínculos')} com CPU
-              </span>{' '}
-              dentro desses serviços{' '}
-              {preview.vinculosCpuLink === 1 ? 'será removido' : 'serão removidos'} (CASCADE).
+              {contar(
+                preview.vinculosCpuLink,
+                'vínculo com composição será removido',
+                'vínculos com composições serão removidos'
+              )}
+              .
             </p>
           ) : null}
           {preview.cpusOrfanizadas > 0 ? (
             <p>
-              <span className="text-text-dim">
-                {contar(preview.cpusOrfanizadas, 'CPU', 'CPUs')}
-              </span>{' '}
-              {preview.cpusOrfanizadas === 1
-                ? 'ficará sem servico-dono (órfã)'
-                : 'ficarão sem servico-dono (órfãs)'}
-              . Você pode apagá-las manualmente em Composições.
+              {contar(
+                preview.cpusOrfanizadas,
+                'composição ficará sem serviço',
+                'composições ficarão sem serviço'
+              )}
+              . Elas continuam em Composições, de onde podem ser excluídas.
             </p>
           ) : null}
-          <p className="text-text-dim">
-            Total a apagar: <strong>{preview.totalParaApagar}</strong>{' '}
-            {preview.totalParaApagar === 1 ? 'serviço' : 'serviços'}.
+          <p>
+            Ao todo,{' '}
+            <strong className="font-semibold text-text">
+              {contar(preview.totalParaApagar, 'serviço será excluído', 'serviços serão excluídos')}
+            </strong>
+            . Não dá para desfazer.
           </p>
         </div>
       ),
-      confirmLabel: 'Excluir',
+      confirmLabel: preview.totalParaApagar === 1 ? 'Excluir serviço' : 'Excluir serviços',
       variant: 'danger'
     })
     if (!ok) return
@@ -166,7 +167,6 @@ function ServicosInner(): ReactNode {
     const idsParaApagar = preview.idsOrdenadosParaDelete
     setSelectedIds(new Set())
     setBulkDeleting(true)
-    const t0 = performance.now()
 
     try {
       // Agrupa por nível pra apagar folhas-primeiro (FK servico.parent_id é RESTRICT).
@@ -188,14 +188,13 @@ function ServicosInner(): ReactNode {
         if (err) {
           console.error('[servico bulk delete] nivel', nv, err)
           toast.error(
-            `Falha no nível ${nv}: ${err.message}. Apagados antes: ${total}/${idsParaApagar.length}.`
+            `Não foi possível excluir todos os serviços (${total} de ${idsParaApagar.length} excluídos). ${err.message}`
           )
           return
         }
         total += ids.length
       }
-      const ms = Math.round(performance.now() - t0)
-      toast.success(`${contar(total, 'serviço excluído', 'serviços excluídos')} em ${ms}ms.`)
+      toast.success(`${contar(total, 'serviço excluído', 'serviços excluídos')}.`)
     } finally {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
       void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
@@ -262,33 +261,35 @@ function ServicosInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Serviços"
-        subtitle="Catálogo em árvore. Cada serviço pode reunir várias composições, com fator de conversão."
+        subtitle="Lista em árvore: cada serviço pode reunir várias composições"
         actions={
           podeEditar ? (
             <div className="flex items-center gap-2">
               {selectedIds.size > 0 ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedIds(new Set())}
-                    title="Limpar seleção"
-                  >
-                    <X size={12} /> {contar(selectedIds.size, 'selecionado', 'selecionados')}
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                    <X size={12} aria-hidden /> Limpar seleção
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="danger"
                     size="sm"
-                    className="text-danger hover:bg-danger/10"
                     onClick={() => void handleBulkDelete()}
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
+                    <Trash2 size={12} aria-hidden />{' '}
+                    {bulkDeleting
+                      ? 'Excluindo…'
+                      : `Excluir ${contar(selectedIds.size, 'selecionado', 'selecionados')}`}
                   </Button>
                 </>
               ) : null}
-              <Button variant="default" size="sm" onClick={() => abrirNovo(null)}>
-                <Plus size={12} /> Novo serviço (raiz)
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => abrirNovo(null)}
+                title="Cria um serviço ou grupo no primeiro nível da árvore"
+              >
+                <Plus size={12} aria-hidden /> Novo serviço
               </Button>
             </div>
           ) : null
@@ -296,92 +297,95 @@ function ServicosInner(): ReactNode {
       />
       <CadeiaTravaBanner obraId={obraId} />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
+        <div className="px-5 pt-3">
+          <ErroConsulta erro={error} oQue="os serviços" aoTentar={() => void refetch()} compacto />
         </div>
       ) : null}
 
-      {/* Toolbar funcional: busca + contadores + expand/collapse all */}
       {!isLoading && tree.length > 0 ? (
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-bg-panel">
-          {/* Search */}
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-2 border-b border-border bg-bg-panel">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search
-              size={12}
+              size={14}
+              aria-hidden
               className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim pointer-events-none"
             />
-            <input
-              type="text"
+            <Input
+              type="search"
+              aria-label="Buscar serviço por código ou nome"
               value={searchRaw}
               onChange={(e) => setSearchRaw(e.target.value)}
               placeholder="Buscar por código ou nome…"
-              className="w-full pl-7 pr-7 h-7 bg-bg border border-border rounded text-xs text-text placeholder:text-text-dim focus:outline-none focus:border-accent"
+              className="pl-7 pr-8 [&::-webkit-search-cancel-button]:hidden"
             />
             {searchRaw ? (
               <button
                 type="button"
                 onClick={() => setSearchRaw('')}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text"
-                title="Limpar"
+                className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-hover"
+                aria-label="Limpar a busca"
+                title="Limpar a busca"
               >
-                <X size={12} />
+                <X size={12} aria-hidden />
               </button>
             ) : null}
           </div>
 
-          {/* Counters */}
-          <div className="flex items-center gap-2 text-2xs font-mono text-text-dim">
-            <span>
-              <strong className="text-text">{counters.total}</strong>{' '}
-              {counters.total === 1 ? 'serviço' : 'serviços'}
-            </span>
-            <span className="text-text-faint">·</span>
-            <span>
-              <strong className="text-success">{counters.ativos}</strong> ativos
-            </span>
-            {counters.inativos > 0 ? (
-              <>
-                <span className="text-text-faint">·</span>
-                <span>
-                  <strong className="text-warn">{counters.inativos}</strong> inativos
-                </span>
-              </>
-            ) : null}
-          </div>
+          <p className="text-sm text-text-muted tabular">
+            <strong className="font-semibold text-text">
+              {contar(counters.total, 'serviço', 'serviços')}
+            </strong>
+            {counters.inativos > 0
+              ? `, ${contar(counters.ativos, 'ativo', 'ativos')} e ${contar(counters.inativos, 'inativo', 'inativos')}`
+              : counters.total === 1
+                ? ', ativo'
+                : ', todos ativos'}
+          </p>
 
           <div className="flex-1" />
 
-          {/* Expand / Collapse all */}
-          <button
-            type="button"
-            onClick={expandAll}
-            className="h-7 px-2 inline-flex items-center gap-1.5 text-2xs font-mono text-text-muted hover:text-text border border-border hover:border-border-strong rounded"
-            title="Expandir tudo"
-          >
-            <UnfoldVertical size={12} /> Expandir tudo
-          </button>
-          <button
-            type="button"
-            onClick={collapseAll}
-            className="h-7 px-2 inline-flex items-center gap-1.5 text-2xs font-mono text-text-muted hover:text-text border border-border hover:border-border-strong rounded"
-            title="Colapsar tudo"
-          >
-            <FoldVertical size={12} /> Colapsar tudo
-          </button>
+          <Button variant="secondary" size="sm" onClick={expandAll}>
+            <UnfoldVertical size={12} aria-hidden /> Expandir tudo
+          </Button>
+          <Button variant="secondary" size="sm" onClick={collapseAll}>
+            <FoldVertical size={12} aria-hidden /> Recolher tudo
+          </Button>
         </div>
       ) : null}
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-5">
         {isLoading ? (
-          <div className="text-xs text-text-muted font-mono">Carregando…</div>
+          <Carregando />
         ) : tree.length === 0 ? (
-          <ServicosEmptyState
-            podeEditar={!!podeEditar}
-            onCriarRaiz={() => abrirNovo(null)}
-            onImportar={() => navigate({ to: '/orcamento/obra/plan-orc' })}
-          />
+          error ? null : (
+            <EmptyState
+              icon="list-tree"
+              title="Nenhum serviço cadastrado"
+              description={
+                podeEditar
+                  ? 'Os serviços são a base do orçamento. Crie os grupos (1, 2, 3…) e, dentro deles, os serviços com unidade (m³, t, km). Se preferir, importe pela planilha orçamentária.'
+                  : 'Esta obra ainda não tem serviços. O cadastro é feito por engenheiro ou administrador.'
+              }
+              action={
+                podeEditar ? (
+                  <div className="flex items-center gap-2">
+                    <Button variant="default" size="sm" onClick={() => abrirNovo(null)}>
+                      <Plus size={12} aria-hidden /> Criar o primeiro serviço
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate({ to: '/orcamento/obra/plan-orc' })}
+                    >
+                      <Upload size={12} aria-hidden /> Importar pela planilha
+                    </Button>
+                  </div>
+                ) : null
+              }
+            />
+          )
         ) : (
-          <div className="rounded border border-border bg-bg-panel p-3">
+          <div className="rounded border border-border bg-bg-panel p-2">
             <ServicosTree
               nodes={tree}
               onAddChild={abrirNovo}
@@ -390,6 +394,7 @@ function ServicosInner(): ReactNode {
               onToggleExpand={onToggleExpand}
               selectedIds={podeEditar ? selectedIds : null}
               onToggleSelect={podeEditar ? onToggleSelect : undefined}
+              somenteLeitura={!podeEditar}
               onSelect={(id) => {
                 const s = servicos.find((x) => x.id === id)
                 if (s && s.unidade !== null) setLinksOpenFor(s)
@@ -416,42 +421,6 @@ function ServicosInner(): ReactNode {
         servico={linksOpenFor}
         obraId={obraId}
       />
-    </div>
-  )
-}
-
-interface EmptyStateProps {
-  podeEditar: boolean
-  onCriarRaiz: () => void
-  onImportar: () => void
-}
-function ServicosEmptyState({ podeEditar, onCriarRaiz, onImportar }: EmptyStateProps): ReactNode {
-  return (
-    <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto py-12">
-      <div className="w-16 h-16 rounded-full bg-bg-elevated border border-border flex items-center justify-center mb-4">
-        <FolderTree size={28} className="text-text-dim" />
-      </div>
-      <h2 className="text-base font-semibold text-text mb-1">Sem serviços cadastrados</h2>
-      <p className="text-xs text-text-muted leading-relaxed mb-5">
-        O catálogo de serviços é a base do orçamento. Comece criando os{' '}
-        <span className="text-text">índices raiz</span> (1, 2, 3…) e depois adicione{' '}
-        <span className="text-text">folhas</span> com unidade (m³, t, km, etc). Alternativamente,
-        importe direto da planilha orçamentária.
-      </p>
-      {podeEditar ? (
-        <div className="flex items-center gap-2">
-          <Button variant="default" size="sm" onClick={onCriarRaiz}>
-            <Plus size={12} /> Criar serviço-raiz
-          </Button>
-          <Button variant="outline" size="sm" onClick={onImportar}>
-            <Upload size={12} /> Importar planilha
-          </Button>
-        </div>
-      ) : (
-        <p className="text-2xs text-text-faint italic">
-          Você não tem permissão pra criar serviços. Solicite ao engenheiro/admin.
-        </p>
-      )}
     </div>
   )
 }

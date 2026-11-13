@@ -464,7 +464,10 @@ export function GanttLinhaTempo(p: Props): ReactNode {
   return (
     <div
       ref={ref}
-      className="relative h-full w-full overflow-auto bg-bg"
+      tabIndex={0}
+      role="region"
+      aria-label="Linha do tempo do cronograma"
+      className="relative h-full w-full overflow-auto bg-bg focus-visible:outline-none"
       onScroll={onScroll}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -658,7 +661,7 @@ export function GanttLinhaTempo(p: Props): ReactNode {
                     d={`M ${eixo.x(t)} ${topo - 6} l 5 5 l -5 5 l -5 -5 z`}
                     fill="var(--milestone)"
                   />
-                  <title>{`${m.nome} — ${t === m.inicio ? 'início' : 'fim'} ${fmtDataLonga(t)}`}</title>
+                  <title>{`${m.nome}: ${t === m.inicio ? 'início' : 'fim'} em ${fmtDataLonga(t)}`}</title>
                   {k === 0 && base - topo > 60 ? (
                     <text
                       transform={`translate(${eixo.x(t) - 4} ${(topo + base) / 2}) rotate(-90)`}

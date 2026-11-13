@@ -169,7 +169,7 @@ function Conteudo({
         ) : null}
         {alvo.tipo === 'horario_excecao' ? (
           <div>
-            <div className="mb-1 text-2xs font-mono uppercase tracking-wider text-text-dim">
+            <div className="mb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
               Semana no período (vale também sobre feriados)
             </div>
             <div className="grid grid-cols-7 gap-1.5">

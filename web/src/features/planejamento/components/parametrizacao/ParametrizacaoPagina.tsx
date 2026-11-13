@@ -6,13 +6,16 @@
  */
 import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Info, Search, Truck } from 'lucide-react'
+import { Search, Truck } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { PulseBlock } from '@/components/ui/PulseBlock'
+import { ErroConsulta } from '@/components/ui/estado'
 import { Input } from '@/components/ui/input'
+import { Secao } from '@/components/ui/secao'
 import { Select } from '@/components/ui/select'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatNumber } from '@/lib/format/number'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { useComposicoesServicos } from '@/features/cronograma/hooks/composicoes'
 import {
@@ -37,12 +40,16 @@ const aplicarFator = (v: number, fator: number, operacao: 'dividir' | 'multiplic
   return operacao === 'multiplicar' ? v * f : v / f
 }
 
+const ROTULO = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
+
 function Marca({
+  rotulo,
   checked,
   onChange,
   disabled,
   title
 }: {
+  rotulo: string
   checked: boolean
   onChange: (v: boolean) => void
   disabled?: boolean
@@ -51,11 +58,12 @@ function Marca({
   return (
     <input
       type="checkbox"
+      aria-label={rotulo}
       checked={checked}
       disabled={disabled}
       title={title}
       onChange={(e) => onChange(e.target.checked)}
-      className="h-3.5 w-3.5 cursor-pointer accent-[var(--accent)] disabled:cursor-default"
+      className="h-4 w-4 cursor-pointer align-middle accent-[var(--accent)] disabled:cursor-default"
     />
   )
 }
@@ -105,11 +113,17 @@ export function ParametrizacaoPagina({ obraId }: { obraId: string }): ReactNode 
     )
 
   const gravar = (p: ServicoParametro): void => {
+    const codigo = servicos.data?.find((s) => s.id === p.item_orcamentario_id)?.codigo
     salvar.mutate(p, {
-      onError: (e) => toast.error(e.message)
+      onError: (e) =>
+        toast.error(
+          `Não foi possível salvar a parametrização do serviço${codigo ? ` ${codigo}` : ''}. ${e.message}`
+        )
     })
   }
+  const salvandoId = salvar.isPending ? salvar.variables?.item_orcamentario_id : null
 
+  const total = servicos.data?.length ?? 0
   const lista = (servicos.data ?? []).filter(
     (s) =>
       !busca.trim() ||
@@ -121,6 +135,7 @@ export function ParametrizacaoPagina({ obraId }: { obraId: string }): ReactNode 
   const nMaterial = (servicos.data ?? []).filter(
     (s) => parametroDe(parametros.data, s.id).controla_material
   ).length
+  const erroConsulta = servicos.error ?? parametros.error
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -130,81 +145,95 @@ export function ParametrizacaoPagina({ obraId }: { obraId: string }): ReactNode 
       />
       {servicos.isLoading || parametros.isLoading ? (
         <PulseBlock h={420} className="m-4" />
+      ) : erroConsulta ? (
+        <ErroConsulta
+          erro={erroConsulta}
+          oQue="a parametrização dos serviços"
+          aoTentar={() => {
+            void servicos.refetch()
+            void parametros.refetch()
+          }}
+          className="m-4"
+        />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
-          <div className="flex flex-wrap items-start gap-3 rounded border border-border bg-bg-panel px-3 py-2 text-2xs text-text-muted">
-            <Info size={13} className="mt-0.5 shrink-0 text-accent" />
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <p>
-                <strong className="text-text">Lançamento</strong>: por quantidade (o apontador
-                informa a produção do dia) ou por <strong className="text-text">viagens</strong>{' '}
-                (cada viagem com origem e destino; a produção do dia é a soma das viagens).
-              </p>
-              <p>
-                <strong className="text-text">Medição da viagem</strong>: por volume ou por peso (o
-                ticket da balança passa a ser obrigatório). A quantidade da viagem é lançada na
-                unidade do serviço; empolamento e densidade ficam com quem lança.
-              </p>
-              <p>
-                <strong className="text-text">Material</strong>: o lançamento passa a pedir a
-                quantidade do material escolhido; a média lançada por unidade produzida aparece aqui
-                ao lado do previsto na composição.
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-3 font-mono">
-              <span>{servicos.data?.length ?? 0} serviços</span>
-              <span>{nMaterial} com material</span>
-              <span>{nViagens} por viagens</span>
-            </div>
-          </div>
+          <dl className="grid shrink-0 grid-cols-[max-content_minmax(0,75ch)] gap-x-4 gap-y-1.5 text-sm text-text-muted">
+            <dt className={cn(ROTULO, 'pt-0.5')}>Lançamento</dt>
+            <dd>
+              Por quantidade, o apontador informa a produção do dia. Por viagens, cada viagem tem
+              origem e destino e a produção do dia é a soma das viagens.
+            </dd>
+            <dt className={cn(ROTULO, 'pt-0.5')}>Medição da viagem</dt>
+            <dd>
+              Por volume ou por peso; por peso, o ticket da balança passa a ser obrigatório. A
+              quantidade da viagem é lançada na unidade do serviço; empolamento e densidade ficam
+              com quem lança.
+            </dd>
+            <dt className={cn(ROTULO, 'pt-0.5')}>Material</dt>
+            <dd>
+              O lançamento passa a pedir a quantidade do material escolhido. A média lançada por
+              unidade produzida aparece na última coluna, ao lado do previsto na composição.
+            </dd>
+          </dl>
 
-          <section className="flex min-h-0 flex-1 flex-col rounded border border-border bg-bg-panel">
-            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-              <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">
-                Serviços do orçamento
-              </h3>
-              <div className="relative ml-auto w-56">
-                <Search
-                  size={12}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim"
-                />
-                <Input
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Filtrar"
-                  className="h-6 pl-7"
-                />
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <table className="w-full min-w-[1280px] border-collapse text-xs">
-                <thead className="sticky top-0 z-10 bg-bg-panel">
-                  <tr className="border-b border-border text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
-                    <th className="px-3 py-2 font-normal">Serviço</th>
-                    <th className="px-2 py-2 font-normal">Un.</th>
-                    <th className="px-2 py-2 font-normal">Lançamento</th>
+          <Secao
+            titulo="Serviços do orçamento"
+            nota={
+              <span className="tabular">
+                {contar(total, 'serviço', 'serviços')}, {nMaterial} com material controlado,{' '}
+                {nViagens} por viagens
+              </span>
+            }
+            semRecuo
+            className="min-h-0 flex-1"
+            corpoClassName="flex flex-col"
+            acoes={
+              <>
+                <span role="status" aria-live="polite" className="text-sm text-text-muted">
+                  {salvar.isPending ? 'Salvando…' : ''}
+                </span>
+                <div className="relative w-64">
+                  <Search
+                    size={13}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-dim"
+                    aria-hidden
+                  />
+                  <Input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Filtrar por código ou descrição"
+                    aria-label="Filtrar serviços por código ou descrição"
+                    className="h-7 pl-8"
+                  />
+                </div>
+              </>
+            }
+          >
+            <div className="min-h-0 flex-1 overflow-auto border-t border-border">
+              <table className="w-full min-w-[1360px] border-collapse text-sm">
+                <thead className="sticky top-0 z-10 bg-bg-elevated shadow-[inset_0_-1px_0_var(--border-strong)]">
+                  <tr className={cn('text-left', ROTULO)}>
+                    <th className="px-3 py-2 font-semibold">Serviço</th>
+                    <th className="px-2 py-2 font-semibold">Unidade</th>
+                    <th className="px-2 py-2 font-semibold">Lançamento</th>
                     <th
-                      className="px-2 py-2 font-normal"
+                      className="px-2 py-2 font-semibold"
                       title="Volume ou peso (peso exige o ticket da balança)"
                     >
                       Medição da viagem
                     </th>
-                    <th className="px-2 py-2 text-center font-normal">Material</th>
-                    <th className="px-2 py-2 font-normal">Material controlado</th>
-                    <th className="px-2 py-2 font-normal">Unid. material</th>
-                    <th className="px-2 py-2 text-center font-normal" title="Material obrigatório">
-                      Obrig.
-                    </th>
-                    <th className="px-2 py-2 text-center font-normal" title="Observação habilitada">
-                      Obs.
-                    </th>
+                    <th className="px-2 py-2 text-center font-semibold">Controla material</th>
+                    <th className="px-2 py-2 font-semibold">Material controlado</th>
+                    <th className="min-w-[6.5rem] px-2 py-2 font-semibold">Unidade do material</th>
+                    <th className="px-2 py-2 text-center font-semibold">Material obrigatório</th>
+                    <th className="px-2 py-2 text-center font-semibold">Observação</th>
                     <th
-                      className="px-2 py-2 text-center font-normal"
+                      className="px-2 py-2 text-center font-semibold"
                       title="Local e estacas obrigatórios no lançamento"
                     >
-                      Local obrig.
+                      Local obrigatório
                     </th>
-                    <th className="px-3 py-2 font-normal">Consumo (lançado × previsto)</th>
+                    <th className="px-3 py-2 font-semibold">Consumo (lançado × previsto)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -220,20 +249,23 @@ export function ParametrizacaoPagina({ obraId }: { obraId: string }): ReactNode 
                         []
                       }
                       ro={ro}
+                      salvando={salvandoId === s.id}
                       gravar={gravar}
                     />
                   ))}
                   {!lista.length ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-4 text-text-dim">
-                        Nenhum serviço com composição no orçamento.
+                      <td colSpan={11} className="px-3 py-4 text-sm text-text-muted">
+                        {total
+                          ? 'Nenhum serviço neste filtro. Apague o texto do filtro para ver todos.'
+                          : 'O orçamento ainda não tem serviço com composição. Vincule as composições aos serviços no orçamento para definir como cada um é lançado.'}
                       </td>
                     </tr>
                   ) : null}
                 </tbody>
               </table>
             </div>
-          </section>
+          </Secao>
         </div>
       )}
     </div>
@@ -247,6 +279,7 @@ function Linha({
   previstos,
   consumo,
   ro,
+  salvando,
   gravar
 }: {
   s: ServicoParametrizavel
@@ -255,6 +288,7 @@ function Linha({
   previstos: Previsto[]
   consumo: NonNullable<ReturnType<typeof useConsumoMaterial>['data']>
   ro: boolean
+  salvando: boolean
   gravar: (p: ServicoParametro) => void
 }): ReactNode {
   const mat = materiais.find((m) => m.id === p.material_recurso_id) ?? null
@@ -277,25 +311,36 @@ function Linha({
     })
   }
   return (
-    <tr className="border-b border-border last:border-b-0 hover:bg-bg-hover/40">
+    <tr
+      aria-busy={salvando || undefined}
+      className="border-b border-border last:border-b-0 hover:bg-bg-hover"
+    >
       <td className="px-3 py-1.5">
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-2xs text-text-dim">{s.codigo}</span>
+          <span className="tabular text-text-dim">{s.codigo}</span>
           <span className="truncate text-text">{s.descricao}</span>
           {p.modo_lancamento === 'viagens' ? (
-            <Truck size={12} className="shrink-0 text-accent" aria-label="por viagens" />
+            <Truck
+              size={13}
+              role="img"
+              aria-label="Lançado por viagens"
+              className="shrink-0 self-center text-accent"
+            >
+              <title>Lançado por viagens</title>
+            </Truck>
           ) : null}
         </div>
       </td>
-      <td className="px-2 py-1.5 font-mono text-2xs text-text-muted">{s.unidade ?? '—'}</td>
+      <td className="px-2 py-1.5 text-text-muted">{s.unidade ?? '—'}</td>
       <td className="px-2 py-1.5">
         <Select
           value={p.modo_lancamento}
           disabled={ro}
+          aria-label={`Lançamento do serviço ${s.codigo}`}
           onChange={(e) =>
             set({ modo_lancamento: e.target.value as ServicoParametro['modo_lancamento'] })
           }
-          className="h-7 w-32 text-xs"
+          className="h-7 w-32"
         >
           <option value="quantidade">Quantidade</option>
           <option value="viagens">Viagens</option>
@@ -303,50 +348,56 @@ function Linha({
       </td>
       <td className="px-2 py-1.5">
         {p.modo_lancamento === 'viagens' ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <Select
               value={p.medicao_viagem}
               disabled={ro}
+              aria-label={`Medição da viagem do serviço ${s.codigo}`}
               onChange={(e) =>
                 set({ medicao_viagem: e.target.value as ServicoParametro['medicao_viagem'] })
               }
-              className="h-7 w-24 text-xs"
-              aria-label="Medição da viagem"
+              className="h-7 w-28"
             >
               <option value="volume">Volume</option>
               <option value="peso">Peso</option>
             </Select>
             {p.medicao_viagem === 'peso' ? (
-              <span className="text-2xs text-text-dim">ticket obrigatório</span>
+              <span className="whitespace-nowrap text-text-muted">Ticket obrigatório</span>
             ) : null}
           </div>
         ) : (
-          <span className="text-2xs text-text-dim">—</span>
+          <span className="text-text-dim">—</span>
         )}
       </td>
       <td className="px-2 py-1.5 text-center">
-        <Marca checked={p.controla_material} disabled={ro} onChange={ligarMaterial} />
+        <Marca
+          rotulo={`Controlar material no serviço ${s.codigo}`}
+          checked={p.controla_material}
+          disabled={ro}
+          onChange={ligarMaterial}
+        />
       </td>
       <td className="px-2 py-1.5">
         {p.controla_material ? (
           <Select
             value={p.material_recurso_id ?? ''}
             disabled={ro}
+            aria-label={`Material controlado do serviço ${s.codigo}`}
             onChange={(e) => {
               const m = materiais.find((x) => x.id === e.target.value)
               if (m) set({ material_recurso_id: m.id, material_unidade: m.unidade })
             }}
-            className="h-7 w-52 text-xs"
+            className="h-7 w-56"
           >
             {materiais.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.nome}
-                {previstos.some((x) => x.recurso_id === m.id) ? ' · na composição' : ''}
+                {previstos.some((x) => x.recurso_id === m.id) ? ' (na composição)' : ''}
               </option>
             ))}
           </Select>
         ) : (
-          <span className="text-2xs text-text-dim">—</span>
+          <span className="text-text-dim">—</span>
         )}
       </td>
       <td className="px-2 py-1.5">
@@ -355,28 +406,38 @@ function Linha({
             key={`${p.material_recurso_id}-${p.material_unidade}`}
             defaultValue={p.material_unidade ?? mat?.unidade ?? ''}
             disabled={ro}
+            aria-label={`Unidade do material do serviço ${s.codigo}`}
             onBlur={(e) => {
               const v = e.target.value.trim()
               if (v && v !== p.material_unidade) set({ material_unidade: v })
+              else e.currentTarget.value = e.currentTarget.defaultValue
             }}
-            className="h-7 w-20 font-mono text-xs"
+            className="h-7 w-20"
           />
         ) : (
-          <span className="text-2xs text-text-dim">—</span>
+          <span className="text-text-dim">—</span>
         )}
       </td>
       <td className="px-2 py-1.5 text-center">
         <Marca
+          rotulo={`Material obrigatório no serviço ${s.codigo}`}
           checked={p.controla_material && p.material_obrigatorio}
           disabled={ro || !p.controla_material}
+          title={!ro && !p.controla_material ? 'Marque "Controla material" antes' : undefined}
           onChange={(v) => set({ material_obrigatorio: v })}
         />
       </td>
       <td className="px-2 py-1.5 text-center">
-        <Marca checked={p.habilita_obs} disabled={ro} onChange={(v) => set({ habilita_obs: v })} />
+        <Marca
+          rotulo={`Observação habilitada no serviço ${s.codigo}`}
+          checked={p.habilita_obs}
+          disabled={ro}
+          onChange={(v) => set({ habilita_obs: v })}
+        />
       </td>
       <td className="px-2 py-1.5 text-center">
         <Marca
+          rotulo={`Local obrigatório no serviço ${s.codigo}`}
           checked={p.exige_local}
           disabled={ro || p.modo_lancamento === 'viagens'}
           title={
@@ -387,15 +448,20 @@ function Linha({
           onChange={(v) => set({ exige_local: v })}
         />
       </td>
-      <td className="px-3 py-1.5 text-2xs">
+      <td className="whitespace-nowrap px-3 py-1.5">
         {p.controla_material ? (
-          <span className="font-mono">
-            <span className={cn(lanc?.media_por_unidade != null ? 'text-text' : 'text-text-dim')}>
+          <span className="tabular">
+            <span className={cn(lanc?.media_por_unidade != null ? 'text-text' : 'text-text-muted')}>
               {lanc?.media_por_unidade != null
                 ? `${formatNumber(lanc.media_por_unidade, 3)} ${p.material_unidade ?? ''}/${s.unidade ?? 'un'}`
                 : 'sem lançamentos'}
             </span>
-            {lanc ? <span className="text-text-dim"> ({lanc.lancamentos} lanç.)</span> : null}
+            {lanc ? (
+              <span className="text-text-muted">
+                {' '}
+                ({contar(lanc.lancamentos, 'lançamento', 'lançamentos')})
+              </span>
+            ) : null}
             <span className="text-text-dim"> × </span>
             <span className="text-text-muted">
               {prev ? `${formatNumber(prev.porUnidade, 3)} previsto` : 'fora da composição'}

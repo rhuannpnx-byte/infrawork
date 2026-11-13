@@ -15,7 +15,7 @@ export function Campo({
 }): ReactNode {
   return (
     <label className={cn('flex flex-col gap-1', className)} title={dica}>
-      <span className="text-2xs font-mono uppercase tracking-wider text-text-dim">{rotulo}</span>
+      <span className="text-sm font-medium text-text">{rotulo}</span>
       {children}
     </label>
   )
@@ -36,7 +36,10 @@ export function Caixa({
 }): ReactNode {
   return (
     <label
-      className={cn('flex items-start gap-2 text-xs text-text', desabilitado && 'opacity-50')}
+      className={cn(
+        'flex items-start gap-2 text-sm',
+        desabilitado ? 'text-text-dim' : 'text-text cursor-pointer'
+      )}
       title={dica}
     >
       <input
@@ -63,7 +66,7 @@ export function Secao({
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between border-b border-border pb-1">
-        <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">{titulo}</h3>
+        <h3 className="text-md font-semibold text-text">{titulo}</h3>
         {acoes}
       </div>
       {children}

@@ -12,14 +12,16 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
+import { Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { COR, type EntidadeSerie } from '../../lib/performance-calc'
 
 type Metrica = 'media' | 'total'
+const eixo = { ...axisStyle, fontSize: 11 }
 
 interface Props {
   series: EntidadeSerie[]
-  /** 'media' = média/dia (com linha de meta CPU); 'total' = total produzido no período. */
+  /** 'media' = média/dia (com a linha da meta da composição); 'total' = total produzido no período. */
   metrica: Metrica
   cpuMeta: number | null
   unidade: string | null
@@ -50,11 +52,7 @@ export function RankingEntidades({
     [series, ehMedia, dec]
   )
   if (data.length === 0) {
-    return (
-      <div className="h-32 flex items-center justify-center text-2xs font-mono text-text-dim">
-        Sem dados.
-      </div>
-    )
+    return <Vazio>Sem produção no período para montar o ranking.</Vazio>
   }
   const un = unidade ?? ''
   const altura = Math.max(120, data.length * 30 + 28)
@@ -62,18 +60,18 @@ export function RankingEntidades({
   return (
     <div style={{ height: altura }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 64, left: 8, bottom: 4 }}>
+        <BarChart data={data} layout="vertical" margin={{ top: 16, right: 64, left: 8, bottom: 4 }}>
           <CartesianGrid stroke={CHART_THEME.gridStroke} strokeDasharray="2 3" horizontal={false} />
           <XAxis
             type="number"
-            tick={axisStyle}
+            tick={eixo}
             stroke={CHART_THEME.axisStroke}
             tickFormatter={(v: number) => formatNumber(v, 0)}
           />
           <YAxis
             type="category"
             dataKey="nome"
-            tick={axisStyle}
+            tick={eixo}
             stroke={CHART_THEME.axisStroke}
             width={150}
             interval={0}
@@ -83,7 +81,7 @@ export function RankingEntidades({
             cursor={{ fill: 'var(--bg-hover)' }}
             formatter={(v) => [
               `${formatNumber(Number(v), dec)} ${un}${ehMedia ? '/dia' : ''}`,
-              ehMedia ? 'Média/dia' : 'Total'
+              ehMedia ? 'Média por dia' : 'Total no período'
             ]}
           />
           {ehMedia && cpuMeta != null ? (
@@ -93,8 +91,8 @@ export function RankingEntidades({
               strokeWidth={1.2}
               strokeDasharray="4 3"
               label={{
-                value: `CPU ${formatNumber(cpuMeta, 0)}`,
-                fontSize: 9,
+                value: `meta ${formatNumber(cpuMeta, 0)}`,
+                fontSize: 11,
                 fill: COR.meta,
                 position: 'top'
               }}
@@ -102,7 +100,7 @@ export function RankingEntidades({
           ) : null}
           <Bar
             dataKey="valor"
-            radius={[0, 3, 3, 0]}
+            radius={[0, 2, 2, 0]}
             maxBarSize={22}
             isAnimationActive={false}
             onClick={(e) => {
@@ -123,9 +121,9 @@ export function RankingEntidades({
               position="right"
               formatter={(v) => formatNumber(Number(v), dec)}
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontFamily: '"Archivo Variable", Archivo, sans-serif',
-                fill: CHART_THEME.axisLabel
+                fill: 'var(--text)'
               }}
             />
           </Bar>

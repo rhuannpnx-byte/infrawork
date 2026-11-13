@@ -9,7 +9,7 @@ import {
   DialogErrorBanner
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Campo } from '@/components/ui/campo'
 import { Button } from '@/components/ui/button'
 import type { Encarregado } from '@/types/acompanhamento'
 import { useCreateEncarregado, useEncarregados, useUpdateEncarregado } from '../../hooks/lancamento'
@@ -58,6 +58,8 @@ function FormDialog({
   const [telefone, setTelefone] = useState(encarregado?.telefone ?? '')
   const [ativo, setAtivo] = useState(encarregado?.ativo ?? true)
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
+  const erroNome = tentou && nome.trim().length < 2 ? 'Informe o nome do encarregado.' : null
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const podeVincular = role === 'god' || role === 'adm' || role === 'engenheiro'
   const vincular = useVincularEquipesEncarregado()
@@ -79,8 +81,9 @@ function FormDialog({
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError(null)
+    setTentou(true)
     if (nome.trim().length < 2) {
-      setError('Informe o nome.')
+      document.getElementById('enc-nome')?.focus()
       return
     }
     try {
@@ -105,59 +108,59 @@ function FormDialog({
       )
       onOpenChange(false)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar'
+      const msg = err instanceof Error ? err.message : ''
       setError(
-        /duplicate|unique/i.test(msg) ? 'Já existe um encarregado com esse nome nesta obra.' : msg
+        /duplicate|unique/i.test(msg)
+          ? 'Já existe um encarregado com esse nome nesta obra.'
+          : `Não foi possível salvar o encarregado.${msg ? ` ${msg}` : ''}`
       )
     }
   }
 
   return (
     <Dialog open onOpenChange={onOpenChange} size="sm" disableDismiss={pending} topmost>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>{encarregado ? 'Editar encarregado' : 'Novo encarregado'}</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
-          <div>
-            <Label htmlFor="enc-nome">Nome</Label>
+          <Campo rotulo="Nome" obrigatorio erro={erroNome}>
             <Input
               id="enc-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
               autoFocus
               placeholder="Ex.: João da Silva"
             />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="enc-apelido">Apelido</Label>
+          </Campo>
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="Apelido">
               <Input
                 id="enc-apelido"
                 value={apelido}
                 onChange={(e) => setApelido(e.target.value)}
-                placeholder="opcional"
+                placeholder="Opcional"
               />
-            </div>
-            <div>
-              <Label htmlFor="enc-tel">Telefone</Label>
+            </Campo>
+            <Campo rotulo="Telefone">
               <Input
                 id="enc-tel"
+                type="tel"
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
                 inputMode="tel"
-                placeholder="(xx) xxxxx-xxxx"
+                placeholder="(00) 00000-0000"
               />
-            </div>
+            </Campo>
           </div>
           {podeVincular && equipesProntas ? (
-            <div>
-              <Label>Equipes</Label>
+            <fieldset className="min-w-0">
+              <legend className="mb-1 text-sm font-medium text-text">Equipes</legend>
               {equipes.length === 0 ? (
-                <p className="text-2xs text-text-dim">Nenhuma equipe ativa na obra.</p>
+                <p className="text-sm text-text-muted">
+                  Nenhuma equipe ativa na obra. Cadastre as equipes para ligar ao encarregado.
+                </p>
               ) : (
                 <div
                   className="max-h-44 overflow-auto rounded border border-border divide-y divide-border"
@@ -171,39 +174,43 @@ function FormDialog({
                     return (
                       <label
                         key={q.id}
-                        className="flex items-center gap-2 px-2 py-1.5 text-xs text-text cursor-pointer hover:bg-bg-hover"
+                        className="flex items-center gap-2 px-2.5 min-h-8 py-1 text-sm text-text cursor-pointer hover:bg-bg-hover"
                       >
                         <input
                           type="checkbox"
                           checked={selecionadas.has(q.id)}
                           onChange={() => alternar(q.id)}
-                          className="accent-[var(--accent)]"
+                          className="size-4 shrink-0 accent-[var(--accent)]"
                         />
-                        <span className="w-2 h-2 rounded-sm" style={{ background: q.cor }} />
+                        <span
+                          aria-hidden
+                          className="size-2.5 rounded-sm shrink-0"
+                          style={{ background: q.cor }}
+                        />
                         <span className="flex-1 truncate">{q.nome}</span>
                         {outro && !selecionadas.has(q.id) ? (
-                          <span className="text-2xs text-text-dim">com {outro}</span>
+                          <span className="text-xs text-text-muted">Com {outro}</span>
                         ) : null}
                         {outro && selecionadas.has(q.id) ? (
-                          <span className="text-2xs text-warn">sai de {outro}</span>
+                          <span className="text-xs font-medium text-warn">Sai de {outro}</span>
                         ) : null}
                       </label>
                     )
                   })}
                 </div>
               )}
-              <p className="mt-1 text-2xs text-text-dim">
+              <p className="mt-1 text-xs text-text-muted">
                 No app de campo, depois de escolher o encarregado aparecem só as equipes dele.
               </p>
-            </div>
+            </fieldset>
           ) : null}
           {encarregado ? (
-            <label className="flex items-center gap-2 text-xs text-text cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
               <input
                 type="checkbox"
                 checked={ativo}
                 onChange={(e) => setAtivo(e.target.checked)}
-                className="accent-[var(--accent)]"
+                className="size-4 accent-[var(--accent)]"
               />
               Ativo (aparece nas listas de lançamento)
             </label>
@@ -219,7 +226,7 @@ function FormDialog({
             Cancelar
           </Button>
           <Button type="submit" disabled={pending}>
-            {pending ? 'Salvando…' : encarregado ? 'Salvar' : 'Criar'}
+            {pending ? 'Salvando…' : encarregado ? 'Salvar' : 'Criar encarregado'}
           </Button>
         </DialogFooter>
       </form>

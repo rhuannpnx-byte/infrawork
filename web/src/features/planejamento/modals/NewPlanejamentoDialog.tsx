@@ -4,12 +4,14 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import {
   useCreatePlanejamento,
@@ -27,6 +29,8 @@ interface Props {
   onCreated?: (id: string) => void
 }
 
+type CampoComErro = 'nome' | 'data'
+
 export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }: Props): ReactNode {
   const create = useCreatePlanejamento()
   const copiar = useCopiarPlanejamento()
@@ -40,6 +44,7 @@ export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }:
   const dataRef = dataEditada ?? obra?.data_inicio_planejada ?? hojeLocalISO()
   const [copiarDe, setCopiarDe] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
     setNome('')
@@ -47,11 +52,28 @@ export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }:
     setDataRef(null)
     setCopiarDe('')
     setError(null)
+    setTentou(false)
   }
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (nome.trim().length < 2) erros.nome = 'Informe o nome do plano.'
+  if (!dataRef) erros.data = 'Informe a data de início da obra.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+      return
+    }
     try {
       let id: string
       if (copiarDe) {
@@ -63,7 +85,7 @@ export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }:
         })
         id = r.novo_id
         toast.success(
-          `Revisão "${nome}" criada copiando ${contar(r.tarefas_copiadas, 'tarefa', 'tarefas')}.`
+          `Plano "${nome}" criado com ${contar(r.tarefas_copiadas, 'tarefa copiada', 'tarefas copiadas')}.`
         )
       } else {
         const r = await create.mutateAsync({
@@ -73,101 +95,90 @@ export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }:
           data_referencia_inicio: dataRef
         })
         id = r.id
-        toast.success(`Revisão "${nome}" criada.`)
+        toast.success(`Plano "${nome}" criado.`)
       }
       reset()
       onCreated?.(id)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar planejamento')
+      setError(
+        `Não foi possível criar o plano. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   const loading = create.isPending || copiar.isPending
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="md"
-      disableDismiss={loading}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={loading}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>Nova revisão de planejamento</DialogTitle>
+          <DialogTitle>Novo plano</DialogTitle>
+          <DialogDescription>
+            Um plano é uma versão do cronograma. Comece do zero ou copie as tarefas de outro plano.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
 
-          <div>
-            <Label htmlFor="p-nome">Nome</Label>
+          <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>
             <Input
-              id="p-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
+              autoComplete="off"
               autoFocus
-              placeholder="Ex.: Inicial, Replan Maio 2026, Após chuva"
+              placeholder="Ex.: Inicial, Replanejamento de maio, Após as chuvas"
             />
-          </div>
+          </Campo>
 
-          <div>
-            <Label htmlFor="p-desc">Descrição (opcional)</Label>
+          <Campo rotulo="Descrição" dica="Opcional. O que muda neste plano.">
             <Input
-              id="p-desc"
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              placeholder="O que mudou nesta revisão?"
+              autoComplete="off"
             />
-          </div>
+          </Campo>
 
-          <div>
-            <Label htmlFor="p-data">Data de referência (início da obra)</Label>
-            <Input
-              id="p-data"
-              type="date"
-              value={dataRef}
-              onChange={(e) => setDataRef(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="p-copiar">Copiar tarefas de</Label>
-            <select
-              id="p-copiar"
-              value={copiarDe}
-              onChange={(e) => setCopiarDe(e.target.value)}
-              className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
+          <div className="grid grid-cols-2 gap-3">
+            <Campo
+              rotulo="Início da obra"
+              obrigatorio
+              erro={erro('data')}
+              dica="Data de referência do cronograma."
             >
-              <option value="">— Começar do zero (sem tarefas) —</option>
-              {planejamentos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome} {p.is_baseline ? '(baseline)' : ''}
-                </option>
-              ))}
-            </select>
-            <div className="text-2xs text-text-dim font-mono mt-1">
-              Se começar do zero, crie as tarefas no cronograma a partir das quantidades por local
-              ou dos serviços do orçamento.
-            </div>
+              <Input type="date" value={dataRef} onChange={(e) => setDataRef(e.target.value)} />
+            </Campo>
+            <Campo
+              rotulo="Copiar tarefas de"
+              dica={
+                copiarDe
+                  ? 'As tarefas vêm do plano escolhido, ajustadas para a data de início.'
+                  : 'Do zero, as tarefas são criadas no cronograma, a partir das quantidades por local ou dos serviços do orçamento.'
+              }
+            >
+              <Select value={copiarDe} onChange={(e) => setCopiarDe(e.target.value)}>
+                <option value="">Começar do zero, sem tarefas</option>
+                {planejamentos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                    {p.is_baseline ? ' (linha de base)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
           </div>
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
+            variant="secondary"
+            onClick={() => aoMudar(false)}
             disabled={loading}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={loading}>
-            {loading ? 'Criando…' : 'Criar revisão'}
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Criando…' : 'Criar plano'}
           </Button>
         </DialogFooter>
       </form>

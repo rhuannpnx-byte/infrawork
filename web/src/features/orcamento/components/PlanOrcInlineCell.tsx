@@ -18,6 +18,8 @@ interface Props {
   /** Debounce em ms — default 600. */
   debounceMs?: number
   align?: 'left' | 'right'
+  /** Nome do campo para leitor de tela (a célula não tem rótulo visível). */
+  rotulo?: string
 }
 
 /**
@@ -34,7 +36,8 @@ export function PlanOrcInlineCell({
   className,
   disabled,
   debounceMs = 600,
-  align = 'left'
+  align = 'left',
+  rotulo
 }: Props): ReactNode {
   const isNum = numeric || money || qtd
   // `lastUpstream` rastreia o último valor recebido por props. Quando muda
@@ -127,6 +130,9 @@ export function PlanOrcInlineCell({
         inputMode={isNum ? 'decimal' : undefined}
         value={display}
         placeholder={placeholder}
+        aria-label={rotulo}
+        aria-busy={saving || undefined}
+        aria-invalid={errored || undefined}
         disabled={disabled || saving}
         onFocus={() => setFocused(true)}
         onChange={onChange}
@@ -134,7 +140,7 @@ export function PlanOrcInlineCell({
         className={cn(
           'h-6 w-full bg-transparent border border-transparent rounded px-1 text-xs',
           'hover:border-border focus:border-accent focus:bg-bg-elevated focus:outline-none',
-          'disabled:opacity-50 tabular-nums',
+          'disabled:text-text-muted tabular-nums',
           align === 'right' && 'text-right',
           errored && 'border-danger',
           className

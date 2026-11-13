@@ -4,12 +4,13 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
 import { useAddRecursoPreco } from '../hooks/recursos'
@@ -20,6 +21,11 @@ interface Props {
   recursoId: string
   recursoNome: string
 }
+
+/** Só algarismos, ponto e vírgula: o que o `parseBR` entende como número. */
+const NUMERO = /^\d[\d.,]*$/
+
+type CampoComErro = 'custo' | 'vigencia'
 
 export function NewRecursoPrecoDialog({
   open,
@@ -35,6 +41,7 @@ export function NewRecursoPrecoDialog({
   const [observacao, setObservacao] = useState('')
   const [marcarVigente, setMarcarVigente] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
     setCusto('')
@@ -43,15 +50,31 @@ export function NewRecursoPrecoDialog({
     setObservacao('')
     setMarcarVigente(true)
     setError(null)
+    setTentou(false)
   }
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
+  const valor = parseBR(custo).toNumber()
+
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (!custo.trim()) erros.custo = 'Informe o custo unitário.'
+  else if (!NUMERO.test(custo.trim()) || isNaN(valor) || valor < 0)
+    erros.custo = 'Digite o custo como um número, por exemplo 1.250,50.'
+  if (!vigenciaInicio) erros.vigencia = 'Informe a data em que o preço começa a valer.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
-    // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
-    const valor = parseBR(custo).toNumber()
-    if (isNaN(valor) || valor < 0) {
-      setError('Custo inválido.')
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
       return
     }
     try {
@@ -67,83 +90,76 @@ export function NewRecursoPrecoDialog({
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao registrar preço')
+      setError(
+        `Não foi possível registrar o preço. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="md"
-      disableDismiss={add.isPending}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={add.isPending}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>Novo preço — {recursoNome}</DialogTitle>
+          <DialogTitle>Novo preço</DialogTitle>
+          <DialogDescription>{recursoNome}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="p-custo">Custo unitário</Label>
+            <Campo rotulo="Custo unitário (R$ por unidade)" obrigatorio erro={erro('custo')}>
               <Input
-                id="p-custo"
                 value={custo}
                 onChange={(e) => setCusto(e.target.value)}
-                required
                 inputMode="decimal"
+                autoComplete="off"
                 autoFocus
-                placeholder="R$/unidade"
+                placeholder="Ex.: 6,40"
+                className="tabular text-right"
               />
-            </div>
-            <div>
-              <Label htmlFor="p-vig">Vigência a partir de</Label>
+            </Campo>
+            <Campo rotulo="Vale a partir de" obrigatorio erro={erro('vigencia')}>
               <Input
-                id="p-vig"
                 type="date"
                 value={vigenciaInicio}
                 onChange={(e) => setVigenciaInicio(e.target.value)}
-                required
               />
-            </div>
+            </Campo>
           </div>
-          <div>
-            <Label htmlFor="p-origem">Origem (opcional)</Label>
+          <Campo rotulo="Origem" dica="Opcional. De onde veio o preço.">
             <Input
-              id="p-origem"
               value={origem}
               onChange={(e) => setOrigem(e.target.value)}
-              placeholder="Ex.: Cotação Fornecedor X, contrato N123, SINAPI 2026-04"
+              autoComplete="off"
+              placeholder="Ex.: cotação do fornecedor, contrato, SINAPI 04/2026"
             />
-          </div>
-          <div>
-            <Label htmlFor="p-obs">Observação (opcional)</Label>
-            <Input id="p-obs" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-xs text-text cursor-pointer">
+          </Campo>
+          <Campo rotulo="Observação" dica="Opcional.">
+            <Input
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+              autoComplete="off"
+            />
+          </Campo>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-text">
             <input
               type="checkbox"
               checked={marcarVigente}
               onChange={(e) => setMarcarVigente(e.target.checked)}
-              className="accent-[color:var(--accent)] cursor-pointer"
+              className="h-4 w-4 cursor-pointer accent-[color:var(--accent)]"
             />
-            Marcar como preço vigente
+            Usar este preço como o vigente
           </label>
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
+            variant="secondary"
+            onClick={() => aoMudar(false)}
             disabled={add.isPending}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={add.isPending}>
+          <Button type="submit" disabled={add.isPending}>
             {add.isPending ? 'Registrando…' : 'Registrar preço'}
           </Button>
         </DialogFooter>

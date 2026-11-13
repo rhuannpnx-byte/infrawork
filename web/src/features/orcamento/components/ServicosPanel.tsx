@@ -2,6 +2,7 @@ import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ChevronsRight, Link2Off, Plus, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import { fmtBRL, fmtQtd } from '@/lib/money'
 import type { ItemAlocacao, ItemOrcamentario } from '@/types/orcamento'
 import { useAlocarReceitas, useCriarServico } from '../hooks/alocacao'
@@ -64,7 +65,7 @@ export function ServicosPanel({
       const r = await alocar.mutateAsync({ obra_id: obraId, grupo_id: grupoId, receita_ids: ids })
       avisarAlocacao(r.alocadas, r.avisos)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao alocar')
+      toast.error(err instanceof Error ? err.message : 'Não foi possível agrupar as receitas.')
     }
   }
 
@@ -76,35 +77,40 @@ export function ServicosPanel({
       setNovo('')
       toast.success(`Serviço ${r.codigo} criado.`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao criar serviço')
+      toast.error(err instanceof Error ? err.message : 'Não foi possível criar o serviço.')
     }
   }
 
   return (
-    <aside className="w-[300px] shrink-0 border-l border-border bg-bg-panel flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-3 h-8 border-b border-border">
-        <span className="text-2xs font-mono uppercase tracking-wider text-text-dim flex-1">
-          Serviços ({servicos.length})
-        </span>
+    <aside
+      aria-label="Serviços"
+      className="w-[320px] shrink-0 border-l border-border bg-bg-panel flex flex-col min-h-0"
+    >
+      <div className="flex items-center gap-2 px-3 h-10 border-b border-border">
+        <h2 className="text-md font-semibold text-text flex-1">
+          Serviços <span className="font-normal text-text-muted tabular">{servicos.length}</span>
+        </h2>
         <button
           type="button"
           onClick={onRecolher}
-          title="Recolher painel"
-          className="w-5 h-5 grid place-items-center rounded text-text-dim hover:text-text hover:bg-bg-hover"
+          title="Recolher os serviços"
+          aria-label="Recolher os serviços"
+          className="w-7 h-7 grid place-items-center rounded text-text-muted hover:text-text hover:bg-bg-hover"
         >
-          <ChevronsRight size={12} />
+          <ChevronsRight size={14} />
         </button>
       </div>
 
       {servicos.length > 8 ? (
         <div className="px-2 py-1.5 border-b border-border">
-          <div className="flex items-center gap-1.5 h-6 px-2 rounded bg-bg-elevated border border-border-strong">
+          <div className="flex items-center gap-1.5 h-8 px-2 rounded bg-bg-panel border border-border-strong focus-within:border-accent">
             <Search size={12} className="text-text-dim" />
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar serviço…"
-              className="flex-1 bg-transparent text-2xs outline-none"
+              placeholder="Buscar serviço"
+              aria-label="Buscar serviço"
+              className="flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-dim"
             />
           </div>
         </div>
@@ -127,28 +133,44 @@ export function ServicosPanel({
               }}
               onDragLeave={() => setDropAlvo((d) => (d === s.id ? null : d))}
               onDrop={(e) => void onDrop(e, s.id)}
+              tabIndex={0}
+              aria-current={ativo || undefined}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return
+                if (e.key === 'Enter') onAbrir(s.id)
+                else if (e.key === ' ') {
+                  e.preventDefault()
+                  onDestacar(ativo ? null : s.id)
+                }
+              }}
               className={cn(
-                'group px-3 py-2 border-b border-border cursor-pointer border-l-2',
-                ativo ? 'bg-accent-glow border-l-accent' : 'border-l-transparent hover:bg-bg-hover',
+                'group px-3 py-2 border-b border-border cursor-pointer focus-visible:outline-none focus-visible:bg-bg-active',
+                ativo ? 'bg-accent-glow-strong' : 'hover:bg-bg-hover',
                 dropAlvo === s.id && 'bg-accent-glow ring-1 ring-inset ring-accent'
               )}
               onClick={() => onDestacar(ativo ? null : s.id)}
               onDoubleClick={() => onAbrir(s.id)}
-              title="Clique: destacar na planilha · Duplo clique: abrir"
+              title="Clique para destacar as receitas na planilha; duplo clique ou Enter para abrir"
             >
               <div className="flex items-baseline gap-2">
-                <span className="text-2xs font-mono text-text-dim">{s.codigo}</span>
-                <span className="text-xs text-text font-medium truncate flex-1">{s.descricao}</span>
-                <span className="text-xs font-mono tabular-nums text-text">{fmtBRL(venda)}</span>
+                <span className="text-xs tabular text-text-dim">{s.codigo}</span>
+                <span className="text-sm text-text font-medium truncate flex-1">{s.descricao}</span>
+                <span className="text-sm tabular-nums text-text">{fmtBRL(venda)}</span>
               </div>
-              <div className="mt-0.5 flex items-center gap-2 text-2xs font-mono text-text-dim">
+              <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
                 <span className="tabular-nums">
                   {fmtQtd(qtd)} {s.unidade_referencia ?? ''}
                 </span>
                 {unit !== null ? <span className="tabular-nums">· {fmtBRL(unit)}/un</span> : null}
-                <span className="ml-auto">{nReceitas.get(s.id) ?? 0} rec.</span>
+                <span className="ml-auto">
+                  {contar(nReceitas.get(s.id) ?? 0, 'receita', 'receitas')}
+                </span>
                 {semVinculo ? (
-                  <span title="Sem composição vinculada — não entra em custo, programação e produção">
+                  <span
+                    role="img"
+                    aria-label="Sem composição vinculada"
+                    title="Sem composição vinculada: não entra em custo, programação e produção"
+                  >
                     <Link2Off size={12} className="text-warn" />
                   </span>
                 ) : null}
@@ -158,18 +180,18 @@ export function ServicosPanel({
                     e.stopPropagation()
                     onAbrir(s.id)
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-accent hover:underline"
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 font-semibold text-accent hover:underline"
                 >
-                  abrir
+                  Abrir
                 </button>
               </div>
             </div>
           )
         })}
         {servicos.length === 0 ? (
-          <div className="p-4 text-2xs text-text-dim leading-relaxed">
-            Nenhum serviço ainda. Selecione receitas na planilha e use <b>Agrupar em…</b>, ou crie
-            um serviço abaixo e arraste as receitas para ele.
+          <div className="p-4 text-sm text-text-muted">
+            Nenhum serviço ainda. Selecione receitas na planilha e use &quot;Agrupar em um serviço&quot;, ou
+            crie um serviço abaixo e arraste as receitas para ele.
           </div>
         ) : null}
       </div>
@@ -181,14 +203,15 @@ export function ServicosPanel({
               e.preventDefault()
               void criarServico()
             }}
-            className="flex items-center gap-1.5 h-7 px-2 rounded border border-dashed border-border-strong focus-within:border-accent"
+            className="flex items-center gap-1.5 h-8 px-2 rounded border border-dashed border-border-strong focus-within:border-accent"
           >
             <Plus size={12} className="text-text-dim" />
             <input
               value={novo}
               onChange={(e) => setNovo(e.target.value)}
-              placeholder="Novo serviço"
-              className="flex-1 bg-transparent text-2xs outline-none"
+              placeholder="Novo serviço (Enter para criar)"
+              aria-label="Nome do novo serviço"
+              className="flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-dim"
               disabled={criar.isPending}
             />
           </form>

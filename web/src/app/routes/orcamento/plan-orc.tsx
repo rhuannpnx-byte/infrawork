@@ -3,9 +3,11 @@ import { CadeiaTravaBanner } from '@/features/orcamento/components/CadeiaTravaBa
 import { useCadeiaTrava } from '@/features/planejamento/hooks/planejamentos'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, X, FileUp, FilePlus2, ChevronsLeft, Percent, Archive } from 'lucide-react'
+import { Plus, Trash2, X, FileUp, FilePlus2, ChevronsLeft } from 'lucide-react'
 import { ImportOrcamentoDialog } from '@/features/orcamento/modals/ImportOrcamentoDialog'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ErroConsulta } from '@/components/ui/estado'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RequireObra } from '@/components/layout/RequireObra'
@@ -32,7 +34,7 @@ import type { AlocStatus, ItemTreeNode } from '@/types/orcamento'
 
 export function PlanOrcPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Planilha Orçamentária">
+    <RequireObra pageTitle="Planilha orçamentária">
       <PlanilhaOrcamentaria />
     </RequireObra>
   )
@@ -285,117 +287,99 @@ function PlanilhaOrcamentaria(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Planilha Orçamentária"
-        subtitle="Planilha de venda e serviços"
+        title="Planilha orçamentária"
+        subtitle="Planilha de venda e os serviços em que ela é agrupada"
         actions={
-          podeRole ? (
-            <div className="flex items-center gap-2">
-              {podePlanilha && itensSelecionados.length > 0 ? (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedIds(new Set())}
-                    title="Limpar seleção"
-                  >
-                    <X size={12} />{' '}
-                    {contar(itensSelecionados.length, 'selecionado', 'selecionados')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-danger hover:bg-danger/10"
-                    onClick={() => void handleBulkDelete()}
-                    disabled={bulkDeleting}
-                  >
-                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
-                  </Button>
-                </>
-              ) : null}
-              {todasSelecionadasSaoReceitas &&
-              receitasSelecionadas.length > 0 &&
-              receitasSelecionadas.every(podeAlocar) ? (
-                <AgruparEmMenu
-                  obraId={obraId}
-                  servicos={plan?.servicos ?? []}
-                  receitaIds={receitasSelecionadas.map((n) => n.id)}
-                  onDone={() => setSelectedIds(new Set())}
-                />
-              ) : null}
-              <div className="flex items-center rounded border border-border">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-none"
-                  onClick={() => navigate({ to: '/orcamento/obra/aditivos' })}
-                  title="Aditivos de contrato (acréscimo, supressão, exclusão, itens novos)"
-                >
-                  <FilePlus2 size={12} /> Aditivos
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-none border-l border-border"
-                  onClick={() => navigate({ to: '/orcamento/obra/reajustes' })}
-                  title="Reajustes anuais por grupos de índices"
-                >
-                  <Percent size={12} /> Reajustes
-                </Button>
-                {temAditivo ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none border-l border-border"
-                    onClick={() => navigate({ to: '/orcamento/obra/planilha-inicial' })}
-                    title="Planilha do contrato original, arquivada no 1º aditivo"
-                  >
-                    <Archive size={12} /> Planilha Inicial
-                  </Button>
-                ) : null}
-              </div>
-              {podePlanilha ? (
-                <>
-                  <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
-                    <FileUp size={12} /> Importar modelo
-                  </Button>
-                  <Button variant="default" size="sm" onClick={() => handleNewChild(null)}>
-                    <Plus size={12} /> Novo item raiz
-                  </Button>
-                </>
-              ) : null}
-            </div>
+          podePlanilha ? (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
+                <FileUp size={12} /> Importar planilha
+              </Button>
+              <Button variant="default" size="sm" onClick={() => handleNewChild(null)}>
+                <Plus size={12} /> Novo item
+              </Button>
+            </>
           ) : null
         }
       />
       <CadeiaTravaBanner obraId={obraId} />
       {temAditivo && !cadeiaTrava ? (
-        <div className="mx-5 mt-3 flex items-start gap-2 rounded border border-accent-line bg-accent-glow px-3 py-2 text-xs text-accent">
-          <FilePlus2 size={13} className="mt-px shrink-0" />
+        <div
+          role="status"
+          className="mx-5 mt-3 flex items-start gap-2 rounded border border-accent-line bg-accent-glow px-3 py-2 text-sm text-text"
+        >
+          <FilePlus2 size={14} className="mt-0.5 shrink-0 text-accent" />
           <span className="flex-1">
-            Planilha com aditivo: a planilha de venda só muda pela tela de Aditivos (a Planilha
-            Inicial fica arquivada). Agrupamentos e serviços continuam editáveis.
+            Esta planilha tem aditivo: a planilha de venda só muda pela tela de Aditivos (a planilha
+            inicial fica arquivada). Agrupamentos e serviços continuam editáveis.
           </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            onClick={() => void navigate({ to: '/orcamento/obra/aditivos' })}
+          >
+            Abrir os aditivos
+          </Button>
         </div>
       ) : null}
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
-        </div>
+        <ErroConsulta erro={error} oQue="a planilha orçamentária" className="mx-5 mt-3" />
       ) : null}
-      {/* Progresso do agrupamento: 100% = venda total; preenchido = já agrupado */}
-      <div
-        className="mx-3 mb-1 flex items-center gap-2"
-        title={`Agrupado ${fmtBRL(agrupado)} de ${fmtBRL(totalRaizVenda)}`}
-      >
-        <div className="flex-1 h-1 rounded-full bg-bg-elevated overflow-hidden">
-          <div
-            className={pctAgrupado >= 0.9999 ? 'h-full bg-success' : 'h-full bg-accent'}
-            style={{ width: `${Math.min(100, pctAgrupado * 100)}%` }}
-          />
-        </div>
-        <span className="text-2xs font-mono tabular-nums text-text-dim">
-          {fmtBRL(agrupado)} · {fmtPct2(pctAgrupado)}
-        </span>
+
+      {/* Uma faixa só: com seleção, as ações da seleção; sem seleção, quanto da venda já está agrupado em serviços. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-h-10 px-5 py-1.5 border-b border-border bg-bg-panel text-sm">
+        {podeRole && itensSelecionados.length > 0 ? (
+          <>
+            <span className="font-semibold text-text">
+              {contar(itensSelecionados.length, 'item selecionado', 'itens selecionados')}
+            </span>
+            {todasSelecionadasSaoReceitas &&
+            receitasSelecionadas.length > 0 &&
+            receitasSelecionadas.every(podeAlocar) ? (
+              <AgruparEmMenu
+                obraId={obraId}
+                servicos={plan?.servicos ?? []}
+                receitaIds={receitasSelecionadas.map((n) => n.id)}
+                onDone={() => setSelectedIds(new Set())}
+              />
+            ) : null}
+            {podePlanilha ? (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => void handleBulkDelete()}
+                disabled={bulkDeleting}
+              >
+                <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              <X size={12} /> Limpar seleção
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="text-text-muted">Agrupado em serviços</span>
+            <div
+              role="img"
+              aria-label={`${fmtPct2(pctAgrupado)} da venda agrupada em serviços`}
+              className="h-2 w-48 max-w-[40vw] bg-bg-elevated border border-border"
+            >
+              <div
+                className={pctAgrupado >= 0.9999 ? 'h-full bg-success' : 'h-full bg-accent'}
+                style={{ width: `${Math.min(100, pctAgrupado * 100)}%` }}
+              />
+            </div>
+            <span className="tabular text-text">
+              <strong className="font-semibold">{fmtPct2(pctAgrupado)}</strong>
+              <span className="text-text-muted">
+                {' '}
+                · {fmtBRL(agrupado)} de {fmtBRL(totalRaizVenda)}
+              </span>
+            </span>
+          </>
+        )}
       </div>
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0">
@@ -438,69 +422,71 @@ function PlanilhaOrcamentaria(): ReactNode {
           <button
             type="button"
             onClick={() => setPainelServicos(true)}
-            title="Mostrar serviços"
-            className="w-7 shrink-0 border-l border-border bg-bg-panel flex flex-col items-center gap-2 pt-2 text-text-dim hover:text-text"
+            title="Mostrar os serviços"
+            aria-label="Mostrar os serviços"
+            className="w-8 shrink-0 border-l border-border bg-bg-panel flex flex-col items-center gap-2 pt-2 text-text-muted hover:text-text hover:bg-bg-hover"
           >
-            <ChevronsLeft size={12} />
-            <span className="text-2xs font-mono uppercase tracking-wider [writing-mode:vertical-rl]">
+            <ChevronsLeft size={14} />
+            <span className="text-2xs font-semibold uppercase tracking-[0.08em] [writing-mode:vertical-rl]">
               Serviços ({plan?.servicos.length ?? 0})
             </span>
           </button>
         )}
       </div>
-      {/* Footer com totais — lucro inclui impostos da taxa vigente como deflator */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-bg-panel text-2xs font-mono">
-        <div className="text-text-dim">
+      {/* Totais: o lucro desconta os impostos da taxa vigente */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-5 py-2 border-t border-border bg-bg-panel text-xs text-text-muted">
+        <div>
           {contar(plan?.flat.length ?? 0, 'item', 'itens')}
           {isLoading ? ' · carregando…' : ''}
-          {selectedIds.size > 0
-            ? ` · ${contar(selectedIds.size, 'selecionado', 'selecionados')}`
-            : ''}
+          {' · '}
           {taxaVigente ? (
             <span>
-              {' · '}
-              <span className="text-text-muted">
-                Taxa: {taxaVigente.nome} · {fmtPct2(taxaPerc)}
-              </span>
+              Taxa {taxaVigente.nome}: {fmtPct2(taxaPerc)}
             </span>
           ) : (
-            <span>
-              {' · '}
-              <span className="text-warn">sem taxa vigente (lucro = bruto)</span>
+            <span className="text-warn font-medium">
+              sem taxa vigente: o lucro está sem os impostos
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-text-dim">
-            Venda: <span className="text-text">{fmtBRL(totalRaizVenda)}</span>
-          </span>
-          <span className="text-text-dim">
-            Custo: <span className="text-text">{fmtBRL(totalRaizCusto)}</span>
-          </span>
-          <span className="text-text-dim">
-            Impostos: <span className="text-warn">{fmtBRL(impostos)}</span>
-          </span>
-          <span className="text-text-dim">
-            Lucro:{' '}
-            <span className={lucro >= 0 ? 'text-success' : 'text-danger'}>{fmtBRL(lucro)}</span>
-          </span>
-          <span className="text-text-dim">
-            Margem líquida:{' '}
-            <Badge
-              variant={
-                margemLiquida === null
-                  ? 'default'
-                  : margemLiquida < 0
-                    ? 'danger'
-                    : margemLiquida < 0.1
-                      ? 'warn'
-                      : 'success'
-              }
-            >
-              {margemLiquida !== null ? fmtPct2(margemLiquida) : '—'}
-            </Badge>
-          </span>
-        </div>
+        <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 tabular">
+          <div className="flex gap-1.5">
+            <dt>Venda</dt>
+            <dd className="font-semibold text-text">{fmtBRL(totalRaizVenda)}</dd>
+          </div>
+          <div className="flex gap-1.5">
+            <dt>Custo</dt>
+            <dd className="font-semibold text-text">{fmtBRL(totalRaizCusto)}</dd>
+          </div>
+          <div className="flex gap-1.5">
+            <dt>Impostos</dt>
+            <dd className="font-semibold text-text">{fmtBRL(impostos)}</dd>
+          </div>
+          <div className="flex gap-1.5">
+            <dt>Lucro</dt>
+            <dd className={cn('font-semibold', lucro >= 0 ? 'text-success' : 'text-danger')}>
+              {fmtBRL(lucro)}
+            </dd>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <dt>Margem líquida</dt>
+            <dd>
+              <Badge
+                variant={
+                  margemLiquida === null
+                    ? 'default'
+                    : margemLiquida < 0
+                      ? 'danger'
+                      : margemLiquida < 0.1
+                        ? 'warn'
+                        : 'success'
+                }
+              >
+                {margemLiquida !== null ? fmtPct2(margemLiquida) : '—'}
+              </Badge>
+            </dd>
+          </div>
+        </dl>
       </div>
 
       {/* Dialogs */}

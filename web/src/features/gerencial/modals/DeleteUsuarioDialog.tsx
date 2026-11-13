@@ -35,7 +35,9 @@ export function DeleteUsuarioDialog({ open, onOpenChange, usuario }: Props): Rea
       toast.success(`Usuário ${usuario.nome} excluído.`)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao excluir usuário')
+      setError(
+        `Não foi possível excluir o usuário. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
@@ -47,28 +49,27 @@ export function DeleteUsuarioDialog({ open, onOpenChange, usuario }: Props): Rea
       <DialogBody className="space-y-3">
         <DialogErrorBanner message={error} />
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 shrink-0 text-danger">
-            <AlertTriangle size={18} />
-          </span>
-          <div className="text-sm text-text-muted leading-relaxed">
-            Excluir <span className="text-text font-medium">{usuario?.nome}</span>{' '}
-            <span className="font-mono text-text-dim">({usuario?.email})</span> de forma{' '}
-            <span className="text-danger font-medium">definitiva</span>? Esta ação remove o acesso e
-            o cadastro — não pode ser desfeita.
-          </div>
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-danger" aria-hidden />
+          <p className="text-sm leading-relaxed text-text-muted">
+            Excluir <span className="font-medium text-text">{usuario?.nome}</span> ({usuario?.email}
+            ) de forma <span className="font-medium text-danger">definitiva</span>? O acesso e o
+            cadastro são removidos e não dá para desfazer. Para só impedir a entrada, edite o
+            usuário e marque como inativo.
+          </p>
         </div>
       </DialogBody>
       <DialogFooter>
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           onClick={() => onOpenChange(false)}
           disabled={del.isPending}
+          autoFocus
         >
           Cancelar
         </Button>
         <Button type="button" variant="danger" onClick={onConfirm} disabled={del.isPending}>
-          {del.isPending ? 'Excluindo…' : 'Excluir definitivamente'}
+          {del.isPending ? 'Excluindo…' : 'Excluir usuário'}
         </Button>
       </DialogFooter>
     </Dialog>

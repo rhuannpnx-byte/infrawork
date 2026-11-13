@@ -190,7 +190,7 @@ function Conteudo({
         <DialogErrorBanner message={erro} />
         <div className="max-h-[50vh] overflow-auto rounded border border-border">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-bg-panel text-2xs font-mono uppercase tracking-wider text-text-dim">
+            <thead className="sticky top-0 bg-bg-panel text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
               <tr>
                 <th className="w-8 py-1.5" />
                 <th className="px-2 py-1.5 text-left">Tarefa</th>

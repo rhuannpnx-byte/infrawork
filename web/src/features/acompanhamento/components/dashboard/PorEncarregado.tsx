@@ -82,7 +82,12 @@ export function PorEncarregado({ producoes, filtroItemId, altura = 200 }: Props)
           {filtroItemId ? 'quantidade no período' : 'dias com lançamento'}
         </span>
       </div>
-      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Lançamentos por encarregado"
+        className="flex-1 overflow-auto px-4 pb-3 space-y-1.5"
+      >
         {linhas.length === 0 && (
           <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
             Nenhum lançamento no período.

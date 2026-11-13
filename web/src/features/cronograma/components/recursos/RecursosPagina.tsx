@@ -49,7 +49,11 @@ function CorpoRecursos({
   const [aba, setAba] = useState<'histograma' | 'uso'>('histograma')
   return (
     <>
-      <div className="flex shrink-0 items-center gap-4 border-b border-border bg-bg-panel px-3">
+      <div
+        role="tablist"
+        aria-label="Visões de recursos"
+        className="flex shrink-0 items-center gap-4 border-b border-border bg-bg-panel px-3"
+      >
         <TabPill active={aba === 'histograma'} onClick={() => setAba('histograma')}>
           Histograma
         </TabPill>
@@ -208,9 +212,9 @@ function UsoContinuo({
         <Button variant="ghost" size="sm" onClick={() => setPx(null)}>
           <Maximize2 size={12} /> Ajustar
         </Button>
-        <span className="ml-3 text-2xs text-text-dim">
+        <span className="ml-3 text-xs text-text-muted">
           Uso dos recursos das composições pelas tarefas, com o nivelamento do motor. Limite: no
-          máximo tantas unidades ao mesmo tempo — o motor atrasa tarefas para respeitá-lo.
+          máximo tantas unidades ao mesmo tempo: o cálculo atrasa tarefas para respeitá-lo.
         </span>
       </div>
       <div className="min-h-0 flex-1">

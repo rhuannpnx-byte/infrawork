@@ -38,6 +38,10 @@ interface Opcoes {
   criar_encarregados: boolean
 }
 
+/** A planilha traz a data em aaaa-mm-dd; a prévia mostra em dd/mm/aaaa. */
+const dataBR = (s: string | null | undefined): string =>
+  s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : (s ?? '')
+
 export function ImportarProducaoDialog({
   open,
   onOpenChange,
@@ -84,7 +88,7 @@ export function ImportarProducaoDialog({
           criados++
         } catch (err) {
           erros.push(
-            `Encarregado "${nome}": ${err instanceof Error ? err.message : 'falha ao criar'}`
+            `Não foi possível criar o encarregado "${nome}".${err instanceof Error && err.message ? ` ${err.message}` : ''}`
           )
         }
       }
@@ -144,7 +148,7 @@ export function ImportarProducaoDialog({
     <ImportTemplateDialog<ProducaoLinha, Opcoes>
       open={open}
       onOpenChange={onOpenChange}
-      titulo="Importar produção (modelo padrão)"
+      titulo="Importar produção por planilha"
       entidadeLabel="lançamentos"
       gerarModelo={() =>
         gerarModeloProducao(
@@ -172,13 +176,13 @@ export function ImportarProducaoDialog({
         {
           key: 'data',
           header: 'Data',
-          render: (r) => <span className="font-mono text-2xs">{r.data.data || '—'}</span>,
+          render: (r) => <span className="tabular">{dataBR(r.data.data) || '—'}</span>,
           width: 90
         },
         {
           key: 'codigo',
-          header: 'Item',
-          render: (r) => <span className="font-mono text-2xs">{r.data.codigo_item}</span>,
+          header: 'Código',
+          render: (r) => <span className="tabular">{r.data.codigo_item}</span>,
           width: 90
         },
         { key: 'equipe', header: 'Equipe', render: (r) => r.data.equipe_nome ?? '—', width: 140 },
@@ -190,15 +194,15 @@ export function ImportarProducaoDialog({
         },
         {
           key: 'qtd',
-          header: 'Qtd',
-          render: (r) => formatNumber(r.data.quantidade, 2),
+          header: 'Quantidade',
+          render: (r) => <span className="tabular">{formatNumber(r.data.quantidade, 2)}</span>,
           align: 'right',
           width: 90
         },
         { key: 'frente', header: 'Frente', render: (r) => r.data.frente ?? '—', width: 120 },
         {
           key: 'local',
-          header: 'Local / estacas',
+          header: 'Local e estacas',
           render: (r) => {
             const t = trechos.find((x) => x.id === r.data.trecho_id)
             return (
@@ -215,14 +219,14 @@ export function ImportarProducaoDialog({
       opcoes={{
         inicial: { criar_encarregados: true },
         render: (v, set) => (
-          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-text">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-text">
             <input
               type="checkbox"
               checked={v.criar_encarregados}
               onChange={(e) => set({ ...v, criar_encarregados: e.target.checked })}
-              className="accent-[var(--accent)]"
+              className="size-4 accent-[var(--accent)]"
             />
-            Criar encarregados que não existem
+            Criar os encarregados que ainda não existem
           </label>
         )
       }}

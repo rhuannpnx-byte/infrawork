@@ -1,5 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
+import { Secao } from '@/components/ui/secao'
+import { Filtro } from '@/components/ui/filtros'
+import { Select } from '@/components/ui/select'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -17,7 +21,7 @@ import { fmtDataBR } from '@/features/planejamento/lib/dates'
 
 export function PlanejamentoCurvaSPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Curva-S">
+    <RequireObra pageTitle="Curva S">
       <CurvaSInner />
     </RequireObra>
   )
@@ -74,12 +78,12 @@ function CurvaSInner(): ReactNode {
   if (!planAtivo) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Curva-S" />
+        <PageHeader title="Curva S" />
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="trending-up"
-            title="Sem planejamento ativo"
-            description="Crie uma revisão e calcule o cronograma para visualizar a curva-S."
+            title="Nenhum plano nesta obra"
+            description="Crie um plano no cronograma e calcule-o para ver a curva S."
           />
         </div>
       </div>
@@ -89,74 +93,96 @@ function CurvaSInner(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Curva-S"
-        subtitle={`Avanço físico acumulado planejado${baseline ? ' e a linha de base' : ''}.`}
+        title="Curva S"
+        subtitle={`Custo e receita acumulados do plano${baseline ? ', comparados com a linha de base' : ''}`}
         actions={
-          <select
-            value={planSel?.id ?? ''}
-            onChange={(e) => setPlanId(e.target.value)}
-            className="bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
-          >
-            {planejamentos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome} {p.is_baseline ? '★' : ''}
-              </option>
-            ))}
-          </select>
+          <Filtro rotulo="Plano">
+            <Select
+              value={planSel?.id ?? ''}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="w-[260px]"
+            >
+              {planejamentos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                  {p.is_baseline ? ' (linha de base)' : ''}
+                </option>
+              ))}
+            </Select>
+          </Filtro>
         }
       />
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-5 gap-3">
-          <Stat label="Custo total" value={fmtBRL(totalCusto)} />
-          <Stat label="Receita total" value={fmtBRL(totalReceita)} />
-          <Stat
-            label="Margem"
-            value={fmtBRL(margem)}
-            tone={margem >= 0 ? 'positive' : 'negative'}
+      <div className="flex-1 overflow-auto p-5 space-y-4">
+        <FaixaIndicadores rotulo="Totais do plano">
+          <Indicador rotulo="Receita" tamanho="sm" valor={fmtBRL(totalReceita)} />
+          <Indicador rotulo="Custo" tamanho="sm" valor={fmtBRL(totalCusto)} />
+          <Indicador
+            rotulo="Margem"
+            tamanho="sm"
+            tom={margem >= 0 ? 'success' : 'danger'}
+            valor={fmtBRL(margem)}
           />
-          <Stat label="Início" value={fmtDataBR(inicioPlano ?? planSel?.data_referencia_inicio)} />
-          <Stat label="Fim" value={fmtDataBR(fimPlano)} />
-        </div>
+          <Indicador
+            rotulo="Início"
+            tamanho="sm"
+            valor={fmtDataBR(inicioPlano ?? planSel?.data_referencia_inicio)}
+          />
+          <Indicador rotulo="Término" tamanho="sm" valor={fmtDataBR(fimPlano)} />
+        </FaixaIndicadores>
 
         <CurvaSChart planejada={curvaPlanejada} baseline={curvaBaseline} height={420} />
 
         {curvaPlanejada.length > 0 ? (
-          <div className="rounded border border-border bg-bg-panel overflow-hidden">
-            <div className="px-3 py-2 border-b border-border text-2xs font-mono text-text-dim uppercase">
-              Distribuição semanal
-            </div>
-            <div className="max-h-[280px] overflow-auto">
-              <table className="w-full text-xs font-mono">
-                <thead className="text-text-dim uppercase text-2xs bg-bg sticky top-0">
-                  <tr className="border-b border-border">
-                    <th className="text-left px-3 py-1.5">Semana</th>
-                    <th className="text-right px-3 py-1.5">Custo período</th>
-                    <th className="text-right px-3 py-1.5">Custo acum.</th>
-                    <th className="text-right px-3 py-1.5">Receita período</th>
-                    <th className="text-right px-3 py-1.5">Receita acum.</th>
-                    <th className="text-right px-3 py-1.5">Δ margem acum.</th>
+          <Secao titulo="Distribuição semanal" semRecuo>
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Distribuição semanal do custo e da receita"
+              className="max-h-[320px] overflow-auto border-t border-border"
+            >
+              <table className="w-full text-sm tabular">
+                <thead className="sticky top-0 bg-bg-elevated text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                  <tr className="border-b border-border-strong">
+                    <th scope="col" className="text-left font-semibold px-4 py-2">
+                      Semana
+                    </th>
+                    <th scope="col" className="text-right font-semibold px-3 py-2">
+                      Custo da semana
+                    </th>
+                    <th scope="col" className="text-right font-semibold px-3 py-2">
+                      Custo acumulado
+                    </th>
+                    <th scope="col" className="text-right font-semibold px-3 py-2">
+                      Receita da semana
+                    </th>
+                    <th scope="col" className="text-right font-semibold px-3 py-2">
+                      Receita acumulada
+                    </th>
+                    <th scope="col" className="text-right font-semibold px-4 py-2">
+                      Margem acumulada
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {curvaPlanejada.map((row) => {
                     const margemAcum = row.receita_acumulada - row.custo_acumulado
                     return (
-                      <tr key={row.periodo} className="border-b border-border">
-                        <td className="px-3 py-1.5">{fmtDataBR(row.periodo)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">
+                      <tr key={row.periodo} className="border-b border-border last:border-b-0">
+                        <td className="px-4 py-1.5 text-text">{fmtDataBR(row.periodo)}</td>
+                        <td className="px-3 py-1.5 text-right text-text-muted">
                           {fmtBRL(row.custo_periodo)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-accent">
+                        <td className="px-3 py-1.5 text-right text-text">
                           {fmtBRL(row.custo_acumulado)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">
+                        <td className="px-3 py-1.5 text-right text-text-muted">
                           {fmtBRL(row.receita_periodo)}
                         </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-success">
+                        <td className="px-3 py-1.5 text-right text-text">
                           {fmtBRL(row.receita_acumulada)}
                         </td>
                         <td
-                          className={`px-3 py-1.5 text-right tabular-nums ${margemAcum >= 0 ? 'text-success' : 'text-danger'}`}
+                          className={`px-4 py-1.5 text-right font-semibold ${margemAcum >= 0 ? 'text-success' : 'text-danger'}`}
                         >
                           {fmtBRL(margemAcum)}
                         </td>
@@ -166,28 +192,9 @@ function CurvaSInner(): ReactNode {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Secao>
         ) : null}
       </div>
-    </div>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  tone = 'neutral'
-}: {
-  label: string
-  value: string
-  tone?: 'neutral' | 'positive' | 'negative'
-}): ReactNode {
-  const valueClass =
-    tone === 'positive' ? 'text-success' : tone === 'negative' ? 'text-danger' : 'text-text'
-  return (
-    <div className="rounded border border-border bg-bg-panel p-3">
-      <div className="text-2xs font-mono text-text-dim uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-md font-mono ${valueClass}`}>{value}</div>
     </div>
   )
 }

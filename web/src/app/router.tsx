@@ -11,6 +11,11 @@ import {
 import { TabRoot } from './TabRoot'
 import { HomePage } from '@/app/routes/HomePage'
 
+// galeria dos componentes: só no servidor de desenvolvimento (o build de produção descarta o import)
+const GaleriaPage = import.meta.env.DEV
+  ? lazyRouteComponent(() => import('@/app/routes/Galeria'), 'GaleriaPage')
+  : null
+
 // cada tela vira um pedaço do bundle, baixado quando a rota abre pela primeira vez
 const GerencialIndex = lazyRouteComponent(() => import('@/app/routes/gerencial'), 'GerencialIndex')
 const EmpresasPage = lazyRouteComponent(
@@ -476,13 +481,18 @@ function buildRouteTree() {
     component: AcompanhamentoLancarPage
   })
 
+  const galeria = GaleriaPage
+    ? [createRoute({ getParentRoute: () => rootRoute, path: 'galeria', component: GaleriaPage })]
+    : []
+
   return rootRoute.addChildren([
     indexRoute,
     gerencialTree,
     orcamentoTree,
     planejamentoTree,
     acompanhamentoTree,
-    lancarBareRoute
+    lancarBareRoute,
+    ...galeria
   ])
 }
 

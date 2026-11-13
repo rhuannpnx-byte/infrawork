@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Copy, RefreshCw } from 'lucide-react'
 import {
@@ -35,79 +35,126 @@ export function RedefinirSenhaDialog({ open, onOpenChange, usuario }: Props): Re
   const update = useUpdateUsuario()
   const [senha, setSenha] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   useEffect(() => {
     if (open) {
       setSenha(gerarSenha())
       setError(null)
+      setTentou(false)
     }
   }, [open])
 
-  const salvar = async (): Promise<void> => {
+  const erroSenha =
+    senha.trim().length < 10 ? 'A senha precisa ter pelo menos 10 caracteres.' : undefined
+  const erroVisivel = tentou ? erroSenha : undefined
+
+  const salvar = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
     if (!usuario) return
     setError(null)
-    if (senha.trim().length < 10) return setError('A senha precisa ter ao menos 10 caracteres.')
+    if (erroSenha) {
+      setTentou(true)
+      e.currentTarget.querySelector<HTMLElement>('#nova-senha')?.focus()
+      return
+    }
     try {
       await update.mutateAsync({ id: usuario.id, senha: senha.trim() })
       await navigator.clipboard?.writeText(senha.trim()).catch(() => undefined)
-      toast.success(`Senha de ${usuario.nome} redefinida (copiada para a área de transferência).`)
+      toast.success(`Senha de ${usuario.nome} redefinida e copiada para a área de transferência.`)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao redefinir a senha')
+      setError(
+        `Não foi possível redefinir a senha. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} size="sm">
-      <DialogHeader>
-        <DialogTitle>Redefinir senha</DialogTitle>
-        <DialogDescription>{usuario ? `${usuario.nome} · ${usuario.email}` : ''}</DialogDescription>
-      </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={error} />
-        <div>
-          <Label htmlFor="nova-senha">Nova senha</Label>
-          <div className="flex gap-1.5">
-            <Input
-              id="nova-senha"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="font-mono"
-              autoComplete="off"
-            />
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={() => setSenha(gerarSenha())}
-              aria-label="Gerar outra senha"
-              title="Gerar outra"
-            >
-              <RefreshCw size={13} />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={() => void navigator.clipboard?.writeText(senha)}
-              aria-label="Copiar senha"
-              title="Copiar"
-            >
-              <Copy size={13} />
-            </Button>
+    <Dialog open={open} onOpenChange={onOpenChange} size="sm" disableDismiss={update.isPending}>
+      <form onSubmit={salvar} noValidate>
+        <DialogHeader>
+          <DialogTitle>Redefinir senha</DialogTitle>
+          <DialogDescription>
+            {usuario ? `${usuario.nome} · ${usuario.email}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <DialogErrorBanner message={error} />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nova-senha">
+              Nova senha
+              <span className="text-danger" aria-hidden>
+                {' '}
+                *
+              </span>
+            </Label>
+            <div className="flex gap-1.5">
+              <Input
+                id="nova-senha"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus
+                aria-required
+                aria-invalid={erroVisivel ? true : undefined}
+                aria-describedby="nova-senha-apoio"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="shrink-0"
+                onClick={() => setSenha(gerarSenha())}
+                aria-label="Gerar outra senha"
+                title="Gerar outra senha"
+              >
+                <RefreshCw size={13} />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="shrink-0"
+                onClick={() =>
+                  void navigator.clipboard
+                    ?.writeText(senha)
+                    .then(() => toast.success('Senha copiada.'))
+                    .catch(() => toast.error('Não foi possível copiar. Selecione a senha e copie.'))
+                }
+                aria-label="Copiar senha"
+                title="Copiar senha"
+              >
+                <Copy size={13} />
+              </Button>
+            </div>
+            {erroVisivel ? (
+              <p id="nova-senha-apoio" role="alert" className="text-xs font-medium text-danger">
+                {erroVisivel}
+              </p>
+            ) : (
+              <p id="nova-senha-apoio" className="text-xs text-text-muted">
+                Mínimo de 10 caracteres. Passe a senha ao usuário; a sessão atual dele continua até
+                expirar.
+              </p>
+            )}
           </div>
-          <p className="mt-1 text-2xs text-text-muted">
-            Mínimo de 10 caracteres. Passe a senha ao usuário; a sessão atual dele continua até
-            expirar.
-          </p>
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={update.isPending}>
-          Cancelar
-        </Button>
-        <Button onClick={() => void salvar()} disabled={update.isPending}>
-          {update.isPending ? 'Salvando…' : 'Redefinir'}
-        </Button>
-      </DialogFooter>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={update.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={update.isPending}>
+            {update.isPending ? 'Salvando…' : 'Redefinir senha'}
+          </Button>
+        </DialogFooter>
+      </form>
     </Dialog>
   )
 }

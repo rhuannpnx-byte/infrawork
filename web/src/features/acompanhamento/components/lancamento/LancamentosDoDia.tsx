@@ -2,10 +2,13 @@ import { useMemo, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { AlertTriangle, Camera, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { PulseBlock } from '@/components/ui/PulseBlock'
+import { ErroConsulta, Vazio } from '@/components/ui/estado'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatNumber } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { useDeleteLancamento, useLancamentosDia } from '../../hooks/lancamento'
@@ -19,7 +22,8 @@ interface Props {
 }
 
 export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: Props): ReactNode {
-  const { data: rows = [], isLoading } = useLancamentosDia(obraId, data)
+  const consulta = useLancamentosDia(obraId, data)
+  const { data: rows = [], isLoading } = consulta
   const del = useDeleteLancamento()
   const confirm = useConfirm()
   const role = useAuthStore((s) => s.profile?.role ?? null)
@@ -46,7 +50,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
   const excluir = async (p: ProducaoEnriquecida): Promise<void> => {
     const ok = await confirm({
       title: 'Excluir este lançamento?',
-      description: `${p.servico_display_nome} · ${formatNumber(Number(p.qtd ?? 0), 2)} ${p.unidade ?? ''}${p.equipe_display_nome ? ` · ${p.equipe_display_nome}` : ''}`,
+      description: `Lançamento de ${p.servico_display_nome}: ${formatNumber(Number(p.qtd ?? 0), 2)} ${p.unidade ?? ''}${p.equipe_display_nome ? `, equipe ${p.equipe_display_nome}` : ''}. Não dá para desfazer.`,
       confirmLabel: 'Excluir',
       variant: 'danger'
     })
@@ -55,27 +59,30 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
       await del.mutateAsync({ id: p.id })
       toast.success('Lançamento excluído.')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao excluir')
+      toast.error(
+        `Não foi possível excluir o lançamento.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
+      )
     }
   }
 
   return (
-    <div className={cn('flex flex-col', compacto ? 'p-4' : 'p-5')}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-xs text-text-muted">
-          <span className="text-text font-semibold">{total}</span> lançamento
-          {total === 1 ? '' : 's'} em {fmtBR(data)}
-          {fotos > 0 ? (
-            <span className="ml-2 inline-flex items-center gap-1 text-text-dim">
-              <Camera size={12} /> {fotos}
-            </span>
-          ) : null}
-        </div>
-      </div>
+    <section
+      aria-label="Lançamentos do dia"
+      className={cn('flex flex-col', compacto ? 'p-4' : 'p-5')}
+    >
+      <h2 className="mb-3 flex flex-wrap items-baseline gap-x-3 text-lg font-semibold text-text">
+        Lançamentos de {fmtBR(data)}
+        {isLoading || consulta.error ? null : (
+          <span className="text-sm font-normal text-text-muted">
+            {contar(total, 'lançamento', 'lançamentos')}
+            {fotos > 0 ? `, ${contar(fotos, 'foto', 'fotos')}` : ''}
+          </span>
+        )}
+      </h2>
 
       {duplicados.size > 0 ? (
-        <div className="mb-3 rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn flex items-start gap-2">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+        <div className="mb-3 rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text flex items-start gap-2">
+          <AlertTriangle size={15} className="shrink-0 mt-0.5 text-warn" />
           <span>
             Há serviço com mais de um lançamento para a mesma equipe neste dia. Confira se não é
             duplicidade.
@@ -84,97 +91,107 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
       ) : null}
 
       {isLoading ? (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Carregando os lançamentos do dia">
           {Array.from({ length: 3 }).map((_, i) => (
             <PulseBlock key={i} h={64} />
           ))}
         </div>
+      ) : consulta.error ? (
+        <ErroConsulta
+          erro={consulta.error}
+          oQue="os lançamentos do dia"
+          aoTentar={() => void consulta.refetch()}
+        />
       ) : rows.length === 0 ? (
-        <div className="text-2xs font-mono text-text-dim py-8 text-center">
-          Nenhum lançamento neste dia.
-        </div>
+        <Vazio>
+          Nenhum lançamento neste dia. Registre a produção no formulário ou escolha outra data.
+        </Vazio>
       ) : (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {rows.map((p) => {
             const dup = duplicados.has(`${p.item_orcamentario_id ?? ''}|${p.equipe_id ?? ''}`)
+            const nFotos = Number(p.fotos_count ?? 0)
+            const excluindo = del.isPending && del.variables?.id === p.id
+            const local = rotuloLocalProducao(p)
             return (
-              <div
+              <li
                 key={p.id}
                 className={cn(
-                  'rounded border bg-bg-panel p-3 flex gap-3',
-                  dup ? 'border-warn/50' : 'border-border'
+                  'rounded border bg-bg-panel px-3 py-2.5',
+                  dup ? 'border-warn/60' : 'border-border'
                 )}
               >
-                <span
-                  className="w-1 rounded-full shrink-0"
-                  style={{ background: p.equipe_display_cor ?? 'var(--border-strong)' }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-sm text-text truncate" title={p.servico_display_nome}>
-                        {p.servico_grupo_codigo ? (
-                          <span className="font-mono text-2xs text-text-dim mr-1.5">
-                            {p.servico_grupo_codigo}
-                          </span>
-                        ) : null}
-                        {p.servico_display_nome}
-                      </div>
-                      <div className="text-2xs font-mono text-text-dim truncate mt-0.5">
-                        {p.equipe_display_nome ?? 'sem equipe'}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm text-text truncate" title={p.servico_display_nome}>
+                      {p.servico_grupo_codigo ? (
+                        <span className="tabular text-xs text-text-muted mr-1.5">
+                          {p.servico_grupo_codigo}
+                        </span>
+                      ) : null}
+                      {p.servico_display_nome}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-text-muted mt-0.5 min-w-0">
+                      <span
+                        aria-hidden
+                        className="size-2.5 rounded-sm shrink-0"
+                        style={{ background: p.equipe_display_cor ?? 'var(--border-strong)' }}
+                      />
+                      <span className="truncate">
+                        {p.equipe_display_nome ?? 'Sem equipe'}
                         {p.encarregado_display_nome ? ` · ${p.encarregado_display_nome}` : ''}
                         {p.frente_raw ? ` · ${p.frente_raw}` : ''}
-                        {rotuloLocalProducao(p) ? ` · ${rotuloLocalProducao(p)}` : ''}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-mono text-base text-text tabular-nums">
-                        {formatNumber(Number(p.qtd ?? 0), 2)}{' '}
-                        <span className="text-xs text-text-dim">{p.unidade ?? ''}</span>
-                      </div>
-                      <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                        {Number(p.fotos_count ?? 0) > 0 ? (
-                          <span className="inline-flex items-center gap-0.5 text-2xs font-mono text-accent">
-                            <Camera size={12} /> {p.fotos_count}
-                          </span>
-                        ) : null}
-                        {p.origem === 'importacao' ? (
-                          <Badge variant="outline" className="text-2xs">
-                            importação
-                          </Badge>
-                        ) : null}
-                      </div>
+                        {local ? ` · ${local}` : ''}
+                      </span>
                     </div>
                   </div>
-                  {p.obs ? (
-                    <div className="text-2xs text-text-muted mt-1 line-clamp-2">{p.obs}</div>
-                  ) : null}
-                  {podeEditar(p) ? (
-                    <div className="flex items-center gap-3 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => onEditar?.(p)}
-                        className="inline-flex items-center gap-1 text-2xs text-text-muted hover:text-accent"
-                      >
-                        <Pencil size={12} /> Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void excluir(p)}
-                        className="inline-flex items-center gap-1 text-2xs text-text-muted hover:text-danger"
-                        disabled={del.isPending}
-                      >
-                        <Trash2 size={12} /> Excluir
-                      </button>
+                  <div className="text-right shrink-0">
+                    <div className="text-md font-semibold text-text tabular">
+                      {formatNumber(Number(p.qtd ?? 0), 2)}{' '}
+                      <span className="text-sm font-normal text-text-muted">{p.unidade ?? ''}</span>
                     </div>
-                  ) : null}
+                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                      {nFotos > 0 ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs text-text-muted tabular"
+                          title={contar(nFotos, 'foto', 'fotos')}
+                        >
+                          <Camera size={12} aria-hidden /> {nFotos}
+                          <span className="sr-only">{nFotos === 1 ? 'foto' : 'fotos'}</span>
+                        </span>
+                      ) : null}
+                      {p.origem === 'importacao' ? (
+                        <Badge variant="outline">Importação</Badge>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-              </div>
+                {p.obs ? (
+                  <div className="text-sm text-text-muted mt-1 line-clamp-2">{p.obs}</div>
+                ) : null}
+                {podeEditar(p) ? (
+                  <div className="flex items-center gap-1 mt-1.5 -ml-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => onEditar?.(p)}>
+                      <Pencil size={12} /> Editar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="hover:text-danger"
+                      onClick={() => void excluir(p)}
+                      disabled={del.isPending}
+                    >
+                      <Trash2 size={12} /> {excluindo ? 'Excluindo…' : 'Excluir'}
+                    </Button>
+                  </div>
+                ) : null}
+              </li>
             )
           })}
-        </div>
+        </ul>
       )}
-    </div>
+    </section>
   )
 }
 

@@ -85,8 +85,13 @@ function tabMeta(moduleKey: string): { title: string; icon: string } {
 }
 
 /** Resolve o módulo de uma localização (rota). 'home' para '/'. */
+/** Galeria de componentes: rota só do servidor de desenvolvimento, aberta na aba do Início. */
+const naGaleria = (pathname: string): boolean =>
+  import.meta.env.DEV && pathname.startsWith('/galeria')
+
 export function moduleKeyForLocation(pathname: string): string | undefined {
   if (pathname === '/') return 'home'
+  if (naGaleria(pathname)) return 'home'
   if (isBareRoute(pathname)) return 'acompanhamento'
   return getModuleByRoute(pathname)?.key
 }
@@ -256,7 +261,9 @@ export const useTabsStore = create<TabsStore>((set, get) => {
       // Início SEMPRE em '/': o launcher não pode transformar a aba Início num
       // módulo (era o que fazia o Início "mostrar o calendário" no cliente).
       tabs = tabs.map((t) =>
-        t.moduleKey === 'home' && t.location !== '/' ? { ...t, location: '/' } : t
+        t.moduleKey === 'home' && t.location !== '/' && !naGaleria(t.location)
+          ? { ...t, location: '/' }
+          : t
       )
       const igual =
         tabs.length === state.tabs.length &&

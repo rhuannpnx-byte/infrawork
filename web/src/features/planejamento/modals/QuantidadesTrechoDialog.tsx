@@ -17,11 +17,13 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { downloadBlob, nomeComStamp } from '@/lib/files/download'
 import { formatDate, formatNumber, parseNumero } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import { gerarPlanilhaQuantidades } from '@/lib/quantidades/boq-xlsx'
 import {
   divisorUnidade,
@@ -223,8 +225,9 @@ export function QuantidadesTrechoDialog({
         const s = ord[i]!
         if (!(s.fim > s.ini)) return `A faixa ${i + 1} tem comprimento zero.`
         if (comp > 0 && s.fim > comp + 0.005)
-          return `Faixa até ${formatNumber(s.fim, 0)} m passa do comprimento do eixo (${formatNumber(comp, 0)} m) — estenda o eixo em Locais.`
-        if (i > 0 && s.ini < ord[i - 1]!.fim - 0.005) return 'Há faixas sobrepostas.'
+          return `A faixa até ${formatNumber(s.fim, 0)} m passa do comprimento do eixo (${formatNumber(comp, 0)} m). Aumente o eixo em Locais.`
+        if (i > 0 && s.ini < ord[i - 1]!.fim - 0.005)
+          return 'Há faixas sobrepostas. Ajuste o início ou o fim delas.'
       }
     }
     const excede = colunas.filter((k) => {
@@ -232,7 +235,7 @@ export function QuantidadesTrechoDialog({
       return r ? (totais.get(k.id) ?? 0) + r.outros > r.orcamento + 0.0005 : false
     })
     if (excede.length)
-      return `Acima do orçamento (somando os outros locais): ${excede.map((k) => k.codigo).join(', ')}.`
+      return `Somando os outros locais, a quantidade passa do orçado em: ${excede.map((k) => k.codigo).join(', ')}.`
     return null
   }
 
@@ -257,11 +260,11 @@ export function QuantidadesTrechoDialog({
         comentario
       })
       toast.success(
-        `Quantidades salvas — ${r.segmentos} faixas, ${r.celulas} valores. Tarefas "do template" recalculadas.`
+        `Quantidades salvas: ${contar(r.segmentos, 'faixa', 'faixas')} e ${contar(r.celulas, 'valor', 'valores')}. As tarefas "do template" foram recalculadas.`
       )
       setSujo(false)
     } catch (e) {
-      setErro((e as Error).message)
+      setErro(`Não foi possível salvar as quantidades. ${(e as Error).message}`)
     }
   }
 
@@ -297,39 +300,41 @@ export function QuantidadesTrechoDialog({
     <Dialog open={open} onOpenChange={(o) => void fechar(o)} size="full">
       <DialogHeader className="shrink-0">
         <DialogTitle>
-          Quantidades — {trecho.nome}{' '}
+          Quantidades de {trecho.nome}{' '}
           <Badge variant="outline" className="ml-1 align-middle">
-            {ehArea ? 'área' : 'eixo'}
+            {ehArea ? 'Área' : 'Eixo'}
           </Badge>
         </DialogTitle>
         <DialogDescription>
           {ehArea
             ? 'Local sem estacas: uma linha com a quantidade de cada serviço na área inteira.'
-            : `${estacaInicialTexto(trecho)} – ${estacaFinalTexto(trecho)} · ${formatNumber(comp, 0)} m · quantidade de cada serviço por faixa de estacas. As tarefas “do template” leem daqui.`}
+            : `De ${estacaInicialTexto(trecho)} a ${estacaFinalTexto(trecho)}, ${formatNumber(comp, 0)} m. Quantidade de cada serviço por faixa de estacas. As tarefas “do template” leem daqui.`}
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="flex-1 min-h-0 p-0 flex">
         <aside className="w-[270px] shrink-0 border-r border-border flex flex-col min-h-0">
           <div className="px-3 py-2 border-b border-border space-y-1.5">
-            <div className="text-2xs font-mono uppercase text-text-dim">
-              Serviços do orçamento ({sel.size})
+            <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+              Serviços do orçamento ({contar(sel.size, 'marcado', 'marcados')})
             </div>
             <Input
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
-              placeholder="Filtrar…"
-              className="h-6"
+              placeholder="Filtrar por código ou nome"
+              aria-label="Filtrar serviços do orçamento"
+              autoComplete="off"
+              className="h-7"
             />
           </div>
           <div className="flex-1 overflow-auto">
             {lista.map((a) => (
               <label
                 key={a.id}
-                className="flex items-start gap-2 px-3 py-1.5 border-b border-border text-xs hover:bg-bg-hover cursor-pointer"
+                className="flex items-start gap-2 px-3 py-1.5 border-b border-border text-sm hover:bg-bg-hover cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
                   disabled={!editavel}
                   checked={sel.has(a.id)}
                   onChange={() => {
@@ -343,33 +348,39 @@ export function QuantidadesTrechoDialog({
                   }}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="font-mono text-text-dim mr-1">{a.codigo}</span>
+                  <span className="mr-1 text-text-muted">{a.codigo}</span>
                   <span className="text-text">{a.descricao}</span>
-                  <div className="text-2xs text-text-dim font-mono tabular-nums">
-                    orç. {formatNumber(a.quantidade, 3)} {a.unidade} · em locais{' '}
+                  <span className="tabular block text-xs text-text-muted">
+                    Orçado: {formatNumber(a.quantidade, 3)} {a.unidade} · Nos locais:{' '}
                     {formatNumber(a.totalTrechos, 3)}
-                  </div>
+                  </span>
                 </span>
               </label>
             ))}
             {lista.length === 0 ? (
-              <div className="px-3 py-4 text-2xs text-text-dim italic">
-                Nenhum serviço agrupador no orçamento.
-              </div>
+              <p className="px-3 py-4 text-sm text-text-muted">
+                {filtro.trim()
+                  ? 'Nenhum serviço com esse filtro.'
+                  : 'O orçamento ainda não tem serviços. Agrupe as receitas em serviços na planilha orçamentária.'}
+              </p>
             ) : null}
           </div>
-          <div className="px-3 py-2 text-2xs text-text-dim border-t border-border leading-relaxed">
-            Marcados viram colunas. A soma dos locais por serviço não passa do orçamento.
-          </div>
+          <p className="border-t border-border px-3 py-2 text-xs text-text-muted">
+            Os serviços marcados viram colunas. A soma dos locais por serviço não pode passar do
+            orçado.
+          </p>
         </aside>
 
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-wrap">
             {!ehArea ? (
               <>
-                <span className="text-2xs font-mono uppercase text-text-dim">Faixas</span>
+                <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                  Faixas
+                </span>
                 <Select
                   className="w-44"
+                  aria-label="Tamanho das faixas"
                   value={passoTipo}
                   disabled={!editavel}
                   onChange={(e) => {
@@ -377,14 +388,18 @@ export function QuantidadesTrechoDialog({
                     aplicarPasso(t, t === 'metros' ? '500' : t === 'unidades' ? '5' : passoN)
                   }}
                 >
-                  <option value="unidade">a cada {rot}</option>
-                  <option value="unidades">a cada N {rot}</option>
-                  <option value="metros">a cada N metros</option>
-                  <option value="livre">faixas livres</option>
+                  <option value="unidade">A cada {rot}</option>
+                  <option value="unidades">A cada N {rot}</option>
+                  <option value="metros">A cada N metros</option>
+                  <option value="livre">Faixas livres</option>
                 </Select>
                 {passoTipo === 'unidades' || passoTipo === 'metros' ? (
                   <Input
-                    className="w-20"
+                    className="tabular w-20 text-right"
+                    inputMode="decimal"
+                    aria-label={
+                      passoTipo === 'metros' ? 'Metros por faixa' : `Quantidade de ${rot} por faixa`
+                    }
                     value={passoN}
                     disabled={!editavel}
                     onChange={(e) => setPassoN(e.target.value)}
@@ -397,54 +412,81 @@ export function QuantidadesTrechoDialog({
                 ) : null}
                 {passoTipo === 'livre' && editavel ? (
                   <Button size="sm" variant="secondary" onClick={addFaixa}>
-                    <Plus size={12} /> Faixa
+                    <Plus size={12} /> Adicionar faixa
                   </Button>
                 ) : null}
               </>
             ) : null}
-            <span className="text-2xs text-text-dim font-mono ml-1">
-              {segs.length} {segs.length === 1 ? 'faixa' : 'faixas'} ·{' '}
-              {atual ? `v${atual.numero}` : 'sem template'}
-              {sujo ? ' · alterado' : ''}
-              {plano ? ` · tarefas: ${plano.nome}` : ''}
+            <span className="tabular ml-1 text-sm text-text-muted">
+              {contar(segs.length, 'faixa', 'faixas')} ·{' '}
+              {atual ? `versão ${atual.numero}` : 'ainda sem versão salva'}
+              {sujo ? ' · com alterações não salvas' : ''}
+              {plano ? ` · tarefas do plano ${plano.nome}` : ''}
             </span>
             <div className="ml-auto flex gap-1.5">
-              <Button size="sm" variant="ghost" onClick={() => setVerHistorico((v) => !v)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                aria-expanded={verHistorico}
+                onClick={() => setVerHistorico((v) => !v)}
+              >
                 <History size={12} /> Versões ({versoes.length})
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => void exportar()}>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  void exportar().catch((e) =>
+                    toast.error('Não foi possível exportar a planilha.', {
+                      description: (e as Error).message
+                    })
+                  )
+                }
+              >
                 <Download size={12} /> Exportar
               </Button>
               {editavel ? (
                 <Button size="sm" variant="secondary" onClick={() => setImportarOpen(true)}>
-                  <Upload size={12} /> Importar planilha…
+                  <Upload size={12} /> Importar planilha
                 </Button>
               ) : null}
             </div>
           </div>
           {trava ? (
-            <div className="px-3 py-1.5 text-xs text-warn bg-warn/10 border-b border-warn/30">
+            <div
+              role="status"
+              className="border-b border-warn/40 bg-warn/10 px-3 py-1.5 text-sm text-text"
+            >
               Somente leitura: {trava}.
             </div>
           ) : null}
           {verHistorico ? (
-            <div className="border-b border-border max-h-40 overflow-auto bg-bg/40">
+            <div
+              className="max-h-40 overflow-auto border-b border-border bg-bg/40"
+              tabIndex={0}
+              role="region"
+              aria-label="Versões salvas das quantidades"
+            >
               {versoes.length === 0 ? (
-                <div className="px-3 py-2 text-2xs text-text-dim italic">Nenhuma versão ainda.</div>
+                <p className="px-3 py-2 text-sm text-text-muted">
+                  Nenhuma versão salva. A primeira é criada quando você salvar as quantidades.
+                </p>
               ) : null}
               {versoes.map((v) => (
                 <div
                   key={v.id}
-                  className="flex items-center gap-2 px-3 py-1 text-xs border-b border-border"
+                  className="flex items-center gap-2 border-b border-border px-3 py-1 text-sm"
                 >
-                  <span className="font-mono">v{v.numero}</span>
-                  {v.is_atual ? <Badge variant="accent">atual</Badge> : null}
+                  <span className="tabular font-medium text-text">Versão {v.numero}</span>
+                  {v.is_atual ? <Badge variant="accent">Atual</Badge> : null}
                   <span className="text-text-muted flex-1 truncate">{v.comentario ?? ''}</span>
-                  <span className="text-2xs text-text-dim">{formatDate(v.created_at)}</span>
+                  <span className="tabular text-text-muted">{formatDate(v.created_at)}</span>
                   {!v.is_atual && editavel ? (
                     <Button
                       size="sm"
                       variant="ghost"
+                      disabled={restaurar.isPending}
+                      aria-label={`Restaurar a versão ${v.numero}`}
                       onClick={async () => {
                         const ok = await confirm({
                           title: `Voltar para a versão ${v.numero}?`,
@@ -455,7 +497,10 @@ export function QuantidadesTrechoDialog({
                           restaurar.mutate(
                             { versao_id: v.id },
                             {
-                              onError: (e) => toast.error(e.message),
+                              onError: (e) =>
+                                toast.error('Não foi possível restaurar a versão.', {
+                                  description: e.message
+                                }),
                               onSuccess: () => toast.success('Versão restaurada.')
                             }
                           )
@@ -470,8 +515,9 @@ export function QuantidadesTrechoDialog({
           ) : null}
           <div className="flex-1 min-h-0">
             {colunas.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-text-dim px-6 text-center">
-                Marque à esquerda os serviços que este local quantifica — cada um vira uma coluna.
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
+                Marque à esquerda os serviços que têm quantidade neste local. Cada um vira uma
+                coluna.
               </div>
             ) : (
               <GradeQuantidades
@@ -492,25 +538,23 @@ export function QuantidadesTrechoDialog({
             <DialogErrorBanner message={erro} />
             {editavel ? (
               <div className="flex items-end gap-3 flex-wrap">
-                <div className="flex-1 min-w-[220px]">
-                  <div className="text-2xs font-mono uppercase text-text-dim mb-1">
-                    Comentário da versão
-                  </div>
+                <Campo rotulo="Comentário da versão" className="min-w-[220px] flex-1">
                   <Input
                     value={comentario}
                     onChange={(e) => setComentario(e.target.value)}
-                    placeholder="Ex.: projeto executivo rev. 2"
-                    className="h-6"
+                    placeholder="Ex.: projeto executivo, revisão 2"
+                    autoComplete="off"
                   />
-                </div>
+                </Campo>
                 {atual ? (
-                  <label className="flex items-center gap-1.5 text-xs pb-1">
+                  <label className="flex cursor-pointer items-center gap-1.5 pb-1.5 text-sm text-text">
                     <input
                       type="checkbox"
                       checked={novaVersao}
                       onChange={(e) => setNovaVersao(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--accent)]"
                     />
-                    Gravar como nova versão
+                    Salvar como nova versão
                   </label>
                 ) : null}
               </div>
@@ -519,12 +563,12 @@ export function QuantidadesTrechoDialog({
         </div>
       </DialogBody>
       <DialogFooter className="shrink-0">
-        <Button variant="ghost" onClick={() => void fechar(false)}>
+        <Button variant="secondary" onClick={() => void fechar(false)}>
           Fechar
         </Button>
         {editavel ? (
           <Button disabled={salvar.isPending} onClick={() => void gravar()}>
-            <Save size={12} /> Salvar quantidades
+            <Save size={12} /> {salvar.isPending ? 'Salvando…' : 'Salvar quantidades'}
           </Button>
         ) : null}
       </DialogFooter>

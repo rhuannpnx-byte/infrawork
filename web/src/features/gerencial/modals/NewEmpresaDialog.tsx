@@ -4,12 +4,13 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useCreateEmpresa } from '../hooks'
 
@@ -23,16 +24,31 @@ export function NewEmpresaDialog({ open, onOpenChange }: Props): ReactNode {
   const [nome, setNome] = useState('')
   const [cnpj, setCnpj] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
     setNome('')
     setCnpj('')
     setError(null)
+    setTentou(false)
   }
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  const erroNome = nome.trim().length < 2 ? 'Informe a razão social da empresa.' : undefined
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
+    if (erroNome) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+      return
+    }
     try {
       const res = await create.mutateAsync({
         nome: nome.trim(),
@@ -42,52 +58,51 @@ export function NewEmpresaDialog({ open, onOpenChange }: Props): ReactNode {
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar empresa')
+      setError(
+        `Não foi possível criar a empresa. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="sm"
-      disableDismiss={create.isPending}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="sm" disableDismiss={create.isPending}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Nova empresa</DialogTitle>
+          <DialogDescription>
+            Depois de criar, cadastre o administrador da empresa em Usuários.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
-          <div>
-            <Label htmlFor="emp-nome">Razão social</Label>
+          <Campo rotulo="Razão social" obrigatorio erro={tentou ? erroNome : undefined}>
             <Input
-              id="emp-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
+              autoComplete="off"
               autoFocus
             />
-          </div>
-          <div>
-            <Label htmlFor="emp-cnpj">CNPJ (opcional)</Label>
+          </Campo>
+          <Campo rotulo="CNPJ" dica="Opcional.">
             <Input
-              id="emp-cnpj"
               value={cnpj}
               onChange={(e) => setCnpj(e.target.value)}
               placeholder="00.000.000/0000-00"
+              inputMode="numeric"
+              autoComplete="off"
             />
-          </div>
+          </Campo>
         </DialogBody>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => aoMudar(false)}
+            disabled={create.isPending}
+          >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={create.isPending}>
+          <Button type="submit" disabled={create.isPending}>
             {create.isPending ? 'Criando…' : 'Criar empresa'}
           </Button>
         </DialogFooter>

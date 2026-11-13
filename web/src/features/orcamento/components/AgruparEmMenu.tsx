@@ -64,13 +64,13 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
     <Popover
       open={open}
       onOpenChange={setOpen}
-      align="end"
+      align="start"
       trigger={
         <Button variant="default" size="sm" onClick={() => setOpen((o) => !o)} disabled={ocupado}>
-          <Package size={12} /> Agrupar {receitaIds.length} em… <ChevronDown size={12} />
+          <Package size={12} /> Agrupar em um serviço <ChevronDown size={12} />
         </Button>
       }
-      className="w-[320px] p-0"
+      className="w-[360px] max-w-[90vw] p-0"
     >
       <div className="p-2 border-b border-border">
         <input
@@ -84,8 +84,9 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
               else if (nomeNovo && !jaExiste) void criarEAplicar()
             }
           }}
-          placeholder="Buscar serviço ou digitar um novo…"
-          className="w-full h-7 px-2 rounded bg-bg-elevated border border-border-strong text-xs outline-none focus:border-accent"
+          placeholder="Buscar serviço ou digitar um novo"
+          aria-label="Buscar serviço ou digitar um novo"
+          className="w-full h-8 px-2 rounded bg-bg-panel border border-border-strong text-sm text-text outline-none focus:border-accent"
         />
       </div>
       <div className="max-h-[300px] overflow-auto py-1">
@@ -94,7 +95,7 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
             type="button"
             onClick={() => void criarEAplicar()}
             disabled={ocupado}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-bg-hover text-accent"
+            className="w-full flex items-center gap-2 px-3 min-h-8 py-1.5 text-left text-sm font-semibold hover:bg-bg-hover text-accent"
           >
             <Plus size={12} /> Novo serviço “{nomeNovo}”
           </button>
@@ -105,17 +106,17 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
             type="button"
             onClick={() => void aplicar(s.id)}
             disabled={ocupado}
-            className="w-full flex items-baseline gap-2 px-3 py-1.5 text-left hover:bg-bg-hover"
+            className="w-full flex items-baseline gap-2 px-3 min-h-8 py-1.5 text-left hover:bg-bg-hover"
           >
-            <span className="text-2xs font-mono text-text-dim w-8 shrink-0">{s.codigo}</span>
-            <span className="text-xs text-text truncate flex-1">{s.descricao}</span>
-            <span className="text-2xs font-mono text-text-dim tabular-nums">
+            <span className="text-xs tabular text-text-dim w-8 shrink-0">{s.codigo}</span>
+            <span className="text-sm text-text truncate flex-1">{s.descricao}</span>
+            <span className="text-xs text-text-muted tabular-nums">
               {fmtBRL(Number(s.venda_total_calc ?? 0))}
             </span>
           </button>
         ))}
         {lista.length === 0 && !nomeNovo ? (
-          <div className="px-3 py-2 text-2xs text-text-dim">Digite o nome do novo serviço.</div>
+          <div className="px-3 py-2 text-sm text-text-muted">Digite o nome do novo serviço.</div>
         ) : null}
       </div>
     </Popover>

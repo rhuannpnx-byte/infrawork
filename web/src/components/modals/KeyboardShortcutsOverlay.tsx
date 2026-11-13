@@ -39,13 +39,13 @@ export function KeyboardShortcutsOverlay(): ReactNode {
               <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
                 {sec.title}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {sec.items.map(([k, label]) => (
                   <div key={k} className="flex items-center justify-between">
-                    <span className="text-xs text-text">{label}</span>
-                    <span className="font-mono text-2xs text-text-muted bg-bg-elevated px-1.5 py-0.5 rounded">
+                    <span className="text-sm text-text">{label}</span>
+                    <kbd className="tabular text-xs text-text-muted bg-bg-elevated border border-border px-1.5 py-0.5 rounded">
                       {k}
-                    </span>
+                    </kbd>
                   </div>
                 ))}
               </div>
@@ -54,7 +54,7 @@ export function KeyboardShortcutsOverlay(): ReactNode {
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={close}>
+        <Button variant="secondary" onClick={close}>
           Fechar
         </Button>
       </DialogFooter>

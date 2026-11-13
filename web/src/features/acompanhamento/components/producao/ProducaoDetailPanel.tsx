@@ -1,16 +1,17 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useId, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Pencil, Trash2, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Sheet, SheetHeader, SheetTitle, SheetBody, SheetFooter } from '@/components/ui/sheet'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TabPill } from '@/components/ui/TabPill'
+import { Carregando, ErroConsulta } from '@/components/ui/estado'
 import { cn } from '@/lib/utils'
 import { formatNumber, formatDateTimeShort } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import { useAuthStore } from '@/stores/auth-store'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
-import type { ProducaoEnriquecida } from '@/types/acompanhamento'
+import type { ProducaoEnriquecida, ProducaoOrigem } from '@/types/acompanhamento'
 import { useFotosDaProducao, useSignedUrls } from '../../hooks/fotos'
 import { useDeleteLancamento, useMateriaisLancamento } from '../../hooks/lancamento'
 
@@ -21,6 +22,15 @@ interface Props {
 }
 
 type Tab = 'detalhes' | 'tarefa' | 'fotos'
+
+const ROTULO_ORIGEM: Record<ProducaoOrigem, string> = {
+  app: 'Site',
+  campo: 'App de campo',
+  viagens: 'Viagens',
+  importacao: 'Importação'
+}
+
+const ROTULO = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 
 export function ProducaoDetailPanel({ producao, open, onOpenChange }: Props): ReactNode {
   if (!producao) return null
@@ -38,13 +48,15 @@ function Panel({
   onOpenChange: (o: boolean) => void
 }): ReactNode {
   const [tab, setTab] = useState<Tab>('detalhes')
+  const idBase = useId()
   const navigate = useNavigate()
   const confirm = useConfirm()
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const uid = useAuthStore((s) => s.profile?.id ?? null)
   const del = useDeleteLancamento()
   const { data: materiais = [] } = useMateriaisLancamento(open ? p.id : null)
-  const { data: fotos = [] } = useFotosDaProducao(open && tab === 'fotos' ? p.obra_id : null, p.id)
+  const consultaFotos = useFotosDaProducao(open && tab === 'fotos' ? p.obra_id : null, p.id)
+  const { data: fotos = [] } = consultaFotos
   const fotoIds = useMemo(() => fotos.map((f) => f.id), [fotos])
   const { urls } = useSignedUrls(fotoIds)
 
@@ -58,11 +70,13 @@ function Panel({
   const converteu = Number(p.fator_conversao ?? 1) !== 1
   const valor = converteu ? Number(p.qtd_convertida ?? 0) : Number(p.qtd ?? 0)
   const unidade = converteu ? p.unidade_plano : (p.unidade ?? p.unidade_plano)
+  const nomeServico = p.servico_display_nome ?? p.servico_nome ?? 'Lançamento'
+  const nFotos = Number(p.fotos_count ?? 0)
 
   const excluir = async (): Promise<void> => {
     const ok = await confirm({
       title: 'Excluir este lançamento?',
-      description: `${p.servico_display_nome} · ${formatDate(p.data)} · ${formatNumber(Number(p.qtd ?? 0), 2)} ${p.unidade ?? ''}\n\nAs fotos vinculadas ficam como avulsas. Não dá pra desfazer.`,
+      description: `Lançamento de ${nomeServico} em ${formatDate(p.data)}: ${formatNumber(Number(p.qtd ?? 0), 2)} ${p.unidade ?? ''}.\n\nAs fotos vinculadas ficam como avulsas. Não dá para desfazer.`,
       confirmLabel: 'Excluir',
       variant: 'danger'
     })
@@ -72,188 +86,223 @@ function Panel({
       toast.success('Lançamento excluído.')
       onOpenChange(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao excluir')
+      toast.error(
+        `Não foi possível excluir o lançamento.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
+      )
     }
   }
+
+  const abas: Array<{ id: Tab; rotulo: string }> = [
+    { id: 'detalhes', rotulo: 'Detalhes' },
+    { id: 'tarefa', rotulo: 'Linha de base' },
+    { id: 'fotos', rotulo: `Fotos (${nFotos})` }
+  ]
+  const local =
+    [
+      p.trecho_nome ? (p.trecho_tipo === 'area' ? `Área ${p.trecho_nome}` : p.trecho_nome) : null,
+      p.estaca_inicial || p.estaca_final
+        ? `${p.estaca_inicial ?? '—'} a ${p.estaca_final ?? '—'}`
+        : null
+    ]
+      .filter(Boolean)
+      .join(', ') || '—'
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} className="w-[480px]">
       <SheetHeader>
-        <SheetTitle>{p.servico_display_nome ?? p.servico_nome ?? 'Lançamento'}</SheetTitle>
-        <p className="text-2xs font-mono text-text-dim mt-0.5">
-          {formatDate(p.data)} · qtd {formatNumber(valor, 2)}
+        <SheetTitle>{nomeServico}</SheetTitle>
+        <p className="text-sm text-text-muted mt-0.5 tabular">
+          {formatDate(p.data)}, {formatNumber(valor, 2)}
           {unidade ? ` ${unidade}` : ''}
           {converteu
-            ? ` (lançado ${formatNumber(Number(p.qtd ?? 0))} ${p.unidade ?? ''} × ${p.fator_conversao})`
+            ? ` (lançado: ${formatNumber(Number(p.qtd ?? 0))} ${p.unidade ?? ''} × ${p.fator_conversao})`
             : ''}
         </p>
       </SheetHeader>
-      <div className="border-b border-border px-4 flex items-center gap-3" role="tablist">
-        {(['detalhes', 'tarefa', 'fotos'] as Tab[]).map((t) => (
-          <TabPill key={t} active={tab === t} onClick={() => setTab(t)}>
-            {t === 'detalhes'
-              ? 'Detalhes'
-              : t === 'tarefa'
-                ? 'Tarefa da linha de base'
-                : `Fotos (${p.fotos_count ?? 0})`}
+      <div
+        className="border-b border-border px-4 flex items-center gap-4"
+        role="tablist"
+        aria-label="Partes do lançamento"
+      >
+        {abas.map((a) => (
+          <TabPill
+            key={a.id}
+            id={`${idBase}-aba-${a.id}`}
+            aria-controls={`${idBase}-painel`}
+            active={tab === a.id}
+            onClick={() => setTab(a.id)}
+            className="text-sm py-2.5 text-text-muted"
+          >
+            {a.rotulo}
           </TabPill>
         ))}
       </div>
       <SheetBody>
-        {tab === 'detalhes' && (
-          <div className="space-y-3 text-xs">
-            <Field
-              label="Item do orçamento"
-              value={
-                p.servico_grupo_codigo
-                  ? `${p.servico_grupo_codigo} — ${p.servico_grupo_descricao ?? p.servico_display_nome}`
-                  : p.item_orcamentario_id
-                    ? p.servico_display_nome
-                    : 'Item removido do orçamento'
-              }
-            />
-            {p.equipe_id ? (
+        <div id={`${idBase}-painel`} role="tabpanel" aria-labelledby={`${idBase}-aba-${tab}`}>
+          {tab === 'detalhes' && (
+            <dl className="space-y-3.5">
               <Field
-                label="Equipe"
-                value={p.equipe_display_nome ?? '—'}
-                indicador={
-                  <span
-                    className="size-2 rounded-sm mt-1"
-                    style={{ background: p.equipe_display_cor ?? 'var(--text-dim)' }}
-                  />
+                label="Item do orçamento"
+                value={
+                  p.servico_grupo_codigo
+                    ? `${p.servico_grupo_codigo} ${p.servico_grupo_descricao ?? p.servico_display_nome}`
+                    : p.item_orcamentario_id
+                      ? p.servico_display_nome
+                      : 'Item removido do orçamento'
                 }
-                hint={p.equipe_tipo ?? undefined}
               />
-            ) : (
+              {p.equipe_id ? (
+                <Field
+                  label="Equipe"
+                  value={p.equipe_display_nome ?? '—'}
+                  indicador={
+                    <span
+                      aria-hidden
+                      className="size-2.5 rounded-sm mt-1.5 shrink-0"
+                      style={{ background: p.equipe_display_cor ?? 'var(--text-dim)' }}
+                    />
+                  }
+                  hint={p.equipe_tipo ?? undefined}
+                />
+              ) : (
+                <Field
+                  label="Equipe"
+                  value="Sem equipe"
+                  hint="Informe a equipe para comparar com a produtividade prevista."
+                />
+              )}
+              <Field label="Encarregado" value={p.encarregado_display_nome ?? '—'} />
+              <Field label="Frente" value={p.frente_raw ?? '—'} />
+              <Field label="Local e estacas" value={local} />
+              <Field label="Observação" value={p.obs ?? '—'} multiline />
+              {materiais.length > 0 && (
+                <div>
+                  <dt className={ROTULO}>Materiais</dt>
+                  <dd className="mt-1">
+                    <ul className="space-y-1 text-sm">
+                      {materiais.map((m) => (
+                        <li key={m.id} className="text-text flex items-baseline gap-2">
+                          <span className="min-w-0 break-words">{m.nome}</span>
+                          {m.quantidade != null ? (
+                            <span className="tabular text-text-muted shrink-0 ml-auto">
+                              {formatNumber(Number(m.quantidade), 2)} {m.unidade ?? ''}
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </dd>
+                </div>
+              )}
               <Field
-                label="Equipe"
-                value="Sem equipe"
-                hint="Informe a equipe para comparar com a produtividade planejada"
+                label="Registro"
+                value={`${ROTULO_ORIGEM[p.origem] ?? p.origem}${p.criado_por_nome ? `, por ${p.criado_por_nome}` : ''}`}
+                hint={`Criado em ${formatDateTimeShort(p.created_at)}.${p.updated_at && p.updated_at !== p.created_at ? ` Editado em ${formatDateTimeShort(p.updated_at)}.` : ''}`}
               />
-            )}
-            <Field label="Encarregado" value={p.encarregado_display_nome ?? '—'} />
-            <Field label="Frente" value={p.frente_raw ?? '—'} />
-            <Field
-              label="Local / estacas"
-              value={
-                [
-                  p.trecho_nome
-                    ? p.trecho_tipo === 'area'
-                      ? `Área ${p.trecho_nome}`
-                      : p.trecho_nome
-                    : null,
-                  p.estaca_inicial || p.estaca_final
-                    ? `${p.estaca_inicial ?? '—'} → ${p.estaca_final ?? '—'}`
-                    : null
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || '—'
-              }
-            />
-            <Field label="Observação" value={p.obs ?? '—'} multiline />
-            {materiais.length > 0 && (
-              <div>
-                <div className="text-2xs font-mono uppercase text-text-dim mb-0.5">Materiais</div>
-                <ul className="space-y-0.5">
-                  {materiais.map((m) => (
-                    <li key={m.id} className="text-text flex items-center gap-2">
-                      <span className="truncate">{m.nome}</span>
-                      {m.quantidade != null ? (
-                        <span className="font-mono text-text-muted shrink-0">
-                          {formatNumber(Number(m.quantidade), 2)} {m.unidade ?? ''}
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <Field
-              label="Registro"
-              value={`${p.origem === 'importacao' ? 'Importação' : 'App'} · ${p.criado_por_nome ?? '—'}`}
-              hint={`criado ${formatDateTimeShort(p.created_at)}${p.updated_at && p.updated_at !== p.created_at ? ` · editado ${formatDateTimeShort(p.updated_at)}` : ''}`}
-            />
-          </div>
-        )}
-        {tab === 'tarefa' && (
-          <div className="space-y-3 text-xs">
-            {p.tarefa_baseline_id ? (
-              <>
-                <Field
-                  label="Serviço (item)"
-                  value={`${p.servico_grupo_codigo ?? ''} — ${p.servico_grupo_descricao ?? ''}`}
-                />
-                <Field
-                  label="Tarefa da linha de base"
-                  value={`${formatDate(p.tarefa_data_inicio)} → ${formatDate(p.tarefa_data_fim)}`}
-                />
-                <p className="text-text-muted leading-relaxed text-2xs font-mono">
-                  Esta produção conta para uma tarefa do baseline ativo. Compare o avanço acumulado
-                  na página <span className="text-accent">Previsto × Realizado</span>.
+            </dl>
+          )}
+          {tab === 'tarefa' &&
+            (p.tarefa_baseline_id ? (
+              <div className="space-y-3.5">
+                <dl className="space-y-3.5">
+                  <Field
+                    label="Serviço"
+                    value={
+                      `${p.servico_grupo_codigo ?? ''} ${p.servico_grupo_descricao ?? ''}`.trim() ||
+                      '—'
+                    }
+                  />
+                  <Field
+                    label="Tarefa da linha de base"
+                    value={`De ${formatDate(p.tarefa_data_inicio)} a ${formatDate(p.tarefa_data_fim)}`}
+                  />
+                </dl>
+                <p className="text-sm text-text-muted">
+                  Esta produção conta para uma tarefa da linha de base vigente.
                 </p>
-              </>
-            ) : (
-              <div className="text-text-dim text-2xs font-mono">
-                Este item ainda não está programado no baseline ativo. Programe-o em{' '}
-                <span className="text-accent">Planejamento → Programação por equipes</span> e
-                promova a baseline.
-              </div>
-            )}
-          </div>
-        )}
-        {tab === 'fotos' && (
-          <div className="space-y-2">
-            {fotos.length === 0 ? (
-              <div className="text-text-dim text-2xs font-mono flex items-center gap-2">
-                <ImageIcon size={12} /> Nenhuma foto vinculada a este lançamento.
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false)
+                    void navigate({ to: '/acompanhamento/comparativo' })
+                  }}
+                >
+                  Ver previsto e realizado
+                </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-1.5">
-                {fotos.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    className="aspect-square rounded overflow-hidden border border-border bg-bg-elevated hover:border-accent"
-                    title={f.captured_at ? formatDateTimeShort(f.captured_at) : undefined}
-                    onClick={() => void navigate({ to: '/acompanhamento/fotos' })}
-                  >
-                    {urls[f.id] ? (
-                      <img
-                        src={urls[f.id]}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-text-dim">
-                        <ImageIcon size={16} />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="text-2xs font-mono text-text-dim">
-              Veja todas em <span className="text-accent">Fotos &amp; Mapa</span>. Total
-              correlacionado: <strong className="text-text">{p.fotos_count ?? 0}</strong>
+              <p className="text-sm text-text-muted">
+                Este serviço ainda não está programado na linha de base vigente. Programe-o no
+                cronograma e trave o plano como linha de base para comparar com o previsto.
+              </p>
+            ))}
+          {tab === 'fotos' && (
+            <div className="space-y-3">
+              {consultaFotos.isLoading ? (
+                <Carregando texto="Carregando as fotos…" />
+              ) : consultaFotos.error ? (
+                <ErroConsulta
+                  erro={consultaFotos.error}
+                  oQue="as fotos do lançamento"
+                  aoTentar={() => void consultaFotos.refetch()}
+                  compacto
+                />
+              ) : fotos.length === 0 ? (
+                <p className="text-sm text-text-muted flex items-center gap-2">
+                  <ImageIcon size={14} className="shrink-0" /> Nenhuma foto vinculada a este
+                  lançamento.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {fotos.map((f, i) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className="aspect-square rounded overflow-hidden border border-border bg-bg-elevated hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      aria-label={`Abrir a foto ${i + 1}${f.captured_at ? `, de ${formatDateTimeShort(f.captured_at)},` : ''} em Fotos e mapa`}
+                      title={f.captured_at ? formatDateTimeShort(f.captured_at) : undefined}
+                      onClick={() => void navigate({ to: '/acompanhamento/fotos' })}
+                    >
+                      {urls[f.id] ? (
+                        <img
+                          src={urls[f.id]}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-text-dim">
+                          <ImageIcon size={16} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {nFotos > 0 ? (
+                <p className="text-sm text-text-muted">
+                  {contar(nFotos, 'foto ligada', 'fotos ligadas')} a este lançamento. Clique numa
+                  foto para abrir a página Fotos e mapa.
+                </p>
+              ) : null}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </SheetBody>
       {podeEditar ? (
-        <SheetFooter className="flex items-center justify-between gap-2">
+        <SheetFooter className="justify-between">
           <Button
-            variant="ghost"
+            variant="danger"
             size="sm"
-            className="text-danger"
             onClick={() => void excluir()}
             disabled={del.isPending}
           >
-            <Trash2 size={12} /> Excluir
+            <Trash2 size={13} /> {del.isPending ? 'Excluindo…' : 'Excluir'}
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
             onClick={() => {
               onOpenChange(false)
               void navigate({
@@ -262,20 +311,31 @@ function Panel({
               })
             }}
           >
-            <Pencil size={12} /> Editar
+            <Pencil size={13} /> Editar
           </Button>
         </SheetFooter>
       ) : p.origem === 'viagens' ? (
-        <SheetFooter>
-          <span className="text-2xs text-text-muted">
-            Soma das viagens do dia — altere as viagens em Acompanhamento › Viagens.
+        <SheetFooter className="justify-between">
+          <span className="text-sm text-text-muted">
+            Soma das viagens do dia. Para mudar, altere as viagens.
           </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="shrink-0"
+            onClick={() => {
+              onOpenChange(false)
+              void navigate({ to: '/acompanhamento/viagens' })
+            }}
+          >
+            Abrir viagens
+          </Button>
         </SheetFooter>
       ) : p.origem === 'importacao' && p.importacao_id ? (
-        <SheetFooter>
-          <Badge variant="default" className="text-2xs">
-            lote {p.importacao_id.slice(0, 8)}
-          </Badge>
+        <SheetFooter className="justify-start">
+          <span className="text-sm text-text-muted">
+            Lote de importação <span className="tabular">{p.importacao_id.slice(0, 8)}</span>
+          </span>
         </SheetFooter>
       ) : null}
     </Sheet>
@@ -297,12 +357,14 @@ function Field({
 }): ReactNode {
   return (
     <div>
-      <div className="text-2xs font-mono uppercase text-text-dim mb-0.5">{label}</div>
-      <div className={cn('flex items-start gap-2', multiline ? 'whitespace-pre-wrap' : 'truncate')}>
-        {indicador}
-        <span className="text-text">{value}</span>
-      </div>
-      {hint && <div className="text-2xs font-mono text-text-dim mt-0.5">{hint}</div>}
+      <dt className={ROTULO}>{label}</dt>
+      <dd className="mt-0.5 text-sm">
+        <span className={cn('flex items-start gap-2', multiline && 'whitespace-pre-wrap')}>
+          {indicador}
+          <span className="text-text min-w-0 break-words">{value}</span>
+        </span>
+        {hint ? <span className="block text-sm text-text-muted mt-0.5">{hint}</span> : null}
+      </dd>
     </div>
   )
 }

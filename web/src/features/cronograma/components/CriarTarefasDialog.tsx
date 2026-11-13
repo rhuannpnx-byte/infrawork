@@ -414,7 +414,11 @@ function Conteudo({
           A tarefa nasce do serviço do orçamento e dos seus locais. A quantidade de cada local vem
           da planilha de quantidades (“do template”) ou é digitada.
         </DialogDescription>
-        <div className="mt-2 flex gap-4 border-b border-border -mb-3">
+        <div
+          role="tablist"
+          aria-label="Como criar as tarefas"
+          className="mt-2 flex gap-4 border-b border-border -mb-3"
+        >
           <TabPill active={aba === 'quantidades'} onClick={() => setAba('quantidades')}>
             Das quantidades por local
           </TabPill>
@@ -449,7 +453,7 @@ function Conteudo({
             <>
               <Campo rotulo="Uma tarefa por" className="w-56">
                 <Select value={modo} onChange={(x) => setModo(x.target.value as Modo)}>
-                  <option value="sequencia">sequência contígua (DynaRoad)</option>
+                  <option value="sequencia">sequência contígua</option>
                   <option value="local">local (todas as faixas juntas)</option>
                   <option value="janela">janela de N metros</option>
                 </Select>
@@ -485,13 +489,13 @@ function Conteudo({
             {locaisComTemplate.length === 0 ? (
               <div className="rounded border border-dashed border-border px-4 py-6 text-center text-xs text-text-dim">
                 Nenhum local tem quantidades por serviço ainda. Informe-as em Planejamento › Locais
-                (grade ou importação da planilha) — ou use a aba Manual.
+                (grade ou importação da planilha), ou use a aba Manual.
               </div>
             ) : (
               <div className="max-h-[34vh] overflow-auto rounded border border-border">
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 z-[1] bg-bg-panel">
-                    <tr className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+                    <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                       <th className="px-2 py-1.5 text-left">
                         <button
                           type="button"
@@ -538,7 +542,7 @@ function Conteudo({
                           >
                             <span className="font-mono text-2xs text-text-dim">{it.codigo}</span>
                             <span className="text-text">{it.descricao}</span>
-                            <span className="text-2xs text-text-dim">{it.unidade ?? ''}</span>
+                            <span className="text-xs text-text-muted">{it.unidade ?? ''}</span>
                           </button>
                         </td>
                         {locaisComTemplate.map((t) => {
@@ -583,8 +587,8 @@ function Conteudo({
               </div>
             )}
             <div className="rounded border border-border">
-              <div className="px-2 py-1 border-b border-border text-2xs font-mono uppercase text-text-dim">
-                Prévia — {previa.length} {previa.length === 1 ? 'tarefa' : 'tarefas'}
+              <div className="px-2 py-1 border-b border-border text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                Prévia: {previa.length} {previa.length === 1 ? 'tarefa' : 'tarefas'}
               </div>
               <div className="max-h-[22vh] overflow-auto">
                 {previa.length === 0 ? (
@@ -618,7 +622,7 @@ function Conteudo({
           <div className="max-h-[52vh] overflow-auto rounded border border-border">
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-[1] bg-bg-panel">
-                <tr className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+                <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                   <th className="w-8 py-1.5" />
                   <th className="px-2 py-1.5 text-left">Serviço</th>
                   <th className="px-2 py-1.5 text-right">Orçado</th>
@@ -781,7 +785,7 @@ function Conteudo({
                                 <option value="trecho">do template</option>
                               </Select>
                               {tpl !== null ? (
-                                <span className="text-2xs text-text-dim whitespace-nowrap">
+                                <span className="text-xs text-text-muted whitespace-nowrap">
                                   no template: {fmtNum(tpl, 'auto')}
                                 </span>
                               ) : null}
@@ -809,7 +813,7 @@ function Conteudo({
         ) : null}
       </DialogBody>
       <DialogFooter>
-        <span className="mr-auto text-2xs text-text-dim">
+        <span className="mr-auto text-xs text-text-muted">
           {aba === 'quantidades'
             ? celulas.size
               ? contar(celulas.size, 'célula marcada', 'células marcadas')

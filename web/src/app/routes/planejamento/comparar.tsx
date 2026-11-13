@@ -1,5 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Secao } from '@/components/ui/secao'
+import { Vazio } from '@/components/ui/estado'
+import { Filtro } from '@/components/ui/filtros'
+import { Select } from '@/components/ui/select'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -61,11 +65,11 @@ function CompararInner(): ReactNode {
   if (!baseline && !ativo) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Comparar" />
+        <PageHeader title="Comparar planos" />
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="git-compare"
-            title="Sem revisões para comparar"
+            title="Nenhum plano para comparar"
             description="Crie um plano e trave-o como linha de base para comparar."
           />
         </div>
@@ -77,39 +81,43 @@ function CompararInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Comparar planos"
-        subtitle="Diferença entre dois planos do cronograma."
+        subtitle="Diferença de datas entre dois planos do cronograma, tarefa por tarefa"
         actions={
-          <div className="flex items-center gap-2">
-            <span className="text-2xs font-mono text-text-dim uppercase">Esq:</span>
-            <select
-              value={esquerda?.id ?? ''}
-              onChange={(e) => setEsquerdaId(e.target.value)}
-              className="bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
-            >
-              <option value="">— escolher —</option>
-              {planejamentos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome} {p.is_baseline ? '★' : ''}
-                </option>
-              ))}
-            </select>
-            <span className="text-2xs font-mono text-text-dim uppercase">Dir:</span>
-            <select
-              value={direita?.id ?? ''}
-              onChange={(e) => setDireitaId(e.target.value)}
-              className="bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
-            >
-              <option value="">— escolher —</option>
-              {planejamentos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome} {p.is_baseline ? '★' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            <Filtro rotulo="Referência">
+              <Select
+                value={esquerda?.id ?? ''}
+                onChange={(e) => setEsquerdaId(e.target.value)}
+                className="w-[230px]"
+              >
+                <option value="">Escolher…</option>
+                {planejamentos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                    {p.is_baseline ? ' (linha de base)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </Filtro>
+            <Filtro rotulo="Comparado">
+              <Select
+                value={direita?.id ?? ''}
+                onChange={(e) => setDireitaId(e.target.value)}
+                className="w-[230px]"
+              >
+                <option value="">Escolher…</option>
+                {planejamentos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                    {p.is_baseline ? ' (linha de base)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </Filtro>
+          </>
         }
       />
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex-1 overflow-auto p-5 space-y-4">
         {esquerda && direita ? (
           <>
             <CurvaSChart
@@ -119,33 +127,42 @@ function CompararInner(): ReactNode {
               height={300}
             />
 
-            <div className="rounded border border-border bg-bg-panel overflow-hidden">
-              <div className="px-3 py-2 border-b border-border text-2xs font-mono text-text-dim uppercase flex items-center justify-between">
-                <span>Diferença tarefa-a-tarefa</span>
-                <span>
-                  <span className="text-text-dim">Esq:</span>{' '}
-                  <strong className="text-text">{esquerda.nome}</strong>
-                  {' · '}
-                  <span className="text-text-dim">Dir:</span>{' '}
-                  <strong className="text-text">{direita.nome}</strong>
-                </span>
-              </div>
-              <div className="max-h-[480px] overflow-auto">
-                <table className="w-full text-xs font-mono">
-                  <thead className="text-text-dim uppercase text-2xs bg-bg sticky top-0">
-                    <tr className="border-b border-border">
-                      <th className="text-left px-3 py-1.5">Tarefa</th>
-                      <th className="text-left px-3 py-1.5">Esq início → fim</th>
-                      <th className="text-left px-3 py-1.5">Dir início → fim</th>
-                      <th className="text-right px-3 py-1.5">Δ início</th>
-                      <th className="text-right px-3 py-1.5">Δ fim</th>
+            <Secao
+              titulo="Diferença por tarefa"
+              nota={`de "${esquerda.nome}" para "${direita.nome}"; em dias corridos, positivo é atraso`}
+              semRecuo
+            >
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Diferença de datas por tarefa"
+                className="max-h-[520px] overflow-auto border-t border-border"
+              >
+                <table className="w-full text-sm tabular">
+                  <thead className="sticky top-0 bg-bg-elevated text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                    <tr className="border-b border-border-strong">
+                      <th scope="col" className="text-left font-semibold px-4 py-2">
+                        Tarefa
+                      </th>
+                      <th scope="col" className="text-left font-semibold px-3 py-2">
+                        Referência
+                      </th>
+                      <th scope="col" className="text-left font-semibold px-3 py-2">
+                        Comparado
+                      </th>
+                      <th scope="col" className="text-right font-semibold px-3 py-2">
+                        Início
+                      </th>
+                      <th scope="col" className="text-right font-semibold px-4 py-2">
+                        Término
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {diffs.map((r) => (
                       <tr
                         key={r.key}
-                        className={cn('border-b border-border', r.grupo && 'bg-bg/40')}
+                        className={cn('border-b border-border', r.grupo && 'bg-bg-elevated')}
                       >
                         <td className="px-3 py-1.5" style={{ paddingLeft: 12 + r.nivel * 14 }}>
                           <span className="text-text-dim mr-1.5">{r.numero}</span>
@@ -166,12 +183,10 @@ function CompararInner(): ReactNode {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Secao>
           </>
         ) : (
-          <div className="text-xs text-text-dim italic">
-            Selecione duas revisões nos dropdowns acima para comparar.
-          </div>
+          <Vazio>Escolha acima o plano de referência e o plano comparado.</Vazio>
         )}
       </div>
     </div>
@@ -183,11 +198,11 @@ function Periodo({
 }: {
   p: { inicio: string | null; fim: string | null } | undefined
 }): ReactNode {
-  if (!p) return <span className="text-text-dim italic">não existe</span>
+  if (!p) return <span className="text-text-dim">não existe</span>
   if (!p.inicio && !p.fim) return <span className="text-text-dim">sem datas</span>
   return (
     <>
-      {fmtDataBR(p.inicio)} → {fmtDataBR(p.fim)}
+      {fmtDataBR(p.inicio)} a {fmtDataBR(p.fim)}
     </>
   )
 }

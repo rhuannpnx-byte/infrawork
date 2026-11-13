@@ -32,8 +32,8 @@ import { downloadBlob } from '@/lib/files/download'
 
 export function AcompanhamentoValorAgregadoPage(): ReactNode {
   return (
-    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Valor Agregado">
-      <RequireObra pageTitle="Valor Agregado">
+    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Valor agregado">
+      <RequireObra pageTitle="Valor agregado">
         <ValorAgregadoInner />
       </RequireObra>
     </RequireRole>
@@ -125,7 +125,7 @@ function ValorAgregadoInner(): ReactNode {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Valor Agregado" />
+      <PageHeader title="Valor agregado" />
       <AvisoSemLinhaDeBase obraId={obraId} />
 
       <div className="flex-1 overflow-auto">

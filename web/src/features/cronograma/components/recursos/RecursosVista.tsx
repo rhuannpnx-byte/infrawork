@@ -239,7 +239,7 @@ export function RecursosVista({
         style={{ width: LEGENDA }}
       >
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <span className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+          <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
             Recursos ({recursos.length})
           </span>
           <div className="flex gap-2 text-2xs">
@@ -267,7 +267,7 @@ export function RecursosVista({
             return (
               <div key={x.id}>
                 {novoGrupo ? (
-                  <div className="px-3 pt-2 pb-1 text-2xs font-mono uppercase tracking-wider text-text-dim">
+                  <div className="px-3 pt-2 pb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                     {NOME_GRUPO[x.grupo] ?? (x.grupo || 'Outros')}
                   </div>
                 ) : null}

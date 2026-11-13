@@ -172,7 +172,7 @@ function GrupoConteudo({
                 disabled={ro}
               />
             </Campo>
-            <p className="text-2xs text-text-dim">
+            <p className="text-xs text-text-muted">
               {fmtDataLonga(ini)} → {fmtDataLonga(fim - 1)}
               {spec ? ` · ${fmtDias(getWorkDaysBetween(new Calendar(spec), ini, fim))}` : ''} ·{' '}
               {contar(rs.length, 'tarefa', 'tarefas')}
@@ -345,7 +345,7 @@ function PlanoConteudo({
           ) : null}
         </div>
         {fim ? (
-          <p className="text-2xs text-text-dim">
+          <p className="text-xs text-text-muted">
             Término calculado: <span className="text-text-muted">{fmtDataLonga(fim)}</span>
             {prazo && segParaData(fim) > prazo ? (
               <span className="ml-2 text-danger">⚑ depois do prazo</span>

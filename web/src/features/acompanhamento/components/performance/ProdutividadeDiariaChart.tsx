@@ -13,6 +13,7 @@ import {
   Legend
 } from 'recharts'
 import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
+import { Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { regressaoLinear } from '../../lib/estatistica'
 import { COR, type EntidadeSerie } from '../../lib/performance-calc'
@@ -27,6 +28,7 @@ interface Props {
   altura?: number
 }
 
+const eixo = { ...axisStyle, fontSize: 11 }
 const fmtDM = (iso: string): string => {
   const [, m, d] = iso.split('-')
   return `${d}/${m}`
@@ -56,11 +58,7 @@ export function ProdutividadeDiariaChart({
   }, [serie, dias])
 
   if (!serie || data.length === 0) {
-    return (
-      <div className="h-[300px] flex items-center justify-center text-xs text-text-dim font-mono border border-dashed border-border rounded">
-        Sem produção no período para esta seleção.
-      </div>
-    )
+    return <Vazio>Sem produção no período para esta seleção.</Vazio>
   }
 
   const un = unidade ?? ''
@@ -81,13 +79,13 @@ export function ProdutividadeDiariaChart({
           ) : null}
           <XAxis
             dataKey="data"
-            tick={axisStyle}
+            tick={eixo}
             stroke={CHART_THEME.axisStroke}
             tickFormatter={fmtDM}
             minTickGap={28}
           />
           <YAxis
-            tick={axisStyle}
+            tick={eixo}
             stroke={CHART_THEME.axisStroke}
             tickFormatter={(v: number) => formatNumber(v, 0)}
           />
@@ -98,12 +96,17 @@ export function ProdutividadeDiariaChart({
           />
           <Legend
             verticalAlign="top"
-            height={22}
-            iconSize={8}
-            wrapperStyle={{ fontSize: 10, fontFamily: '"Archivo Variable", Archivo, sans-serif' }}
+            height={26}
+            iconSize={10}
+            formatter={(v) => <span style={{ color: 'var(--text-muted)' }}>{v}</span>}
+            wrapperStyle={{
+              fontSize: 12,
+              fontFamily: '"Archivo Variable", Archivo, sans-serif',
+              color: 'var(--text-muted)'
+            }}
           />
           <Bar
-            name="Produção/dia"
+            name="Produção do dia"
             dataKey="qtd"
             fill={COR.realizado}
             radius={[2, 2, 0, 0]}
@@ -130,20 +133,20 @@ export function ProdutividadeDiariaChart({
             strokeOpacity={0.7}
             label={{
               value: `média ${formatNumber(serie.media, 0)}`,
-              fontSize: 9,
-              fill: COR.realizado,
+              fontSize: 11,
+              fill: 'var(--text-muted)',
               position: 'insideTopLeft'
             }}
           />
-          {/* meta CPU */}
+          {/* meta da composição */}
           {cpuMeta != null ? (
             <ReferenceLine
               y={cpuMeta}
               stroke={COR.meta}
               strokeWidth={1.4}
               label={{
-                value: `meta CPU ${formatNumber(cpuMeta, 0)}`,
-                fontSize: 9,
+                value: `meta da composição ${formatNumber(cpuMeta, 0)}`,
+                fontSize: 11,
                 fill: COR.meta,
                 position: 'insideBottomLeft'
               }}
@@ -156,10 +159,10 @@ export function ProdutividadeDiariaChart({
               stroke={COR.historico}
               strokeDasharray="2 4"
               label={{
-                value: `hist. p50 ${formatNumber(historico.p50, 0)}`,
-                fontSize: 9,
+                value: `mediana histórica ${formatNumber(historico.p50, 0)}`,
+                fontSize: 11,
                 fill: COR.historico,
-                position: 'insideTopRight'
+                position: 'insideBottomRight'
               }}
             />
           ) : null}

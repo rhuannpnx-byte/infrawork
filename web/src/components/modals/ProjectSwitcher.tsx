@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ArrowLeft, Building2, Folder, Search, Star } from 'lucide-react'
+import { ArrowLeft, Building2, Folder, Search, Check } from 'lucide-react'
 import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useEmpresas } from '@/features/gerencial/hooks'
 import { cn } from '@/lib/utils'
+import { rotuloStatusObra } from '@/features/gerencial/lib/status-obra'
 
 type Step = 'empresa' | 'obra'
 
@@ -74,13 +75,14 @@ export function ProjectSwitcher(): ReactNode {
             <button
               type="button"
               onClick={() => setStep('empresa')}
-              className="text-text-dim hover:text-text"
-              aria-label="Voltar para seleção de empresa"
+              className="inline-flex size-7 items-center justify-center rounded text-text-muted hover:bg-bg-hover hover:text-text"
+              aria-label="Voltar para a escolha da empresa"
+              title="Voltar para a escolha da empresa"
             >
-              <ArrowLeft size={13} />
+              <ArrowLeft size={14} />
             </button>
           ) : null}
-          {step === 'empresa' ? 'Selecionar empresa' : 'Selecionar obra'}
+          {step === 'empresa' ? 'Escolher a empresa' : 'Escolher a obra'}
           {step === 'obra' && scope.empresaId ? (
             <Badge variant="default" className="ml-1">
               <Building2 size={12} /> {empresaLabel}
@@ -93,7 +95,10 @@ export function ProjectSwitcher(): ReactNode {
         <div className="relative mb-3">
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim" />
           <Input
-            placeholder={step === 'empresa' ? 'Buscar empresa…' : 'Buscar obra…'}
+            placeholder={
+              step === 'empresa' ? 'Buscar empresa' : 'Buscar obra pelo código ou pelo nome'
+            }
+            aria-label={step === 'empresa' ? 'Buscar empresa' : 'Buscar obra'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-7"
@@ -135,7 +140,7 @@ export function ProjectSwitcher(): ReactNode {
       </DialogBody>
 
       <DialogFooter>
-        <Button variant="ghost" onClick={close}>
+        <Button variant="secondary" onClick={close}>
           Fechar
         </Button>
       </DialogFooter>
@@ -177,13 +182,13 @@ function EmpresasList({
       <EmptyState
         icon="building-2"
         title="Nenhuma empresa visível"
-        description="Cadastre uma empresa em Gerencial → Empresas e adicione obras a ela."
+        description="Cadastre uma empresa em Gerencial, Empresas, e adicione obras a ela."
       />
     )
   }
 
   return (
-    <div className="space-y-1 max-h-[320px] overflow-y-auto">
+    <div className="space-y-1 max-h-[min(360px,50vh)] overflow-y-auto">
       {items.map((it) => {
         const isActive = it.id === currentId
         return (
@@ -194,19 +199,19 @@ function EmpresasList({
             className={cn(
               'w-full text-left rounded border p-3 transition-colors flex items-center justify-between gap-3',
               isActive
-                ? 'border-accent-line bg-accent-glow'
-                : 'border-border bg-bg-elevated hover:bg-bg-hover hover:border-border-accent'
+                ? 'border-accent bg-accent-glow-strong'
+                : 'border-border bg-bg-panel hover:bg-bg-hover hover:border-border-accent'
             )}
           >
             <div className="flex items-center gap-2 min-w-0">
               {isActive ? (
-                <Star size={12} className="text-warn fill-warn shrink-0" />
+                <Check size={14} className="text-accent shrink-0" />
               ) : (
                 <Building2 size={12} className="text-text-muted shrink-0" />
               )}
               <span className="text-sm text-text font-medium truncate">{it.nome}</span>
             </div>
-            <span className="text-2xs font-mono text-text-muted shrink-0">
+            <span className="text-xs tabular text-text-muted shrink-0">
               {it.obrasCount} {it.obrasCount === 1 ? 'obra' : 'obras'}
             </span>
           </button>
@@ -235,8 +240,8 @@ function ObrasList({
     return (
       <EmptyState
         icon="building-2"
-        title="Selecione uma empresa primeiro"
-        description="A lista de obras será filtrada pela empresa escolhida."
+        title="Escolha a empresa primeiro"
+        description="A lista mostra as obras da empresa escolhida."
       />
     )
   }
@@ -247,15 +252,15 @@ function ObrasList({
         title="Nenhuma obra disponível"
         description={
           emptyVariant === 'no-access'
-            ? 'Você ainda não tem acesso a nenhuma obra. Solicite ao Adm da empresa.'
-            : 'Cadastre a primeira obra em Gerencial → Obras.'
+            ? 'Você ainda não tem acesso a nenhuma obra. Peça ao administrador da empresa.'
+            : 'Cadastre a primeira obra em Gerencial, Obras.'
         }
       />
     )
   }
 
   return (
-    <div className="space-y-1 max-h-[320px] overflow-y-auto">
+    <div className="space-y-1 max-h-[min(360px,50vh)] overflow-y-auto">
       {obras.map((o) => {
         const isActive = o.id === currentId
         return (
@@ -266,18 +271,18 @@ function ObrasList({
             className={cn(
               'w-full text-left rounded border p-3 transition-colors',
               isActive
-                ? 'border-accent-line bg-accent-glow'
-                : 'border-border bg-bg-elevated hover:bg-bg-hover hover:border-border-accent'
+                ? 'border-accent bg-accent-glow-strong'
+                : 'border-border bg-bg-panel hover:bg-bg-hover hover:border-border-accent'
             )}
           >
             <div className="flex items-center gap-2 mb-1">
               {isActive ? (
-                <Star size={12} className="text-warn fill-warn" />
+                <Check size={14} className="text-accent" />
               ) : (
                 <Folder size={12} className="text-text-muted" />
               )}
-              <span className="font-mono text-accent text-xs">{o.codigo}</span>
-              <Badge>{o.status.replace('_', ' ')}</Badge>
+              <span className="tabular font-semibold text-accent text-sm">{o.codigo}</span>
+              <Badge variant="outline">{rotuloStatusObra(o.status)}</Badge>
             </div>
             <div className="text-sm text-text font-medium">{o.nome}</div>
           </button>

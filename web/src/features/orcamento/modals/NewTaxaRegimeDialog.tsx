@@ -4,12 +4,13 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useCreateTaxa } from '../hooks/taxas'
 import { fmtPct2, parseBR } from '@/lib/money'
@@ -44,13 +45,13 @@ const DEFAULTS: Record<CampoKey, string> = {
 }
 
 const CAMPOS: CampoPerc[] = [
-  { key: 'iss_perc', label: 'ISS', hint: 'varia 2-5% por município' },
+  { key: 'iss_perc', label: 'ISS', hint: 'Varia de 2% a 5% conforme o município.' },
   { key: 'pis_perc', label: 'PIS' },
   { key: 'cofins_perc', label: 'COFINS' },
-  { key: 'csll_perc', label: 'CSLL', hint: 'presumido construção' },
-  { key: 'irpj_perc', label: 'IRPJ', hint: 'presumido construção' },
-  { key: 'cprb_perc', label: 'CPRB', hint: 'desoneração folha' },
-  { key: 'outros_perc', label: 'Outros', hint: 'demais taxas' }
+  { key: 'csll_perc', label: 'CSLL', hint: 'Lucro presumido da construção.' },
+  { key: 'irpj_perc', label: 'IRPJ', hint: 'Lucro presumido da construção.' },
+  { key: 'cprb_perc', label: 'CPRB', hint: 'Desoneração da folha.' },
+  { key: 'outros_perc', label: 'Outros', hint: 'Demais taxas sobre a receita.' }
 ]
 
 /**
@@ -70,19 +71,34 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
   const [nome, setNome] = useState('Padrão')
   const [percs, setPercs] = useState<Record<CampoKey, string>>({ ...DEFAULTS })
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
     setNome('Padrão')
     setPercs({ ...DEFAULTS })
     setError(null)
+    setTentou(false)
   }
+
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  const erroNome = nome.trim().length < 2 ? 'Informe o nome do conjunto de taxas.' : undefined
 
   // Total como fração (0..1) — soma dos campos / 100
   const total = CAMPOS.reduce((acc, c) => acc + parsePerc(percs[c.key]) / 100, 0)
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
+    if (erroNome) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+      return
+    }
     try {
       await create.mutateAsync({
         obra_id: obraId,
@@ -99,7 +115,9 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar taxa')
+      setError(
+        `Não foi possível criar a taxa. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
@@ -119,75 +137,60 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="lg"
-      disableDismiss={create.isPending}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="lg" disableDismiss={create.isPending}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Nova taxa</DialogTitle>
+          <DialogDescription>
+            Conjunto de impostos sobre a receita. O total é descontado da venda no cálculo do lucro:
+            lucro = venda − custo − venda × total.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
 
-          <div className="text-2xs font-mono text-text-dim">
-            Conjunto de impostos sobre a receita. O <strong>total</strong> abaixo é aplicado como
-            deflator no cálculo de lucro: <code>Lucro = Venda − Custo − Venda × total</code>.
-          </div>
-
-          <div>
-            <Label htmlFor="t-nome">Nome</Label>
+          <Campo rotulo="Nome" obrigatorio erro={tentou ? erroNome : undefined}>
             <Input
-              id="t-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
+              autoComplete="off"
               autoFocus
-              placeholder="Ex.: Padrão, Lucro Real 2026, etc."
+              placeholder="Ex.: Padrão, Lucro real 2026"
             />
-          </div>
+          </Campo>
 
           <div className="grid grid-cols-2 gap-3">
             {CAMPOS.map((c) => (
-              <div key={c.key}>
-                <Label htmlFor={`t-${c.key}`}>
-                  {c.label} (%)
-                  {c.hint ? <span className="text-text-dim font-normal"> · {c.hint}</span> : null}
-                </Label>
+              <Campo key={c.key} rotulo={`${c.label} (%)`} dica={c.hint}>
                 <Input
-                  id={`t-${c.key}`}
                   value={percs[c.key]}
                   onChange={(e) => setPerc(c.key, e.target.value)}
                   inputMode="decimal"
+                  autoComplete="off"
                   placeholder="0,00"
+                  className="tabular text-right"
                 />
-              </div>
+              </Campo>
             ))}
           </div>
 
-          <div className="border-t border-border pt-2 flex justify-between items-baseline">
-            <span className="text-2xs text-text-dim font-mono uppercase">
-              Total (deflator de receita)
+          <div className="flex items-baseline justify-between border-t border-border pt-2">
+            <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+              Total descontado da receita
             </span>
-            <span className="text-md font-mono text-accent tabular-nums">{fmtPct2(total)}</span>
+            <span className="tabular text-md font-semibold text-text">{fmtPct2(total)}</span>
           </div>
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
+            variant="secondary"
+            onClick={() => aoMudar(false)}
             disabled={create.isPending}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={create.isPending}>
+          <Button type="submit" disabled={create.isPending}>
             {create.isPending ? 'Criando…' : 'Criar taxa'}
           </Button>
         </DialogFooter>

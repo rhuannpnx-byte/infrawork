@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
 import { useUsuarios } from '@/features/gerencial/hooks'
 import { useAuthStore } from '@/stores/auth-store'
@@ -14,7 +15,6 @@ import { DeleteUsuarioDialog } from '@/features/gerencial/modals/DeleteUsuarioDi
 import { RedefinirSenhaDialog } from '@/features/gerencial/modals/RedefinirSenhaDialog'
 import { ObrasDoUsuarioDialog } from '@/features/gerencial/modals/ObrasDoUsuarioDialog'
 import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { rotuloPapel } from '@/lib/rotulos'
 import type { Role } from '@/types/auth'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
@@ -45,7 +45,8 @@ export function UsuariosPage(): ReactNode {
   const {
     data: usuarios = [],
     isLoading,
-    error
+    error,
+    refetch
   } = useUsuarios(ehGod ? { refetchInterval: 45_000 } : undefined)
   const [openNew, setOpenNew] = useState(false)
   const [editTarget, setEditTarget] = useState<UsuarioComEmpresa | null>(null)
@@ -96,28 +97,28 @@ export function UsuariosPage(): ReactNode {
       },
       {
         id: 'engenheiro',
-        header: 'Eng. responsável',
+        header: 'Engenheiro responsável',
         accessorFn: (row) => row.engenheiro?.nome ?? (row.role === 'apoio' ? '—' : ''),
         cell: (info) => {
           const v = String(info.getValue() ?? '')
           return v ? (
             <span className="text-text-muted">{v}</span>
           ) : (
-            <span className="text-text-faint">—</span>
+            <span className="text-text-dim">—</span>
           )
         },
-        meta: { label: 'Engenheiro' }
+        meta: { label: 'Engenheiro responsável' }
       },
       {
         accessorKey: 'ativo',
-        header: 'Status',
+        header: 'Situação',
         cell: (info) =>
           (info.getValue() as boolean) ? (
-            <Badge variant="success">ativo</Badge>
+            <Badge variant="success">Ativo</Badge>
           ) : (
-            <Badge>inativo</Badge>
+            <Badge>Inativo</Badge>
           ),
-        meta: { label: 'Status' },
+        meta: { label: 'Situação' },
         size: 90
       },
       ...(ehGod
@@ -130,15 +131,15 @@ export function UsuariosPage(): ReactNode {
                 const lastSeen = info.row.original.last_seen_at
                 if (estaOnline(lastSeen)) {
                   return (
-                    <span className="inline-flex items-center gap-1.5 text-2xs font-mono text-success">
-                      <span className="size-2 rounded-full bg-success animate-pulse" />
-                      online
+                    <span className="inline-flex items-center gap-1.5 text-text">
+                      <span className="size-2 rounded-full bg-success animate-pulse" aria-hidden />
+                      Online
                     </span>
                   )
                 }
                 return (
                   <span
-                    className="text-2xs font-mono text-text-faint"
+                    className="text-text-muted"
                     title={lastSeen ? formatDateTimeShort(lastSeen) : undefined}
                   >
                     {lastSeen ? timeAgo(lastSeen) : '—'}
@@ -152,9 +153,7 @@ export function UsuariosPage(): ReactNode {
               accessorKey: 'acessos_count',
               header: 'Acessos',
               cell: (info) => (
-                <span className="font-mono tabular-nums text-text-muted">
-                  {Number(info.getValue() ?? 0)}
-                </span>
+                <span className="tabular text-text-muted">{Number(info.getValue() ?? 0)}</span>
               ),
               meta: { label: 'Acessos' },
               size: 80
@@ -165,9 +164,7 @@ export function UsuariosPage(): ReactNode {
               cell: (info) => {
                 const v = info.getValue() as string | null
                 return (
-                  <span
-                    className={cn('font-mono text-2xs', v ? 'text-text-dim' : 'text-text-faint')}
-                  >
+                  <span className="tabular text-text-muted">
                     {v ? formatDateTimeShort(v) : '—'}
                   </span>
                 )
@@ -181,9 +178,7 @@ export function UsuariosPage(): ReactNode {
         accessorKey: 'created_at',
         header: 'Criado em',
         cell: (info) => (
-          <span className="font-mono text-2xs text-text-dim">
-            {formatDate(info.getValue() as string)}
-          </span>
+          <span className="tabular text-text-muted">{formatDate(info.getValue() as string)}</span>
         ),
         meta: { label: 'Criado em' },
         size: 150
@@ -192,8 +187,8 @@ export function UsuariosPage(): ReactNode {
         ? ([
             {
               id: 'acoes',
-              header: '',
-              size: 130,
+              header: () => <span className="sr-only">Ações</span>,
+              size: 150,
               enableSorting: false,
               cell: ({ row }) => {
                 const u = row.original
@@ -203,7 +198,7 @@ export function UsuariosPage(): ReactNode {
                       <Button
                         size="icon"
                         variant="ghost"
-                        title="Obras liberadas"
+                        title={`Obras liberadas para ${u.nome}`}
                         aria-label={`Obras liberadas para ${u.nome}`}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -217,7 +212,7 @@ export function UsuariosPage(): ReactNode {
                       <Button
                         size="icon"
                         variant="ghost"
-                        title="Redefinir senha"
+                        title={`Redefinir senha de ${u.nome}`}
                         aria-label={`Redefinir senha de ${u.nome}`}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -231,7 +226,8 @@ export function UsuariosPage(): ReactNode {
                       <Button
                         size="icon"
                         variant="ghost"
-                        title="Editar"
+                        title={`Editar usuário ${u.nome}`}
+                        aria-label={`Editar usuário ${u.nome}`}
                         onClick={(e) => {
                           e.stopPropagation()
                           setEditTarget(u)
@@ -244,7 +240,8 @@ export function UsuariosPage(): ReactNode {
                       <Button
                         size="icon"
                         variant="ghost"
-                        title="Excluir"
+                        title={`Excluir usuário ${u.nome}`}
+                        aria-label={`Excluir usuário ${u.nome}`}
                         className="text-danger hover:text-danger hover:bg-danger/10"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -257,7 +254,7 @@ export function UsuariosPage(): ReactNode {
                   </div>
                 )
               },
-              meta: { label: '' }
+              meta: { label: 'Ações' }
             }
           ] as ColumnDef<UsuarioComEmpresa, unknown>[])
         : [])
@@ -273,7 +270,7 @@ export function UsuariosPage(): ReactNode {
           <EmptyState
             icon="shield"
             title="Sem permissão"
-            description="Você não tem permissão para gerenciar usuários."
+            description="Só administradores e engenheiros gerenciam usuários. Peça ao administrador da sua empresa."
           />
         </div>
       </div>
@@ -288,7 +285,7 @@ export function UsuariosPage(): ReactNode {
           role === 'god'
             ? 'Todos os usuários do sistema.'
             : role === 'engenheiro'
-              ? 'Usuários da sua empresa. Você só pode criar Apoios vinculados a si.'
+              ? 'Usuários da sua empresa. Você cadastra apoios e apontadores.'
               : 'Usuários da sua empresa.'
         }
         actions={
@@ -298,19 +295,22 @@ export function UsuariosPage(): ReactNode {
         }
       />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
-        </div>
+        <ErroConsulta
+          erro={error}
+          oQue="os usuários"
+          aoTentar={() => void refetch()}
+          className="mx-3 my-2"
+        />
       ) : null}
-      {usuarios.length === 0 && !isLoading ? (
+      {error && usuarios.length === 0 ? null : usuarios.length === 0 && !isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="users"
-            title="Nenhum usuário"
+            title="Nenhum usuário cadastrado"
             description={
               role === 'engenheiro'
-                ? 'Você ainda não cadastrou nenhum Apoio.'
-                : 'Cadastre o primeiro usuário.'
+                ? 'Cadastre o primeiro apoio ou apontador da sua equipe.'
+                : 'Cadastre o primeiro usuário para dar acesso ao sistema.'
             }
             action={
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
@@ -326,7 +326,7 @@ export function UsuariosPage(): ReactNode {
           columns={columns}
           loading={isLoading}
           globalSearchPlaceholder="Buscar por nome…"
-          emptyMessage="Nenhum usuário encontrado"
+          emptyMessage="Nenhum usuário encontrado com essa busca."
         />
       )}
 

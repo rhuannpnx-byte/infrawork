@@ -8,8 +8,8 @@ import {
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
@@ -37,6 +37,8 @@ const ROLE_LABEL: Record<Role, string> = {
   apontador: 'Apontador (app de campo)'
 }
 
+type CampoComErro = 'nome' | 'empresa' | 'engenheiro'
+
 export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): ReactNode {
   const update = useUpdateUsuario()
   const callerRole = useAuthStore((s) => s.profile?.role)
@@ -51,6 +53,7 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
   const [engenheiroId, setEngenheiroId] = useState<string>('')
   const [ativo, setAtivo] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const { data: empresas = [] } = useEmpresas()
   const empresaParaEngenheiros = callerRole === 'god' ? empresaId : callerEmpresaId
@@ -66,6 +69,7 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
     setEngenheiroId(usuario.engenheiro_id ?? '')
     setAtivo(usuario.ativo)
     setError(null)
+    setTentou(false)
   }, [usuario])
 
   // Coerência papel → vínculos.
@@ -79,10 +83,30 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
     if (callerRole !== 'god' && role !== 'god') setEmpresaId(callerEmpresaId ?? '')
   }, [callerRole, callerEmpresaId, role])
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const escolheEmpresa = callerRole === 'god' && role !== 'god'
+
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (nome.trim().length < 2) erros.nome = 'Informe o nome do usuário.'
+  if (escolheEmpresa && !empresaId) erros.empresa = 'Selecione a empresa.'
+  if (role === 'apoio' && !engenheiroId)
+    erros.engenheiro =
+      engenheirosEmpresa.length === 0
+        ? 'Não há engenheiro ativo nesta empresa. Cadastre o engenheiro antes do apoio.'
+        : 'Selecione o engenheiro responsável pelo apoio.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
     if (!usuario) return
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() =>
+        form.querySelector<HTMLElement>('[aria-invalid="true"]:not(:disabled)')?.focus()
+      )
+      return
+    }
     try {
       const body: Parameters<typeof update.mutateAsync>[0] = {
         id: usuario.id,
@@ -91,79 +115,57 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
         role,
         ativo
       }
-      if (role !== 'god') {
-        if (callerRole === 'god') {
-          if (!empresaId) {
-            setError('Selecione a empresa.')
-            return
-          }
-          body.empresa_id = empresaId
-        }
-        // Adm: a Edge Function trava na empresa do caller.
-      }
-      if (role === 'apoio') {
-        if (!engenheiroId) {
-          setError('Selecione o engenheiro responsável pelo Apoio.')
-          return
-        }
-        body.engenheiro_id = engenheiroId
-      }
+      // Adm: a Edge Function trava na empresa do caller.
+      if (escolheEmpresa) body.empresa_id = empresaId
+      if (role === 'apoio') body.engenheiro_id = engenheiroId
 
       const res = await update.mutateAsync(body)
       toast.success(`Usuário ${res.email} atualizado.`)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao atualizar usuário')
+      setError(
+        `Não foi possível salvar o usuário. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="md" disableDismiss={update.isPending}>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Editar usuário</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
 
-          <div>
-            <Label>Email</Label>
-            <Input value={usuario?.email ?? ''} disabled readOnly />
-            <div className="text-2xs text-text-dim font-mono mt-1">
-              O email não pode ser alterado.
-            </div>
-          </div>
+          <Campo rotulo="E-mail" dica="O e-mail não pode ser alterado.">
+            <Input type="email" value={usuario?.email ?? ''} disabled readOnly />
+          </Campo>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="e-nome">Nome</Label>
+            <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>
               <Input
-                id="e-nome"
+                autoComplete="off"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                required
-                minLength={2}
                 autoFocus
               />
-            </div>
-            <div>
-              <Label htmlFor="e-wpp">WhatsApp</Label>
+            </Campo>
+            <Campo rotulo="WhatsApp" dica="Opcional. Com DDI e DDD.">
               <Input
-                id="e-wpp"
                 type="tel"
+                inputMode="tel"
+                autoComplete="off"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(maskWhatsappBR(e.target.value))}
                 placeholder="+55 (64) 99999-9999"
-                inputMode="tel"
               />
-            </div>
+            </Campo>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="e-role">Papel</Label>
+            <Campo rotulo="Papel" obrigatorio>
               <Select
-                id="e-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
                 disabled={allowedRoles.length <= 1}
@@ -175,29 +177,21 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
                   </option>
                 ))}
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="e-status">Status</Label>
+            </Campo>
+            <Campo rotulo="Situação" dica="Usuário inativo não consegue entrar.">
               <Select
-                id="e-status"
                 value={ativo ? 'ativo' : 'inativo'}
                 onChange={(e) => setAtivo(e.target.value === 'ativo')}
               >
                 <option value="ativo">Ativo</option>
                 <option value="inativo">Inativo</option>
               </Select>
-            </div>
+            </Campo>
           </div>
 
-          {callerRole === 'god' && role !== 'god' ? (
-            <div>
-              <Label htmlFor="e-emp">Empresa</Label>
-              <Select
-                id="e-emp"
-                value={empresaId}
-                onChange={(e) => setEmpresaId(e.target.value)}
-                required
-              >
+          {escolheEmpresa ? (
+            <Campo rotulo="Empresa" obrigatorio erro={erro('empresa')}>
+              <Select value={empresaId} onChange={(e) => setEmpresaId(e.target.value)}>
                 <option value="">Selecione…</option>
                 {empresas.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -205,17 +199,19 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
                   </option>
                 ))}
               </Select>
-            </div>
+            </Campo>
           ) : null}
 
           {role === 'apoio' ? (
-            <div>
-              <Label htmlFor="e-eng">Engenheiro responsável</Label>
+            <Campo
+              rotulo="Engenheiro responsável"
+              obrigatorio
+              dica="O apoio herda o acesso às obras deste engenheiro."
+              erro={erro('engenheiro')}
+            >
               <Select
-                id="e-eng"
                 value={engenheiroId}
                 onChange={(e) => setEngenheiroId(e.target.value)}
-                required
                 disabled={engenheirosEmpresa.length === 0}
               >
                 <option value="">
@@ -229,19 +225,19 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
                   </option>
                 ))}
               </Select>
-            </div>
+            </Campo>
           ) : null}
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={update.isPending}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={update.isPending}>
+          <Button type="submit" disabled={update.isPending}>
             {update.isPending ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogFooter>

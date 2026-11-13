@@ -38,7 +38,9 @@ export function FiltroPopover({ entrada: e, filtro, onChange }: Props): ReactNod
   ): ReactNode =>
     itens.length ? (
       <div className="space-y-1">
-        <div className="text-2xs font-mono uppercase tracking-wider text-text-dim">{titulo}</div>
+        <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+          {titulo}
+        </div>
         <div className="max-h-36 space-y-0.5 overflow-auto pr-1">
           {itens.map((i) => (
             <Caixa
@@ -68,9 +70,9 @@ export function FiltroPopover({ entrada: e, filtro, onChange }: Props): ReactNod
         </Button>
       }
     >
-      <div className="w-80 space-y-3 rounded-md border border-border-strong bg-bg-elevated p-3 shadow-xl">
+      <div className="w-80 space-y-3 p-2">
         <div className="flex items-center justify-between">
-          <span className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+          <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
             Filtro da visão
           </span>
           {n ? (
@@ -113,7 +115,7 @@ export function FiltroPopover({ entrada: e, filtro, onChange }: Props): ReactNod
           'equipes',
           e.equipesNomeadas.map((q) => ({ id: q.id, rotulo: q.nome }))
         )}
-        <p className="text-2xs text-text-dim">
+        <p className="text-xs text-text-muted">
           Ficam as tarefas que passam em todos os critérios, com as suas tarefas-resumo. As tarefas
           fora do filtro continuam no plano e no cálculo.
         </p>

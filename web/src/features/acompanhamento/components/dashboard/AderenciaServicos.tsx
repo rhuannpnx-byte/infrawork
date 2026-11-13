@@ -89,7 +89,12 @@ export function AderenciaServicos({
           realizado sobre o previsto
         </span>
       </div>
-      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Aderência por serviço"
+        className="flex-1 overflow-auto px-4 pb-3 space-y-1.5"
+      >
         {linhas.length === 0 && (
           <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
             Nenhum serviço na linha de base.

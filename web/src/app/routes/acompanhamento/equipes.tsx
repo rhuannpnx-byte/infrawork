@@ -5,8 +5,8 @@ import { EquipesEncarregados } from '@/features/planejamento/components/EquipesE
 
 export function AcompanhamentoEquipesPage(): ReactNode {
   return (
-    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Equipes & Encarregados">
-      <RequireObra pageTitle="Equipes & Encarregados">
+    <RequireRole allow={['god', 'adm', 'engenheiro', 'apoio']} pageTitle="Equipes e encarregados">
+      <RequireObra pageTitle="Equipes e encarregados">
         <EquipesEncarregados />
       </RequireObra>
     </RequireRole>

@@ -12,7 +12,6 @@ const iconButtonVariants = cva(
         accent: 'text-text-muted hover:text-accent hover:bg-bg-hover'
       },
       size: {
-        // Mínimo WCAG 2.2 SC 2.5.8: 24×24. Default 28 (combina com Button size default).
         sm: 'w-7 h-7',
         default: 'w-8 h-8'
       }
@@ -27,14 +26,15 @@ export interface IconButtonProps
 }
 
 /**
- * Botão icon-only com hit area ≥24×24. Use para chevron, X de fechar, lápis de
- * editar, lixeira inline, etc. Sempre passe aria-label descritivo.
+ * Botão só com ícone, com área de toque de pelo menos 28×28. O `aria-label` é obrigatório e vira também a dica
+ * do mouse quando não há `title`.
  */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ className, variant, size, type = 'button', ...props }, ref) => (
+  ({ className, variant, size, type = 'button', title, ...props }, ref) => (
     <button
       ref={ref}
       type={type}
+      title={title ?? props['aria-label']}
       className={cn(iconButtonVariants({ variant, size }), className)}
       {...props}
     />

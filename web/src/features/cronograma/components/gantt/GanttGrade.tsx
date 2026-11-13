@@ -237,7 +237,7 @@ export function GanttGrade(p: Props): ReactNode {
                           'h-full shrink-0 truncate px-2 leading-[26px] tabular-nums',
                           c.direita && 'text-right',
                           c.id === 'numero'
-                            ? 'font-mono text-2xs text-text-faint'
+                            ? 'tabular text-2xs text-text-dim'
                             : forte
                               ? 'text-text-muted'
                               : 'text-text-muted',

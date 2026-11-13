@@ -1,14 +1,26 @@
 import { useState, type ReactNode } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { EstadoConsulta } from '@/components/ui/estado'
 import { useRecursoPrecos, useSetRecursoPrecoVigente } from '../hooks/recursos'
 import { fmtBRL4 } from '@/lib/money'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { NewRecursoPrecoDialog } from './NewRecursoPrecoDialog'
+
+/** Origem gravada pela importação da planilha; as demais são texto digitado pelo usuário. */
+const rotuloOrigem = (origem: string | null): string =>
+  origem === 'importacao_modelo' ? 'Importação da planilha' : (origem ?? '—')
 
 interface Props {
   open: boolean
@@ -23,7 +35,8 @@ export function RecursoPrecoHistoricoDialog({
   recursoId,
   recursoNome
 }: Props): ReactNode {
-  const { data: precos = [], isLoading } = useRecursoPrecos(open ? recursoId : null)
+  const consulta = useRecursoPrecos(open ? recursoId : null)
+  const precos = consulta.data ?? []
   const setVigente = useSetRecursoPrecoVigente()
   const [openNew, setOpenNew] = useState(false)
 
@@ -32,7 +45,9 @@ export function RecursoPrecoHistoricoDialog({
       await setVigente.mutateAsync({ preco_id: precoId, recurso_id: recursoId })
       toast.success('Preço vigente atualizado.')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao marcar vigente')
+      toast.error('Não foi possível trocar o preço vigente.', {
+        description: err instanceof Error ? err.message : undefined
+      })
     }
   }
 
@@ -40,26 +55,37 @@ export function RecursoPrecoHistoricoDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange} size="lg">
         <DialogHeader>
-          <DialogTitle>Histórico de preços — {recursoNome}</DialogTitle>
+          <DialogTitle>Histórico de preços</DialogTitle>
+          <DialogDescription>{recursoNome}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-2">
-          {isLoading ? (
-            <div className="text-xs text-text-muted font-mono p-3">Carregando…</div>
-          ) : precos.length === 0 ? (
-            <div className="text-xs text-text-muted font-mono p-3">Nenhum preço registrado.</div>
-          ) : (
-            <>
-              <div className="text-2xs text-text-dim font-mono">
-                Histórico em ordem de inserção. Marque qual preço está vigente.
-              </div>
-              <table className="w-full text-xs font-mono">
-                <thead className="text-2xs text-text-dim uppercase">
-                  <tr className="border-b border-border">
-                    <th className="text-left px-2 py-1.5 w-20">Vigente</th>
-                    <th className="text-left px-2 py-1.5">Custo unitário</th>
-                    <th className="text-left px-2 py-1.5">Inserido em</th>
-                    <th className="text-left px-2 py-1.5">Vigência</th>
-                    <th className="text-left px-2 py-1.5">Origem</th>
+          <EstadoConsulta
+            consulta={consulta}
+            oQue="o histórico de preços"
+            vazio={precos.length === 0}
+            textoVazio="Este recurso ainda não tem preço. Use Novo preço para registrar o primeiro."
+          >
+            <p className="text-sm text-text-muted">
+              Do mais recente ao mais antigo. Marque o preço que vale hoje para as composições.
+              {setVigente.isPending ? (
+                <span role="status" className="ml-2 text-text">
+                  Salvando…
+                </span>
+              ) : null}
+            </p>
+            <div
+              className="max-h-[55vh] overflow-auto rounded border border-border"
+              role="region"
+              aria-label="Preços registrados"
+            >
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-bg-elevated text-left text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                    <th className="w-28 px-2 py-1.5">Vigente</th>
+                    <th className="px-2 py-1.5 text-right">Custo unitário</th>
+                    <th className="px-2 py-1.5">Registrado em</th>
+                    <th className="px-2 py-1.5">Vigência</th>
+                    <th className="px-2 py-1.5">Origem</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -67,43 +93,49 @@ export function RecursoPrecoHistoricoDialog({
                     <tr
                       key={p.id}
                       className={cn(
-                        'border-b border-border',
+                        'border-b border-border last:border-b-0',
                         p.is_vigente ? 'bg-accent-glow' : ''
                       )}
                     >
                       <td className="px-2 py-1.5">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-1.5">
                           <input
                             type="radio"
                             name={`vigente-${recursoId}`}
                             checked={p.is_vigente}
                             onChange={() => void marcarVigente(p.id)}
                             disabled={setVigente.isPending}
-                            className="accent-[color:var(--accent)] cursor-pointer"
+                            aria-label={`Usar como vigente o preço de ${fmtBRL4(p.custo_unitario)}, de ${formatDate(p.vigencia_inicio)}`}
+                            className="h-4 w-4 cursor-pointer accent-[color:var(--accent)]"
                           />
-                          {p.is_vigente ? <Badge variant="success">vigente</Badge> : null}
+                          {p.is_vigente ? <Badge variant="success">Vigente</Badge> : null}
                         </label>
                       </td>
-                      <td className="px-2 py-1.5 text-text">{fmtBRL4(p.custo_unitario)}</td>
-                      <td className="px-2 py-1.5 text-text-muted">{formatDate(p.created_at)}</td>
-                      <td className="px-2 py-1.5 text-text-muted">
-                        {formatDate(p.vigencia_inicio)}
-                        {p.vigencia_fim ? ` – ${formatDate(p.vigencia_fim)}` : ''}
+                      <td className="tabular px-2 py-1.5 text-right text-text">
+                        {fmtBRL4(p.custo_unitario)}
                       </td>
-                      <td className="px-2 py-1.5 text-text-dim">{p.origem ?? '—'}</td>
+                      <td className="tabular px-2 py-1.5 text-text-muted">
+                        {formatDate(p.created_at)}
+                      </td>
+                      <td className="tabular px-2 py-1.5 text-text-muted">
+                        {p.vigencia_fim
+                          ? `${formatDate(p.vigencia_inicio)} a ${formatDate(p.vigencia_fim)}`
+                          : `desde ${formatDate(p.vigencia_inicio)}`}
+                      </td>
+                      <td className="px-2 py-1.5 text-text-muted">{rotuloOrigem(p.origem)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </>
-          )}
+            </div>
+          </EstadoConsulta>
         </DialogBody>
         <DialogFooter>
-          <Button type="button" variant="secondary" size="sm" onClick={() => setOpenNew(true)}>
-            <Plus size={12} /> Novo preço
-          </Button>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Fechar
+          </Button>
+          <Button type="button" onClick={() => setOpenNew(true)}>
+            <Plus size={12} /> Novo preço
           </Button>
         </DialogFooter>
       </Dialog>

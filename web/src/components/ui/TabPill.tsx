@@ -21,8 +21,10 @@ export const TabPill = forwardRef<HTMLButtonElement, TabPillProps>(
       role="tab"
       aria-selected={active}
       className={cn(
-        'py-2 text-xs font-mono border-b-2 transition-colors',
-        active ? 'border-accent text-accent' : 'border-transparent text-text-dim hover:text-text',
+        'py-2 text-sm border-b-2 transition-colors',
+        active
+          ? 'border-accent text-accent font-semibold'
+          : 'border-transparent text-text-muted hover:text-text',
         className
       )}
       {...props}

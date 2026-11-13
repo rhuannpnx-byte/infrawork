@@ -1,11 +1,16 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Copy, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Copy, Plus, Trash2, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireRole } from '@/components/layout/RequireRole'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Campo } from '@/components/ui/campo'
+import { Carregando, ErroConsulta, Vazio } from '@/components/ui/estado'
+import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { parseQtd } from '@/features/acompanhamento/lib/parse-qtd'
@@ -33,22 +38,29 @@ export function GerencialFrotaPage(): ReactNode {
 
 const TIPOS = Object.keys(TIPO_VEICULO_LABEL) as TipoVeiculo[]
 const txt = (v: number | null): string => (v === null ? '' : String(v).replace('.', ','))
+const ROTULO_COLUNA = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
+const MARCA = 'h-4 w-4 accent-[var(--accent)]'
+
 function Inner(): ReactNode {
   const scope = useCurrentScope()
   const empresaId = scope.empresaId
   const role = useAuthStore((s) => s.profile?.role)
-  const { data: frota = [], isLoading } = useFrota(empresaId)
+  const { data: frota = [], isLoading, error, refetch } = useFrota(empresaId)
   const { data: fleetObras = [] } = useFleetObras(empresaId)
   const salvar = useSalvarVeiculo()
   const excluir = useExcluirVeiculo()
   const aplicarModelo = useAplicarCapacidadeModelo()
+  const confirm = useConfirm()
   const [novo, setNovo] = useState({ prefixo: '', placa: '', tipo: 'basculante' as TipoVeiculo })
+  const [erroCodigo, setErroCodigo] = useState<string | null>(null)
+  const [incluindo, setIncluindo] = useState(false)
+  // linhas com gravação em andamento
+  const [ocupados, setOcupados] = useState<ReadonlySet<string>>(new Set())
   const [filtroObra, setFiltroObra] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [semCapacidade, setSemCapacidade] = useState(false)
   const [mostrarInativos, setMostrarInativos] = useState(false)
   const [busca, setBusca] = useState('')
-  const erro = (e: Error): void => void toast.error(e.message)
 
   const nomeObra = useMemo(() => new Map(fleetObras.map((o) => [o.id, o.nome])), [fleetObras])
   const lista = useMemo(() => {
@@ -65,33 +77,90 @@ function Inner(): ReactNode {
   }, [frota, busca, filtroObra, filtroTipo, semCapacidade, mostrarInativos])
   const obrasComVeiculo = fleetObras.filter((o) => frota.some((v) => v.fleet_obra_id === o.id))
 
-  if (!empresaId)
-    return (
-      <div className="p-6 text-xs text-text-muted">Selecione a empresa para cadastrar a frota.</div>
-    )
-  const set = (v: Veiculo, patch: Partial<Veiculo>): void =>
-    salvar.mutate(
-      { ...patch, id: v.id, empresa_id: v.empresa_id, prefixo: patch.prefixo ?? v.prefixo },
-      { onError: erro }
-    )
+  if (!empresaId) return <Vazio className="px-5">Selecione a empresa para cadastrar a frota.</Vazio>
+
+  const ocupar = (id: string, sim: boolean): void =>
+    setOcupados((s) => {
+      const n = new Set(s)
+      if (sim) n.add(id)
+      else n.delete(id)
+      return n
+    })
+  // grava ao sair do campo; se a gravação falhar, o campo de texto volta ao valor gravado
+  const set = (v: Veiculo, patch: Partial<Veiculo>, campo?: HTMLInputElement): void => {
+    ocupar(v.id, true)
+    void salvar
+      .mutateAsync({
+        ...patch,
+        id: v.id,
+        empresa_id: v.empresa_id,
+        prefixo: patch.prefixo ?? v.prefixo
+      })
+      .catch((e: Error) => {
+        toast.error(`Não foi possível salvar o veículo ${v.prefixo}. ${e.message}`)
+        if (campo) campo.value = campo.defaultValue
+      })
+      .finally(() => ocupar(v.id, false))
+  }
   const copiarParaModelo = (v: Veiculo): void => {
     if (!v.modelo) return
-    aplicarModelo.mutate(
-      {
-        empresa_id: v.empresa_id,
-        modelo: v.modelo,
-        capacidade_m3: v.capacidade_m3
-      },
-      {
-        onSuccess: (n) =>
-          void toast.success(
-            `Capacidade aplicada a ${contar(n, 'veículo', 'veículos')} ${v.modelo}.`
-          ),
-        onError: erro
-      }
-    )
+    ocupar(v.id, true)
+    void aplicarModelo
+      .mutateAsync({ empresa_id: v.empresa_id, modelo: v.modelo, capacidade_m3: v.capacidade_m3 })
+      .then((n) =>
+        toast.success(`Capacidade aplicada a ${contar(n, 'veículo', 'veículos')} ${v.modelo}.`)
+      )
+      .catch((e: Error) =>
+        toast.error(`Não foi possível aplicar a capacidade aos ${v.modelo}. ${e.message}`)
+      )
+      .finally(() => ocupar(v.id, false))
+  }
+  const remover = async (v: Veiculo): Promise<void> => {
+    const ok = await confirm({
+      title: `Excluir o veículo ${v.prefixo}?`,
+      description:
+        'As fichas de viagem antigas deste veículo ficam sem veículo. Se ele só saiu de uso, prefira desmarcar "Ativo".',
+      confirmLabel: 'Excluir veículo',
+      variant: 'danger'
+    })
+    if (!ok) return
+    ocupar(v.id, true)
+    void excluir
+      .mutateAsync(v.id)
+      .catch((e: Error) =>
+        toast.error(`Não foi possível excluir o veículo ${v.prefixo}. ${e.message}`)
+      )
+      .finally(() => ocupar(v.id, false))
+  }
+  const incluir = (e: FormEvent): void => {
+    e.preventDefault()
+    const prefixo = novo.prefixo.trim()
+    if (!prefixo) return setErroCodigo('Informe o código do veículo.')
+    setErroCodigo(null)
+    setIncluindo(true)
+    void salvar
+      .mutateAsync({
+        empresa_id: empresaId,
+        prefixo,
+        placa: novo.placa.trim() || null,
+        tipo: novo.tipo
+      })
+      .then(() => setNovo((n) => ({ ...n, prefixo: '', placa: '' })))
+      .catch((err: Error) => {
+        if (err.message.startsWith('Já existe')) setErroCodigo(err.message)
+        else toast.error(`Não foi possível incluir o veículo ${prefixo}. ${err.message}`)
+      })
+      .finally(() => setIncluindo(false))
   }
   const podeGerenciar = role === 'god' || role === 'adm'
+  const temFiltro = !!(busca.trim() || filtroObra || filtroTipo || semCapacidade || mostrarInativos)
+  const limparFiltros = (): void => {
+    setBusca('')
+    setFiltroObra('')
+    setFiltroTipo('')
+    setSemCapacidade(false)
+    setMostrarInativos(false)
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -102,18 +171,23 @@ function Inner(): ReactNode {
       <div className="shrink-0 px-4 pt-4">
         <FleethubIntegracao empresaId={empresaId} podeGerenciar={podeGerenciar} />
 
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div
+          role="group"
+          aria-label="Filtros"
+          className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2"
+        >
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar código, placa ou modelo"
-            className="h-7 w-56 text-xs"
+            aria-label="Buscar veículo por código, placa ou modelo"
+            className="w-64"
           />
-          <div className="w-48">
+          <div className="w-56">
             <Select
               value={filtroObra}
               onChange={(e) => setFiltroObra(e.target.value)}
-              className="h-7 text-xs"
+              aria-label="Filtrar por obra da FleetHub"
             >
               <option value="">Todas as obras FleetHub</option>
               {obrasComVeiculo.map((o) => (
@@ -124,11 +198,11 @@ function Inner(): ReactNode {
               <option value="manual">Cadastrados no InfraWork</option>
             </Select>
           </div>
-          <div className="w-40">
+          <div className="w-44">
             <Select
               value={filtroTipo}
               onChange={(e) => setFiltroTipo(e.target.value)}
-              className="h-7 text-xs"
+              aria-label="Filtrar por tipo de veículo"
             >
               <option value="">Todos os tipos</option>
               {TIPOS.map((t) => (
@@ -138,268 +212,320 @@ function Inner(): ReactNode {
               ))}
             </Select>
           </div>
-          <label className="flex items-center gap-1.5 text-xs text-text-muted">
+          <label className="flex items-center gap-1.5 text-sm text-text-muted">
             <input
               type="checkbox"
               checked={semCapacidade}
               onChange={(e) => setSemCapacidade(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--accent)]"
+              className={MARCA}
             />
             Sem capacidade
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-text-muted">
+          <label className="flex items-center gap-1.5 text-sm text-text-muted">
             <input
               type="checkbox"
               checked={mostrarInativos}
               onChange={(e) => setMostrarInativos(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--accent)]"
+              className={MARCA}
             />
-            Inativos
+            Mostrar inativos
           </label>
-          <span className="ml-auto font-mono text-2xs text-text-dim">
-            {lista.length} de {frota.length}
+          {temFiltro ? (
+            <Button variant="ghost" size="sm" onClick={limparFiltros}>
+              <X size={12} /> Limpar filtros
+            </Button>
+          ) : null}
+          <span className="ml-auto flex items-center gap-3 text-sm text-text-muted">
+            <span role="status" aria-live="polite">
+              {ocupados.size > 0 ? 'Salvando…' : ''}
+            </span>
+            <span className="tabular">
+              {lista.length.toLocaleString('pt-BR')} de{' '}
+              {contar(frota.length, 'veículo', 'veículos')}
+            </span>
           </span>
         </div>
       </div>
 
       <div className="mx-4 min-h-0 flex-1 overflow-auto rounded border border-border bg-bg-panel">
-        <table className="w-full min-w-[1100px] border-collapse text-xs" data-testid="tabela-frota">
-          <thead className="sticky top-0 z-10 bg-bg-panel shadow-[inset_0_-1px_0_var(--border-strong)]">
-            <tr className="text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
-              <th className="px-3 py-2 font-normal">Código</th>
-              <th className="px-2 py-2 font-normal">Placa</th>
-              <th className="px-2 py-2 font-normal">Tipo</th>
-              <th className="px-2 py-2 font-normal">Modelo</th>
-              <th className="px-2 py-2 font-normal">Obra FleetHub</th>
-              <th className="px-2 py-2 font-normal">Propriedade</th>
-              <th className="px-2 py-2 font-normal">Fornecedor</th>
-              <th className="px-2 py-2 font-normal">Cap. m³</th>
-              <th className="px-2 py-2 font-normal">Ativo</th>
-              <th className="w-14" />
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((v) => {
-              const fh = v.origem === 'fleethub'
-              return (
-                <tr
-                  key={v.id}
-                  className={cn('border-b border-border', !v.ativo && 'opacity-50')}
-                >
-                  <td className="px-2 py-1">
-                    {fh ? (
-                      <span className="flex items-center gap-1.5 px-1 font-mono">
-                        {v.prefixo}
-                        <span
-                          className="rounded bg-accent/15 px-1 text-2xs text-accent"
-                          title={`FleetHub · ${v.fleet_tipo ?? ''}${v.fleet_status ? ` · ${v.fleet_status}` : ''}`}
-                        >
-                          FH
-                        </span>
-                      </span>
-                    ) : (
-                      <Input
-                        key={`${v.id}-${v.prefixo}`}
-                        defaultValue={v.prefixo}
-                        onBlur={(e) => {
-                          const x = e.target.value.trim()
-                          if (x && x !== v.prefixo) set(v, { prefixo: x })
-                        }}
-                        className="h-7 font-mono text-xs"
-                      />
-                    )}
-                  </td>
-                  <td className="px-2 py-1">
-                    {fh ? (
-                      <span className="px-1 font-mono">{v.placa ?? '—'}</span>
-                    ) : (
-                      <Input
-                        key={`${v.id}-${v.placa}`}
-                        defaultValue={v.placa ?? ''}
-                        onBlur={(e) =>
-                          e.target.value.trim() !== (v.placa ?? '') &&
-                          set(v, { placa: e.target.value.trim() || null })
-                        }
-                        className="h-7 font-mono text-xs"
-                      />
-                    )}
-                  </td>
-                  <td className="px-2 py-1">
-                    <Select
-                      value={v.tipo}
-                      onChange={(e) => set(v, { tipo: e.target.value as TipoVeiculo })}
-                      className="h-7 text-xs"
-                    >
-                      {TIPOS.map((t) => (
-                        <option key={t} value={t}>
-                          {TIPO_VEICULO_LABEL[t]}
-                        </option>
-                      ))}
-                    </Select>
-                  </td>
-                  <td className="px-2 py-1">
-                    {fh ? (
-                      <span className="px-1">
-                        {[v.marca, v.modelo, v.ano].filter(Boolean).join(' · ') || '—'}
-                      </span>
-                    ) : (
-                      <Input
-                        key={`${v.id}-${v.modelo}`}
-                        defaultValue={v.modelo ?? ''}
-                        onBlur={(e) =>
-                          e.target.value.trim() !== (v.modelo ?? '') &&
-                          set(v, { modelo: e.target.value.trim() || null })
-                        }
-                        className="h-7 text-xs"
-                      />
-                    )}
-                  </td>
-                  <td className="px-2 py-1 text-text-muted">
-                    {v.fleet_obra_id ? (nomeObra.get(v.fleet_obra_id) ?? '—') : '—'}
-                  </td>
-                  <td className="px-2 py-1">
-                    <Select
-                      value={v.proprietario}
-                      onChange={(e) =>
-                        set(v, { proprietario: e.target.value as Veiculo['proprietario'] })
-                      }
-                      className="h-7 text-xs"
-                    >
-                      <option value="proprio">Próprio</option>
-                      <option value="terceiro">Terceiro</option>
-                    </Select>
-                  </td>
-                  <td className="px-2 py-1">
-                    <Input
-                      key={`${v.id}-${v.fornecedor}`}
-                      defaultValue={v.fornecedor ?? ''}
-                      disabled={v.proprietario === 'proprio'}
-                      onBlur={(e) =>
-                        e.target.value.trim() !== (v.fornecedor ?? '') &&
-                        set(v, { fornecedor: e.target.value.trim() || null })
-                      }
-                      className="h-7 text-xs"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    {v.capacidade_fleethub ? (
-                      <span
-                        className="flex w-20 items-center justify-end gap-1 px-1 font-mono"
-                        title={`Cubagem da FleetHub (${v.fleet_capacidade ?? ''}) — altere lá e sincronize`}
-                        data-testid="cap-fleethub"
-                      >
-                        {txt(v.capacidade_m3)}
-                        <span className="rounded bg-accent/15 px-1 text-2xs text-accent">FH</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <Input
-                          key={`${v.id}-${v.capacidade_m3}`}
-                          defaultValue={txt(v.capacidade_m3)}
-                          inputMode="decimal"
-                          aria-label="Capacidade m³"
-                          onBlur={(e) => {
-                            const x = parseQtd(e.target.value)
-                            if (x !== v.capacidade_m3) set(v, { capacidade_m3: x })
-                          }}
-                          className="h-7 w-20 text-right font-mono text-xs"
-                        />
-                        {v.fleet_capacidade ? (
-                          <span
-                            className="text-2xs text-warn"
-                            title={`Na FleetHub está "${v.fleet_capacidade}", que não é uma cubagem em m³ — corrija lá ou informe aqui`}
+        {isLoading ? (
+          <Carregando texto="Carregando a frota…" className="px-4" />
+        ) : error ? (
+          <ErroConsulta
+            erro={error}
+            oQue="a frota"
+            aoTentar={() => void refetch()}
+            className="m-4"
+          />
+        ) : (
+          <table
+            className="w-full min-w-[1160px] border-collapse text-sm"
+            data-testid="tabela-frota"
+          >
+            <thead className="sticky top-0 z-10 bg-bg-elevated shadow-[inset_0_-1px_0_var(--border-strong)]">
+              <tr className={cn('text-left', ROTULO_COLUNA)}>
+                <th className="px-3 py-2 font-semibold">Código</th>
+                <th className="px-2 py-2 font-semibold">Placa</th>
+                <th className="px-2 py-2 font-semibold">Tipo</th>
+                <th className="px-2 py-2 font-semibold">Modelo</th>
+                <th className="px-2 py-2 font-semibold">Obra FleetHub</th>
+                <th className="px-2 py-2 font-semibold">Propriedade</th>
+                <th className="px-2 py-2 font-semibold">Fornecedor</th>
+                <th className="px-2 py-2 text-right font-semibold">Capacidade (m³)</th>
+                <th className="px-2 py-2 text-center font-semibold">Ativo</th>
+                <th className="w-16">
+                  <span className="sr-only">Ações</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((v) => {
+                const fh = v.origem === 'fleethub'
+                const ocupado = ocupados.has(v.id)
+                return (
+                  <tr
+                    key={v.id}
+                    aria-busy={ocupado || undefined}
+                    className={cn('border-b border-border', !v.ativo && 'text-text-dim')}
+                  >
+                    <td className="px-2 py-1">
+                      {fh ? (
+                        <span className="flex items-center gap-1.5 px-1 tabular">
+                          {v.prefixo}
+                          <Badge
+                            variant="accent"
+                            title={`Veículo da FleetHub${v.fleet_tipo ? `: ${v.fleet_tipo}` : ''}${v.fleet_status ? `, ${v.fleet_status}` : ''}`}
                           >
-                            ⚠
-                          </span>
+                            FH
+                          </Badge>
+                        </span>
+                      ) : (
+                        <Input
+                          key={`${v.id}-${v.prefixo}`}
+                          defaultValue={v.prefixo}
+                          aria-label={`Código do veículo ${v.prefixo}`}
+                          onBlur={(e) => {
+                            const x = e.target.value.trim()
+                            if (x && x !== v.prefixo) set(v, { prefixo: x }, e.currentTarget)
+                            else e.currentTarget.value = v.prefixo
+                          }}
+                          className="h-7 tabular"
+                        />
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      {fh ? (
+                        <span className="px-1 tabular">{v.placa ?? '—'}</span>
+                      ) : (
+                        <Input
+                          key={`${v.id}-${v.placa}`}
+                          defaultValue={v.placa ?? ''}
+                          aria-label={`Placa do veículo ${v.prefixo}`}
+                          onBlur={(e) =>
+                            e.target.value.trim() !== (v.placa ?? '') &&
+                            set(v, { placa: e.target.value.trim() || null }, e.currentTarget)
+                          }
+                          className="h-7 tabular"
+                        />
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select
+                        value={v.tipo}
+                        aria-label={`Tipo do veículo ${v.prefixo}`}
+                        onChange={(e) => set(v, { tipo: e.target.value as TipoVeiculo })}
+                        className="h-7 min-w-[10rem]"
+                      >
+                        {TIPOS.map((t) => (
+                          <option key={t} value={t}>
+                            {TIPO_VEICULO_LABEL[t]}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
+                    <td className="max-w-[15rem] px-2 py-1">
+                      {fh ? (
+                        <span
+                          className="block truncate px-1"
+                          title={[v.marca, v.modelo, v.ano].filter(Boolean).join(' · ')}
+                        >
+                          {[v.marca, v.modelo, v.ano].filter(Boolean).join(' · ') || '—'}
+                        </span>
+                      ) : (
+                        <Input
+                          key={`${v.id}-${v.modelo}`}
+                          defaultValue={v.modelo ?? ''}
+                          aria-label={`Modelo do veículo ${v.prefixo}`}
+                          onBlur={(e) =>
+                            e.target.value.trim() !== (v.modelo ?? '') &&
+                            set(v, { modelo: e.target.value.trim() || null }, e.currentTarget)
+                          }
+                          className="h-7"
+                        />
+                      )}
+                    </td>
+                    <td className={cn('px-2 py-1', v.ativo && 'text-text-muted')}>
+                      {v.fleet_obra_id ? (nomeObra.get(v.fleet_obra_id) ?? '—') : '—'}
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select
+                        value={v.proprietario}
+                        aria-label={`Propriedade do veículo ${v.prefixo}`}
+                        onChange={(e) =>
+                          set(v, { proprietario: e.target.value as Veiculo['proprietario'] })
+                        }
+                        className="h-7 min-w-[6.75rem]"
+                      >
+                        <option value="proprio">Próprio</option>
+                        <option value="terceiro">Terceiro</option>
+                      </Select>
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input
+                        key={`${v.id}-${v.fornecedor}`}
+                        defaultValue={v.fornecedor ?? ''}
+                        aria-label={`Fornecedor do veículo ${v.prefixo}`}
+                        disabled={v.proprietario === 'proprio'}
+                        title={
+                          v.proprietario === 'proprio' ? 'Só para veículo de terceiro' : undefined
+                        }
+                        onBlur={(e) =>
+                          e.target.value.trim() !== (v.fornecedor ?? '') &&
+                          set(v, { fornecedor: e.target.value.trim() || null }, e.currentTarget)
+                        }
+                        className="h-7 min-w-[6.5rem]"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      {v.capacidade_fleethub ? (
+                        <span
+                          className="flex items-center justify-end gap-1.5 pr-2.5 tabular"
+                          title={`Cubagem da FleetHub (${v.fleet_capacidade ?? ''}). Para mudar, altere lá e sincronize.`}
+                          data-testid="cap-fleethub"
+                        >
+                          <Badge variant="accent">FH</Badge>
+                          {txt(v.capacidade_m3)}
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-end gap-1.5">
+                          {v.fleet_capacidade ? (
+                            <AlertTriangle
+                              size={14}
+                              role="img"
+                              className="shrink-0 text-warn"
+                              aria-label={`Na FleetHub a capacidade está "${v.fleet_capacidade}", que não é uma cubagem em m³. Corrija lá ou informe aqui.`}
+                            >
+                              <title>{`Na FleetHub a capacidade está "${v.fleet_capacidade}", que não é uma cubagem em m³. Corrija lá ou informe aqui.`}</title>
+                            </AlertTriangle>
+                          ) : null}
+                          <Input
+                            key={`${v.id}-${v.capacidade_m3}`}
+                            defaultValue={txt(v.capacidade_m3)}
+                            inputMode="decimal"
+                            aria-label={`Capacidade em m³ do veículo ${v.prefixo}`}
+                            onBlur={(e) => {
+                              const x = parseQtd(e.target.value)
+                              if (e.target.value.trim() && (x === null || x < 0)) {
+                                toast.error(
+                                  `Informe a capacidade do veículo ${v.prefixo} em m³, só com número.`
+                                )
+                                e.currentTarget.value = txt(v.capacidade_m3)
+                                return
+                              }
+                              if (x !== v.capacidade_m3)
+                                set(v, { capacidade_m3: x }, e.currentTarget)
+                            }}
+                            className="h-7 w-20 text-right tabular"
+                          />
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1 text-center">
+                      <input
+                        type="checkbox"
+                        checked={v.ativo}
+                        disabled={fh}
+                        aria-label={`Veículo ${v.prefixo} ativo`}
+                        title={fh ? 'Vem da FleetHub' : undefined}
+                        onChange={(e) => set(v, { ativo: e.target.checked })}
+                        className={cn(MARCA, 'align-middle')}
+                      />
+                    </td>
+                    <td className="px-1">
+                      <span className="flex items-center justify-end">
+                        {v.modelo && v.capacidade_m3 !== null ? (
+                          <IconButton
+                            size="sm"
+                            variant="accent"
+                            disabled={ocupado}
+                            aria-label={`Aplicar a capacidade do veículo ${v.prefixo} aos ${v.modelo} sem cubagem da FleetHub`}
+                            title={`Aplicar esta capacidade aos ${v.modelo} sem cubagem da FleetHub`}
+                            onClick={() => copiarParaModelo(v)}
+                          >
+                            <Copy size={14} />
+                          </IconButton>
+                        ) : null}
+                        {!fh ? (
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            disabled={ocupado}
+                            aria-label={`Excluir o veículo ${v.prefixo}`}
+                            title="Excluir o veículo"
+                            onClick={() => void remover(v)}
+                          >
+                            <Trash2 size={14} />
+                          </IconButton>
                         ) : null}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1 text-center">
-                    <input
-                      type="checkbox"
-                      checked={v.ativo}
-                      disabled={fh}
-                      title={fh ? 'Vem da FleetHub' : undefined}
-                      onChange={(e) => set(v, { ativo: e.target.checked })}
-                      className="h-3.5 w-3.5 accent-[var(--accent)]"
-                    />
-                  </td>
-                  <td className="px-1">
-                    <span className="flex items-center gap-2">
-                      {v.modelo && v.capacidade_m3 !== null ? (
-                        <button
-                          type="button"
-                          title={`Aplicar esta capacidade aos ${v.modelo} sem cubagem da FleetHub`}
-                          onClick={() => copiarParaModelo(v)}
-                          className="text-text-dim hover:text-accent"
-                        >
-                          <Copy size={13} />
-                        </button>
-                      ) : null}
-                      {!fh ? (
-                        <button
-                          type="button"
-                          title="Excluir (fichas antigas ficam sem veículo; prefira desativar)"
-                          onClick={() => excluir.mutate(v.id, { onError: erro })}
-                          className="text-text-dim hover:text-danger"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      ) : null}
-                    </span>
+                    </td>
+                  </tr>
+                )
+              })}
+              {!lista.length ? (
+                <tr>
+                  <td colSpan={10} className="px-3 py-4 text-sm text-text-muted">
+                    {frota.length
+                      ? 'Nenhum veículo neste filtro. Limpe os filtros para ver a frota inteira.'
+                      : 'Nenhum veículo cadastrado. Conecte a FleetHub ou inclua o veículo no cadastro manual abaixo.'}
                   </td>
                 </tr>
-              )
-            })}
-            {!lista.length && !isLoading ? (
-              <tr>
-                <td colSpan={10} className="px-3 py-4 text-text-dim">
-                  {frota.length ? 'Nenhum veículo neste filtro.' : 'Nenhum veículo cadastrado.'}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+              ) : null}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      <div className="shrink-0 px-4 pb-4 pt-3">
-        <p className="text-2xs font-mono uppercase tracking-wider text-text-dim">
-          Cadastro manual (veículos fora da FleetHub)
-        </p>
-        <form
-          className="mt-1 flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!novo.prefixo.trim()) return
-            salvar.mutate(
-              {
-                empresa_id: empresaId,
-                prefixo: novo.prefixo.trim(),
-                placa: novo.placa.trim() || null,
-                tipo: novo.tipo
-              },
-              { onSuccess: () => setNovo({ ...novo, prefixo: '', placa: '' }), onError: erro }
-            )
-          }}
-        >
-          <Input
-            value={novo.prefixo}
-            onChange={(e) => setNovo({ ...novo, prefixo: e.target.value })}
-            placeholder="Prefixo (ex.: CB-12)"
-            className="h-7 w-40 font-mono text-xs"
-          />
-          <Input
-            value={novo.placa}
-            onChange={(e) => setNovo({ ...novo, placa: e.target.value })}
-            placeholder="Placa"
-            className="h-7 w-32 font-mono text-xs"
-          />
-          <div className="w-36">
+      <section aria-labelledby="frota-manual" className="shrink-0 px-4 pb-4 pt-3">
+        <div className="flex flex-wrap items-baseline gap-x-3">
+          <h2 id="frota-manual" className="text-md font-semibold text-text">
+            Cadastro manual
+          </h2>
+          <p className="text-sm text-text-muted">Para veículos que não vêm da FleetHub.</p>
+        </div>
+        <form className="mt-2 flex flex-wrap items-start gap-3" noValidate onSubmit={incluir}>
+          <Campo rotulo="Código" obrigatorio erro={erroCodigo} className="w-44">
+            <Input
+              value={novo.prefixo}
+              onChange={(e) => {
+                setNovo({ ...novo, prefixo: e.target.value })
+                if (erroCodigo) setErroCodigo(null)
+              }}
+              placeholder="ex.: CB-12"
+              className="tabular"
+            />
+          </Campo>
+          <Campo rotulo="Placa" className="w-32">
+            <Input
+              value={novo.placa}
+              onChange={(e) => setNovo({ ...novo, placa: e.target.value })}
+              className="tabular"
+            />
+          </Campo>
+          <Campo rotulo="Tipo" className="w-44">
             <Select
               value={novo.tipo}
               onChange={(e) => setNovo({ ...novo, tipo: e.target.value as TipoVeiculo })}
-              className="h-7 text-xs"
             >
               {TIPOS.map((t) => (
                 <option key={t} value={t}>
@@ -407,12 +533,17 @@ function Inner(): ReactNode {
                 </option>
               ))}
             </Select>
+          </Campo>
+          <div className="flex flex-col gap-1">
+            <span aria-hidden className="invisible text-sm font-medium">
+              .
+            </span>
+            <Button type="submit" disabled={incluindo}>
+              <Plus size={13} /> {incluindo ? 'Incluindo…' : 'Incluir veículo'}
+            </Button>
           </div>
-          <Button size="sm" type="submit">
-            <Plus size={12} /> Incluir veículo
-          </Button>
         </form>
-      </div>
+      </section>
     </div>
   )
 }

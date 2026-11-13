@@ -21,13 +21,16 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import { parseKmzOrKml, type ParsedKmlResult } from '@/lib/kml/parse'
 import { formatMarcadorCompacto, type TrechoCtx } from '@/lib/format/posicao'
 import { MapaTrecho, type MapaTrechoMarcador } from '@/features/planejamento/components/MapaTrecho'
@@ -49,6 +52,14 @@ const UNIDADE_LABEL: Record<Exclude<Unidade, 'custom'>, string> = {
   estaca: 'EST',
   m: 'm'
 }
+
+const km = (m: number): string =>
+  (m / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const OPCAO =
+  'text-left rounded border p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+const opcaoCor = (ativa: boolean): string =>
+  ativa ? 'border-accent bg-accent/10' : 'border-border-strong bg-bg-panel hover:bg-bg-hover'
 
 interface Props {
   open: boolean
@@ -89,6 +100,8 @@ export function ImportarKmlTrechoDialog({
   const [cor, setCor] = useState<string>(TRECHO_CORES_PADRAO[0])
   const [error, setError] = useState<string | null>(null)
   const [parsing, setParsing] = useState(false)
+  // erros do passo aparecem nos campos depois de tentar continuar
+  const [tentouPasso, setTentouPasso] = useState(false)
 
   // ─── Pre-carrega conforme modo ─────────────────────────────────────────
   useEffect(() => {
@@ -131,6 +144,7 @@ export function ImportarKmlTrechoDialog({
       setStep(1)
     }
     setError(null)
+    setTentouPasso(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, trecho?.id, modo])
 
@@ -140,6 +154,7 @@ export function ImportarKmlTrechoDialog({
     setCoordsInvertidas(false)
     setNumeracao('crescente')
     setError(null)
+    setTentouPasso(false)
   }
 
   // geometry_sentido derivado da numeração (independente da orientação geométrica).
@@ -193,7 +208,7 @@ export function ImportarKmlTrechoDialog({
       setCoordsInvertidas(false)
       setStep(2)
     } catch (e) {
-      setError((e as Error).message)
+      setError(`Não foi possível ler o arquivo. ${(e as Error).message}`)
     } finally {
       setParsing(false)
     }
@@ -218,17 +233,29 @@ export function ImportarKmlTrechoDialog({
         geometry_sentido: sentidoNumeracao,
         geometry_importado_em: new Date().toISOString()
       })
-      toast.success('Mapa do trecho salvo.')
+      toast.success('Mapa do eixo salvo.')
       reset()
       onOpenChange(false)
     } catch (e) {
-      setError('Falha ao salvar: ' + (e as Error).message)
+      setError(`Não foi possível salvar o mapa. ${(e as Error).message}`)
     }
   }
 
   // ─── Validacao step a step ─────────────────────────────────────────────
   const podeAvancar3 = unidade !== 'custom' || (customLabel.trim().length > 0 && customDivisor > 0)
   const podeAvancar4 = Number.isFinite(valorInicial) && valorInicial >= 0 && !!cor
+
+  const totalPassos = modo === 'editar' ? 3 : 5
+  const passoAtual = modo === 'editar' ? step - 2 : step
+
+  function continuar(): void {
+    if ((step === 3 && !podeAvancar3) || (step === 4 && !podeAvancar4)) {
+      setTentouPasso(true)
+      return
+    }
+    setTentouPasso(false)
+    setStep((s) => (s + 1) as Step)
+  }
 
   return (
     <Dialog
@@ -243,16 +270,14 @@ export function ImportarKmlTrechoDialog({
       <DialogHeader>
         <DialogTitle>
           {modo === 'editar'
-            ? `Configuração do mapa — ${trecho?.nome ?? ''}`
+            ? 'Configuração do mapa'
             : modo === 'trocar'
-              ? `Substituir polilinha — ${trecho?.nome ?? ''}`
-              : trecho
-                ? `Mapa do trecho — ${trecho.nome}`
-                : 'Importar polilinha KMZ/KML'}
-          <span className="ml-2 text-2xs font-mono text-text-dim">
-            {modo === 'editar' ? `Passo ${step - 2}/3` : `Passo ${step}/5`}
-          </span>
+              ? 'Trocar o arquivo do mapa'
+              : 'Vincular mapa ao eixo'}
         </DialogTitle>
+        <DialogDescription>
+          {trecho ? `${trecho.nome} · ` : ''}Passo {passoAtual} de {totalPassos}
+        </DialogDescription>
       </DialogHeader>
       <DialogBody className="space-y-3">
         <DialogErrorBanner message={error} />
@@ -279,6 +304,7 @@ export function ImportarKmlTrechoDialog({
             setCustomLabel={setCustomLabel}
             customDivisor={customDivisor}
             setCustomDivisor={setCustomDivisor}
+            mostrarErros={tentouPasso}
           />
         ) : null}
 
@@ -292,6 +318,7 @@ export function ImportarKmlTrechoDialog({
             divisorM={divisorM}
             numeracao={numeracao}
             setNumeracao={setNumeracao}
+            mostrarErros={tentouPasso}
           />
         ) : null}
 
@@ -310,35 +337,32 @@ export function ImportarKmlTrechoDialog({
       <DialogFooter>
         {step > 1 && !(modo === 'editar' && step === 3) ? (
           <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
             disabled={parsing || salvar.isPending}
-            onClick={() => setStep((s) => (s - 1) as Step)}
+            onClick={() => {
+              setTentouPasso(false)
+              setStep((s) => (s - 1) as Step)
+            }}
           >
             Voltar
           </Button>
         ) : (
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={parsing}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={parsing}>
             Cancelar
           </Button>
         )}
         {step < 5 ? (
           <Button
             variant="default"
-            size="sm"
-            disabled={
-              (step === 1 && !parsed) ||
-              (step === 3 && !podeAvancar3) ||
-              (step === 4 && !podeAvancar4) ||
-              parsing
-            }
-            onClick={() => setStep((s) => (s + 1) as Step)}
+            disabled={(step === 1 && !parsed) || parsing}
+            title={step === 1 && !parsed ? 'Escolha um arquivo para continuar' : undefined}
+            onClick={continuar}
           >
             Continuar
           </Button>
         ) : (
-          <Button variant="default" size="sm" disabled={salvar.isPending} onClick={commitSalvar}>
-            {salvar.isPending ? 'Salvando…' : 'Salvar'}
+          <Button variant="default" disabled={salvar.isPending} onClick={commitSalvar}>
+            {salvar.isPending ? 'Salvando…' : 'Salvar mapa'}
           </Button>
         )}
       </DialogFooter>
@@ -374,14 +398,14 @@ function UploadStep({
         }}
         onDragLeave={() => setDragOver(false)}
         className={`border-2 border-dashed rounded p-8 text-center transition-colors ${
-          dragOver ? 'border-accent bg-accent/5' : 'border-border bg-bg/40'
+          dragOver ? 'border-accent bg-accent/5' : 'border-border-strong bg-bg/40'
         }`}
       >
-        <Upload size={32} className="mx-auto mb-2 text-text-dim" />
-        <div className="text-sm text-text mb-1">Arraste o arquivo KMZ ou KML aqui</div>
-        <div className="text-2xs text-text-dim mb-3 font-mono">
-          ou clique abaixo pra buscar no dispositivo
+        <Upload size={32} className="mx-auto mb-2 text-text-dim" aria-hidden />
+        <div className="mb-1 text-md font-medium text-text">
+          Arraste o arquivo KMZ ou KML para cá
         </div>
+        <div className="mb-3 text-sm text-text-muted">ou escolha o arquivo no computador</div>
         <input
           ref={inputRef}
           type="file"
@@ -393,21 +417,16 @@ function UploadStep({
             e.target.value = ''
           }}
           className="hidden"
+          aria-label="Arquivo KMZ ou KML"
         />
-        <Button
-          variant="default"
-          size="sm"
-          disabled={parsing}
-          onClick={() => inputRef.current?.click()}
-        >
-          {parsing ? 'Processando…' : 'Buscar arquivo'}
+        <Button variant="default" disabled={parsing} onClick={() => inputRef.current?.click()}>
+          {parsing ? 'Lendo o arquivo…' : 'Escolher arquivo'}
         </Button>
       </div>
-      <div className="text-2xs text-text-dim font-mono leading-relaxed">
-        Aceita .kml (texto) ou .kmz (zip com .kml interno). Tamanho máximo 10 MB.
-        <br />
-        Se o arquivo tiver mais de uma polilinha, a primeira será usada (aviso aparece).
-      </div>
+      <p className="text-sm text-text-muted">
+        Aceita arquivo .kml ou .kmz de até 10 MB. Se houver mais de uma polilinha, o sistema usa a
+        primeira e avisa.
+      </p>
     </div>
   )
 }
@@ -435,32 +454,34 @@ function SentidoStep({
   return (
     <div className="space-y-3">
       {totalLineStrings > 1 ? (
-        <div className="rounded border border-warning/40 bg-warning/10 px-3 py-2 text-2xs font-mono text-warning">
-          Detectadas {totalLineStrings} polilinhas no arquivo. Usando a primeira (
-          {geometry.coordinates.length} pontos, {(comprimentoM / 1000).toFixed(2)} km).
+        <div
+          role="status"
+          className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text"
+        >
+          O arquivo tem {totalLineStrings} polilinhas. O sistema usou a primeira, com{' '}
+          {geometry.coordinates.length.toLocaleString('pt-BR')} pontos e {km(comprimentoM)} km.
         </div>
       ) : null}
-      <div className="text-2xs text-text-dim font-mono leading-relaxed">
-        A seta animada mostra a orientação da polilinha (do{' '}
-        <strong className="text-success">INÍCIO</strong> verde até o{' '}
-        <strong className="text-danger">FIM</strong> vermelho). Inverta se o começo do traçado
-        deveria ser a outra ponta. Isso afeta só a geometria — se as estacas/km{' '}
-        <em>crescem ou decrescem</em> você define no Passo 4.
-      </div>
+      <p className="text-sm text-text-muted">
+        A seta mostra a orientação da polilinha, do <strong className="text-text">início</strong>{' '}
+        (verde) ao <strong className="text-text">fim</strong> (vermelho). Inverta se o começo do
+        traçado for a outra ponta. Isso muda só o desenho: se as estacas crescem ou decrescem, você
+        define no passo 4.
+      </p>
       <MapaTrecho geometry={geometry} cor={cor} animarSeta interactive altura={400} />
-      <div className="flex items-center justify-between text-2xs font-mono">
-        <div className="text-text-dim">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div className="tabular text-text-muted">
           Orientação:{' '}
-          <span className="text-text">
-            {coordsInvertidas ? 'INVERTIDA (do arquivo)' : 'NATURAL (do arquivo)'}
-          </span>{' '}
-          · {geometry.coordinates.length} pontos · {(comprimentoM / 1000).toFixed(2)} km
+          <span className="font-medium text-text">
+            {coordsInvertidas ? 'invertida em relação ao arquivo' : 'como no arquivo'}
+          </span>
+          , {geometry.coordinates.length.toLocaleString('pt-BR')} pontos, {km(comprimentoM)} km
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onTrocarArquivo}>
+          <Button variant="secondary" size="sm" onClick={onTrocarArquivo}>
             Trocar arquivo
           </Button>
-          <Button variant="ghost" size="sm" onClick={onInverter}>
+          <Button variant="secondary" size="sm" onClick={onInverter}>
             <ArrowLeftRight size={12} /> Inverter orientação
           </Button>
         </div>
@@ -476,7 +497,8 @@ function UnidadeStep({
   customLabel,
   setCustomLabel,
   customDivisor,
-  setCustomDivisor
+  setCustomDivisor,
+  mostrarErros
 }: {
   unidade: Unidade
   setUnidade: (u: Unidade) => void
@@ -484,72 +506,95 @@ function UnidadeStep({
   setCustomLabel: (s: string) => void
   customDivisor: number
   setCustomDivisor: (n: number) => void
+  mostrarErros: boolean
 }): ReactNode {
   const opcoes: Array<{ value: Unidade; titulo: string; desc: string }> = [
     {
       value: 'km',
       titulo: 'Quilômetro (km)',
-      desc: '1 marcador a cada 1000 m. Padrão rodoviário.'
+      desc: 'Um marcador a cada 1.000 m. É o padrão rodoviário.'
     },
     {
       value: 'estaca',
       titulo: 'Estaca (20 m)',
-      desc: '1 marcador a cada 20 m. Topografia/obra detalhada.'
+      desc: 'Um marcador a cada 20 m. Para topografia e obra detalhada.'
     },
     {
       value: 'm',
       titulo: 'Metro (m)',
-      desc: '1 marcador a cada metro. Use só pra trechos curtos.'
+      desc: 'Um marcador a cada metro. Use só em eixo curto.'
     },
-    { value: 'custom', titulo: 'Personalizado', desc: 'Define seu próprio divisor (m) e label.' }
+    {
+      value: 'custom',
+      titulo: 'Personalizada',
+      desc: 'Você define o nome da unidade e quantos metros ela vale.'
+    }
   ]
 
   return (
     <div className="space-y-3">
-      <div className="text-2xs text-text-dim font-mono">
-        Escolha a unidade dos marcadores que serão gerados ao longo da polilinha.
-      </div>
-      <div className="grid grid-cols-2 gap-2">
+      <p id="kml-unidade-rotulo" className="text-sm text-text-muted">
+        Escolha a unidade dos marcadores ao longo do eixo.
+      </p>
+      <div
+        className="grid grid-cols-2 gap-2"
+        role="radiogroup"
+        aria-labelledby="kml-unidade-rotulo"
+      >
         {opcoes.map((o) => (
           <button
             key={o.value}
             type="button"
+            role="radio"
+            aria-checked={unidade === o.value}
             onClick={() => setUnidade(o.value)}
-            className={`text-left rounded border p-3 transition-colors ${
-              unidade === o.value
-                ? 'border-accent bg-accent/10'
-                : 'border-border bg-bg-panel hover:border-border-strong'
-            }`}
+            className={cn(OPCAO, opcaoCor(unidade === o.value))}
           >
-            <div className="text-xs font-medium text-text">{o.titulo}</div>
-            <div className="text-2xs font-mono text-text-dim mt-1">{o.desc}</div>
+            <div className="text-sm font-medium text-text">{o.titulo}</div>
+            <div className="mt-0.5 text-sm text-text-muted">{o.desc}</div>
           </button>
         ))}
       </div>
       {unidade === 'custom' ? (
-        <div className="grid grid-cols-2 gap-3 rounded border border-accent/30 bg-accent/5 p-3">
-          <div>
-            <Label htmlFor="custom-label">Label da unidade</Label>
+        <div className="grid grid-cols-2 gap-3 rounded border border-border bg-bg-elevated p-3">
+          <Campo
+            rotulo="Nome da unidade"
+            obrigatorio
+            dica="Aparece antes do número, como em ref 12."
+            erro={
+              mostrarErros && customLabel.trim().length === 0
+                ? 'Informe o nome da unidade.'
+                : undefined
+            }
+          >
             <Input
-              id="custom-label"
               value={customLabel}
               onChange={(e) => setCustomLabel(e.target.value)}
-              placeholder="Ex: ref, ponto, vão"
+              placeholder="Ex.: ref, ponto, vão"
               maxLength={20}
+              autoComplete="off"
             />
-          </div>
-          <div>
-            <Label htmlFor="custom-divisor">Divisor (metros por unidade)</Label>
+          </Campo>
+          <Campo
+            rotulo="Metros por unidade"
+            obrigatorio
+            erro={
+              mostrarErros && !(customDivisor > 0)
+                ? 'Informe quantos metros vale uma unidade.'
+                : undefined
+            }
+          >
             <Input
-              id="custom-divisor"
               type="number"
+              inputMode="decimal"
               min="0.1"
               step="0.1"
               value={customDivisor}
               onChange={(e) => setCustomDivisor(Number(e.target.value))}
-              placeholder="Ex: 25"
+              placeholder="Ex.: 25"
+              className="tabular text-right"
             />
-          </div>
+          </Campo>
         </div>
       ) : null}
     </div>
@@ -565,7 +610,8 @@ function ValorInicialCorStep({
   labelUnidade,
   divisorM,
   numeracao,
-  setNumeracao
+  setNumeracao,
+  mostrarErros
 }: {
   valorInicial: number
   setValorInicial: (n: number) => void
@@ -575,89 +621,105 @@ function ValorInicialCorStep({
   divisorM: number
   numeracao: 'crescente' | 'decrescente'
   setNumeracao: (n: 'crescente' | 'decrescente') => void
+  mostrarErros: boolean
 }): ReactNode {
   // Preview dos 4 primeiros marcadores. 'decrescente' baixa a partir do inicial.
   const preview = [0, 1, 2, 3].map((i) => {
     const valor = numeracao === 'decrescente' ? valorInicial - i : valorInicial + i
-    const fmt = Number.isInteger(valor) ? String(valor) : valor.toFixed(2)
+    const fmt = Number.isInteger(valor) ? String(valor) : valor.toFixed(2).replace('.', ',')
     return `${labelUnidade} ${fmt}`
   })
 
   return (
     <div className="space-y-3">
-      <div>
-        <Label htmlFor="valor-inicial">Valor inicial no início da polilinha</Label>
+      <Campo
+        rotulo={`Valor no início do eixo (${labelUnidade})`}
+        obrigatorio
+        className="max-w-sm"
+        dica={`Se o eixo começa no ${labelUnidade} 5, digite 5. Os marcadores seguintes saem a cada ${divisorM.toLocaleString('pt-BR')} m, que é uma unidade.`}
+        erro={
+          mostrarErros && !(Number.isFinite(valorInicial) && valorInicial >= 0)
+            ? 'O valor inicial não pode ser negativo.'
+            : undefined
+        }
+      >
         <Input
-          id="valor-inicial"
           type="number"
+          inputMode="decimal"
           step="0.01"
           min="0"
           value={valorInicial}
           onChange={(e) => setValorInicial(Number(e.target.value))}
+          className="tabular text-right"
         />
-        <div className="text-2xs text-text-dim mt-1 font-mono leading-relaxed">
-          Se o trecho começa no &quot;{labelUnidade} 5&quot;, escreva 5. Marcadores subsequentes
-          serão gerados a cada {divisorM} m (= 1 unidade).
-        </div>
-      </div>
+      </Campo>
 
       <div>
-        <Label>Numeração ao longo do trecho</Label>
-        <div className="grid grid-cols-2 gap-2 mt-1">
+        <Label id="kml-numeracao-rotulo">Numeração ao longo do eixo</Label>
+        <div
+          className="mt-1 grid grid-cols-2 gap-2"
+          role="radiogroup"
+          aria-labelledby="kml-numeracao-rotulo"
+        >
           {(['crescente', 'decrescente'] as const).map((opt) => (
             <button
               key={opt}
               type="button"
+              role="radio"
+              aria-checked={numeracao === opt}
               onClick={() => setNumeracao(opt)}
-              className={`text-left rounded border p-2.5 transition-colors ${
-                numeracao === opt
-                  ? 'border-accent bg-accent/10'
-                  : 'border-border bg-bg-panel hover:border-border-strong'
-              }`}
+              className={cn(OPCAO, 'p-2.5', opcaoCor(numeracao === opt))}
             >
-              <div className="text-xs font-medium text-text">
-                {opt === 'crescente' ? 'Crescente ↑' : 'Decrescente ↓'}
+              <div className="text-sm font-medium text-text">
+                {opt === 'crescente' ? 'Crescente' : 'Decrescente'}
               </div>
-              <div className="text-2xs font-mono text-text-dim mt-0.5">
+              <div className="tabular mt-0.5 text-sm text-text-muted">
                 {opt === 'crescente'
-                  ? `${labelUnidade} ${valorInicial} → maior`
-                  : `${labelUnidade} ${valorInicial} → menor`}
+                  ? `Aumenta a partir de ${labelUnidade} ${valorInicial}`
+                  : `Diminui a partir de ${labelUnidade} ${valorInicial}`}
               </div>
             </button>
           ))}
         </div>
-        <div className="text-2xs text-text-dim mt-1 font-mono leading-relaxed">
-          Define se a estaca/km aumenta ou diminui ao avançar no traçado. Independente da orientação
-          da polilinha (Passo 2).
-        </div>
+        <p className="mt-1 text-xs text-text-muted">
+          Define se a estaca aumenta ou diminui ao avançar no traçado. Não depende da orientação
+          escolhida no passo 2.
+        </p>
       </div>
 
       <div>
-        <Label>Preview dos primeiros marcadores</Label>
-        <div className="font-mono text-xs text-text bg-bg-panel rounded border border-border px-3 py-2">
+        <Label>Primeiros marcadores</Label>
+        <div className="tabular mt-1 rounded border border-border bg-bg-panel px-3 py-2 text-sm text-text">
           {preview.join(' · ')} · …
         </div>
       </div>
 
       <div>
-        <Label>Cor do trecho</Label>
-        <div className="grid grid-cols-8 gap-2 mt-1">
-          {TRECHO_CORES_PADRAO.map((c) => (
+        <Label id="kml-cor-rotulo">Cor do eixo</Label>
+        <div
+          className="mt-1 flex flex-wrap gap-2"
+          role="radiogroup"
+          aria-labelledby="kml-cor-rotulo"
+        >
+          {TRECHO_CORES_PADRAO.map((c, i) => (
             <button
               key={c}
               type="button"
+              role="radio"
+              aria-checked={c === cor}
               onClick={() => setCor(c)}
-              className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
-                c === cor ? 'border-text scale-110' : 'border-border'
-              }`}
+              className={cn(
+                'h-8 w-8 rounded border-2',
+                c === cor ? 'border-text' : 'border-border-strong'
+              )}
               style={{ background: c }}
-              aria-label={`Cor ${c}`}
+              aria-label={`Cor ${i + 1}`}
             />
           ))}
         </div>
-        <div className="text-2xs text-text-dim mt-1 font-mono">
-          Usada nas visualizações multi-trecho pra diferenciar este trecho dos outros.
-        </div>
+        <p className="mt-1 text-xs text-text-muted">
+          Diferencia este eixo dos outros no mapa e no cronograma.
+        </p>
       </div>
     </div>
   )
@@ -683,13 +745,16 @@ function PreviewFinalStep({
 }): ReactNode {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3 text-2xs font-mono text-text-dim">
-        <Map size={12} />
-        <span>
-          <strong className="text-text">{(comprimentoM / 1000).toFixed(2)} km</strong> ·{' '}
-          <strong className="text-text">{marcadores.length}</strong> marcadores ({labelUnidade}) ·
-          numeração <strong className="text-text">{numeracao}</strong> · orientação{' '}
-          <strong className="text-text">{coordsInvertidas ? 'invertida' : 'natural'}</strong>
+      <div className="flex items-center gap-2 text-sm text-text-muted">
+        <Map size={14} aria-hidden />
+        <span className="tabular">
+          <strong className="text-text">{km(comprimentoM)} km</strong>,{' '}
+          <strong className="text-text">{marcadores.length.toLocaleString('pt-BR')}</strong>{' '}
+          {marcadores.length === 1 ? 'marcador' : 'marcadores'} em {labelUnidade}, numeração{' '}
+          <strong className="text-text">{numeracao}</strong>, orientação{' '}
+          <strong className="text-text">
+            {coordsInvertidas ? 'invertida em relação ao arquivo' : 'como no arquivo'}
+          </strong>
         </span>
       </div>
       <MapaTrecho
@@ -700,10 +765,10 @@ function PreviewFinalStep({
         interactive
         altura={400}
       />
-      <div className="text-2xs text-text-dim font-mono leading-relaxed">
-        Clique em <em>Salvar</em> pra persistir. As tarefas existentes no trecho não são afetadas —
-        geometria é metadado de visualização.
-      </div>
+      <p className="text-sm text-text-muted">
+        Confira o traçado e os marcadores e clique em Salvar mapa. As tarefas do eixo não mudam: o
+        mapa serve só para visualizar.
+      </p>
     </div>
   )
 }

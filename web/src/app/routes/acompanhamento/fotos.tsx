@@ -4,6 +4,9 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { BarraFiltros, Filtro, FiltroMulti } from '@/components/ui/filtros'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
+import { Segmentado } from '@/components/ui/segmentado'
+import { ErroConsulta } from '@/components/ui/estado'
+import { contar } from '@/lib/rotulos'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useFotosInfinite } from '@/features/acompanhamento/hooks/fotos'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
@@ -16,12 +19,11 @@ import { agruparSequencias, producaoSemFoto } from '@/features/acompanhamento/li
 import { FotosGridVirtualizado } from '@/features/acompanhamento/components/fotos/FotosGridVirtualizado'
 import { MapaFotosSatelite } from '@/features/acompanhamento/components/fotos/MapaFotosSatelite'
 import { FotoLightbox } from '@/features/acompanhamento/components/fotos/FotoLightbox'
-import { cn } from '@/lib/utils'
 import type { FotoEnriquecida, FotosListarFiltros } from '@/types/acompanhamento'
 
 export function AcompanhamentoFotosPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Fotos & Mapa">
+    <RequireObra pageTitle="Fotos e mapa">
       <Inner />
     </RequireObra>
   )
@@ -53,7 +55,9 @@ function Inner(): ReactNode {
     data: pages,
     fetchNextPage,
     hasNextPage,
-    isFetching
+    isFetching,
+    error,
+    refetch
   } = useFotosInfinite(obraId, efFiltros)
 
   const fotos = useMemo<FotoEnriquecida[]>(
@@ -104,20 +108,47 @@ function Inner(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Fotos & Mapa"
-        subtitle={`${fotos.length}${total > fotos.length ? ` de ${total}` : ''} ${(total > fotos.length ? total : fotos.length) === 1 ? 'foto' : 'fotos'}`}
+        title="Fotos e mapa"
+        subtitle={
+          total > fotos.length
+            ? `${fotos.length.toLocaleString('pt-BR')} de ${contar(total, 'foto', 'fotos')}`
+            : contar(fotos.length, 'foto', 'fotos')
+        }
         actions={
-          <div className="inline-flex border border-border rounded overflow-hidden">
-            <ViewBtn cur={filtros.view_mode} mode="split" onClick={setViewMode}>
-              <Columns size={12} />
-            </ViewBtn>
-            <ViewBtn cur={filtros.view_mode} mode="grid" onClick={setViewMode}>
-              <LayoutGrid size={12} />
-            </ViewBtn>
-            <ViewBtn cur={filtros.view_mode} mode="mapa" onClick={setViewMode}>
-              <MapIcon size={12} />
-            </ViewBtn>
-          </div>
+          <Segmentado<FotosViewMode>
+            rotulo="Modo de visão"
+            valor={filtros.view_mode}
+            aoMudar={setViewMode}
+            opcoes={[
+              {
+                valor: 'split',
+                titulo: 'Lista de fotos ao lado do mapa',
+                rotulo: (
+                  <>
+                    <Columns size={14} aria-hidden /> Dividido
+                  </>
+                )
+              },
+              {
+                valor: 'grid',
+                titulo: 'Só a grade de fotos',
+                rotulo: (
+                  <>
+                    <LayoutGrid size={14} aria-hidden /> Grade
+                  </>
+                )
+              },
+              {
+                valor: 'mapa',
+                titulo: 'Só o mapa',
+                rotulo: (
+                  <>
+                    <MapIcon size={14} aria-hidden /> Mapa
+                  </>
+                )
+              }
+            ]}
+          />
         }
       />
       <BarraFiltros>
@@ -159,16 +190,26 @@ function Inner(): ReactNode {
       >
         {filtros.view_mode !== 'mapa' && (
           <div className="border-r border-border h-full overflow-hidden flex flex-col bg-bg-panel">
-            <FotosGridVirtualizado
-              fotos={fotos}
-              onPick={(i) => setLightboxIdx(i)}
-              loading={isFetching && fotos.length === 0}
-              cols={filtros.view_mode === 'grid' ? 4 : 2}
-            />
+            {error && fotos.length === 0 ? (
+              <ErroConsulta
+                erro={error}
+                oQue="as fotos"
+                aoTentar={() => void refetch()}
+                compacto
+                className="m-2"
+              />
+            ) : (
+              <FotosGridVirtualizado
+                fotos={fotos}
+                onPick={(i) => setLightboxIdx(i)}
+                loading={isFetching && fotos.length === 0}
+                cols={filtros.view_mode === 'grid' ? 4 : 2}
+              />
+            )}
             <div ref={sentinel} className="h-2 shrink-0" />
             {isFetching && fotos.length > 0 && (
-              <div className="px-2 py-1 text-2xs font-mono text-text-dim text-center">
-                carregando…
+              <div role="status" className="px-2 py-1.5 text-sm text-text-muted text-center">
+                Carregando mais fotos…
               </div>
             )}
           </div>
@@ -192,32 +233,5 @@ function Inner(): ReactNode {
         onIndexChange={setLightboxIdx}
       />
     </div>
-  )
-}
-
-function ViewBtn({
-  cur,
-  mode,
-  onClick,
-  children
-}: {
-  cur: FotosViewMode
-  mode: FotosViewMode
-  onClick: (m: FotosViewMode) => void
-  children: ReactNode
-}): ReactNode {
-  const active = cur === mode
-  return (
-    <button
-      onClick={() => onClick(mode)}
-      className={cn(
-        'px-2 py-1 text-xs font-mono transition-colors',
-        active
-          ? 'bg-accent/15 text-accent'
-          : 'bg-bg-panel text-text-dim hover:text-text hover:bg-bg-hover'
-      )}
-    >
-      {children}
-    </button>
   )
 }

@@ -119,10 +119,14 @@ export function ExportDialog(): ReactNode {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()} size="md">
       <DialogHeader>
-        <DialogTitle>Exportar — {config?.titulo}</DialogTitle>
+        <DialogTitle>Exportar: {config?.titulo}</DialogTitle>
       </DialogHeader>
       <DialogBody className="space-y-4">
-        <div className="flex gap-1 border border-border rounded p-0.5 bg-bg-elevated">
+        <div
+          role="radiogroup"
+          aria-label="Formato do arquivo"
+          className="flex gap-1 border border-border-strong rounded p-0.5"
+        >
           {tabs.map((t) => {
             const isActive = t.key === fmt
             const Icon = t.icon
@@ -130,12 +134,14 @@ export function ExportDialog(): ReactNode {
               <button
                 key={t.key}
                 type="button"
+                role="radio"
+                aria-checked={isActive}
                 onClick={() => setFormat(t.key)}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 h-7 rounded text-xs font-medium transition-colors',
+                  'flex-1 flex items-center justify-center gap-1.5 h-8 rounded text-sm transition-colors',
                   isActive
-                    ? 'bg-bg-panel text-text shadow-[0_0_0_1px_var(--border-accent)]'
-                    : 'text-text-muted hover:text-text'
+                    ? 'bg-accent-glow-strong text-accent font-semibold'
+                    : 'text-text-muted hover:text-text hover:bg-bg-hover'
                 )}
               >
                 <Icon size={12} /> {t.label}
@@ -145,23 +151,22 @@ export function ExportDialog(): ReactNode {
         </div>
 
         {fmt === 'pdf' ? (
-          <p className="text-xs text-text-muted leading-relaxed">
-            Relatório completo <strong className="text-text">por serviço</strong> ({nServ}{' '}
-            {nServ === 1 ? 'página' : 'páginas'}, A4 paisagem): curva-S com projeções, calor de
-            produção (30 dias), produção dia-a-dia, previsto × realizado semanal e média semanal ×
-            necessária. Abre o diálogo de impressão do navegador — escolha &quot;Salvar como
-            PDF&quot;.
+          <p className="text-sm text-text-muted">
+            Relatório por serviço ({nServ} {nServ === 1 ? 'página' : 'páginas'}, A4 paisagem): curva
+            S com projeções, mapa de calor da produção (30 dias), produção dia a dia, previsto e
+            realizado por semana e média semanal necessária. Abre a impressão do navegador; escolha
+            &quot;Salvar como PDF&quot;.
           </p>
         ) : fmt === 'excel' ? (
-          <p className="text-xs text-text-muted leading-relaxed">
+          <p className="text-sm text-text-muted">
             Planilha <strong className="text-text">.xlsx</strong>: aba{' '}
             <strong className="text-text">{temRelatorio ? 'Comparativo' : config?.titulo}</strong> (
             {config?.linhas.length} {config?.linhas.length === 1 ? 'linha' : 'linhas'})
             {nServ > 0 ? (
               <>
                 {' '}
-                + {nServ} {nServ === 1 ? 'aba' : 'abas'} de dados por serviço (semanas previsto ×
-                realizado).
+                e {nServ} {nServ === 1 ? 'aba' : 'abas'} de dados por serviço (previsto e realizado
+                por semana).
               </>
             ) : (
               '.'
@@ -169,19 +174,19 @@ export function ExportDialog(): ReactNode {
           </p>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-text-muted">
-              CSV da tabela comparativa ({config?.linhas.length}{' '}
+            <p className="text-sm text-text-muted">
+              CSV da tabela ({config?.linhas.length}{' '}
               {config?.linhas.length === 1 ? 'linha' : 'linhas'}).
             </p>
             <div>
-              <Label>Separador</Label>
-              <Select value={sep} onChange={(e) => setSep(e.target.value)}>
+              <Label htmlFor="exp-sep">Separador</Label>
+              <Select id="exp-sep" value={sep} onChange={(e) => setSep(e.target.value)}>
                 <option value=";">; (ponto e vírgula)</option>
                 <option value=",">, (vírgula)</option>
                 <option value={'\t'}>Tabulação</option>
               </Select>
             </div>
-            <label className="flex items-center gap-2 text-xs text-text cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
               <input
                 type="checkbox"
                 checked={incluirCabecalho}
@@ -194,7 +199,7 @@ export function ExportDialog(): ReactNode {
         )}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={close} disabled={exporting}>
+        <Button variant="secondary" onClick={close} disabled={exporting}>
           Cancelar
         </Button>
         <Button variant="default" onClick={handleExport} disabled={exporting}>

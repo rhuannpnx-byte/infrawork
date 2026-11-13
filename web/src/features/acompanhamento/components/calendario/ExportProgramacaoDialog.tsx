@@ -1,9 +1,10 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { FileSpreadsheet, CalendarRange } from 'lucide-react'
+import { FileSpreadsheet } from 'lucide-react'
 import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { gerarProgramacaoMensalXlsx } from '@/features/acompanhamento/lib/programacao-mensal-xlsx'
+import { contar } from '@/lib/rotulos'
 import type { ServicoInfo } from './CalendarioPrevExec'
 import { cn } from '@/lib/utils'
 
@@ -155,6 +156,19 @@ export function ExportProgramacaoDialog({
     setA(anchorRef.current)
     setB(idx)
   }
+  // Teclado: Enter ou espaço marca o mês; com Shift, estende a seleção até ele.
+  const aoTeclarMes = (e: KeyboardEvent<HTMLButtonElement>, idx: number): void => {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    if (e.shiftKey) {
+      setA(anchorRef.current)
+      setB(idx)
+    } else {
+      anchorRef.current = idx
+      setA(idx)
+      setB(idx)
+    }
+  }
 
   const exportar = async (): Promise<void> => {
     if (!meses.length) return
@@ -199,33 +213,37 @@ export function ExportProgramacaoDialog({
       toast.success('Programação exportada.')
       onOpenChange(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao exportar.')
+      toast.error(
+        `Não foi possível exportar a programação.${e instanceof Error ? ` ${e.message}` : ''}`
+      )
     } finally {
       setExporting(false)
     }
   }
 
+  const ATALHO =
+    'h-7 px-2.5 rounded border border-border-strong bg-bg-panel text-xs text-text hover:bg-bg-hover hover:border-border-accent transition-colors'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="lg" disableDismiss={exporting}>
       <DialogHeader>
-        <DialogTitle>Exportar Programação — Previsto × Realizado</DialogTitle>
+        <DialogTitle>Exportar a programação para Excel</DialogTitle>
       </DialogHeader>
       <DialogBody className="space-y-4">
-        <p className="text-xs text-text-muted">
-          Arraste sobre a linha do tempo para marcar o período a exportar — como selecionar colunas
-          no Excel. Ou use os atalhos ao lado.
+        <p className="text-sm text-text-muted">
+          Arraste sobre os meses para marcar o período, como ao selecionar colunas numa planilha, ou
+          use os atalhos. No teclado, Enter marca o mês e Shift + Enter estende a seleção até ele.
         </p>
 
         {meses.length === 0 ? (
-          <div className="rounded border border-border bg-bg-panel py-8 text-center text-2xs font-mono text-text-dim">
-            Sem dados de programação nesta obra.
-          </div>
+          <p className="rounded border border-border bg-bg-elevated px-3 py-6 text-sm text-text-muted">
+            Esta obra ainda não tem programação para exportar.
+          </p>
         ) : (
-          <div className="rounded-md border border-border bg-bg-elevated/40 p-3.5 space-y-3">
-            {/* Cabeçalho da régua */}
-            <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 text-2xs font-mono uppercase tracking-wider text-text-dim">
-                <CalendarRange size={12} /> Linha do tempo
+          <div className="rounded border border-border bg-bg-elevated p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                Meses da obra
               </span>
               <div className="flex items-center gap-1.5">
                 <button
@@ -236,7 +254,7 @@ export function ExportProgramacaoDialog({
                     setB(lastIdx)
                     setDragging(false)
                   }}
-                  className="px-2 py-0.5 rounded border border-border text-2xs font-mono text-text-dim hover:text-text hover:border-border-strong transition-colors"
+                  className={ATALHO}
                 >
                   Obra toda
                 </button>
@@ -248,91 +266,73 @@ export function ExportProgramacaoDialog({
                     setB(inicial)
                     setDragging(false)
                   }}
-                  className="px-2 py-0.5 rounded border border-border text-2xs font-mono text-text-dim hover:text-text hover:border-border-strong transition-colors"
+                  className={ATALHO}
                 >
-                  Mês atual
+                  Mês do calendário
                 </button>
               </div>
             </div>
 
-            {/* Linha do tempo: um único elemento. Faixa de anos alinhada acima dos
-                slots; arraste sobre os slots para marcar (a seleção azul é a régua). */}
-            <div className="select-none rounded-md border border-border-strong overflow-hidden bg-gradient-to-b from-bg-elevated to-bg-panel shadow-inner">
-              {/* Faixa de anos (proporcional à qtde de meses de cada ano) */}
-              <div className="flex border-b border-border-strong/70 bg-black/20">
-                {anoGroups.map((g, i) => (
-                  <div
-                    key={g.ano}
-                    style={{ flex: g.count }}
-                    className={cn(
-                      'py-0.5 text-center text-[10px] font-mono tracking-wider text-text-faint',
-                      i > 0 && 'border-l border-border-strong/60'
-                    )}
-                  >
-                    {g.ano}
-                  </div>
-                ))}
-              </div>
-
-              {/* Slots metálicos */}
-              <div className="flex">
-                {meses.map((m, idx) => {
-                  const sel = idx >= lo && idx <= hi
-                  const isLo = idx === lo
-                  const isHi = idx === hi
-                  const primeiroDoAno = idx === 0 || meses[idx - 1].ano !== m.ano
-                  return (
-                    <button
-                      key={m.key}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        iniDrag(idx)
-                      }}
-                      onMouseEnter={() => extDrag(idx)}
-                      title={`${MESES[m.mes]} ${m.ano}`}
+            {/* Faixa de anos alinhada acima dos meses; arrastar sobre os meses marca o período. */}
+            <div className="select-none rounded border border-border-strong overflow-x-auto bg-bg-panel">
+              <div className="min-w-max">
+                <div className="flex border-b border-border">
+                  {anoGroups.map((g, i) => (
+                    <div
+                      key={g.ano}
+                      style={{ flex: g.count }}
                       className={cn(
-                        'relative flex-1 min-w-[40px] h-7 flex items-center justify-center',
-                        'text-sm font-mono font-semibold tracking-wide cursor-pointer transition-all duration-100',
-                        'border-r last:border-r-0',
-                        sel
-                          ? [
-                              'text-white border-[oklch(45%_0.15_255)]',
-                              'bg-gradient-to-b from-[oklch(72%_0.16_255)] via-[oklch(64%_0.18_255)] to-[oklch(50%_0.17_255)]',
-                              'shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-2px_3px_rgba(0,0,0,0.35)]',
-                              'drop-shadow-[0_1px_0_rgba(0,0,0,0.4)]'
-                            ]
-                          : [
-                              'text-text-muted border-border',
-                              'bg-gradient-to-b from-bg-elevated to-[#15181e]',
-                              'shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
-                              'hover:from-bg-hover hover:to-bg-elevated hover:text-text'
-                            ],
-                        !sel && primeiroDoAno && idx !== 0 && 'border-l border-l-border-strong/60'
+                        'py-1 text-center text-2xs font-semibold tabular text-text-dim',
+                        i > 0 && 'border-l border-border-strong'
                       )}
                     >
-                      {MES_CURTO[m.mes]}
-                      {/* Alças metálicas nas extremidades da faixa selecionada */}
-                      {sel && isLo && (
-                        <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 size-4 rounded-full border border-[oklch(45%_0.15_255)] bg-gradient-to-b from-white to-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.5)] z-10" />
-                      )}
-                      {sel && isHi && (
-                        <span className="absolute -right-1.5 top-1/2 -translate-y-1/2 size-4 rounded-full border border-[oklch(45%_0.15_255)] bg-gradient-to-b from-white to-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.5)] z-10" />
-                      )}
-                    </button>
-                  )
-                })}
+                      {g.ano}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex" role="group" aria-label="Meses a exportar">
+                  {meses.map((m, idx) => {
+                    const sel = idx >= lo && idx <= hi
+                    const primeiroDoAno = idx !== 0 && meses[idx - 1].ano !== m.ano
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        aria-pressed={sel}
+                        aria-label={`${MESES[m.mes]} de ${m.ano}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          iniDrag(idx)
+                        }}
+                        onMouseEnter={() => extDrag(idx)}
+                        onKeyDown={(e) => aoTeclarMes(e, idx)}
+                        title={`${MESES[m.mes]} de ${m.ano}`}
+                        className={cn(
+                          'flex-1 min-w-[44px] h-8 flex items-center justify-center text-xs font-semibold cursor-pointer transition-colors',
+                          'border-r border-border last:border-r-0',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+                          sel
+                            ? 'bg-accent text-[color:var(--on-accent)] focus-visible:ring-[color:var(--on-accent)]'
+                            : 'text-text-muted hover:bg-bg-hover hover:text-text',
+                          primeiroDoAno && 'border-l border-l-border-strong'
+                        )}
+                      >
+                        {MES_CURTO[m.mes]}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Rodapé: período + resumo */}
-            <div className="flex items-center justify-between text-2xs font-mono pt-0.5">
-              <span className="text-text-dim">
-                Período: <span className="text-accent font-semibold">{periodoLabel || '—'}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-text-muted">
+              <span>
+                Período: <span className="text-text font-semibold">{periodoLabel || '—'}</span>
               </span>
-              <span className="text-text-faint">
-                {hi - lo + 1} {hi - lo === 0 ? 'mês' : 'meses'} · {totalDias} dias ·{' '}
-                {servicos.length} serviços
+              <span className="tabular">
+                {contar(hi - lo + 1, 'mês', 'meses')}, {contar(totalDias, 'dia', 'dias')},{' '}
+                {contar(servicos.length, 'serviço', 'serviços')}
               </span>
             </div>
           </div>
@@ -352,8 +352,9 @@ export function ExportProgramacaoDialog({
           variant="default"
           onClick={exportar}
           disabled={exporting || meses.length === 0}
+          title={meses.length === 0 ? 'Não há programação para exportar.' : undefined}
         >
-          <FileSpreadsheet size={12} /> {exporting ? 'Exportando…' : 'Exportar Excel'}
+          <FileSpreadsheet size={14} /> {exporting ? 'Exportando…' : 'Exportar para Excel'}
         </Button>
       </DialogFooter>
     </Dialog>

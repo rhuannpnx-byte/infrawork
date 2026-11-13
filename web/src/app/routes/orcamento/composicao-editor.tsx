@@ -3,7 +3,16 @@ import { CadeiaTravaBanner } from '@/features/orcamento/components/CadeiaTravaBa
 import { useCadeiaTrava } from '@/features/planejamento/hooks/planejamentos'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle2, GitBranch, Plus, Save, Trash2, Wand2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  GitBranch,
+  Plus,
+  Save,
+  Trash2,
+  Wand2
+} from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { RequireObra } from '@/components/layout/RequireObra'
@@ -12,6 +21,11 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { IconButton } from '@/components/ui/IconButton'
+import { Campo } from '@/components/ui/campo'
+import { Secao } from '@/components/ui/secao'
+import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
+import { Carregando, ErroConsulta } from '@/components/ui/estado'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCpu, useCpus, usePublishCpu } from '@/features/orcamento/hooks/cpus'
@@ -46,8 +60,25 @@ interface ItemLocal {
 const GRUPOS_ITEM: Array<Exclude<CpuItemGrupo, 'COMBUSTIVEL'>> = ['EQUIPAMENTO', 'MO', 'MATERIAL']
 const CODIGO_RE = /^[0-9]{1,3}(\.[0-9]{1,3})*$/
 
+const ROTULO_GRUPO = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
+const TH = `px-2 py-1.5 first:pl-4 ${ROTULO_GRUPO}`
+
+interface ErrosCampos {
+  codigo?: string
+  nome?: string
+  unidade?: string
+  producao?: string
+  itens?: string
+  combLitros?: string
+}
+
 let seq = 0
 const novaKey = (): string => `it-${Date.now()}-${seq++}`
+
+/** Número do banco para o campo de edição, com vírgula decimal ("10,38"); vazio quando não há valor. */
+function numeroBR(v: number | string | null | undefined): string {
+  return v == null || v === '' ? '' : String(v).replace('.', ',')
+}
 
 function num(s: string): number {
   const n = parseBR(s ?? '').toNumber()
@@ -84,7 +115,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
   const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
   const isNew = !cpuId
 
-  const { data: cpu, isLoading, error } = useCpu(cpuId)
+  const { data: cpu, isLoading, error, refetch } = useCpu(cpuId)
   const { data: recursos = [] } = useRecursos(obraId)
   const { data: servicos = [] } = useServicos(obraId)
   const { data: versoes = [] } = useCpus(obraId, cpu?.servico_id ?? null)
@@ -103,6 +134,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
   const [carregado, setCarregado] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [novoRecursoOpen, setNovoRecursoOpen] = useState(false)
+  const [tentouSalvar, setTentouSalvar] = useState(false)
 
   // Carrega a composição existente no estado local (uma vez por cpuId).
   useEffect(() => {
@@ -110,7 +142,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
     setCodigo(cpu.servico?.codigo ?? '')
     setNome(cpu.nome ?? cpu.servico?.nome ?? '')
     setUnidade(cpu.servico?.unidade ?? cpu.producao_diaria_unidade ?? '')
-    setProducao(String(cpu.producao_diaria_qtde ?? ''))
+    setProducao(numeroBR(cpu.producao_diaria_qtde))
     setObservacao(cpu.notas ?? '')
     const locais: ItemLocal[] = []
     for (const it of cpu.itens) {
@@ -118,19 +150,18 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
         setCombRecursoId(it.recurso_id)
         const q = Number(it.quantidade ?? 0)
         setCombManual(q > 0)
-        setCombLitros(q > 0 ? String(q) : '')
+        setCombLitros(q > 0 ? numeroBR(q) : '')
         continue
       }
       locais.push({
         key: novaKey(),
         grupo: it.grupo,
         recurso_id: it.recurso_id,
-        quantidade: String(it.quantidade ?? ''),
-        horas_dia: it.horas_dia != null ? String(it.horas_dia) : '',
-        consumo_lh: it.consumo_combustivel_lh != null ? String(it.consumo_combustivel_lh) : '',
-        indice: String(it.indice_produtividade ?? 1),
-        consumo_mat:
-          it.consumo_material_por_unid != null ? String(it.consumo_material_por_unid) : ''
+        quantidade: numeroBR(it.quantidade),
+        horas_dia: numeroBR(it.horas_dia),
+        consumo_lh: numeroBR(it.consumo_combustivel_lh),
+        indice: numeroBR(it.indice_produtividade ?? 1),
+        consumo_mat: numeroBR(it.consumo_material_por_unid)
       })
     }
     setItens(locais)
@@ -219,17 +250,22 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
     marcar()
   }
 
-  const validar = (): string | null => {
-    if (!CODIGO_RE.test(codigo.trim())) return 'Código inválido (use 01, 01.02, 01.02.03).'
-    if (!nome.trim()) return 'Informe o nome do serviço.'
-    if (!unidade.trim()) return 'Informe a unidade.'
-    if (unidade.trim().toUpperCase() === 'DIA') return 'Unidade "DIA" não é permitida.'
-    if (!(prod > 0)) return 'Produção por dia deve ser maior que zero.'
-    if (itens.some((it) => !it.recurso_id)) return 'Há insumos sem recurso selecionado.'
+  // Mesmas regras de antes, agora por campo, na ordem em que eram conferidas.
+  const validar = (): ErrosCampos => {
+    const e: ErrosCampos = {}
+    if (!CODIGO_RE.test(codigo.trim()))
+      e.codigo = 'Use números separados por ponto, como 01, 01.02 ou 01.02.03.'
+    if (!nome.trim()) e.nome = 'Informe o nome do serviço.'
+    if (!unidade.trim()) e.unidade = 'Informe a unidade.'
+    else if (unidade.trim().toUpperCase() === 'DIA') e.unidade = 'A unidade "DIA" não é permitida.'
+    if (!(prod > 0)) e.producao = 'Informe uma produção por dia maior que zero.'
+    if (itens.some((it) => !it.recurso_id))
+      e.itens = 'Há insumos sem recurso. Escolha o recurso de cada linha ou remova a linha.'
     if (combManual && combRecursoId && !(num(combLitros) > 0))
-      return 'Informe os litros/dia do combustível ou volte ao modo automático.'
-    return null
+      e.combLitros = 'Informe os litros por dia ou desmarque para usar o cálculo automático.'
+    return e
   }
+  const erros: ErrosCampos = tentouSalvar ? validar() : {}
 
   const montarItens = (): ComposicaoItemInput[] => {
     const out: ComposicaoItemInput[] = itens.map((it) => ({
@@ -262,9 +298,10 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
   }
 
   const onSalvar = async (modo: 'salvar' | 'nova_versao'): Promise<void> => {
-    const err = validar()
-    if (err) {
-      toast.error(err)
+    const pendentes = Object.values(validar())
+    if (pendentes.length > 0) {
+      setTentouSalvar(true)
+      toast.error(pendentes[0])
       return
     }
     try {
@@ -281,14 +318,16 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
       setDirty(false)
       toast.success(
         modo === 'nova_versao'
-          ? `Nova versão criada (custo ${fmtBRL4(res.custo_unit ?? 0)}).`
-          : `Composição salva (custo ${fmtBRL4(res.custo_unit ?? 0)}).`
+          ? `Nova versão criada, com custo unitário de ${fmtBRL4(res.custo_unit ?? 0)}.`
+          : `Composição salva, com custo unitário de ${fmtBRL4(res.custo_unit ?? 0)}.`
       )
       if (isNew || res.cpu_id !== cpuId) {
         navigate({ to: '/orcamento/composicoes/$id', params: { id: res.cpu_id } })
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao salvar.')
+      toast.error(
+        `Não foi possível salvar a composição. ${e instanceof Error ? e.message : ''}`.trim()
+      )
     }
   }
 
@@ -298,46 +337,59 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
       await publish.mutateAsync({ id: cpu.id })
       toast.success('Esta versão passou a ser a vigente.')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao publicar.')
+      toast.error(
+        `Não foi possível tornar esta versão a vigente. ${e instanceof Error ? e.message : ''}`.trim()
+      )
     }
   }
+
+  const voltar = (
+    <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/orcamento/composicoes' })}>
+      <ArrowLeft size={12} aria-hidden /> Voltar para composições
+    </Button>
+  )
 
   if (!isNew && isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Composição" />
-        <div className="flex-1 flex items-center justify-center text-xs text-text-muted font-mono">
-          Carregando…
-        </div>
+        <PageHeader title="Composição" actions={voltar} />
+        <Carregando texto="Carregando a composição…" className="px-5" />
       </div>
     )
   }
   if (!isNew && (error || !cpu)) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Composição" />
-        <div className="flex-1 flex items-center justify-center">
-          <EmptyState
-            icon="alert-triangle"
-            title="Composição não encontrada"
-            description={error?.message ?? 'Verifique o link.'}
-            action={
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => navigate({ to: '/orcamento/composicoes' })}
-              >
-                Voltar
-              </Button>
-            }
-          />
-        </div>
+        <PageHeader title="Composição" actions={voltar} />
+        {error ? (
+          <div className="p-5">
+            <ErroConsulta erro={error} oQue="a composição" aoTentar={() => void refetch()} />
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <EmptyState
+              icon="calculator"
+              title="Composição não encontrada"
+              description="Ela pode ter sido excluída. Volte para a lista e escolha outra composição."
+              action={
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => navigate({ to: '/orcamento/composicoes' })}
+                >
+                  Abrir a lista de composições
+                </Button>
+              }
+            />
+          </div>
+        )}
       </div>
     )
   }
 
   const readOnly = !podeEditar
-  const titulo = isNew ? 'Nova composição' : `${codigo || '—'} — ${nome || 'Composição'}`
+  const titulo = isNew ? 'Nova composição' : `${codigo} ${nome}`.trim() || 'Composição'
+  const semAlteracao = !isNew && !dirty
 
   return (
     <div className="flex flex-col h-full">
@@ -345,34 +397,30 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
         title={titulo}
         subtitle={
           isNew
-            ? 'Serviço + insumos + produção por dia = custo unitário.'
-            : `Versão v${cpu?.versao ?? 1}${unidade ? ` · unidade ${unidade}` : ''}`
+            ? 'Custo unitário a partir dos insumos e da produção por dia'
+            : `Versão ${cpu?.versao ?? 1}${unidade ? `, unidade ${unidade}` : ''}`
         }
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {!isNew ? (
               cpu?.is_vigente ? (
-                <Badge variant="success">vigente</Badge>
+                <Badge variant="success">Vigente</Badge>
               ) : (
-                <Badge>histórico</Badge>
+                <Badge>Versão anterior</Badge>
               )
             ) : null}
-            {dirty ? <Badge variant="warn">não salvo</Badge> : null}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate({ to: '/orcamento/composicoes' })}
-            >
-              <ArrowLeft size={12} /> Voltar
-            </Button>
+            {dirty ? <Badge variant="warn">Alterações não salvas</Badge> : null}
+            {voltar}
             {!isNew && cpu && !cpu.is_vigente && podeEditar ? (
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => void onTornarVigente()}
                 disabled={publish.isPending}
+                title="Passa a usar esta versão no orçamento"
               >
-                <CheckCircle2 size={12} /> Tornar vigente
+                <CheckCircle2 size={12} aria-hidden />{' '}
+                {publish.isPending ? 'Aplicando…' : 'Tornar vigente'}
               </Button>
             ) : null}
             {!isNew && podeEditar ? (
@@ -381,9 +429,9 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 size="sm"
                 onClick={() => void onSalvar('nova_versao')}
                 disabled={salvar.isPending}
-                title="Guarda a versão atual no histórico e cria uma nova vigente"
+                title="Guarda a versão atual no histórico e cria uma nova, que passa a ser a vigente"
               >
-                <GitBranch size={12} /> Nova versão
+                <GitBranch size={12} aria-hidden /> Salvar como nova versão
               </Button>
             ) : null}
             {podeEditar ? (
@@ -391,9 +439,10 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 variant="default"
                 size="sm"
                 onClick={() => void onSalvar('salvar')}
-                disabled={salvar.isPending || (!isNew && !dirty)}
+                disabled={salvar.isPending || semAlteracao}
+                title={semAlteracao ? 'Não há alterações para salvar' : undefined}
               >
-                <Save size={12} />{' '}
+                <Save size={12} aria-hidden />{' '}
                 {salvar.isPending ? 'Salvando…' : isNew ? 'Criar composição' : 'Salvar'}
               </Button>
             ) : null}
@@ -402,11 +451,13 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
       />
       <CadeiaTravaBanner obraId={obraId} />
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* ─── Cabeçalho ─── */}
-        <div className="rounded border border-border bg-bg-panel p-4">
+      <div className="flex-1 overflow-auto p-5 space-y-4">
+        <section
+          aria-label="Dados da composição"
+          className="rounded border border-border bg-bg-panel p-4"
+        >
           <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-2">
+            <div className="col-span-12 sm:col-span-3 lg:col-span-2 flex flex-col gap-1 min-w-0">
               <Label htmlFor="c-codigo">Código</Label>
               <div className="flex items-center gap-1">
                 <Input
@@ -417,26 +468,33 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                     marcar()
                   }}
                   readOnly={readOnly || !isNew}
-                  className="font-mono"
+                  className="tabular"
                   placeholder="01.02"
+                  aria-invalid={erros.codigo ? true : undefined}
+                  aria-describedby={erros.codigo ? 'c-codigo-erro' : undefined}
                 />
-                {isNew ? (
-                  <button
-                    type="button"
-                    className="h-7 w-7 grid place-items-center rounded text-text-dim hover:text-accent hover:bg-bg-hover"
-                    title="Sugerir próximo código"
+                {isNew && !readOnly ? (
+                  <IconButton
+                    variant="accent"
+                    aria-label="Sugerir o próximo código"
+                    title="Sugerir o próximo código"
+                    className="shrink-0"
                     onClick={() => {
                       setCodigo(sugerirProximoCodigo(servicos.map((s) => s.codigo)))
                       marcar()
                     }}
                   >
-                    <Wand2 size={12} />
-                  </button>
+                    <Wand2 size={14} aria-hidden />
+                  </IconButton>
                 ) : null}
               </div>
+              <ErroCampo id="c-codigo-erro" erro={erros.codigo} />
             </div>
-            <div className="col-span-5">
-              <Label htmlFor="c-nome">Nome do serviço</Label>
+            <Campo
+              rotulo="Nome do serviço"
+              erro={erros.nome}
+              className="col-span-12 sm:col-span-9 lg:col-span-5"
+            >
               <Input
                 id="c-nome"
                 value={nome}
@@ -447,9 +505,8 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 readOnly={readOnly}
                 placeholder="Ex.: Base de brita graduada"
               />
-            </div>
-            <div className="col-span-2">
-              <Label htmlFor="c-unidade">Unidade</Label>
+            </Campo>
+            <Campo rotulo="Unidade" erro={erros.unidade} className="col-span-6 lg:col-span-2">
               <Input
                 id="c-unidade"
                 value={unidade}
@@ -459,12 +516,11 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 }}
                 readOnly={readOnly}
                 placeholder="m³, m², t, un"
-                className="font-mono"
               />
-            </div>
-            <div className="col-span-3">
+            </Campo>
+            <div className="col-span-6 lg:col-span-3 flex flex-col gap-1 min-w-0">
               <Label htmlFor="c-prod">Produção por dia</Label>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <Input
                   id="c-prod"
                   value={producao}
@@ -474,15 +530,17 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   }}
                   readOnly={readOnly}
                   inputMode="decimal"
-                  className="font-mono text-right"
+                  className="tabular text-right"
+                  aria-invalid={erros.producao ? true : undefined}
+                  aria-describedby={erros.producao ? 'c-prod-erro' : undefined}
                 />
-                <span className="text-2xs font-mono text-text-dim whitespace-nowrap">
+                <span className="text-sm text-text-muted whitespace-nowrap">
                   {unidade || 'un'}/dia
                 </span>
               </div>
+              <ErroCampo id="c-prod-erro" erro={erros.producao} />
             </div>
-            <div className="col-span-12">
-              <Label htmlFor="c-obs">Observações</Label>
+            <Campo rotulo="Observações" className="col-span-12">
               <Input
                 id="c-obs"
                 value={observacao}
@@ -493,44 +551,49 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 readOnly={readOnly}
                 placeholder="Notas da composição (opcional)"
               />
-            </div>
+            </Campo>
           </div>
-        </div>
+        </section>
 
-        {/* ─── Resumo de custo (ao vivo) ─── */}
-        <div className="grid grid-cols-5 gap-3">
-          <CustoCard label="Equipamento" value={custos.eq} hint="por dia" />
-          <CustoCard
-            label="Combustível"
-            value={custos.comb}
-            hint={`${fmtQtd(custos.litros)} L/dia`}
-          />
-          <CustoCard label="Mão de obra" value={custos.mo} hint="por dia" />
-          <CustoCard label="Material" value={custos.mat} hint="por dia" />
-          <CustoCard
-            label="Custo unitário"
-            value={custos.unit}
-            hint={unidade ? `por ${unidade}` : 'unitário'}
-            highlight
-            precise
-          />
-        </div>
+        <FaixaIndicadores rotulo="Custo da composição, calculado ao vivo">
+          <Indicador rotulo="Equipamento" valor={fmtBRL(custos.eq)} tamanho="sm">
+            <span>por dia</span>
+          </Indicador>
+          <Indicador rotulo="Combustível" valor={fmtBRL(custos.comb)} tamanho="sm">
+            <span>{fmtQtd(custos.litros)} L/dia</span>
+          </Indicador>
+          <Indicador rotulo="Mão de obra" valor={fmtBRL(custos.mo)} tamanho="sm">
+            <span>por dia</span>
+          </Indicador>
+          <Indicador rotulo="Material" valor={fmtBRL(custos.mat)} tamanho="sm">
+            <span>por dia</span>
+          </Indicador>
+          <Indicador rotulo="Custo unitário" valor={fmtBRL4(custos.unit)} tamanho="sm">
+            <span>{unidade ? `por ${unidade}` : 'por unidade'}</span>
+          </Indicador>
+        </FaixaIndicadores>
         {!isNew && cpu && Math.abs(Number(cpu.custo_unit_calc) - custos.unit) > 0.005 && !dirty ? (
-          <div className="text-2xs font-mono text-text-dim">
-            Custo gravado no banco: {fmtBRL4(cpu.custo_unit_calc)} (preços vigentes podem ter mudado
-            desde o último salvamento).
-          </div>
+          <p className="text-sm text-text-muted">
+            Custo salvo na composição: {fmtBRL4(cpu.custo_unit_calc)}. Os preços dos recursos podem
+            ter mudado desde a última vez que ela foi salva.
+          </p>
         ) : null}
 
-        {/* ─── Insumos ─── */}
-        <div className="rounded border border-border bg-bg-panel">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-bg-elevated">
-            <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">Insumos</h3>
-            {podeEditar ? (
-              <div className="flex items-center gap-1">
+        <Secao
+          titulo="Insumos"
+          semRecuo
+          acoes={
+            podeEditar ? (
+              <>
                 {GRUPOS_ITEM.map((g) => (
-                  <Button key={g} variant="ghost" size="sm" onClick={() => addItem(g)}>
-                    <Plus size={12} /> {CPU_ITEM_GRUPO_LABEL[g]}
+                  <Button
+                    key={g}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => addItem(g)}
+                    title={`Adicionar ${CPU_ITEM_GRUPO_LABEL[g].toLowerCase()} à composição`}
+                  >
+                    <Plus size={12} aria-hidden /> {CPU_ITEM_GRUPO_LABEL[g]}
                   </Button>
                 ))}
                 <Button
@@ -539,79 +602,108 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   onClick={() => setNovoRecursoOpen(true)}
                   title="Cadastrar um recurso que ainda não existe"
                 >
-                  <Plus size={12} /> Novo recurso
+                  <Plus size={12} aria-hidden /> Cadastrar recurso
                 </Button>
-              </div>
-            ) : null}
-          </div>
-          <table className="w-full text-xs font-mono">
-            <thead className="text-2xs text-text-dim uppercase">
-              <tr className="border-b border-border">
-                <th className="text-left px-2 py-1.5 font-normal w-28">Tipo</th>
-                <th className="text-left px-2 py-1.5 font-normal">Recurso</th>
-                <th className="text-left px-2 py-1.5 font-normal w-14">Un.</th>
-                <th className="text-right px-2 py-1.5 font-normal w-24">Preço vig.</th>
-                <th
-                  className="text-right px-2 py-1.5 font-normal w-24"
-                  title="Equipamento/MO: nº de unidades. Material: quantidade/dia (quando não há consumo)."
-                >
-                  Qtd
-                </th>
-                <th className="text-right px-2 py-1.5 font-normal w-20">h/dia</th>
-                <th
-                  className="text-right px-2 py-1.5 font-normal w-20"
-                  title="Equipamento: litros de combustível por hora"
-                >
-                  L/h
-                </th>
-                <th
-                  className="text-right px-2 py-1.5 font-normal w-20"
-                  title="Equipamento: fração do tempo em operação (0 a 1)"
-                >
-                  Índice
-                </th>
-                <th
-                  className="text-right px-2 py-1.5 font-normal w-28"
-                  title={`Material: consumo por ${unidade || 'unidade'} produzida`}
-                >
-                  Consumo/un
-                </th>
-                <th className="text-right px-2 py-1.5 font-normal w-28">Custo/dia</th>
-                <th className="w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              {itens.length === 0 ? (
+              </>
+            ) : null
+          }
+        >
+          <div className="overflow-x-auto border-t border-border">
+            <table className="w-full min-w-[980px] text-sm tabular">
+              <thead className="bg-bg-elevated border-b border-border-strong">
                 <tr>
-                  <td colSpan={11} className="px-3 py-4 text-text-dim text-center">
-                    Nenhum insumo. Adicione equipamentos, mão de obra e materiais.
-                  </td>
+                  <th scope="col" className={cn(TH, 'text-left w-28')}>
+                    Tipo
+                  </th>
+                  <th scope="col" className={cn(TH, 'text-left')}>
+                    Recurso
+                  </th>
+                  <th scope="col" className={cn(TH, 'text-left w-14')}>
+                    Un.
+                  </th>
+                  <th scope="col" className={cn(TH, 'text-right w-24')}>
+                    Preço
+                  </th>
+                  <th
+                    scope="col"
+                    className={cn(TH, 'text-right w-24')}
+                    title="Equipamento e mão de obra: número de unidades. Material: quantidade por dia, quando não há consumo."
+                  >
+                    Qtd.
+                  </th>
+                  <th scope="col" className={cn(TH, 'text-right w-20')}>
+                    h/dia
+                  </th>
+                  <th
+                    scope="col"
+                    className={cn(TH, 'text-right w-20')}
+                    title="Equipamento: litros de combustível por hora"
+                  >
+                    L/h
+                  </th>
+                  <th
+                    scope="col"
+                    className={cn(TH, 'text-right w-20')}
+                    title="Equipamento: fração do tempo em operação (0 a 1)"
+                  >
+                    Índice
+                  </th>
+                  <th
+                    scope="col"
+                    className={cn(TH, 'text-right w-28')}
+                    title={`Material: consumo por ${unidade || 'unidade'} produzida`}
+                  >
+                    Consumo/un.
+                  </th>
+                  <th scope="col" className={cn(TH, 'text-right w-28')}>
+                    Custo/dia
+                  </th>
+                  <th scope="col" className="w-10">
+                    <span className="sr-only">Ações</span>
+                  </th>
                 </tr>
-              ) : (
-                itens.map((it) => (
-                  <ItemRow
-                    key={it.key}
-                    item={it}
-                    recursos={recursos}
-                    recurso={recursosPorId.get(it.recurso_id)}
-                    custo={custos.porItem.get(it.key) ?? 0}
-                    producao={prod}
-                    readOnly={readOnly}
-                    onPatch={(p) => patchItem(it.key, p)}
-                    onRemove={() => removeItem(it.key)}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {itens.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-6 text-text-muted">
+                      {podeEditar
+                        ? 'Esta composição ainda não tem insumos. Use os botões acima para adicionar equipamentos, mão de obra e materiais.'
+                        : 'Esta composição não tem insumos.'}
+                    </td>
+                  </tr>
+                ) : (
+                  itens.map((it) => (
+                    <ItemRow
+                      key={it.key}
+                      item={it}
+                      recursos={recursos}
+                      recurso={recursosPorId.get(it.recurso_id)}
+                      custo={custos.porItem.get(it.key) ?? 0}
+                      producao={prod}
+                      readOnly={readOnly}
+                      semRecurso={tentouSalvar && !it.recurso_id}
+                      onPatch={(p) => patchItem(it.key, p)}
+                      onRemove={() => removeItem(it.key)}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {erros.itens ? (
+            <p role="alert" className="px-4 py-2 text-xs font-medium text-danger">
+              {erros.itens}
+            </p>
+          ) : null}
 
-          {/* ─── Combustível ─── */}
-          <div className="border-t border-border px-3 py-2 flex flex-wrap items-center gap-3 bg-bg-elevated/40">
-            <span className="text-2xs font-mono uppercase tracking-wider text-text-muted w-24">
+          <div className="border-t border-border px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-2 bg-bg-elevated">
+            <label htmlFor="c-comb" className={ROTULO_GRUPO}>
               Combustível
-            </span>
-            <div className="w-64">
+            </label>
+            <div className="w-72 max-w-full">
               <Select
+                id="c-comb"
                 value={combRecursoId}
                 onChange={(e) => {
                   setCombRecursoId(e.target.value)
@@ -619,18 +711,18 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 }}
                 disabled={readOnly}
               >
-                <option value="">— sem combustível —</option>
+                <option value="">Sem combustível</option>
                 {combustiveis.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nome} ({c.unidade})
-                    {c.preco_vigente != null ? ` · ${fmtBRL4(c.preco_vigente)}` : ''}
+                    {c.preco_vigente != null ? `, ${fmtBRL4(c.preco_vigente)}` : ''}
                   </option>
                 ))}
               </Select>
             </div>
             {combRecursoId ? (
               <>
-                <label className="flex items-center gap-1.5 text-2xs text-text-muted cursor-pointer">
+                <label className="flex items-center gap-1.5 text-sm text-text-muted cursor-pointer">
                   <input
                     type="checkbox"
                     checked={combManual}
@@ -641,69 +733,83 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                     disabled={readOnly}
                     className="accent-[var(--accent)]"
                   />
-                  informar litros/dia manualmente
+                  Informar os litros por dia
                 </label>
                 {combManual ? (
-                  <Input
-                    value={combLitros}
-                    onChange={(e) => {
-                      setCombLitros(e.target.value)
-                      marcar()
-                    }}
-                    inputMode="decimal"
-                    className="w-28 text-right font-mono"
-                    placeholder="L/dia"
-                    readOnly={readOnly}
-                  />
+                  <div className="flex flex-col gap-1">
+                    <Input
+                      value={combLitros}
+                      onChange={(e) => {
+                        setCombLitros(e.target.value)
+                        marcar()
+                      }}
+                      inputMode="decimal"
+                      className="w-28 text-right tabular"
+                      placeholder="L/dia"
+                      aria-label="Litros de combustível por dia"
+                      aria-invalid={erros.combLitros ? true : undefined}
+                      aria-describedby={erros.combLitros ? 'c-comb-erro' : undefined}
+                      readOnly={readOnly}
+                    />
+                    <ErroCampo id="c-comb-erro" erro={erros.combLitros} />
+                  </div>
                 ) : (
-                  <span className="text-2xs font-mono text-text-dim">
-                    {fmtQtd(custos.litrosDerivados)} L/dia = Σ equipamentos (qtd × L/h × h/dia ×
-                    índice)
+                  <span className="text-sm text-text-muted">
+                    {fmtQtd(custos.litrosDerivados)} L/dia, soma dos equipamentos (qtd. × L/h ×
+                    h/dia × índice)
                   </span>
                 )}
-                <span className="ml-auto text-xs font-mono text-text tabular-nums">
+                <span className="ml-auto text-sm font-semibold text-text tabular">
                   {fmtBRL(custos.comb)}/dia
                 </span>
               </>
             ) : custos.litrosDerivados > 0 ? (
-              <span className="text-2xs font-mono text-warn">
-                Há equipamentos com L/h informado — selecione o combustível.
+              <span className="inline-flex items-center gap-1.5 text-sm text-text">
+                <AlertTriangle size={14} aria-hidden className="shrink-0 text-warn" />
+                Há equipamentos com L/h informado: selecione o combustível.
               </span>
             ) : null}
           </div>
-        </div>
+        </Secao>
 
-        {/* ─── Versões ─── */}
         {!isNew && versoes.length > 1 ? (
-          <div className="rounded border border-border bg-bg-panel p-3">
-            <div className="text-2xs font-mono uppercase tracking-wider text-text-muted mb-2">
-              Histórico de versões
-            </div>
-            <div className="flex flex-wrap gap-1.5">
+          <Secao titulo="Versões" nota="Abra uma versão para ver ou torná-la a vigente">
+            <div className="flex flex-wrap gap-2">
               {versoes.map((v) => (
                 <button
                   key={v.id}
                   type="button"
+                  aria-current={v.id === cpuId ? 'true' : undefined}
                   onClick={() =>
                     navigate({ to: '/orcamento/composicoes/$id', params: { id: v.id } })
                   }
                   className={cn(
-                    'rounded border px-2 py-1 text-2xs font-mono',
+                    'h-8 rounded border px-2.5 text-sm tabular',
                     v.id === cpuId
-                      ? 'border-accent text-accent bg-accent-glow'
-                      : 'border-border text-text-muted hover:border-border-accent'
+                      ? 'border-accent-line bg-accent-glow font-semibold text-text'
+                      : 'border-border-strong text-text-muted hover:border-border-accent hover:text-text'
                   )}
                 >
-                  v{v.versao} · {fmtBRL4(v.custo_unit_calc)} {v.is_vigente ? '· vigente' : ''}
+                  Versão {v.versao}: {fmtBRL4(v.custo_unit_calc)}
+                  {v.is_vigente ? ' (vigente)' : ''}
                 </button>
               ))}
             </div>
-          </div>
+          </Secao>
         ) : null}
       </div>
 
       <NewRecursoDialog open={novoRecursoOpen} onOpenChange={setNovoRecursoOpen} obraId={obraId} />
     </div>
+  )
+}
+
+function ErroCampo({ id, erro }: { id: string; erro: string | undefined }): ReactNode {
+  if (!erro) return null
+  return (
+    <span id={id} role="alert" className="text-xs font-medium text-danger">
+      {erro}
+    </span>
   )
 }
 
@@ -714,6 +820,7 @@ function ItemRow({
   custo,
   producao,
   readOnly,
+  semRecurso,
   onPatch,
   onRemove
 }: {
@@ -723,6 +830,7 @@ function ItemRow({
   custo: number
   producao: number
   readOnly: boolean
+  semRecurso: boolean
   onPatch: (p: Partial<ItemLocal>) => void
   onRemove: () => void
 }): ReactNode {
@@ -733,10 +841,16 @@ function ItemRow({
   )
   const ehEq = item.grupo === 'EQUIPAMENTO'
   const ehMat = item.grupo === 'MATERIAL'
-  const cell = 'h-6 text-right font-mono'
+  const cell = 'h-7 px-1.5 text-right tabular'
+  const nomeLinha = recurso?.nome ?? CPU_ITEM_GRUPO_LABEL[item.grupo].toLowerCase()
+  const naoSeAplica = (
+    <span className="block text-center text-text-dim" title="Não se aplica a este tipo de insumo">
+      —
+    </span>
+  )
   return (
-    <tr className="border-b border-border">
-      <td className="px-2 py-1">
+    <tr className="border-b border-border last:border-b-0">
+      <td className="pl-4 pr-2 py-1">
         <Badge variant={ehEq ? 'accent' : ehMat ? 'default' : 'warn'}>
           {CPU_ITEM_GRUPO_LABEL[item.grupo]}
         </Badge>
@@ -746,9 +860,11 @@ function ItemRow({
           value={item.recurso_id}
           onChange={(e) => onPatch({ recurso_id: e.target.value })}
           disabled={readOnly}
-          className="h-6"
+          className="h-7"
+          aria-label={`Recurso (${CPU_ITEM_GRUPO_LABEL[item.grupo].toLowerCase()})`}
+          aria-invalid={semRecurso ? true : undefined}
         >
-          <option value="">— selecionar —</option>
+          <option value="">Selecione o recurso</option>
           {elegiveis.map((r) => (
             <option key={r.id} value={r.id}>
               {r.nome}
@@ -756,19 +872,19 @@ function ItemRow({
           ))}
         </Select>
       </td>
-      <td className="px-2 py-1 text-text-dim">{recurso?.unidade ?? '—'}</td>
-      <td className="px-2 py-1 text-right text-text-muted tabular-nums">
+      <td className="px-2 py-1 text-text-muted">{recurso?.unidade ?? '—'}</td>
+      <td className="px-2 py-1 text-right text-text-muted whitespace-nowrap">
         {recurso?.preco_vigente != null ? (
           fmtBRL4(recurso.preco_vigente)
         ) : (
-          <span className="text-warn">sem preço</span>
+          <span className="font-semibold text-warn">Sem preço</span>
         )}
       </td>
       <td className="px-2 py-1">
         {ehMat && item.consumo_mat.trim() ? (
           <span
-            className="block text-right text-text-dim tabular-nums"
-            title="= consumo × produção/dia"
+            className="block text-right text-text-muted"
+            title="Consumo por unidade × produção por dia"
           >
             {fmtQtd(num(item.consumo_mat) * producao)}
           </span>
@@ -779,12 +895,13 @@ function ItemRow({
             inputMode="decimal"
             className={cell}
             readOnly={readOnly}
+            aria-label={`Quantidade de ${nomeLinha}`}
           />
         )}
       </td>
       <td className="px-2 py-1">
         {ehMat ? (
-          <span className="block text-center text-text-faint">—</span>
+          naoSeAplica
         ) : (
           <Input
             value={item.horas_dia}
@@ -792,6 +909,7 @@ function ItemRow({
             inputMode="decimal"
             className={cell}
             readOnly={readOnly}
+            aria-label={`Horas por dia de ${nomeLinha}`}
           />
         )}
       </td>
@@ -803,9 +921,10 @@ function ItemRow({
             inputMode="decimal"
             className={cell}
             readOnly={readOnly}
+            aria-label={`Litros por hora de ${nomeLinha}`}
           />
         ) : (
-          <span className="block text-center text-text-faint">—</span>
+          naoSeAplica
         )}
       </td>
       <td className="px-2 py-1">
@@ -816,9 +935,10 @@ function ItemRow({
             inputMode="decimal"
             className={cell}
             readOnly={readOnly}
+            aria-label={`Índice de operação de ${nomeLinha}`}
           />
         ) : (
-          <span className="block text-center text-text-faint">—</span>
+          naoSeAplica
         )}
       </td>
       <td className="px-2 py-1">
@@ -830,60 +950,28 @@ function ItemRow({
             className={cell}
             readOnly={readOnly}
             placeholder="por un."
+            aria-label={`Consumo por unidade de ${nomeLinha}`}
           />
         ) : (
-          <span className="block text-center text-text-faint">—</span>
+          naoSeAplica
         )}
       </td>
-      <td className="px-2 py-1 text-right text-text font-medium tabular-nums">{fmtBRL(custo)}</td>
+      <td className="px-2 py-1 text-right text-text font-semibold whitespace-nowrap">
+        {fmtBRL(custo)}
+      </td>
       <td className="px-1 py-1 text-right">
         {!readOnly ? (
-          <button
-            type="button"
+          <IconButton
+            size="sm"
+            variant="danger"
             onClick={onRemove}
-            className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
-            title="Remover"
+            aria-label={`Remover ${nomeLinha} da composição`}
+            title="Remover da composição"
           >
-            <Trash2 size={12} />
-          </button>
+            <Trash2 size={12} aria-hidden />
+          </IconButton>
         ) : null}
       </td>
     </tr>
-  )
-}
-
-function CustoCard({
-  label,
-  value,
-  hint,
-  highlight,
-  precise
-}: {
-  label: string
-  value: number
-  hint?: string
-  highlight?: boolean
-  precise?: boolean
-}): ReactNode {
-  return (
-    <div
-      className={
-        highlight
-          ? 'rounded border border-accent-line bg-accent/5 p-3'
-          : 'rounded border border-border bg-bg-panel p-3'
-      }
-    >
-      <div className="text-2xs font-mono uppercase tracking-wider text-text-dim mb-1">{label}</div>
-      <div
-        className={
-          highlight
-            ? 'text-lg font-semibold font-mono text-accent tabular-nums'
-            : 'text-md font-mono text-text tabular-nums'
-        }
-      >
-        {precise ? fmtBRL4(value) : fmtBRL(value)}
-      </div>
-      {hint ? <div className="text-2xs text-text-dim font-mono mt-0.5">{hint}</div> : null}
-    </div>
   )
 }

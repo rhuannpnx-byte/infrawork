@@ -10,8 +10,10 @@ import {
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
+  Check,
   ChevronDown,
   ChevronRight,
+  Minus,
   Folder,
   FileText,
   Filter,
@@ -190,7 +192,7 @@ export function PlanOrcTree({
 
   return (
     <div data-density="compact" className="flex flex-col h-full">
-      <div className="flex items-center text-2xs font-mono uppercase tracking-wider text-text-dim bg-bg-elevated border-b border-border sticky top-0 z-10">
+      <div className="flex items-center text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim bg-bg-elevated border-b border-border-strong sticky top-0 z-10">
         <div
           className="px-2 py-1.5 flex items-center justify-center"
           style={{ width: 32 }}
@@ -205,18 +207,27 @@ export function PlanOrcTree({
           {podeEditar ? (
             <button
               type="button"
+              role="checkbox"
+              aria-checked={
+                headerSelectState === 'all' ? true : headerSelectState === 'some' ? 'mixed' : false
+              }
+              aria-label="Selecionar todos os itens visíveis"
               onClick={onToggleSelectAll}
               disabled={visibleIds.length === 0}
               className={cn(
-                'w-4 h-4 inline-flex items-center justify-center rounded border text-2xs',
+                'w-4 h-4 inline-flex items-center justify-center rounded-sm border',
                 headerSelectState === 'all'
-                  ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
+                  ? 'border-accent bg-accent text-[color:var(--on-accent)]'
                   : headerSelectState === 'some'
-                    ? 'border-accent bg-accent/40 text-[color:var(--primary-foreground)]'
-                    : 'border-border-strong hover:border-accent text-text-faint'
+                    ? 'border-accent bg-accent/40 text-[color:var(--on-accent)]'
+                    : 'border-border-strong bg-bg-panel hover:border-accent'
               )}
             >
-              {headerSelectState === 'all' ? '✓' : headerSelectState === 'some' ? '−' : ''}
+              {headerSelectState === 'all' ? (
+                <Check size={12} strokeWidth={3} />
+              ) : headerSelectState === 'some' ? (
+                <Minus size={12} strokeWidth={3} />
+              ) : null}
             </button>
           ) : null}
         </div>
@@ -229,6 +240,8 @@ export function PlanOrcTree({
               <button
                 type="button"
                 onClick={() => setFiltroAberto((o) => !o)}
+                aria-label="Filtrar por situação de agrupamento"
+                aria-expanded={filtroAberto}
                 title="Filtrar por situação de agrupamento"
                 className={cn(
                   'w-5 h-5 grid place-items-center rounded hover:bg-bg-hover',
@@ -240,11 +253,11 @@ export function PlanOrcTree({
             }
             className="w-[220px] p-1 normal-case tracking-normal font-sans"
           >
-            <div className="px-2 py-1 text-2xs text-text-dim">Mostrar receitas</div>
+            <div className="px-2 py-1 text-xs text-text-muted">Mostrar só as receitas</div>
             {FILTROS.map((st) => (
               <label
                 key={st}
-                className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-text hover:bg-bg-hover cursor-pointer"
+                className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-text hover:bg-bg-hover cursor-pointer"
               >
                 <input
                   type="checkbox"
@@ -260,7 +273,7 @@ export function PlanOrcTree({
               <button
                 type="button"
                 onClick={() => setFiltroAloc(new Set())}
-                className="w-full text-left px-2 py-1.5 text-2xs text-accent hover:underline"
+                className="w-full text-left px-2 py-1.5 text-sm font-semibold text-accent hover:underline"
               >
                 Limpar filtro
               </button>
@@ -268,12 +281,12 @@ export function PlanOrcTree({
           </Popover>
         </div>
         <div className="px-2 py-1.5" style={{ width: 410 }}>
-          Código · Descrição
+          Item
         </div>
         <div className="px-2 py-1.5 text-center" style={{ width: 60 }}>
           Un.
         </div>
-        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 110 }}>
+        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 126 }}>
           Qtd
         </div>
         <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
@@ -286,7 +299,7 @@ export function PlanOrcTree({
           Custo total
         </div>
         <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 80 }}>
-          Lucr.%
+          Lucro %
         </div>
         <div className="px-2 py-1.5 text-center flex-1" style={{ minWidth: 80 }}>
           Ações
@@ -421,10 +434,13 @@ const PlanOrcRow = memo(function PlanOrcRow({
       draggable={podeAlocar && isReceita}
       onDragStart={isReceita ? onDragStart : undefined}
       className={cn(
-        'flex items-center border-b border-border group h-7 border-l-2',
-        isSelected ? 'bg-accent-glow' : 'hover:bg-bg-hover',
-        destaque !== null ? 'border-l-accent bg-accent-glow' : 'border-l-transparent',
-        emDestaque && destaque === null && isReceita && 'opacity-60'
+        'flex items-center border-b border-border group h-7',
+        destaque !== null
+          ? 'bg-accent-glow-strong'
+          : isSelected
+            ? 'bg-accent-glow'
+            : 'hover:bg-bg-hover',
+        emDestaque && destaque === null && isReceita && 'text-text-muted'
       )}
     >
       {/* Seleção */}
@@ -436,15 +452,18 @@ const PlanOrcRow = memo(function PlanOrcRow({
               e.stopPropagation()
               onToggleSelect({ shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey })
             }}
-            title={isReceita ? 'Selecionar (agrupar / excluir)' : 'Selecionar (excluir em lote)'}
+            role="checkbox"
+            aria-checked={isSelected}
+            aria-label={`Selecionar ${node.codigo}`}
+            title={isReceita ? 'Selecionar para agrupar ou excluir' : 'Selecionar para excluir'}
             className={cn(
-              'w-4 h-4 inline-flex items-center justify-center rounded border text-2xs',
+              'w-4 h-4 inline-flex items-center justify-center rounded-sm border',
               isSelected
-                ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
-                : 'border-border text-text-faint hover:border-accent hover:text-text-dim'
+                ? 'border-accent bg-accent text-[color:var(--on-accent)]'
+                : 'border-border-strong bg-bg-panel hover:border-accent'
             )}
           >
-            {isSelected ? '✓' : ''}
+            {isSelected ? <Check size={12} strokeWidth={3} /> : null}
           </button>
         ) : null}
       </div>
@@ -457,14 +476,19 @@ const PlanOrcRow = memo(function PlanOrcRow({
         className="px-2 flex items-center gap-1 truncate"
         style={{ width: 410, paddingLeft: `${node.depth * 14 + 4}px` }}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-4 h-4 flex items-center justify-center text-text-dim hover:text-text"
-          disabled={!isEtapa}
-        >
-          {isEtapa ? isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} /> : null}
-        </button>
+        {isEtapa ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={isExpanded}
+            aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} ${node.codigo}`}
+            className="w-4 h-4 shrink-0 flex items-center justify-center text-text-muted hover:text-text"
+          >
+            {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          </button>
+        ) : (
+          <span className="w-4 h-4 shrink-0" />
+        )}
         {isEtapa ? (
           <Folder size={12} className="text-text-muted shrink-0" />
         ) : (
@@ -480,46 +504,47 @@ const PlanOrcRow = memo(function PlanOrcRow({
             }
           }}
           className={cn(
-            'flex-1 text-left truncate text-xs font-mono',
+            'flex-1 text-left truncate text-xs',
             isEtapa ? 'font-semibold text-text uppercase tracking-wide' : 'text-text'
           )}
           title={`${node.codigo} ${node.descricao}`}
         >
-          <span className="text-text-dim mr-2">{node.codigo}</span>
+          <span className="text-text-dim mr-2 tabular">{node.codigo}</span>
           {node.descricao}
         </button>
         {node.aditivo_id ? (
           <span
-            className="shrink-0 rounded border border-accent-line px-1 text-2xs font-mono text-accent"
+            className="shrink-0 rounded border border-accent-line px-1 text-2xs font-semibold text-accent"
             title="Item incluído por aditivo"
           >
             aditivo
           </span>
         ) : null}
         {destaque !== null ? (
-          <span className="shrink-0 rounded px-1 text-2xs font-mono bg-accent text-[color:var(--primary-foreground)]">
+          <span className="shrink-0 rounded px-1 text-2xs font-semibold tabular bg-accent text-[color:var(--on-accent)]">
             {fmtPct2(destaque)}
           </span>
         ) : null}
       </div>
 
       {/* Unidade */}
-      <div className="px-2 text-2xs text-text-muted font-mono text-center" style={{ width: 60 }}>
+      <div className="px-2 text-xs text-text-muted text-center" style={{ width: 60 }}>
         {isReceita ? (node.unidade ?? '—') : '—'}
       </div>
 
       {/* Quantidade */}
-      <div className="px-1" style={{ width: 110 }}>
+      <div className="px-1" style={{ width: 126 }}>
         {isReceita ? (
           <PlanOrcInlineCell
             value={node.quantidade !== null ? String(node.quantidade) : ''}
             onCommit={onChangeReceita('quantidade')}
+            rotulo={`Quantidade de ${node.codigo}`}
             qtd
             align="right"
             disabled={!podeEditar}
           />
         ) : (
-          <span className="text-text-dim text-xs font-mono pl-1">—</span>
+          <span className="text-text-dim text-xs pl-1">—</span>
         )}
       </div>
 
@@ -529,35 +554,30 @@ const PlanOrcRow = memo(function PlanOrcRow({
           <PlanOrcInlineCell
             value={node.venda_unitaria !== null ? String(node.venda_unitaria) : ''}
             onCommit={onChangeReceita('venda_unitaria')}
+            rotulo={`Venda unitária de ${node.codigo}`}
             money
             align="right"
             disabled={!podeEditar}
           />
         ) : (
-          <span className="text-text-dim text-xs font-mono pl-1">—</span>
+          <span className="text-text-dim text-xs pl-1">—</span>
         )}
       </div>
 
       {/* Venda total */}
-      <div
-        className="px-2 text-xs font-mono text-right tabular-nums text-text"
-        style={{ width: 130 }}
-      >
+      <div className="px-2 text-xs text-right tabular-nums text-text" style={{ width: 130 }}>
         {fmtBRL(node.venda_total_calc)}
       </div>
 
       {/* Custo total (apropriado dos serviços) */}
-      <div
-        className="px-2 text-xs font-mono text-right tabular-nums text-text-muted"
-        style={{ width: 130 }}
-      >
+      <div className="px-2 text-xs text-right tabular-nums text-text-muted" style={{ width: 130 }}>
         {fmtBRL(node.custo_total_calc)}
       </div>
 
       {/* Lucratividade */}
       <div
         className={cn(
-          'px-2 text-xs font-mono text-right tabular-nums',
+          'px-2 text-xs text-right tabular-nums',
           node.lucratividade_perc_calc !== null && node.lucratividade_perc_calc < 0
             ? 'text-danger'
             : node.lucratividade_perc_calc !== null && node.lucratividade_perc_calc < 0.1
@@ -580,8 +600,9 @@ const PlanOrcRow = memo(function PlanOrcRow({
               <button
                 type="button"
                 onClick={onNewChild}
-                title="Adicionar filho neste índice"
-                className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-elevated"
+                aria-label={`Novo item dentro de ${node.codigo}`}
+                title={`Novo item dentro de ${node.codigo}`}
+                className="w-5 h-5 flex items-center justify-center rounded text-text-muted hover:text-accent hover:bg-bg-elevated"
               >
                 <Plus size={12} />
               </button>
@@ -591,7 +612,9 @@ const PlanOrcRow = memo(function PlanOrcRow({
               trigger={
                 <button
                   type="button"
-                  className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-elevated"
+                  aria-label={`Mais ações de ${node.codigo}`}
+                  title="Mais ações"
+                  className="w-5 h-5 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-elevated"
                 >
                   <MoreVertical size={12} />
                 </button>
@@ -623,7 +646,9 @@ const PlanOrcRow = memo(function PlanOrcRow({
               <DropdownItem
                 onClick={async () => {
                   if (alocada) {
-                    toast.error('Receita alocada em serviço — remova a alocação antes de excluir.')
+                    toast.error(
+                      'Esta receita está alocada num serviço. Remova a alocação antes de excluir.'
+                    )
                     return
                   }
                   const ok = await confirm({
@@ -638,7 +663,8 @@ const PlanOrcRow = memo(function PlanOrcRow({
                     del.mutate(
                       { id: node.id, obra_id: obraId },
                       {
-                        onError: (err) => toast.error(err.message)
+                        onError: (err) =>
+                          toast.error(`Não foi possível excluir o item. ${err.message}`)
                       }
                     )
                 }}
@@ -653,7 +679,9 @@ const PlanOrcRow = memo(function PlanOrcRow({
             trigger={
               <button
                 type="button"
-                className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-elevated"
+                aria-label={`Mais ações de ${node.codigo}`}
+                title="Mais ações"
+                className="w-5 h-5 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-elevated"
               >
                 <MoreVertical size={12} />
               </button>

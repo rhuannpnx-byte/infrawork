@@ -11,7 +11,14 @@
 import { useMemo, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Edit3, FileUp, Trash2 } from 'lucide-react'
-import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { MapaTrecho, type MapaTrechoMarcador } from '@/features/planejamento/components/MapaTrecho'
 import {
@@ -65,14 +72,17 @@ export function VisualizarMapaTrechoDialog({
 
   if (!trecho || !trecho.geometry_geojson) return null
 
-  const comprimentoKm = (Number(trecho.geometry_comprimento_m) / 1000).toFixed(2)
+  const comprimentoKm = (Number(trecho.geometry_comprimento_m) / 1000).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 
   async function remover(): Promise<void> {
     if (!trecho) return
     const ok = await confirm({
-      title: 'Remover mapa do trecho?',
+      title: 'Remover o mapa do eixo?',
       description:
-        'A polilinha e todas as configurações de marcadores serão apagadas. As tarefas vinculadas ao trecho continuam intactas.',
+        'A linha do mapa e a configuração dos marcadores são apagadas. As estacas e as tarefas do eixo continuam como estão.',
       confirmLabel: 'Remover mapa',
       variant: 'danger'
     })
@@ -87,44 +97,51 @@ export function VisualizarMapaTrechoDialog({
         geometry_sentido: 'natural',
         geometry_importado_em: null
       })
-      toast.success('Mapa do trecho removido.')
+      toast.success('Mapa do eixo removido.')
       onOpenChange(false)
     } catch (e) {
-      toast.error('Falha ao remover: ' + (e as Error).message)
+      toast.error('Não foi possível remover o mapa.', { description: (e as Error).message })
     }
   }
 
   const unidadeLabel =
     trecho.unidade_espaco_padrao === 'custom'
-      ? `${trecho.unidade_custom_label} (${trecho.unidade_custom_divisor_m} m)`
-      : trecho.unidade_espaco_padrao
+      ? `1 ${trecho.unidade_custom_label} = ${trecho.unidade_custom_divisor_m} m`
+      : trecho.unidade_espaco_padrao === 'estaca'
+        ? 'a cada estaca de 20 m'
+        : trecho.unidade_espaco_padrao === 'km'
+          ? 'a cada km'
+          : 'a cada metro'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="xl" disableDismiss={salvar.isPending}>
       <DialogHeader>
-        <DialogTitle>Mapa do trecho — {trecho.nome}</DialogTitle>
+        <DialogTitle>Mapa do eixo</DialogTitle>
+        <DialogDescription>{trecho.nome}</DialogDescription>
       </DialogHeader>
       <DialogBody className="space-y-3">
-        <div className="grid grid-cols-4 gap-3 text-xs font-mono">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
           <Stat label="Comprimento" value={`${comprimentoKm} km`} />
-          <Stat label="Marcadores" value={`${marcadores.length} (${unidadeLabel})`} />
+          <Stat
+            label="Marcadores"
+            value={`${marcadores.length.toLocaleString('pt-BR')}, ${unidadeLabel}`}
+          />
           <Stat
             label="Sentido"
-            value={trecho.geometry_sentido === 'natural' ? 'natural' : 'invertido'}
+            value={trecho.geometry_sentido === 'natural' ? 'Natural' : 'Invertido'}
           />
           <Stat
             label="Cor"
             value={
-              <span className="inline-flex items-center gap-1.5">
-                <span
-                  className="inline-block w-3 h-3 rounded-full border border-border-strong"
-                  style={{ background: trecho.cor }}
-                />
-                {trecho.cor}
-              </span>
+              <span
+                role="img"
+                aria-label="Cor do eixo no mapa"
+                className="inline-block h-3 w-8 rounded border border-border-strong align-middle"
+                style={{ background: trecho.cor }}
+              />
             }
           />
-        </div>
+        </dl>
         <MapaTrecho
           geometry={trecho.geometry_geojson}
           cor={trecho.cor}
@@ -133,32 +150,25 @@ export function VisualizarMapaTrechoDialog({
           interactive
           altura={420}
         />
-        <div className="text-2xs text-text-dim font-mono leading-relaxed">
-          Importado em{' '}
+        <p className="text-sm text-text-muted">
           {trecho.geometry_importado_em
-            ? new Date(trecho.geometry_importado_em).toLocaleString('pt-BR')
-            : '—'}
-          . Use as ações abaixo pra alterar a configuração, trocar o arquivo ou remover.
-        </div>
+            ? `Importado em ${new Date(trecho.geometry_importado_em).toLocaleString('pt-BR')}. `
+            : ''}
+          Use os botões abaixo para mudar a configuração, trocar o arquivo ou remover o mapa.
+        </p>
       </DialogBody>
       <DialogFooter>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={remover}
-          disabled={salvar.isPending}
-          className="text-danger"
-        >
-          <Trash2 size={12} /> Remover mapa
+        <Button variant="danger" onClick={remover} disabled={salvar.isPending}>
+          <Trash2 size={12} /> {salvar.isPending ? 'Removendo…' : 'Remover mapa'}
         </Button>
         <div className="flex-1" />
-        <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+        <Button variant="secondary" onClick={() => onOpenChange(false)}>
           Fechar
         </Button>
-        <Button variant="ghost" size="sm" onClick={onTrocar} disabled={salvar.isPending}>
+        <Button variant="secondary" onClick={onTrocar} disabled={salvar.isPending}>
           <FileUp size={12} /> Trocar arquivo
         </Button>
-        <Button variant="default" size="sm" onClick={onEditar} disabled={salvar.isPending}>
+        <Button variant="default" onClick={onEditar} disabled={salvar.isPending}>
           <Edit3 size={12} /> Editar configuração
         </Button>
       </DialogFooter>
@@ -168,9 +178,9 @@ export function VisualizarMapaTrechoDialog({
 
 function Stat({ label, value }: { label: string; value: ReactNode }): ReactNode {
   return (
-    <div className="rounded border border-border bg-bg-panel px-2 py-1.5">
-      <div className="text-2xs uppercase text-text-dim font-mono">{label}</div>
-      <div className="text-text">{value}</div>
+    <div className="min-w-0">
+      <dt className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">{label}</dt>
+      <dd className="tabular text-text">{value}</dd>
     </div>
   )
 }

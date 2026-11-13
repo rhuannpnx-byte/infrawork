@@ -487,7 +487,9 @@ function Conteudo({
                 </Campo>
               </div>
               {producaoMudou ? (
-                <p className="text-2xs text-text-dim">Salve as equipes antes de mudar o término.</p>
+                <p className="text-xs text-text-muted">
+                  Salve as equipes antes de mudar o término.
+                </p>
               ) : null}
               <Caixa
                 marcado={asap}
@@ -629,16 +631,16 @@ function Conteudo({
                   <option value="decrescente">Do fim do trecho (estacas decrescentes)</option>
                 </Select>
               </Campo>
-              <p className="mt-4 flex-1 text-2xs text-text-dim">
+              <p className="mt-4 flex-1 text-xs text-text-muted">
                 Cada local é um trecho de trabalho da tarefa (eixo com estacas, ou uma área). Com
                 quantidade “do template”, a planilha de quantidades do local divide a faixa em
-                segmentos — o motor avança mais devagar onde há mais quantidade — e acompanha a
+                segmentos (o cálculo avança mais devagar onde há mais quantidade) e acompanha a
                 planilha.
               </p>
             </div>
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+                <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                   <th className="w-6" />
                   <th className="px-1 py-1 text-left">Local</th>
                   <th className="px-1 py-1 text-left">Estaca inicial</th>
@@ -662,9 +664,7 @@ function Conteudo({
                   const ws = (r?.wps ?? []).filter((w) => w.local_id === l.id)
                   return (
                     <tr key={k} className="border-t border-border">
-                      <td className="py-1 text-center font-mono text-2xs text-text-faint">
-                        {k + 1}
-                      </td>
+                      <td className="py-1 text-center tabular text-2xs text-text-dim">{k + 1}</td>
                       <td className="px-1 py-1">
                         <Select
                           value={l.trecho_id}
@@ -788,7 +788,7 @@ function Conteudo({
                             />
                             {tpl !== null ? (
                               <div
-                                className="mt-0.5 text-right text-2xs text-text-dim"
+                                className="mt-0.5 text-right text-xs text-text-muted"
                                 title="Quantidade da planilha de quantidades nesta faixa"
                               >
                                 no template: {fmtNum(tpl, 'auto')}
@@ -941,7 +941,7 @@ function Conteudo({
                   </p>
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+                      <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                         <th className="py-1 text-left">Recurso</th>
                         <th className="py-1 text-right">Por equipe</th>
                         <th className="py-1 text-right">Total</th>
@@ -966,12 +966,12 @@ function Conteudo({
                 <p className="text-xs text-text-dim">
                   {t.is_indireto
                     ? 'Custo indireto: sem equipe.'
-                    : 'O serviço não tem composição com produção/dia — a tarefa fica sem duração.'}
+                    : 'O serviço não tem composição com produção por dia: a tarefa fica sem duração.'}
                 </p>
               )}
             </Secao>
             <Secao titulo="Equipes nomeadas">
-              <p className="text-2xs text-text-dim">
+              <p className="text-xs text-text-muted">
                 Uma equipe nomeada não trabalha em duas tarefas ao mesmo tempo: o motor sequencia as
                 tarefas que a dividem, pela prioridade.
               </p>
@@ -1112,7 +1112,7 @@ function Conteudo({
                   <Resumo rotulo="Receita" valor={fmtBRL(resInd.receita_total)} />
                   <Resumo rotulo="Taxas" valor={fmtBRL(resInd.custo_taxas)} />
                 </div>
-                <p className="text-2xs text-text-dim">
+                <p className="text-xs text-text-muted">
                   Valores do cálculo atual; mudanças nos parâmetros entram depois de salvar.
                 </p>
               </Secao>
@@ -1205,7 +1205,9 @@ function trocar<T>(l: T[], a: number, b: number): T[] {
 function Resumo({ rotulo, valor }: { rotulo: string; valor: string }): ReactNode {
   return (
     <div className="rounded border border-border bg-bg px-2 py-1.5">
-      <div className="text-2xs font-mono uppercase tracking-wider text-text-dim">{rotulo}</div>
+      <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+        {rotulo}
+      </div>
       <div className="font-mono text-text">{valor}</div>
     </div>
   )

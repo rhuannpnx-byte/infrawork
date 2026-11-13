@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Lock } from 'lucide-react'
 import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
@@ -44,7 +45,8 @@ export function PromoverBaselineDialog({
 
   if (!planejamento) return null
 
-  const onConfirm = async (): Promise<void> => {
+  const onConfirm = async (e: FormEvent): Promise<void> => {
+    e.preventDefault()
     setError(null)
     try {
       const r = await promover.mutateAsync({
@@ -57,60 +59,72 @@ export function PromoverBaselineDialog({
       )
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao travar')
+      setError(
+        `Não foi possível travar o plano. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="md" disableDismiss={promover.isPending}>
-      <DialogHeader>
-        <DialogTitle>Travar como linha de base?</DialogTitle>
-      </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={error} />
+      <form onSubmit={onConfirm}>
+        <DialogHeader>
+          <DialogTitle>Travar como linha de base</DialogTitle>
+          <DialogDescription>
+            Plano: <span className="font-medium text-text">{planejamento.nome}</span>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <DialogErrorBanner message={error} />
 
-        <div className="flex items-start gap-2 p-3 bg-warn/10 border border-warn/40 rounded">
-          <Lock size={14} className="text-warn mt-0.5 shrink-0" />
-          <div className="text-xs space-y-1.5 text-text">
-            <div className="font-semibold text-warn">O plano deixa de ser editável.</div>
-            <div>
-              Tarefas, datas, equipes e o perfil semanal ficam congelados, junto com as premissas
-              (quantidades, valores e produção de cada serviço, e o calendário). Mudanças futuras no
-              orçamento não alteram esta linha de base.
-            </div>
-            <div>
-              Para replanejar depois, crie um plano em edição a partir dela. Linhas de base:{' '}
-              {totalLinhasBase}/20.
+          <div className="flex items-start gap-2 rounded border border-warn/40 bg-warn/10 p-3">
+            <Lock size={14} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+            <div className="space-y-1.5 text-sm text-text">
+              <p className="font-semibold">O plano deixa de ser editável.</p>
+              <p>
+                Tarefas, datas, equipes e o perfil semanal ficam congelados, junto com as premissas
+                (quantidades, valores e produção de cada serviço, e o calendário). Mudanças futuras
+                no orçamento não alteram esta linha de base.
+              </p>
+              <p>
+                Para replanejar depois, crie um plano em edição a partir dela. Esta obra tem{' '}
+                <span className="tabular">{totalLinhasBase}</span> de 20 linhas de base.
+              </p>
             </div>
           </div>
-        </div>
 
-        <label className="flex items-start gap-2 text-xs cursor-pointer">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={vigente}
-            onChange={(e) => setVigente(e.target.checked)}
-          />
-          <span>
-            <strong>Tornar vigente</strong> — vira a régua do acompanhamento
-            {temVigente ? ' (substitui a vigente atual)' : ''}. Com vigente, orçamento, composições
-            e recursos ficam travados.
-          </span>
-        </label>
-
-        <div className="text-xs font-mono p-2 bg-bg rounded border border-border">
-          Travando: <strong className="text-accent">{planejamento.nome}</strong>
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={promover.isPending}>
-          Cancelar
-        </Button>
-        <Button variant="default" onClick={onConfirm} disabled={promover.isPending}>
-          {promover.isPending ? 'Travando…' : 'Travar como linha de base'}
-        </Button>
-      </DialogFooter>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-text">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+              checked={vigente}
+              onChange={(e) => setVigente(e.target.checked)}
+            />
+            <span>
+              <strong>Tornar vigente.</strong>{' '}
+              <span className="text-text-muted">
+                Passa a ser a referência do previsto no acompanhamento
+                {temVigente ? ' e substitui a vigente atual' : ''}. Com linha de base vigente,
+                orçamento, composições e recursos ficam travados.
+              </span>
+            </span>
+          </label>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={promover.isPending}
+            autoFocus
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={promover.isPending}>
+            {promover.isPending ? 'Travando…' : 'Travar como linha de base'}
+          </Button>
+        </DialogFooter>
+      </form>
     </Dialog>
   )
 }

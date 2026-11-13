@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { ImportTemplateDialog } from '@/components/import/ImportTemplateDialog'
+import { Campo } from '@/components/ui/campo'
 import { Select } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useEmpresaAtual } from '@/hooks/useEmpresaAtual'
 import { useRecursos } from '../hooks/recursos'
@@ -40,7 +40,7 @@ export function ImportComposicoesDialog({ open, onOpenChange, obraId }: Props): 
     <ImportTemplateDialog<ComposicaoLinha, Opcoes>
       open={open}
       onOpenChange={onOpenChange}
-      titulo="Importar composições (modelo padrão)"
+      titulo="Importar composições"
       entidadeLabel="composições"
       gerarModelo={() =>
         gerarModeloComposicoes({
@@ -55,29 +55,29 @@ export function ImportComposicoesDialog({ open, onOpenChange, obraId }: Props): 
         {
           key: 'codigo',
           header: 'Código',
-          render: (r) => <span className="font-mono">{r.data.codigo}</span>,
+          render: (r) => r.data.codigo,
           width: 90
         },
         { key: 'nome', header: 'Serviço', render: (r) => r.data.nome },
         {
           key: 'unidade',
-          header: 'Un.',
-          render: (r) => <span className="font-mono">{r.data.unidade ?? 'grupo'}</span>,
-          width: 60
+          header: 'Unidade',
+          render: (r) => r.data.unidade ?? <span className="text-text-muted">Grupo</span>,
+          width: 80
         },
         {
           key: 'prod',
-          header: 'Prod./dia',
+          header: 'Produção por dia',
           render: (r) => (r.data.producao_qtde != null ? fmtQtd(r.data.producao_qtde) : '—'),
           align: 'right',
-          width: 90
+          width: 130
         },
         {
           key: 'itens',
           header: 'Insumos',
           render: (r) => (r.data.unidade ? String(r.data.itens.length) : '—'),
           align: 'right',
-          width: 70
+          width: 80
         }
       ]}
       opcoes={{
@@ -91,46 +91,48 @@ export function ImportComposicoesDialog({ open, onOpenChange, obraId }: Props): 
             r.avisos.some((a) => a.code === 'COMBUSTIVEL_AUSENTE')
           )
           return (
-            <div className="grid gap-3 md:grid-cols-3 text-xs text-text">
-              <div>
-                <Label>Composições que já existem</Label>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Campo rotulo="Composições que já existem">
                 <Select
                   value={v.modo_existente}
                   onChange={(e) => set({ ...v, modo_existente: e.target.value as ModoExistente })}
                 >
                   <option value="substituir_itens">Substituir os insumos (mesma versão)</option>
                   <option value="nova_versao">Criar nova versão vigente</option>
-                  <option value="pular">Pular</option>
+                  <option value="pular">Ignorar</option>
                   <option value="erro">Tratar como erro</option>
                 </Select>
-              </div>
-              <div>
-                <Label>Combustível padrão {precisaComb ? '(necessário)' : ''}</Label>
+              </Campo>
+              <Campo
+                rotulo="Combustível padrão"
+                dica={
+                  precisaComb
+                    ? 'Há composição com equipamento (L/h) sem linha de combustível: escolha o combustível que entra nela.'
+                    : 'Usado em composição com equipamento (L/h) sem linha de combustível.'
+                }
+              >
                 <Select
                   value={v.combustivel_padrao_recurso_id ?? ''}
                   onChange={(e) =>
                     set({ ...v, combustivel_padrao_recurso_id: e.target.value || null })
                   }
                 >
-                  <option value="">— não adicionar —</option>
+                  <option value="">Não adicionar</option>
                   {combustiveis.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nome} ({c.unidade})
                     </option>
                   ))}
                 </Select>
-                <div className="mt-1 text-2xs text-text-dim">
-                  Para composições com equipamentos (L/h) sem linha de combustível.
-                </div>
-              </div>
-              <label className="flex items-center gap-1.5 cursor-pointer self-end pb-1">
+              </Campo>
+              <label className="flex cursor-pointer items-center gap-1.5 self-start pt-7 text-sm text-text">
                 <input
                   type="checkbox"
                   checked={v.criar_recursos_faltantes}
                   onChange={(e) => set({ ...v, criar_recursos_faltantes: e.target.checked })}
-                  className="accent-[var(--accent)]"
+                  className="h-4 w-4 accent-[var(--accent)]"
                 />
-                Criar recursos que não existem
+                Criar os recursos que ainda não existem
               </label>
             </div>
           )
@@ -148,14 +150,14 @@ export function ImportComposicoesDialog({ open, onOpenChange, obraId }: Props): 
         })
       }
       resultadoMetrics={(r) => [
-        { label: 'serviços criados', value: r.stats.servicos_criados ?? 0 },
-        { label: 'composições criadas', value: r.stats.cpus_criadas ?? 0 },
-        { label: 'composições atualizadas', value: r.stats.cpus_atualizadas ?? 0 },
-        { label: 'insumos', value: r.stats.itens_criados ?? 0 },
-        { label: 'grupos criados', value: r.stats.grupos_criados ?? 0 },
-        { label: 'recursos criados', value: r.stats.recursos_criados ?? 0 },
-        { label: 'preços criados', value: r.stats.precos_criados ?? 0 },
-        { label: 'puladas', value: r.stats.cpus_puladas ?? 0 }
+        { label: 'Serviços criados', value: r.stats.servicos_criados ?? 0 },
+        { label: 'Composições criadas', value: r.stats.cpus_criadas ?? 0 },
+        { label: 'Composições atualizadas', value: r.stats.cpus_atualizadas ?? 0 },
+        { label: 'Insumos', value: r.stats.itens_criados ?? 0 },
+        { label: 'Grupos criados', value: r.stats.grupos_criados ?? 0 },
+        { label: 'Recursos criados', value: r.stats.recursos_criados ?? 0 },
+        { label: 'Preços criados', value: r.stats.precos_criados ?? 0 },
+        { label: 'Composições ignoradas', value: r.stats.cpus_puladas ?? 0 }
       ]}
     />
   )

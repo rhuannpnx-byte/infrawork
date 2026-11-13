@@ -31,7 +31,7 @@ export const tooltipStyle = {
 }
 
 export const axisStyle = {
-  fontSize: 10,
+  fontSize: 11,
   fontFamily: '"Archivo Variable", Archivo, system-ui, sans-serif',
   fill: CHART_THEME.axisLabel
 }

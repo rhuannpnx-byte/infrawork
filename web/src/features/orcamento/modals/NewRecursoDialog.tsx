@@ -8,8 +8,8 @@ import {
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
@@ -24,6 +24,11 @@ interface Props {
 
 const GRUPOS: RecursoGrupo[] = ['MO', 'MVE', 'COMBUSTIVEL', 'MATERIAL', 'ADM']
 
+/** Só algarismos, ponto e vírgula: o que o `parseBR` entende como número. */
+const NUMERO = /^\d[\d.,]*$/
+
+type CampoComErro = 'nome' | 'unidade' | 'preco'
+
 export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNode {
   const create = useCreateRecurso()
   const [grupo, setGrupo] = useState<RecursoGrupo>('MATERIAL')
@@ -33,6 +38,7 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
   const [precoInicial, setPrecoInicial] = useState('')
   const [observacao, setObservacao] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
     setGrupo('MATERIAL')
@@ -42,17 +48,33 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
     setPrecoInicial('')
     setObservacao('')
     setError(null)
+    setTentou(false)
   }
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  const preco = precoInicial.trim() ? parseBR(precoInicial).toNumber() : undefined
+
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (nome.trim().length < 2) erros.nome = 'Informe o nome do recurso.'
+  if (!unidade.trim()) erros.unidade = 'Informe a unidade, como h, L, m³ ou kg.'
+  if (preco !== undefined && (!NUMERO.test(precoInicial.trim()) || isNaN(preco) || preco < 0))
+    erros.preco = 'Digite o preço como um número, por exemplo 1.250,50.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+      return
+    }
     try {
-      const preco = precoInicial.trim() ? parseBR(precoInicial).toNumber() : undefined
-      if (preco !== undefined && (isNaN(preco) || preco < 0)) {
-        setError('Preço inicial inválido.')
-        return
-      }
       await create.mutateAsync({
         obra_id: obraId,
         grupo,
@@ -66,108 +88,93 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar recurso')
+      setError(
+        `Não foi possível criar o recurso. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="md"
-      disableDismiss={create.isPending}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={create.isPending}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Novo recurso</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
+          <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              autoComplete="off"
+              autoFocus
+              placeholder="Ex.: Diesel S10, Servente, Caminhão basculante 14 m³"
+            />
+          </Campo>
+
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="r-grupo">Grupo</Label>
-              <Select
-                id="r-grupo"
-                value={grupo}
-                onChange={(e) => setGrupo(e.target.value as RecursoGrupo)}
-              >
+            <Campo rotulo="Grupo" obrigatorio>
+              <Select value={grupo} onChange={(e) => setGrupo(e.target.value as RecursoGrupo)}>
                 {GRUPOS.map((g) => (
                   <option key={g} value={g}>
                     {RECURSO_GRUPO_LABEL[g]}
                   </option>
                 ))}
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="r-unidade">Unidade</Label>
+            </Campo>
+            <Campo rotulo="Unidade" obrigatorio erro={erro('unidade')}>
               <Input
-                id="r-unidade"
                 value={unidade}
                 onChange={(e) => setUnidade(e.target.value)}
-                required
-                placeholder="h, L, m³, kg, …"
+                autoComplete="off"
+                placeholder="Ex.: h, L, m³, kg"
               />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="r-nome">Nome</Label>
-            <Input
-              id="r-nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
-              autoFocus
-              placeholder="Ex.: Diesel S10, Servente, Caminhão basculante 14 m³"
-            />
+            </Campo>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="r-codigo">Código (opcional)</Label>
+            <Campo rotulo="Código" dica="Opcional.">
               <Input
-                id="r-codigo"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
+                autoComplete="off"
                 placeholder="Ex.: SINAPI 87.412"
               />
-            </div>
-            <div>
-              <Label htmlFor="r-preco">Preço inicial (opcional)</Label>
+            </Campo>
+            <Campo
+              rotulo="Preço inicial (R$ por unidade)"
+              dica="Opcional. Pode ser informado depois, no histórico de preços."
+              erro={erro('preco')}
+            >
               <Input
-                id="r-preco"
                 value={precoInicial}
                 onChange={(e) => setPrecoInicial(e.target.value)}
-                placeholder="R$/unidade"
+                placeholder="Ex.: 6,40"
                 inputMode="decimal"
+                autoComplete="off"
+                className="tabular text-right"
               />
-            </div>
+            </Campo>
           </div>
 
-          <div>
-            <Label htmlFor="r-obs">Observação (opcional)</Label>
+          <Campo rotulo="Observação" dica="Opcional. Fonte do preço, contexto.">
             <Input
-              id="r-obs"
               value={observacao}
               onChange={(e) => setObservacao(e.target.value)}
-              placeholder="Fonte, contexto, etc."
+              autoComplete="off"
             />
-          </div>
+          </Campo>
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
+            variant="secondary"
+            onClick={() => aoMudar(false)}
             disabled={create.isPending}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={create.isPending}>
+          <Button type="submit" disabled={create.isPending}>
             {create.isPending ? 'Criando…' : 'Criar recurso'}
           </Button>
         </DialogFooter>

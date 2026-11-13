@@ -1269,7 +1269,7 @@ export function TempoCaminhoVista({
                       {m.nome}
                     </text>
                   ) : null}
-                  <title>{`${m.nome} — ${fmtDataLonga(m.t)}`}</title>
+                  <title>{`${m.nome}: ${fmtDataLonga(m.t)}`}</title>
                 </g>
               ))}
 

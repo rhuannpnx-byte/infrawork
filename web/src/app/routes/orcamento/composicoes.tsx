@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
@@ -40,7 +41,7 @@ function ComposicoesInner(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
   const obraId = scope.obraId!
 
-  const { data: cpus = [], isLoading, error } = useCpus(obraId, null)
+  const { data: cpus = [], isLoading, error, refetch } = useCpus(obraId, null)
   const confirm = useConfirm()
   const qc = useQueryClient()
   const [openImport, setOpenImport] = useState(false)
@@ -55,7 +56,9 @@ function ComposicoesInner(): ReactNode {
     try {
       preview = await previewCascadeCpus(rows.map((r) => r.id))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao avaliar dependências')
+      toast.error(
+        `Não foi possível conferir onde as composições são usadas. ${err instanceof Error ? err.message : ''}`.trim()
+      )
       return
     }
     const ok = await confirm({
@@ -63,23 +66,23 @@ function ComposicoesInner(): ReactNode {
       description: (
         <div className="space-y-2">
           <p>
-            O serviço do catálogo continua existindo; só a composição de custo (e seus insumos) é
-            removida.
+            O serviço continua existindo: só a composição de custo e os insumos dela são excluídos.
+            Não dá para desfazer.
           </p>
           {preview.itensOrcamentoComCpuOrigem > 0 ? (
             <p>
-              <span className="text-text-dim">
+              <strong className="font-semibold text-text">
                 {contar(preview.itensOrcamentoComCpuOrigem, 'serviço', 'serviços')} do orçamento
-              </span>{' '}
+              </strong>{' '}
               {preview.itensOrcamentoComCpuOrigem === 1
                 ? 'usa essas composições e fica'
                 : 'usam essas composições e ficam'}{' '}
-              sem custo (o orçamento é recalculado na hora).
+              sem custo. O orçamento é recalculado na hora.
             </p>
           ) : null}
         </div>
       ),
-      confirmLabel: 'Excluir',
+      confirmLabel: rows.length === 1 ? 'Excluir composição' : 'Excluir composições',
       variant: 'danger'
     })
     if (!ok) return
@@ -94,7 +97,7 @@ function ComposicoesInner(): ReactNode {
           rows.map((r) => r.id)
         )
       if (errCpu) {
-        toast.error(`Falha ao excluir: ${errCpu.message}`)
+        toast.error(`Não foi possível excluir as composições. ${errCpu.message}`)
         return
       }
       toast.success(`${contar(rows.length, 'composição excluída', 'composições excluídas')}.`)
@@ -112,11 +115,7 @@ function ComposicoesInner(): ReactNode {
         id: 'codigo',
         header: 'Código',
         accessorFn: (row) => row.servico?.codigo ?? '',
-        cell: (info) => (
-          <span className="font-mono text-2xs text-text-muted">
-            {String(info.getValue() || '—')}
-          </span>
-        ),
+        cell: (info) => <span className="text-text-dim">{String(info.getValue() || '—')}</span>,
         meta: { label: 'Código' },
         size: 90
       },
@@ -133,9 +132,7 @@ function ComposicoesInner(): ReactNode {
         id: 'unidade',
         header: 'Un.',
         accessorFn: (row) => row.servico?.unidade ?? row.producao_diaria_unidade ?? '',
-        cell: (info) => (
-          <span className="text-text-muted font-mono">{String(info.getValue() ?? '—')}</span>
-        ),
+        cell: (info) => <span className="text-text-muted">{String(info.getValue() || '—')}</span>,
         meta: { label: 'Unidade' },
         size: 70
       },
@@ -143,101 +140,87 @@ function ComposicoesInner(): ReactNode {
         accessorKey: 'producao_diaria_qtde',
         header: 'Produção/dia',
         cell: (info) => (
-          <span className="font-mono text-text-muted text-right tabular-nums">
-            {formatNumber(Number(info.getValue() ?? 0))}
-          </span>
+          <span className="text-text-muted">{formatNumber(Number(info.getValue() ?? 0))}</span>
         ),
-        meta: { label: 'Produção/dia' },
-        size: 110
+        meta: { label: 'Produção/dia', align: 'right' },
+        size: 140
       },
       {
         accessorKey: 'custo_unit_calc',
         header: 'Custo unitário',
-        cell: (info) => (
-          <span className="font-mono text-text text-right tabular-nums">
-            {fmtBRL4(info.getValue() as number)}
-          </span>
-        ),
-        meta: { label: 'Custo unitário' },
-        size: 130
+        cell: (info) => <span className="text-text">{fmtBRL4(info.getValue() as number)}</span>,
+        meta: { label: 'Custo unitário', align: 'right' },
+        size: 160
       },
       {
         accessorKey: 'versao',
         header: 'Versão',
         cell: (info) => (
           <span className="inline-flex items-center gap-1.5">
-            <span className="font-mono text-text-muted">v{String(info.getValue())}</span>
-            <Badge variant="success">vigente</Badge>
+            <span className="text-text-muted">v{String(info.getValue())}</span>
+            <Badge variant="success">Vigente</Badge>
           </span>
         ),
-        meta: { label: 'Versão' },
+        meta: { label: 'Versão', align: 'left' },
         size: 120
       },
       {
         accessorKey: 'created_at',
         header: 'Atualizada em',
         cell: (info) => (
-          <span className="font-mono text-2xs text-text-dim">
-            {formatDate(info.getValue() as string)}
-          </span>
+          <span className="text-text-muted">{formatDate(info.getValue() as string)}</span>
         ),
         meta: { label: 'Atualizada em' },
-        size: 110
+        size: 148
       }
     ],
     []
   )
 
+  const botoesNovo = podeEditar ? (
+    <div className="flex items-center gap-2">
+      <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
+        <FileUp size={12} aria-hidden /> Importar planilha
+      </Button>
+      <Button
+        variant="default"
+        size="sm"
+        onClick={() => navigate({ to: '/orcamento/composicoes/nova' })}
+      >
+        <Plus size={12} aria-hidden /> Nova composição
+      </Button>
+    </div>
+  ) : null
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Composições"
-        subtitle="Serviços com composição de custo unitário (insumos × produção por dia)."
-        actions={
-          podeEditar ? (
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                <FileUp size={12} /> Importar
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => navigate({ to: '/orcamento/composicoes/nova' })}
-              >
-                <Plus size={12} /> Nova composição
-              </Button>
-            </div>
-          ) : null
-        }
+        subtitle="Custo unitário de cada serviço: insumos e produção por dia"
+        actions={botoesNovo}
       />
       <CadeiaTravaBanner obraId={obraId} />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
+        <div className="px-5 pt-3">
+          <ErroConsulta
+            erro={error}
+            oQue="as composições"
+            aoTentar={() => void refetch()}
+            compacto
+          />
         </div>
       ) : null}
-      {cpus.length === 0 && !isLoading ? (
+      {error && cpus.length === 0 ? null : cpus.length === 0 && !isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="calculator"
-            title="Nenhuma composição"
-            description="Crie a primeira composição ou importe várias de uma vez com o modelo padrão."
-            action={
-              podeEditar ? (
-                <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                    <FileUp size={12} /> Importar modelo
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => navigate({ to: '/orcamento/composicoes/nova' })}
-                  >
-                    <Plus size={12} /> Nova composição
-                  </Button>
-                </div>
-              ) : null
+            title="Nenhuma composição cadastrada"
+            description={
+              podeEditar
+                ? 'Crie a primeira composição ou importe várias de uma vez pela planilha modelo.'
+                : 'Esta obra ainda não tem composições de custo.'
             }
+            action={botoesNovo}
           />
         </div>
       ) : (
@@ -248,6 +231,7 @@ function ComposicoesInner(): ReactNode {
           loading={isLoading}
           globalSearchPlaceholder="Buscar composição…"
           emptyMessage="Nenhuma composição encontrada"
+          emptyDescription="Confira a busca ou crie uma nova composição."
           onRowClick={(row) =>
             navigate({ to: '/orcamento/composicoes/$id', params: { id: row.id } })
           }
@@ -256,13 +240,15 @@ function ComposicoesInner(): ReactNode {
             podeEditar
               ? (rows, clear) => (
                   <Button
-                    variant="ghost"
+                    variant="danger"
                     size="sm"
                     onClick={() => void handleBulkDelete(rows, clear)}
-                    className="text-danger hover:bg-danger/10"
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
+                    <Trash2 size={12} aria-hidden />{' '}
+                    {bulkDeleting
+                      ? 'Excluindo…'
+                      : `Excluir ${contar(rows.length, 'composição', 'composições')}`}
                   </Button>
                 )
               : undefined

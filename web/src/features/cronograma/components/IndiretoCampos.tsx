@@ -43,7 +43,7 @@ export function IndiretoCampos({
               <option value="ano">Ano</option>
             </Select>
           </Campo>
-          <p className="pb-2 text-2xs text-text-dim">
+          <p className="pb-2 text-xs text-text-muted">
             Custo total = {custoPeriodo ? `${custoPeriodo} por ${per}` : `valor orçado por ${per}`}{' '}
             × nº de {per === 'mês' ? 'meses' : per === 'ano' ? 'anos' : 'dias úteis'} cobertos pelo
             cronograma.
@@ -107,7 +107,7 @@ export function IndiretoCampos({
             />
           </Campo>
         </div>
-        <p className="text-2xs text-text-dim">
+        <p className="text-xs text-text-muted">
           A tarefa cobre do início da primeira tarefa direta ao fim da última, mais estas folgas.
         </p>
       </Secao>

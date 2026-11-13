@@ -21,8 +21,8 @@ interface Props {
   /** Item selecionado (1 servico_grupo) — projeções só fazem sentido pra 1 serviço */
   item?: PrevistoRealizadoItem | null
   altura?: number
-  /** Cliente: esconde projeções de tendência (média atual/necessária, fim
-   *  projetado). Mostra só planejado × realizado acumulados. */
+  /** Cliente: esconde as projeções de tendência (média atual, média necessária e fim
+   *  projetado). Mostra só o previsto e o realizado acumulados. */
   ocultarProjecoes?: boolean
 }
 
@@ -48,17 +48,17 @@ function CustomTooltip(props: {
   const { active, payload, label } = props
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded border border-border-strong bg-bg-elevated px-2 py-1.5 shadow-lg text-xs font-mono">
-      <div className="text-text-dim mb-1">
+    <div className="rounded border border-border-strong bg-[color:var(--popover)] px-2.5 py-2 shadow-[var(--sombra-flutuante)] text-xs">
+      <div className="text-text-muted mb-1 tabular">
         {label ? new Date(String(label) + 'T00:00:00').toLocaleDateString('pt-BR') : ''}
       </div>
       {payload.map((p) => {
         if (p.value == null) return null
         return (
           <div key={String(p.dataKey)} className="flex items-center gap-2">
-            <span className="size-2 rounded-sm" style={{ background: p.color }} />
-            <span className="text-text-dim">{p.name}</span>
-            <span className="text-text tabular-nums ml-auto">
+            <span className="size-2 rounded-sm shrink-0" style={{ background: p.color }} />
+            <span className="text-text-muted">{p.name}</span>
+            <span className="text-text font-semibold tabular ml-auto pl-3">
               {formatNumber(Number(p.value), 0)}
             </span>
           </div>
@@ -67,6 +67,8 @@ function CustomTooltip(props: {
     </div>
   )
 }
+
+const eixo = { ...axisStyle, fontSize: 11 }
 
 function fmtNum(n: number): string {
   return formatNumber(Number(n), 0)
@@ -324,7 +326,8 @@ export function CurvaSComProjecoes({
     return (
       <ChartEmptyState
         height={altura}
-        message="Sem dados de curva-S, selecione um serviço com plano e produção"
+        message="A curva S aparece quando há previsto na linha de base ou produção lançada."
+        hint="Escolha outro serviço ou lance a produção."
       />
     )
   }
@@ -334,33 +337,36 @@ export function CurvaSComProjecoes({
       className="rounded border border-border bg-bg-panel p-3 flex flex-col"
       style={{ height: altura }}
     >
-      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-        <h3 className="text-md font-semibold text-text">
-          {ocultarProjecoes
-            ? 'Curva-S — Realizado × Previsto'
-            : 'Curva-S — Realizado × Previsto × Projeções'}
+      <div className="flex items-baseline justify-between gap-x-4 gap-y-1 mb-2 flex-wrap">
+        <h2 className="text-lg font-semibold text-text">
+          {ocultarProjecoes ? 'Curva S: previsto e realizado' : 'Curva S com projeções'}
           {item && (
-            <span className="ml-2 text-2xs font-mono text-accent">
-              {item.codigo} — {item.descricao}
+            <span className="ml-2 text-sm font-normal text-text-muted">
+              {item.codigo} {item.descricao}
             </span>
           )}
-        </h3>
-        <div className="flex items-center gap-3 text-2xs font-mono text-text-dim">
+        </h2>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-muted">
           {!ocultarProjecoes && projStats.media_atual != null && (
-            <span>
-              <span className="text-[color:var(--chart-laranja)]">●</span> média atual:{' '}
-              <span className="text-text">{fmtNum(projStats.media_atual)}/dia</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="size-2 rounded-sm bg-[color:var(--chart-laranja)]" />
+              Média atual:{' '}
+              <span className="text-text tabular">{fmtNum(projStats.media_atual)} por dia</span>
             </span>
           )}
           {!ocultarProjecoes && projStats.media_necessaria != null && (
-            <span>
-              <span className="text-milestone">●</span> média necessária:{' '}
-              <span className="text-text">{fmtNum(projStats.media_necessaria)}/dia</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="size-2 rounded-sm bg-module-suprimentos" />
+              Média necessária:{' '}
+              <span className="text-text tabular">
+                {fmtNum(projStats.media_necessaria)} por dia
+              </span>
             </span>
           )}
           {projStats.fim_planejado && (
             <span>
-              fim plan: <span className="text-text">{fmtBR(projStats.fim_planejado)}</span>
+              Fim previsto:{' '}
+              <span className="text-text tabular">{fmtBR(projStats.fim_planejado)}</span>
             </span>
           )}
         </div>
@@ -371,7 +377,7 @@ export function CurvaSComProjecoes({
             <CartesianGrid stroke={CHART_THEME.gridStroke} strokeDasharray="2 3" />
             <XAxis
               dataKey="data"
-              tick={axisStyle}
+              tick={eixo}
               stroke={CHART_THEME.axisStroke}
               tickFormatter={(d) =>
                 new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', {
@@ -382,29 +388,44 @@ export function CurvaSComProjecoes({
               minTickGap={32}
             />
             <YAxis
-              tick={axisStyle}
+              tick={eixo}
               stroke={CHART_THEME.axisStroke}
               tickFormatter={(v: number) => formatNumber(v, 0)}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend
               verticalAlign="top"
-              height={24}
-              iconSize={8}
-              wrapperStyle={{ fontSize: 10, fontFamily: '"Archivo Variable", Archivo, sans-serif' }}
+              height={28}
+              iconSize={10}
+              formatter={(v) => <span style={{ color: 'var(--text-muted)' }}>{v}</span>}
+              wrapperStyle={{
+                fontSize: 12,
+                fontFamily: '"Archivo Variable", Archivo, sans-serif',
+                color: 'var(--text-muted)'
+              }}
             />
             <ReferenceLine
               x={hojeIso}
               stroke="var(--warn)"
               strokeDasharray="3 3"
-              label={{ value: 'Hoje', fontSize: 9, fill: 'var(--warn)' }}
+              label={{
+                value: 'Hoje',
+                fontSize: 11,
+                fill: 'var(--warn)',
+                position: 'insideTopLeft'
+              }}
             />
             {projStats.fim_planejado && (
               <ReferenceLine
                 x={projStats.fim_planejado}
                 stroke="var(--accent)"
                 strokeDasharray="2 4"
-                label={{ value: 'Fim plan.', fontSize: 9, fill: 'var(--accent)' }}
+                label={{
+                  value: 'Fim previsto',
+                  fontSize: 11,
+                  fill: 'var(--accent)',
+                  position: 'insideTopRight'
+                }}
               />
             )}
             {!ocultarProjecoes && projStats.fim_atual && (
@@ -412,26 +433,22 @@ export function CurvaSComProjecoes({
                 x={projStats.fim_atual}
                 stroke="var(--chart-laranja)"
                 strokeDasharray="2 4"
-                label={{ value: 'Fim proj.', fontSize: 9, fill: 'var(--chart-laranja)' }}
+                label={{
+                  value: 'Fim na projeção',
+                  fontSize: 11,
+                  fill: 'var(--chart-laranja)',
+                  position: 'insideBottomRight'
+                }}
               />
             )}
-            <defs>
-              <linearGradient id="g_plan" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_THEME.series[0]} stopOpacity={0.2} />
-                <stop offset="100%" stopColor={CHART_THEME.series[0]} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="g_real" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_THEME.series[2]} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={CHART_THEME.series[2]} stopOpacity={0} />
-              </linearGradient>
-            </defs>
             <Area
-              name="Planejado acumulado"
+              name="Previsto acumulado"
               type="monotone"
               dataKey="planejado"
               stroke={CHART_THEME.series[0]}
               strokeWidth={1.4}
-              fill="url(#g_plan)"
+              fill={CHART_THEME.series[0]}
+              fillOpacity={0.08}
               isAnimationActive={false}
             />
             <Area
@@ -440,7 +457,8 @@ export function CurvaSComProjecoes({
               dataKey="realizado"
               stroke={CHART_THEME.series[2]}
               strokeWidth={1.8}
-              fill="url(#g_real)"
+              fill={CHART_THEME.series[2]}
+              fillOpacity={0.14}
               connectNulls
               isAnimationActive={false}
             />
@@ -478,11 +496,7 @@ export function CurvaSComProjecoes({
 }
 
 function fmtBR(s: string): string {
-  return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    year: '2-digit'
-  })
+  return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
 function emptyStats(): ProjecaoStats {

@@ -25,13 +25,13 @@ export function ErroConsulta({
     <div
       role="alert"
       className={cn(
-        'flex items-start gap-3 rounded border border-danger/40 bg-danger/10 text-sm text-text',
+        'flex flex-wrap items-start gap-x-3 gap-y-2 rounded border border-danger/40 bg-danger/10 text-sm text-text',
         compacto ? 'px-3 py-2' : 'px-4 py-3',
         className
       )}
     >
       <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[12rem] flex-1">
         <div className="font-semibold text-danger">Não foi possível carregar {oQue}.</div>
         <div className="text-text-muted break-words">{mensagemDe(erro)}</div>
       </div>

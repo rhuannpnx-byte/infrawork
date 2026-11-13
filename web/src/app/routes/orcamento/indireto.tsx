@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
+import { ErroConsulta } from '@/components/ui/estado'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
@@ -25,47 +26,48 @@ function Indireto(): ReactNode {
   const scope = useCurrentScope()
   const role = useAuthStore((s) => s.profile?.role)
   const obraId = scope.obraId!
-  const { data: indiretos = [], isLoading, error } = useIndireto(obraId)
+  const { data: indiretos = [], isLoading, error, refetch } = useIndireto(obraId)
   const [openNew, setOpenNew] = useState(false)
 
   const { data: cadeiaTrava } = useCadeiaTrava(obraId)
   const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
   const total = totalIndireto(indiretos)
 
+  const botaoNovo = podeEditar ? (
+    <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
+      <Plus size={12} aria-hidden /> Novo custo indireto
+    </Button>
+  ) : null
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Custos indiretos"
         subtitle="Mobilização, administração local e outros"
-        actions={
-          podeEditar ? (
-            <div className="flex items-center gap-2">
-              <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={12} /> Novo indireto
-              </Button>
-            </div>
-          ) : null
-        }
+        actions={botaoNovo}
       />
       <CadeiaTravaBanner obraId={obraId} />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
+        <div className="px-5 pt-3">
+          <ErroConsulta
+            erro={error}
+            oQue="os custos indiretos"
+            aoTentar={() => void refetch()}
+            compacto
+          />
         </div>
       ) : null}
-      {indiretos.length === 0 && !isLoading ? (
+      {error && indiretos.length === 0 ? null : indiretos.length === 0 && !isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="briefcase"
-            title="Nenhum custo indireto"
-            description="Lance mobilização, desmobilização, administração local etc."
-            action={
-              podeEditar ? (
-                <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                  <Plus size={12} /> Novo indireto
-                </Button>
-              ) : null
+            title="Nenhum custo indireto cadastrado"
+            description={
+              podeEditar
+                ? 'Cadastre mobilização, desmobilização, administração local e os demais custos que não entram nas composições.'
+                : 'Esta obra ainda não tem mobilização, administração local nem outros custos indiretos cadastrados.'
             }
+            action={botaoNovo}
           />
         </div>
       ) : (
@@ -78,9 +80,9 @@ function Indireto(): ReactNode {
               podeEditar={podeEditar}
             />
           </div>
-          <div className="flex items-center justify-end px-4 py-2 border-t border-border bg-bg-panel text-xs font-mono">
-            <span className="text-text-dim mr-2">Total efetivo:</span>
-            <span className="text-accent">{fmtBRL(total)}</span>
+          <div className="flex items-baseline justify-end gap-2 px-4 py-2 border-t border-border bg-bg-panel text-sm">
+            <span className="text-text-muted">Total efetivo</span>
+            <span className="tabular text-md font-semibold text-text">{fmtBRL(total)}</span>
           </div>
         </>
       )}

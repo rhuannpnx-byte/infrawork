@@ -63,7 +63,7 @@ const COLS_GANTT_BASE: Record<
   nome: { titulo: 'Nome', largura: 230 },
   servico: { titulo: 'Serviço', largura: 72 },
   trecho: { titulo: 'Trecho', largura: 130, dica: 'Local da tarefa (clique para mudar de trecho)' },
-  quantidade: { titulo: 'Quantidade', largura: 100, direita: true },
+  quantidade: { titulo: 'Quantidade', largura: 120, direita: true },
   inicio: { titulo: 'Início', largura: 68, direita: true },
   fim: { titulo: 'Término', largura: 68, direita: true },
   duracao: {
@@ -820,7 +820,7 @@ export function GanttVista({
         ])
       if (Math.abs(t.coef_producao - 1) > 1e-9)
         avisos.push(
-          `Produtividade alterada (× ${fmtNum(t.coef_producao, 'auto')}) por um arraste antigo — em Propriedades › Equipes, volte à da composição.`
+          `Produtividade alterada (× ${fmtNum(t.coef_producao, 'auto')}) por um arraste antigo; em Propriedades › Equipes, volte à da composição.`
         )
       out.push(['Esticar o término', 'muda o número de equipes (a produção é a da composição)'])
       const nomes = t.equipes_ids.map((x) => nomeadas.get(x)).filter(Boolean)

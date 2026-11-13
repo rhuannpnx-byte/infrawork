@@ -4,12 +4,13 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
@@ -25,6 +26,8 @@ interface Props {
 
 const GRUPOS: RecursoGrupo[] = ['MO', 'MVE', 'COMBUSTIVEL', 'MATERIAL', 'ADM']
 
+type CampoComErro = 'nome' | 'unidade' | 'grupo'
+
 export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): ReactNode {
   const update = useUpdateRecurso()
   const [grupo, setGrupo] = useState<RecursoGrupo>('MATERIAL')
@@ -33,6 +36,9 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
   const [unidade, setUnidade] = useState('')
   const [observacao, setObservacao] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [erroGrupo, setErroGrupo] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
+  const [conferindo, setConferindo] = useState(false)
 
   useEffect(() => {
     if (!recurso) return
@@ -42,24 +48,45 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
     setUnidade(recurso.unidade)
     setObservacao(recurso.observacao ?? '')
     setError(null)
+    setErroGrupo(null)
+    setTentou(false)
   }, [recurso, open])
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (nome.trim().length < 2) erros.nome = 'Informe o nome do recurso.'
+  if (!unidade.trim()) erros.unidade = 'Informe a unidade, como h, L, m³ ou kg.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const focarInvalido = (form: HTMLFormElement): void => {
+    requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+  }
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     if (!recurso) return
+    const form = e.currentTarget
     setError(null)
+    setErroGrupo(null)
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      focarInvalido(form)
+      return
+    }
     try {
-      if (grupo !== recurso.grupo && true) {
+      if (grupo !== recurso.grupo) {
         // O grupo define em que bloco da composição o recurso entra; trocar
         // com uso em composições deixaria o cálculo incoerente.
+        setConferindo(true)
         const { count } = await supabase
           .from('cpu_item')
           .select('id', { count: 'exact', head: true })
           .eq('recurso_id', recurso.id)
+        setConferindo(false)
         if ((count ?? 0) > 0) {
-          setError(
-            `Este recurso é usado em ${contar(count ?? 0, 'insumo', 'insumos')} de composição — não é possível trocar o grupo.`
+          setErroGrupo(
+            `Este recurso é usado em ${contar(count ?? 0, 'insumo', 'insumos')} de composição, por isso o grupo não pode ser trocado.`
           )
+          focarInvalido(form)
           return
         }
       }
@@ -74,25 +101,42 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
       toast.success('Recurso atualizado.')
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar')
+      setConferindo(false)
+      setError(
+        `Não foi possível salvar o recurso. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
+  const gravando = update.isPending || conferindo
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} size="md" disableDismiss={update.isPending}>
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={onOpenChange} size="md" disableDismiss={gravando}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Editar recurso</DialogTitle>
+          <DialogDescription>
+            O preço é alterado no histórico de preços, pelo ícone de relógio na lista.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
+          <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              autoComplete="off"
+              autoFocus
+            />
+          </Campo>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="er-grupo">Grupo</Label>
+            <Campo rotulo="Grupo" obrigatorio erro={erroGrupo}>
               <Select
-                id="er-grupo"
                 value={grupo}
-                onChange={(e) => setGrupo(e.target.value as RecursoGrupo)}
+                onChange={(e) => {
+                  setGrupo(e.target.value as RecursoGrupo)
+                  setErroGrupo(null)
+                }}
               >
                 {GRUPOS.map((g) => (
                   <option key={g} value={g}>
@@ -100,55 +144,37 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
                   </option>
                 ))}
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="er-unidade">Unidade</Label>
+            </Campo>
+            <Campo rotulo="Unidade" obrigatorio erro={erro('unidade')}>
               <Input
-                id="er-unidade"
                 value={unidade}
                 onChange={(e) => setUnidade(e.target.value)}
-                required
+                autoComplete="off"
               />
-            </div>
+            </Campo>
           </div>
-          <div>
-            <Label htmlFor="er-nome">Nome</Label>
+          <Campo rotulo="Código" dica="Opcional.">
+            <Input value={codigo} onChange={(e) => setCodigo(e.target.value)} autoComplete="off" />
+          </Campo>
+          <Campo rotulo="Observação" dica="Opcional.">
             <Input
-              id="er-nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+              autoComplete="off"
             />
-          </div>
-          <div>
-            <Label htmlFor="er-codigo">Código (opcional)</Label>
-            <Input
-              id="er-codigo"
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-              className="font-mono"
-            />
-          </div>
-          <div>
-            <Label htmlFor="er-obs">Observação (opcional)</Label>
-            <Input id="er-obs" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-          </div>
-          <p className="text-2xs text-text-dim">
-            O preço é editado pelo histórico de preços (ícone de relógio na lista).
-          </p>
+          </Campo>
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             onClick={() => onOpenChange(false)}
-            disabled={update.isPending}
+            disabled={gravando}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={update.isPending}>
-            {update.isPending ? 'Salvando…' : 'Salvar'}
+          <Button type="submit" disabled={gravando}>
+            {gravando ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogFooter>
       </form>

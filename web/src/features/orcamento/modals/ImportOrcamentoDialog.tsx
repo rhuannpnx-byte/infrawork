@@ -2,8 +2,8 @@ import { type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { downloadBlob, nomeComStamp } from '@/lib/files/download'
 import { ImportTemplateDialog } from '@/components/import/ImportTemplateDialog'
+import { Campo } from '@/components/ui/campo'
 import { Select } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useEmpresaAtual } from '@/hooks/useEmpresaAtual'
 import { usePlanOrc } from '../hooks/plan-orc'
@@ -29,8 +29,8 @@ interface Opcoes {
 }
 
 const TIPO_LABEL: Record<OrcamentoLinha['tipo'], string> = {
-  etapa: 'etapa',
-  receita: 'receita'
+  etapa: 'Índice',
+  receita: 'Receita'
 }
 
 export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): ReactNode {
@@ -44,7 +44,7 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
     <ImportTemplateDialog<OrcamentoLinha, Opcoes>
       open={open}
       onOpenChange={onOpenChange}
-      titulo="Importar planilha orçamentária (modelo padrão)"
+      titulo="Importar planilha orçamentária"
       entidadeLabel="itens"
       gerarModelo={() =>
         gerarModeloOrcamento({
@@ -59,7 +59,7 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
           ? {
               label: 'Baixar planilha atual',
               descricao:
-                'A planilha da obra no formato do modelo (venda, serviços e rateios) — para revisar no Excel e reimportar',
+                'A planilha da obra no formato do modelo (venda, serviços e rateios), para revisar no Excel e importar de novo',
               baixar: async () => {
                 const { blob, truncadas, manuaisSemLinha } = exportarOrcamentoModelo(
                   {
@@ -77,11 +77,11 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
                 )
                 if (truncadas.length > 0)
                   toast.warning(
-                    `Receitas rateadas em mais de 5 serviços (só os 5 maiores foram exportados): ${truncadas.join(', ')}`
+                    `Receitas rateadas em mais de 5 serviços. Só os 5 maiores foram exportados: ${truncadas.join(', ')}.`
                   )
                 if (manuaisSemLinha.length > 0)
                   toast.warning(
-                    `Serviços com quantidade manual e sem receita alocada (quantidade não exportada): ${manuaisSemLinha.join(', ')}`
+                    `Serviços com quantidade manual e sem receita alocada. A quantidade não foi exportada: ${manuaisSemLinha.join(', ')}.`
                   )
               }
             }
@@ -92,21 +92,19 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
         {
           key: 'codigo',
           header: 'Código',
-          render: (r) => <span className="font-mono">{r.data.codigo}</span>,
+          render: (r) => r.data.codigo,
           width: 90
         },
         { key: 'descricao', header: 'Descrição', render: (r) => r.data.descricao },
         {
           key: 'tipo',
           header: 'Tipo',
-          render: (r) => (
-            <span className="text-2xs font-mono text-text-muted">{TIPO_LABEL[r.data.tipo]}</span>
-          ),
+          render: (r) => <span className="text-text-muted">{TIPO_LABEL[r.data.tipo]}</span>,
           width: 80
         },
         {
           key: 'qtd',
-          header: 'Qtd',
+          header: 'Quantidade',
           render: (r) =>
             r.data.quantidade != null
               ? `${fmtQtd(r.data.quantidade)} ${r.data.unidade ?? ''}`
@@ -116,14 +114,14 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
         },
         {
           key: 'venda',
-          header: 'Venda unit.',
+          header: 'Venda unitária',
           render: (r) => (r.data.venda_unitaria != null ? fmtBRL(r.data.venda_unitaria) : '—'),
           align: 'right',
           width: 120
         },
         {
           key: 'servicos',
-          header: 'Serviço(s)',
+          header: 'Serviços',
           render: (r) => {
             const ds = r.data.destinos
             if (ds.length === 0) return <span className="text-text-dim">—</span>
@@ -133,19 +131,22 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
                   <span key={i} className="truncate">
                     {d.servico}
                     {ds.length > 1 || (r.data.fracoes[i] ?? 1) < 0.9999 ? (
-                      <span className="text-2xs font-mono text-text-dim">
+                      <span className="tabular text-xs text-text-muted">
                         {' '}
-                        {r.data.fracoes[i] === null ? 'venda' : fmtPct2(r.data.fracoes[i] ?? 0)}
+                        {r.data.fracoes[i] === null
+                          ? 'proporcional à venda'
+                          : fmtPct2(r.data.fracoes[i] ?? 0)}
                       </span>
                     ) : null}
                   </span>
                 ))}
                 {r.data.qtd_servico != null ? (
-                  <span className="text-2xs text-accent">
-                    qtd. manual do serviço: {fmtQtd(r.data.qtd_servico)} {r.data.unid_servico ?? ''}
+                  <span className="text-xs text-text-muted">
+                    Quantidade manual do serviço: {fmtQtd(r.data.qtd_servico)}{' '}
+                    {r.data.unid_servico ?? ''}
                   </span>
                 ) : r.data.compoe_qtd ? (
-                  <span className="text-2xs text-accent">compõe a quantidade</span>
+                  <span className="text-xs text-text-muted">Compõe a quantidade do serviço</span>
                 ) : null}
               </span>
             )
@@ -156,16 +157,15 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
       opcoes={{
         inicial: { existentes: 'pular' },
         render: (v, set) => (
-          <div className="max-w-xs">
-            <Label>Códigos que já existem na planilha</Label>
+          <Campo rotulo="Códigos que já existem na planilha" className="max-w-md">
             <Select
               value={v.existentes}
               onChange={(e) => set({ ...v, existentes: e.target.value as 'pular' | 'atualizar' })}
             >
-              <option value="pular">Pular (manter como está)</option>
+              <option value="pular">Ignorar (manter como está)</option>
               <option value="atualizar">Atualizar descrição, quantidade, preço e serviços</option>
             </Select>
-          </div>
+          </Campo>
         )
       }}
       aplicar={(rows, opt) =>
@@ -176,15 +176,15 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
         })
       }
       resultadoMetrics={(r) => [
-        { label: 'etapas', value: r.stats.etapas_criadas ?? 0 },
-        { label: 'receitas', value: r.stats.receitas_criadas ?? 0 },
-        { label: 'serviços criados', value: r.stats.servicos_criados ?? 0 },
-        { label: 'receitas agrupadas', value: r.stats.receitas_alocadas ?? 0 },
-        { label: 'rateadas', value: r.stats.receitas_rateadas ?? 0 },
-        { label: 'qtd. manual', value: r.stats.servicos_qtd_manual ?? 0 },
-        { label: 'atualizados', value: r.stats.atualizados ?? 0 },
-        { label: 'pulados', value: r.stats.pulados ?? 0 },
-        { label: 'alocações mantidas', value: r.stats.alocacoes_puladas ?? 0 }
+        { label: 'Índices criados', value: r.stats.etapas_criadas ?? 0 },
+        { label: 'Receitas criadas', value: r.stats.receitas_criadas ?? 0 },
+        { label: 'Serviços criados', value: r.stats.servicos_criados ?? 0 },
+        { label: 'Receitas agrupadas', value: r.stats.receitas_alocadas ?? 0 },
+        { label: 'Receitas rateadas', value: r.stats.receitas_rateadas ?? 0 },
+        { label: 'Serviços com quantidade manual', value: r.stats.servicos_qtd_manual ?? 0 },
+        { label: 'Itens atualizados', value: r.stats.atualizados ?? 0 },
+        { label: 'Itens ignorados', value: r.stats.pulados ?? 0 },
+        { label: 'Alocações mantidas', value: r.stats.alocacoes_puladas ?? 0 }
       ]}
     />
   )

@@ -29,7 +29,7 @@ import infraworkIcon from '@/assets/infrawork-icon.png'
 
 export function AcompanhamentoComparativoPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Previsto × Realizado">
+    <RequireObra pageTitle="Previsto e realizado">
       <Inner />
     </RequireObra>
   )
@@ -123,7 +123,7 @@ function Inner(): ReactNode {
         if (isCliente) {
           return {
             filenameBase: `Previsto x Realizado - ${scope.obra?.nome ?? 'obra'}`,
-            titulo: 'Previsto × Realizado',
+            titulo: 'Previsto e realizado',
             obraNome: scope.obra?.nome ?? '',
             colunas: [
               { header: 'Código' },
@@ -170,7 +170,7 @@ function Inner(): ReactNode {
         })
         return {
           filenameBase: `Previsto x Realizado - ${scope.obra?.nome ?? 'obra'}`,
-          titulo: 'Previsto × Realizado',
+          titulo: 'Previsto e realizado',
           obraNome: scope.obra?.nome ?? '',
           colunas: [
             { header: 'Código' },
@@ -327,7 +327,7 @@ function Inner(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Previsto × Realizado"
+        title="Previsto e realizado"
         subtitle={`${itens.length} ${itens.length === 1 ? 'serviço' : 'serviços'} na linha de base${itemSelecionado ? ` · mostrando ${itemSelecionado.codigo}` : ''}`}
         actions={
           selectedId && (

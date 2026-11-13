@@ -26,8 +26,9 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 ## Cor
 
 - Tudo por variável CSS em OKLCH. Nada de cor literal em componente, nem classe da paleta padrão do Tailwind
-  (`text-emerald-400`, `bg-black/60`). Exceções: o que fica sobre foto ou mapa de satélite, o login e a prévia de
-  exportação.
+  (`text-emerald-400`, `bg-black/60`). Exceções: o mapa de satélite, o login, o que vai para arquivo exportado ou
+  impresso e o valor padrão das cores gravadas no banco (equipe, local). Controle sobre foto usa `--sobre-foto`
+  (fundo) e `--na-foto` (tinta), iguais nos dois temas. `src/styles/cores.test.ts` cobra e lista as exceções.
 - Neutros puxados para o tom do papel (hue 90). Sem preto ou branco puros.
 - Papéis: `bg` (mesa), `bg-menu` (barra e menu), `bg-panel` (folha), `bg-elevated` (bloco dentro da folha, cabeçalho
   de tabela), `bg-hover` e `bg-active` (véu de tinta translúcido, serve sobre qualquer fundo; não use como fundo
@@ -76,6 +77,9 @@ Antes de montar um bloco à mão, use o que já existe:
 | Filtros da página                           | `ui/filtros`: `BarraFiltros`, `Filtro`, `FiltroMulti`; `ui/filtro-chips`; `ui/DateRangePopover` |
 | Curva S (previsto e realizado)              | `charts/CurvaS`                                                                                 |
 | Diálogo, painel lateral, menu, popover      | `ui/dialog`, `ui/sheet`, `ui/dropdown`, `ui/popover`                                            |
+| Dica ao passar o mouse ou focar             | `ui/tooltip` (o `IconButton` já usa o `aria-label` como dica)                                   |
+| Barra de ferramentas do plano               | `features/cronograma/components/BarraPlano` (grupos, zoom, somente leitura)                     |
+| Fundo de vazio e de carregamento            | `layout/CurvasDeNivel` (já usado pelo `EmptyState`)                                             |
 
 Regras que valem para todos:
 
@@ -86,7 +90,13 @@ Regras que valem para todos:
 - Erro de formulário aparece no campo, depois da primeira tentativa de salvar; o botão de salvar não fica
   desabilitado sem explicação.
 - Diálogo e painel lateral usam `useCamadaModal` (`ui/camada-modal`): o Esc fecha só a camada de cima, o Tab fica
-  dentro dela e o foco volta para onde estava.
+  dentro dela e o foco volta para onde estava. Menu abre com seta para baixo e anda com as setas; popover leva o
+  foco para dentro ao abrir.
+- Todo campo tem nome (rótulo ligado ou `aria-label`), botão só com ícone tem `aria-label`, abas ficam num
+  `role="tablist"` e região com rolagem própria é focável.
+- Controle desabilitado diz o motivo no `title` (linha de base travada, falta de permissão).
+- Barra com muitos controles é dividida em grupos, com as ações raras num menu "Mais".
+- Gravação que falha e a tela não tratou vira aviso pelo `lib/query-client`; quando a tela avisa, o global se cala.
 
 ## Texto
 
@@ -108,9 +118,24 @@ Regras que valem para todos:
 - Início com obra selecionada é o painel da obra: carimbo, situação (avanço, valor executado, término, serviços,
   último lançamento), curva S em valor, faixa da obra, serviços, alertas, últimos lançamentos e prontidão.
 
-## Verificação visual
+## Verificação
 
-- `node scripts/capturas-telas.mjs` fotografa as 45 rotas num tema (`E2E_TEMA=light|dark`, `E2E_LARGURA=390` para
-  celular, `E2E_ALTURA=2000` para a página inteira); `node scripts/fumaca-telas.mjs` acusa erro de página e de
-  console.
+Com o servidor de desenvolvimento no ar e as variáveis `E2E_EMAIL`, `E2E_PASSWORD`, `E2E_EMPRESA_ID` e `E2E_OBRA_ID`:
+
+| Roteiro                                           | O que confere                                                           |
+| ------------------------------------------------- | ----------------------------------------------------------------------- |
+| `node scripts/fumaca-telas.mjs`                   | as 45 rotas abrem sem erro de página, de console ou de rede             |
+| `node scripts/capturas-telas.mjs`                 | fotografa as rotas num tema (`E2E_TEMA`, `E2E_LARGURA`, `E2E_ALTURA`)   |
+| `node scripts/comparar-capturas.mjs antes depois` | diferença por pixel entre duas pastas de capturas                       |
+| `node scripts/acessibilidade-telas.mjs`           | axe (WCAG 2 A e AA) em cada rota; sai com erro se houver violação grave |
+| `node scripts/acessibilidade-dialogos.mjs`        | abre os diálogos pelos botões, roda o axe e confere foco e Esc          |
+| `node scripts/conferir-csp.mjs [../campo]`        | serve o build com a CSP do `vercel.json` e acusa o que for bloqueado    |
+
+Sem servidor, no `npm test`: `theme.test.ts` (toda variável usada existe), `contraste.test.ts` (texto com 4,5:1 e
+contorno de campo com 3:1, nos dois temas), `cores.test.ts` (sem cor literal) e `icones.test.ts`.
+
 - Toda mudança visual é conferida nos dois temas.
+- Tela de acompanhamento se confere com dados: a obra local quase não tem produção, então semeie produção de
+  demonstração só no banco local antes de olhar e apague depois.
+- A galeria dos componentes fica em `/galeria` no servidor de desenvolvimento (não entra no build de produção): é a
+  vitrine e o alvo do axe para os componentes compartilhados.

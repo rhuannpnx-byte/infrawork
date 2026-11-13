@@ -14,9 +14,7 @@ import {
   MousePointer2,
   Scissors,
   Settings2,
-  SlidersHorizontal,
-  ZoomIn,
-  ZoomOut
+  SlidersHorizontal
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover } from '@/components/ui/popover'
@@ -28,6 +26,16 @@ import { useFiltroVisao } from '../../hooks/filtro'
 import { FiltroPopover } from '../FiltroPopover'
 import { agoraLocal } from '../../visoes/formato'
 import { LegendaControle } from '../LegendaControle'
+import { Segmentado } from '@/components/ui/segmentado'
+import {
+  BarraFerramentas,
+  GrupoBarra,
+  MOTIVO_LINHA_BASE,
+  MOTIVO_SEM_PERMISSAO,
+  SeloSomenteLeitura,
+  TituloOpcoes,
+  ZoomPar
+} from '../BarraPlano'
 import { TempoCaminhoVista, type ModoTempoCaminho } from './TempoCaminhoVista'
 
 export function TempoCaminhoPagina({ obraId }: { obraId: string }): ReactNode {
@@ -51,6 +59,7 @@ function CorpoTempoCaminho({ obraId, calc, somenteLeitura, baseline }: ContextoP
   const [escala, setEscala] = useState<{ pxPorHora: number; pxPorMetro: number } | null>(null)
   const e = calc.entrada!
   const acoes = dialogos.acoes
+  const motivo = baseline ? MOTIVO_LINHA_BASE : MOTIVO_SEM_PERMISSAO
 
   const comTarefas = new Set<string>()
   for (const t of calc.resultado?.tarefas.values() ?? [])
@@ -86,245 +95,249 @@ function CorpoTempoCaminho({ obraId, calc, somenteLeitura, baseline }: ContextoP
 
   return (
     <>
-      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-bg-panel px-3 py-1.5">
-        <div className="flex rounded border border-border-strong p-0.5">
+      <BarraFerramentas rotulo="Ferramentas do tempo-caminho">
+        <GrupoBarra>
+          <Segmentado
+            rotulo="Modo do ponteiro"
+            tamanho="sm"
+            valor={modo}
+            aoMudar={setModo}
+            opcoes={[
+              {
+                valor: 'selecionar',
+                rotulo: (
+                  <>
+                    <MousePointer2 size={12} /> Selecionar
+                  </>
+                ),
+                titulo:
+                  'Selecionar; arraste o começo da linha para mover o início ou o fim para mudar o término'
+              },
+              {
+                valor: 'dependencias',
+                rotulo: (
+                  <>
+                    <ArrowRightLeft size={12} /> Dependências
+                  </>
+                ),
+                desabilitado: somenteLeitura,
+                titulo: somenteLeitura
+                  ? motivo
+                  : 'Arraste do início, do meio ou do fim de uma linha até outra para criar a dependência'
+              },
+              {
+                valor: 'dividir',
+                rotulo: (
+                  <>
+                    <Scissors size={12} /> Dividir
+                  </>
+                ),
+                desabilitado: somenteLeitura,
+                titulo: somenteLeitura
+                  ? motivo
+                  : 'Clique numa estaca do eixo para dividir ali as tarefas que a cruzam'
+              }
+            ]}
+          />
+        </GrupoBarra>
+        <GrupoBarra>
+          <ZoomPar
+            rotulo="Tempo"
+            aoDiminuir={() => zoomTempo(1 / 1.5)}
+            aoAumentar={() => zoomTempo(1.5)}
+          />
+          <ZoomPar
+            rotulo="Estacas"
+            aoDiminuir={() => zoomEstacas(1 / 1.5)}
+            aoAumentar={() => zoomEstacas(1.5)}
+          />
           <Button
-            variant={modo === 'selecionar' ? 'secondary' : 'ghost'}
+            variant="ghost"
             size="sm"
-            onClick={() => setModo('selecionar')}
-            title="Selecionar; arraste o começo da linha para mover o início ou o fim para mudar o término"
+            onClick={() => ui.setTcZoom({ pxPorHora: null, pxPorMetro: null })}
+            title="Ajustar o gráfico à área da tela"
           >
-            <MousePointer2 size={12} /> Selecionar
+            <Maximize2 size={12} /> Ajustar
           </Button>
           <Button
-            variant={modo === 'dependencias' ? 'secondary' : 'ghost'}
+            variant="ghost"
             size="sm"
-            onClick={() => setModo('dependencias')}
-            disabled={somenteLeitura}
-            title="Arraste do início, meio ou fim de uma linha até outra para criar a dependência"
+            onClick={() => setIrPara({ t: agoraLocal(), seq: Date.now() })}
+            title="Rolar até hoje"
           >
-            <ArrowRightLeft size={12} /> Dependências
+            <CalendarClock size={12} /> Hoje
           </Button>
-          <Button
-            variant={modo === 'dividir' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setModo('dividir')}
-            disabled={somenteLeitura}
-            title="Clique numa estaca do eixo para dividir ali as tarefas que a cruzam"
+        </GrupoBarra>
+        <GrupoBarra>
+          <FiltroPopover entrada={e} filtro={filtro} onChange={setFiltro} />
+          <Popover
+            open={opcoes}
+            onOpenChange={setOpcoes}
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-expanded={opcoes}
+                onClick={() => setOpcoes((x) => !x)}
+                title="Quais locais e o que desenhar"
+              >
+                <SlidersHorizontal size={12} /> Exibir
+              </Button>
+            }
           >
-            <Scissors size={12} /> Dividir
-          </Button>
-        </div>
-        <span className="mx-1 h-4 w-px bg-border" />
-        <span className="text-2xs text-text-dim">Tempo</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => zoomTempo(1 / 1.5)}
-          title="Comprimir o tempo"
-        >
-          <ZoomOut size={14} />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => zoomTempo(1.5)} title="Esticar o tempo">
-          <ZoomIn size={14} />
-        </Button>
-        <span className="ml-1 text-2xs text-text-dim">Estacas</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => zoomEstacas(1 / 1.5)}
-          title="Comprimir as estacas"
-        >
-          <ZoomOut size={14} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => zoomEstacas(1.5)}
-          title="Esticar as estacas"
-        >
-          <ZoomIn size={14} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => ui.setTcZoom({ pxPorHora: null, pxPorMetro: null })}
-          title="Ajustar o gráfico à área"
-        >
-          <Maximize2 size={12} /> Ajustar
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIrPara({ t: agoraLocal(), seq: Date.now() })}
-          title="Rolar até hoje"
-        >
-          <CalendarClock size={12} /> Hoje
-        </Button>
-        <FiltroPopover entrada={e} filtro={filtro} onChange={setFiltro} />
-        <Popover
-          open={opcoes}
-          onOpenChange={setOpcoes}
-          trigger={
-            <Button variant="ghost" size="sm" onClick={() => setOpcoes((x) => !x)}>
-              <SlidersHorizontal size={12} /> Exibir
-            </Button>
-          }
-        >
-          <div className="w-80 space-y-3 rounded-md border border-border-strong bg-bg-elevated p-3 shadow-xl">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-2xs font-mono uppercase tracking-wider text-text-dim">
-                  Locais (eixos na ordem; áreas à direita)
-                </span>
-                {o.trechos ? (
-                  <button
-                    type="button"
-                    className="text-2xs text-accent hover:underline"
-                    onClick={() => ui.setTc({ trechos: null })}
-                  >
-                    os com tarefas
-                  </button>
-                ) : null}
-              </div>
-              {[
-                ...trechosMostrados
-                  .map((id) => e.trechos.find((t) => t.id === id)!)
-                  .filter(Boolean),
-                ...locais.filter((t) => !trechosMostrados.includes(t.id))
-              ].map((t) => {
-                const on = trechosMostrados.includes(t.id)
-                return (
-                  <div key={t.id} className="flex items-center gap-1">
-                    <span
-                      className={
-                        t.tipo === 'area'
-                          ? 'h-2.5 w-2.5 shrink-0 rounded-full'
-                          : 'h-2.5 w-2.5 shrink-0 rounded-sm'
-                      }
-                      style={{ background: t.exib?.cor }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <Caixa marcado={on} onMudar={(v) => mudarTrecho(t.id, v)}>
-                        <span className="truncate">
-                          {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
-                        </span>
-                        {!comTarefas.has(t.id) ? (
-                          <span className="ml-1 text-2xs text-text-dim">(sem tarefas)</span>
-                        ) : null}
-                      </Caixa>
+            <div className="w-80 space-y-3 p-2">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <TituloOpcoes>Locais (eixos na ordem, áreas à direita)</TituloOpcoes>
+                  {o.trechos ? (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-accent hover:underline"
+                      onClick={() => ui.setTc({ trechos: null })}
+                    >
+                      Só os com tarefas
+                    </button>
+                  ) : null}
+                </div>
+                {[
+                  ...trechosMostrados
+                    .map((id) => e.trechos.find((t) => t.id === id)!)
+                    .filter(Boolean),
+                  ...locais.filter((t) => !trechosMostrados.includes(t.id))
+                ].map((t) => {
+                  const on = trechosMostrados.includes(t.id)
+                  return (
+                    <div key={t.id} className="flex items-center gap-1">
+                      <span
+                        className={
+                          t.tipo === 'area'
+                            ? 'h-2.5 w-2.5 shrink-0 rounded-full'
+                            : 'h-2.5 w-2.5 shrink-0 rounded-sm'
+                        }
+                        style={{ background: t.exib?.cor }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Caixa marcado={on} onMudar={(v) => mudarTrecho(t.id, v)}>
+                          <span className="truncate">
+                            {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
+                          </span>
+                          {!comTarefas.has(t.id) ? (
+                            <span className="ml-1 text-xs text-text-muted">(sem tarefas)</span>
+                          ) : null}
+                        </Caixa>
+                      </div>
+                      {on ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => moverTrecho(t.id, -1)}
+                            aria-label={`Mover ${t.nome} para a esquerda`}
+                            title="Mover para a esquerda"
+                          >
+                            <ArrowUp size={12} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => moverTrecho(t.id, 1)}
+                            aria-label={`Mover ${t.nome} para a direita`}
+                            title="Mover para a direita"
+                          >
+                            <ArrowDown size={12} />
+                          </Button>
+                        </>
+                      ) : null}
                     </div>
-                    {on ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={() => moverTrecho(t.id, -1)}
-                          aria-label="Para a esquerda"
-                        >
-                          <ArrowUp size={12} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={() => moverTrecho(t.id, 1)}
-                          aria-label="Para a direita"
-                        >
-                          <ArrowDown size={12} />
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-            <div className="space-y-1.5">
-              <div className="text-2xs font-mono uppercase tracking-wider text-text-dim">
-                Desenho
+                  )
+                })}
               </div>
-              <Caixa
-                marcado={o.areas}
-                onMudar={(v) => ui.setTc({ areas: v })}
-                dica="Locais sem estacas (OAE, jazida…) como colunas estreitas à direita dos eixos"
-              >
-                Áreas
-              </Caixa>
-              <Caixa
-                marcado={o.areasResumo}
-                onMudar={(v) => ui.setTc({ areasResumo: v })}
-                dica="Fecho das tarefas de cada tarefa-resumo (as áreas das sum tasks do DynaRoad)"
-              >
-                Áreas das tarefas-resumo
-              </Caixa>
-              <Caixa marcado={o.rotulos} onMudar={(v) => ui.setTc({ rotulos: v })}>
-                Nome ao longo da linha
-              </Caixa>
-              <Caixa
-                marcado={o.caixas}
-                onMudar={(v) => ui.setTc({ caixas: v })}
-                dica="Retângulo envolvente de cada trecho contínuo da tarefa"
-              >
-                Caixa das tarefas
-              </Caixa>
-              <Caixa
-                marcado={o.marcos}
-                onMudar={(v) => ui.setTc({ marcos: v })}
-                dica="Marcos com filtro de estacas: linhas no início e no fim da janela, nas faixas do marco"
-              >
-                Marcos
-              </Caixa>
-              {e.plano.modo === 'controle' ? (
+              <div className="space-y-1.5">
+                <TituloOpcoes>Desenho</TituloOpcoes>
                 <Caixa
-                  marcado={o.previsao}
-                  onMudar={(v) => ui.setTc({ previsao: v })}
-                  dica="Modo controle: o saldo de cada tarefa a partir da data de controle (tracejado)"
+                  marcado={o.areas}
+                  onMudar={(v) => ui.setTc({ areas: v })}
+                  dica="Locais sem estacas (OAE, jazida…) como colunas estreitas à direita dos eixos"
                 >
-                  Previsão
+                  Áreas
                 </Caixa>
-              ) : null}
-              <Caixa marcado={o.dependencias} onMudar={(v) => ui.setTc({ dependencias: v })}>
-                Dependências
-              </Caixa>
-              <Caixa
-                marcado={o.automaticas}
-                onMudar={(v) => ui.setTc({ automaticas: v })}
-                desabilitado={!o.dependencias}
-              >
-                Dependências derivadas dos serviços
-              </Caixa>
-            </div>
-            <div className="space-y-1.5">
-              <div className="text-2xs font-mono uppercase tracking-wider text-text-dim">
-                Eixo do tempo
+                <Caixa
+                  marcado={o.areasResumo}
+                  onMudar={(v) => ui.setTc({ areasResumo: v })}
+                  dica="Contorno que envolve as tarefas de cada tarefa-resumo"
+                >
+                  Áreas das tarefas-resumo
+                </Caixa>
+                <Caixa marcado={o.rotulos} onMudar={(v) => ui.setTc({ rotulos: v })}>
+                  Nome ao longo da linha
+                </Caixa>
+                <Caixa
+                  marcado={o.caixas}
+                  onMudar={(v) => ui.setTc({ caixas: v })}
+                  dica="Retângulo envolvente de cada trecho contínuo da tarefa"
+                >
+                  Caixa das tarefas
+                </Caixa>
+                <Caixa
+                  marcado={o.marcos}
+                  onMudar={(v) => ui.setTc({ marcos: v })}
+                  dica="Marcos com filtro de estacas: linhas no início e no fim da janela, nas faixas do marco"
+                >
+                  Marcos
+                </Caixa>
+                {e.plano.modo === 'controle' ? (
+                  <Caixa
+                    marcado={o.previsao}
+                    onMudar={(v) => ui.setTc({ previsao: v })}
+                    dica="Modo controle: o saldo de cada tarefa a partir da data de controle (tracejado)"
+                  >
+                    Previsão
+                  </Caixa>
+                ) : null}
+                <Caixa marcado={o.dependencias} onMudar={(v) => ui.setTc({ dependencias: v })}>
+                  Dependências
+                </Caixa>
+                <Caixa
+                  marcado={o.automaticas}
+                  onMudar={(v) => ui.setTc({ automaticas: v })}
+                  desabilitado={!o.dependencias}
+                >
+                  Dependências derivadas dos serviços
+                </Caixa>
               </div>
-              <Caixa
-                marcado={o.fimDeSemana}
-                onMudar={(v) => ui.setTc({ fimDeSemana: v })}
-                dica="Com fins de semana, a linha fica vertical onde a tarefa para"
-              >
-                Mostrar fins de semana
-              </Caixa>
-              <Caixa marcado={o.feriados} onMudar={(v) => ui.setTc({ feriados: v })}>
-                Mostrar feriados
-              </Caixa>
+              <div className="space-y-1.5">
+                <TituloOpcoes>Eixo do tempo</TituloOpcoes>
+                <Caixa
+                  marcado={o.fimDeSemana}
+                  onMudar={(v) => ui.setTc({ fimDeSemana: v })}
+                  dica="Com fins de semana, a linha fica vertical onde a tarefa para"
+                >
+                  Mostrar fins de semana
+                </Caixa>
+                <Caixa marcado={o.feriados} onMudar={(v) => ui.setTc({ feriados: v })}>
+                  Mostrar feriados
+                </Caixa>
+              </div>
             </div>
-          </div>
-        </Popover>
-        <span className="mx-1 h-4 w-px bg-border" />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => acoes.criarTarefas(null)}
-          disabled={somenteLeitura}
-        >
-          <ListPlus size={12} /> Criar tarefas
-        </Button>
-        <Button variant="ghost" size="sm" onClick={dialogos.abrirMarcos}>
-          <Diamond size={12} /> Marcos
-        </Button>
-        <div className="ml-auto flex items-center gap-1">
+          </Popover>
+        </GrupoBarra>
+        <GrupoBarra>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => acoes.criarTarefas(null)}
+            disabled={somenteLeitura}
+            title={somenteLeitura ? motivo : 'Criar tarefas a partir dos serviços e dos locais'}
+          >
+            <ListPlus size={12} /> Criar tarefas
+          </Button>
+          <Button variant="ghost" size="sm" onClick={dialogos.abrirMarcos}>
+            <Diamond size={12} /> Marcos
+          </Button>
+        </GrupoBarra>
+        <GrupoBarra fim>
           {calc.resultado?.controle ? (
             <LegendaControle
               visao="tempo-caminho"
@@ -332,16 +345,17 @@ function CorpoTempoCaminho({ obraId, calc, somenteLeitura, baseline }: ContextoP
               previsao={o.previsao}
             />
           ) : null}
-          {baseline ? (
-            <span className="rounded border border-border px-2 py-0.5 text-2xs text-text-dim">
-              Linha de base travada — somente leitura
-            </span>
-          ) : null}
-          <Button variant="ghost" size="sm" onClick={acoes.abrirPlano}>
+          {somenteLeitura ? <SeloSomenteLeitura motivo={motivo} /> : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={acoes.abrirPlano}
+            title="Datas, prazo, calendário e modo do plano"
+          >
             <Settings2 size={12} /> Plano
           </Button>
-        </div>
-      </div>
+        </GrupoBarra>
+      </BarraFerramentas>
       <div className="min-h-0 flex-1">
         <TempoCaminhoVista
           calc={calcFiltrado}

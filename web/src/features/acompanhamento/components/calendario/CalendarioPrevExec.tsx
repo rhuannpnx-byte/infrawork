@@ -2,6 +2,9 @@ import { type ReactNode, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
 import type { CurvaSPonto } from '@/types/acompanhamento'
 import { ExportProgramacaoDialog, type MesOpcao } from './ExportProgramacaoDialog'
+import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { Carregando, Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -13,9 +16,9 @@ export interface ServicoInfo {
 }
 
 interface Props {
-  /** Pontos da curva-S (por item × dia) — planejado_dia/realizado_dia. */
+  /** Pontos da curva S (por item e dia): planejado_dia/realizado_dia. */
   pontos: CurvaSPonto[]
-  /** Lista de serviços do baseline (código/descrição/unidade por item). */
+  /** Serviços da linha de base (código, descrição e unidade por item). */
   servicos: ServicoInfo[]
   obraNome: string
   loading?: boolean
@@ -36,6 +39,9 @@ const MESES = [
   'Novembro',
   'Dezembro'
 ]
+
+const TH =
+  'border border-border px-2 py-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 
 function isoDia(ano: number, mes: number, dia: number): string {
   return `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
@@ -155,72 +161,117 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
   const [exportOpen, setExportOpen] = useState(false)
 
   return (
-    <div className="rounded border border-border bg-bg-panel flex flex-col min-h-0">
-      {/* Cabeçalho: navegação de mês + export */}
-      <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border flex-wrap">
-        <div className="flex items-center gap-2">
-          <button
+    <section
+      aria-label="Programação do mês"
+      className="rounded border border-border bg-bg-panel flex flex-col min-h-0"
+    >
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border flex-wrap">
+        <div className="flex items-center gap-1">
+          <IconButton
+            size="sm"
             onClick={() => irMes(-1)}
-            className="size-6 rounded flex items-center justify-center text-text-dim hover:text-text hover:bg-bg-hover"
             aria-label="Mês anterior"
+            title="Mês anterior"
           >
-            <ChevronLeft size={14} />
-          </button>
-          <h3 className="text-md font-semibold text-text min-w-[140px] text-center">
+            <ChevronLeft size={16} />
+          </IconButton>
+          <h2
+            className="text-lg font-semibold text-text min-w-[150px] text-center"
+            aria-live="polite"
+          >
             {MESES[mes]} {ano}
-          </h3>
-          <button
+          </h2>
+          <IconButton
+            size="sm"
             onClick={() => irMes(1)}
-            className="size-6 rounded flex items-center justify-center text-text-dim hover:text-text hover:bg-bg-hover"
             aria-label="Próximo mês"
+            title="Próximo mês"
           >
-            <ChevronRight size={14} />
-          </button>
+            <ChevronRight size={16} />
+          </IconButton>
         </div>
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setExportOpen(true)}
           disabled={servicos.length === 0}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-2xs font-mono text-text-muted hover:text-text hover:bg-bg-hover disabled:opacity-50"
+          title={
+            servicos.length === 0 ? 'Não há serviço na linha de base para exportar.' : undefined
+          }
         >
-          <FileSpreadsheet size={12} /> Exportar Excel
-        </button>
+          <FileSpreadsheet size={14} /> Exportar para Excel
+        </Button>
       </div>
 
       {loading ? (
-        <div className="px-3 py-16 text-center text-xs font-mono text-text-dim">
-          Carregando programação…
-        </div>
+        <Carregando texto="Carregando a programação…" className="px-4" />
       ) : linhas.length === 0 ? (
-        <div className="px-3 py-16 text-center text-xs font-mono text-text-dim">
-          Sem serviços no baseline desta obra.
-        </div>
+        <Vazio className="px-4">
+          A linha de base desta obra ainda não tem serviços. Trave um plano como linha de base no
+          cronograma para ver aqui o previsto e o realizado de cada dia.
+        </Vazio>
       ) : (
-        <div className="overflow-auto">
-          <table className="text-2xs font-mono border-collapse">
+        <div
+          data-density="compact"
+          tabIndex={0}
+          role="region"
+          aria-label={`Previsto e realizado por dia em ${MESES[mes]} de ${ano}`}
+          className="overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+        >
+          <table className="text-xs border-collapse">
             <thead className="sticky top-0 z-20">
               <tr className="bg-bg-elevated">
-                <th className="sticky left-0 z-30 bg-bg-elevated border border-border px-2 py-1 text-left w-[200px] min-w-[200px] max-w-[200px]">
-                  Atividade
+                <th
+                  scope="col"
+                  className={cn(
+                    TH,
+                    'sticky left-0 z-30 bg-bg-elevated text-left w-[220px] min-w-[220px] max-w-[220px]'
+                  )}
+                >
+                  Serviço
                 </th>
-                <th className="sticky left-[200px] z-30 bg-bg-elevated border border-border px-1 py-1 text-center w-[48px] min-w-[48px] max-w-[48px]">
-                  Unid.
+                <th
+                  scope="col"
+                  className={cn(
+                    TH,
+                    'sticky left-[220px] z-30 bg-bg-elevated text-center w-[52px] min-w-[52px] max-w-[52px]'
+                  )}
+                >
+                  Un.
                 </th>
-                <th className="sticky left-[248px] z-30 bg-bg-elevated border border-border px-1 py-1 text-center w-[44px] min-w-[44px] max-w-[44px]">
-                  P/R
+                <th
+                  scope="col"
+                  className={cn(
+                    TH,
+                    'sticky left-[272px] z-30 bg-bg-elevated text-left w-[80px] min-w-[80px] max-w-[80px]'
+                  )}
+                >
+                  Linha
                 </th>
                 {dias.map((d) => (
                   <th
                     key={d.iso}
+                    scope="col"
+                    aria-current={d.iso === hojeIso ? 'date' : undefined}
                     className={cn(
-                      'border border-border px-1 py-1 text-center min-w-[34px]',
-                      d.iso === hojeIso && 'bg-accent-glow text-accent'
+                      'border border-border px-1 py-1 text-center min-w-[38px] font-semibold',
+                      d.iso === hojeIso ? 'bg-accent-glow-strong text-accent' : 'text-text'
                     )}
                   >
-                    <div className="tabular-nums">{d.dia}</div>
-                    <div className="text-text-dim font-normal">{d.weekday}</div>
+                    <div className="tabular">{d.dia}</div>
+                    <div
+                      className={cn(
+                        'text-2xs font-normal',
+                        d.iso === hojeIso ? 'text-accent' : 'text-text-muted'
+                      )}
+                    >
+                      {d.weekday}
+                    </div>
                   </th>
                 ))}
-                <th className="border border-border px-2 py-1 text-center min-w-[60px]">Total</th>
+                <th scope="col" className={cn(TH, 'text-right min-w-[72px]')}>
+                  Total
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -237,16 +288,9 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
         </div>
       )}
 
-      <div className="px-3 py-2 border-t border-border flex items-center gap-4 text-2xs font-mono text-text-dim flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-accent/40 border border-accent/60" /> Prev
-          (planejado)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-success/40 border border-success/40" /> Real
-          (executado)
-        </span>
-      </div>
+      <p className="px-4 py-2.5 border-t border-border text-sm text-text-muted">
+        Quantidades na unidade de cada serviço. O dia de hoje aparece em destaque.
+      </p>
 
       <ExportProgramacaoDialog
         open={exportOpen}
@@ -257,9 +301,11 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
         aggByItem={aggByItem}
         obraNome={obraNome}
       />
-    </div>
+    </section>
   )
 }
+
+const CELULA_DIA = 'border border-border px-1 py-1 text-center tabular'
 
 function LinhaServico({
   linha,
@@ -273,53 +319,62 @@ function LinhaServico({
   const { servico: s, prev, real, totPrev, totReal } = linha
   return (
     <>
-      <tr className="bg-accent/5">
-        <td
+      <tr>
+        <th
+          scope="rowgroup"
           rowSpan={2}
-          className="sticky left-0 z-10 bg-bg-panel border border-border px-2 py-1 align-middle font-semibold text-text w-[200px] min-w-[200px] max-w-[200px]"
+          className="sticky left-0 z-10 bg-bg-panel border border-border px-2 py-1 text-left align-middle font-semibold text-text w-[220px] min-w-[220px] max-w-[220px]"
         >
           {s.descricao}
-        </td>
+        </th>
         <td
           rowSpan={2}
-          className="sticky left-[200px] z-10 bg-bg-panel border border-border px-1 py-1 text-center align-middle text-text-dim w-[48px] min-w-[48px] max-w-[48px]"
+          className="sticky left-[220px] z-10 bg-bg-panel border border-border px-1 py-1 text-center align-middle text-text-muted w-[52px] min-w-[52px] max-w-[52px]"
         >
           {s.unidade ?? ''}
         </td>
-        <td className="sticky left-[248px] z-10 bg-bg-panel border border-border px-1 py-1 text-center text-accent font-semibold w-[44px] min-w-[44px] max-w-[44px]">
-          Prev
-        </td>
+        <th
+          scope="row"
+          className="sticky left-[272px] z-10 bg-bg-panel border border-border px-2 py-1 text-left font-semibold text-accent w-[80px] min-w-[80px] max-w-[80px]"
+        >
+          Previsto
+        </th>
         {dias.map((d, i) => (
           <td
             key={d.iso}
             className={cn(
-              'border border-border px-1 py-1 text-center tabular-nums text-accent',
-              d.iso === hojeIso && 'bg-accent-glow'
+              CELULA_DIA,
+              'text-accent',
+              d.iso === hojeIso ? 'bg-accent-glow-strong' : 'bg-accent/5'
             )}
           >
             {fmtCell(prev[i])}
           </td>
         ))}
-        <td className="border border-border px-2 py-1 text-center tabular-nums font-semibold text-accent">
+        <td className="border border-border px-2 py-1 text-right tabular font-semibold text-accent bg-accent/5">
           {fmtCell(totPrev)}
         </td>
       </tr>
-      <tr className="bg-success/5">
-        <td className="sticky left-[248px] z-10 bg-bg-panel border border-border px-1 py-1 text-center text-success font-semibold w-[44px] min-w-[44px] max-w-[44px]">
-          Real
-        </td>
+      <tr>
+        <th
+          scope="row"
+          className="sticky left-[272px] z-10 bg-bg-panel border border-border px-2 py-1 text-left font-semibold text-success w-[80px] min-w-[80px] max-w-[80px]"
+        >
+          Realizado
+        </th>
         {dias.map((d, i) => (
           <td
             key={d.iso}
             className={cn(
-              'border border-border px-1 py-1 text-center tabular-nums text-success',
-              d.iso === hojeIso && 'bg-accent-glow'
+              CELULA_DIA,
+              'text-success',
+              d.iso === hojeIso ? 'bg-accent-glow-strong' : 'bg-success/5'
             )}
           >
             {fmtCell(real[i])}
           </td>
         ))}
-        <td className="border border-border px-2 py-1 text-center tabular-nums font-semibold text-success">
+        <td className="border border-border px-2 py-1 text-right tabular font-semibold text-success bg-success/5">
           {fmtCell(totReal)}
         </td>
       </tr>

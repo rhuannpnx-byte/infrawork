@@ -3,7 +3,7 @@
  * viagem. A nova viagem repete serviço, origem, destino, quantidade e máquina de carga da anterior. A DMT aparece
  * calculada (lib/dmt, a mesma regra do banco); o banco recalcula ao gravar e recompõe a produção do dia.
  */
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
@@ -15,8 +15,10 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { Campo } from '@/components/ui/campo'
+import { Carregando, ErroConsulta } from '@/components/ui/estado'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { formatMarcador, parseMarcador } from '@/lib/format/posicao'
@@ -65,6 +67,11 @@ interface LinhaViagem {
   carregador: string
 }
 
+type CampoViagem =
+  'item' | 'origem' | 'destino' | 'estacaCarga' | 'estacaDescarga' | 'qtd' | 'dmt' | 'nf'
+
+const TH = 'px-2 py-2 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
+
 const txtNum = (v: number | null | undefined): string =>
   v === null || v === undefined ? '' : String(v).replace('.', ',')
 
@@ -84,12 +91,7 @@ export function FichaDialog({
 }): ReactNode {
   if (!open) return null
   return (
-    <Carregar
-      onOpenChange={onOpenChange}
-      obraId={obraId}
-      ficha={ficha}
-      podeExcluir={podeExcluir}
-    />
+    <Carregar onOpenChange={onOpenChange} obraId={obraId} ficha={ficha} podeExcluir={podeExcluir} />
   )
 }
 
@@ -103,7 +105,31 @@ function Carregar(props: {
   const transp = useLocaisTransporte(props.obraId)
   const trechos = useObraTrechos(props.obraId)
   const parametros = useParametrosServicos(props.obraId)
-  if (!transp.data || !trechos.data || !parametros.data) return null
+  if (!transp.data || !trechos.data || !parametros.data) {
+    const erro = transp.error ?? trechos.error ?? parametros.error
+    return (
+      <Dialog open onOpenChange={props.onOpenChange} size="sm">
+        <DialogHeader>
+          <DialogTitle>Ficha de viagens</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          {erro ? (
+            <ErroConsulta
+              erro={erro}
+              oQue="os cadastros da ficha"
+              aoTentar={() => {
+                void transp.refetch()
+                void trechos.refetch()
+                void parametros.refetch()
+              }}
+            />
+          ) : (
+            <Carregando texto="Carregando locais, trechos e serviços…" />
+          )}
+        </DialogBody>
+      </Dialog>
+    )
+  }
   return <Form {...props} />
 }
 
@@ -176,6 +202,8 @@ function Form({
   const [equipe, setEquipe] = useState(ficha?.equipe_id ?? '')
   const [obs, setObs] = useState(ficha?.obs ?? '')
   const [erro, setErro] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
   const [linhas, setLinhas] = useState<LinhaViagem[]>(() =>
     (ficha?.viagens ?? []).map((v) => {
       const ec = eixoDaPonta(v.origem_id ?? '')
@@ -248,33 +276,57 @@ function Form({
     }
   }
 
-  const total = linhas.reduce((s, l) => s + (parseQtd(l.qtd) ?? 0), 0)
+  // total por unidade: serviços de unidades diferentes não se somam
+  const totais = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const l of linhas) {
+      const q = parseQtd(l.qtd)
+      if (q === null) continue
+      const un = servicos.find((x) => x.id === l.item)?.unidade ?? ''
+      m.set(un, (m.get(un) ?? 0) + q)
+    }
+    return [...m.entries()]
+  }, [linhas, servicos])
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault()
-    setErro(null)
-    if (data > hojeLocalISO()) return setErro('A data não pode ser no futuro.')
-    if (!linhas.length) return setErro('Inclua ao menos uma viagem.')
+  /** Confere a ficha: erros por campo (`id da viagem:campo`) e as viagens prontas para gravar. */
+  const conferir = (): { erros: Record<string, string>; viagens: FichaInput['viagens'] } => {
+    const erros: Record<string, string> = {}
     const viagens: FichaInput['viagens'] = []
-    for (const [k, l] of linhas.entries()) {
-      const n = k + 1
-      if (!l.item) return setErro(`Viagem ${n}: escolha o serviço.`)
-      if (!l.origem || !l.destino) return setErro(`Viagem ${n}: escolha a origem e o destino.`)
+    if (data > hojeLocalISO()) erros.data = 'A data não pode ser no futuro.'
+    if (!linhas.length) erros.viagens = 'Inclua ao menos uma viagem.'
+    for (const l of linhas) {
+      const marcar = (c: CampoViagem, msg: string): void => {
+        erros[`${l.id}:${c}`] = msg
+      }
+      if (!l.item) marcar('item', 'Escolha o serviço.')
+      if (!l.origem) marcar('origem', 'Escolha a origem.')
+      if (!l.destino) marcar('destino', 'Escolha o destino.')
       const ec = eixoDaPonta(l.origem)
       const ed = eixoDaPonta(l.destino)
       const pc = lerEstaca(l.estacaCarga, ec)
       const pd = lerEstaca(l.estacaDescarga, ed)
-      if (ec && pc === null) return setErro(`Viagem ${n}: informe a estaca de carga.`)
-      if (ed && pd === null) return setErro(`Viagem ${n}: informe a estaca de descarga.`)
+      const faltaCarga = !!ec && pc === null
+      const faltaDescarga = !!ed && pd === null
+      if (faltaCarga) marcar('estacaCarga', 'Informe a estaca de carga.')
+      if (faltaDescarga) marcar('estacaDescarga', 'Informe a estaca de descarga.')
       const { dmt, par } = calculo(l)
       const q = parseQtd(l.qtd)
-      if (q === null || q <= 0) return setErro(`Viagem ${n}: informe a quantidade.`)
+      if (q === null || q <= 0) marcar('qtd', 'Informe a quantidade.')
       if (par.medicao_viagem === 'peso' && !l.nf.trim())
-        return setErro(`Viagem ${n}: informe o ticket da balança.`)
+        marcar('nf', 'Informe o ticket da balança.')
       const manual = l.dmtManual ? parseQtd(l.dmt) : null
       if (l.dmtManual && (manual === null || manual < 0))
-        return setErro(`Viagem ${n}: informe a DMT ajustada (km).`)
-      if (!l.dmtManual && dmt.km === null) return setErro(`Viagem ${n}: ${dmt.motivo}`)
+        marcar('dmt', 'Informe a DMT ajustada, em km.')
+      // sem origem, destino ou estaca o motivo da DMT só repetiria o erro do outro campo
+      else if (
+        !l.dmtManual &&
+        dmt.km === null &&
+        l.origem &&
+        l.destino &&
+        !faltaCarga &&
+        !faltaDescarga
+      )
+        marcar('dmt', dmt.motivo ?? 'Não há DMT para este trajeto.')
       viagens.push({
         id: l.id,
         item_orcamentario_id: l.item,
@@ -282,7 +334,7 @@ function Form({
         destino_id: l.destino,
         hora_carga: l.horaCarga || null,
         hora_descarga: l.horaDescarga || null,
-        quantidade: q,
+        quantidade: q ?? 0,
         material_qtd: parseQtd(l.mat),
         dmt_manual: l.dmtManual,
         dmt_km: l.dmtManual ? manual : null,
@@ -293,6 +345,30 @@ function Form({
         carregador_id: l.carregador || null
       })
     }
+    return { erros, viagens }
+  }
+
+  // os erros aparecem nos campos depois da primeira tentativa de gravar
+  const erros = tentou ? conferir().erros : {}
+  const nErros = Object.keys(erros).length
+  const resumoErros =
+    nErros === 0
+      ? null
+      : (erros.viagens ??
+        `Confira ${contar(nErros, 'campo marcado', 'campos marcados')} antes de gravar.`)
+
+  const onSubmit = async (e: FormEvent): Promise<void> => {
+    e.preventDefault()
+    setErro(null)
+    setTentou(true)
+    const conferida = conferir()
+    if (Object.keys(conferida.erros).length > 0) {
+      requestAnimationFrame(() =>
+        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+      )
+      return
+    }
+    const { viagens } = conferida
     try {
       await salvar.mutateAsync({
         id: fichaId,
@@ -309,11 +385,12 @@ function Form({
       toast.success(`Ficha gravada: ${contar(viagens.length, 'viagem', 'viagens')}.`)
       onOpenChange(false)
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Falha ao gravar a ficha')
+      setErro(
+        `Não foi possível gravar a ficha.${err instanceof Error && err.message ? ` ${err.message}` : ''}`
+      )
     }
   }
 
-  const campo = 'h-8 text-xs'
   const opcoesLocal = (atual: string): ReactNode => (
     <>
       <option value="">—</option>
@@ -327,57 +404,83 @@ function Form({
       ))}
     </>
   )
+  /** Atributos de erro de um campo da viagem e a mensagem que vai abaixo dele. */
+  const erroDe = (
+    l: LinhaViagem,
+    c: CampoViagem
+  ): { attrs: { 'aria-invalid'?: true; 'aria-describedby'?: string }; msg: ReactNode } => {
+    const texto = erros[`${l.id}:${c}`]
+    if (!texto) return { attrs: {}, msg: null }
+    const id = `erro-${l.id}-${c}`
+    return {
+      attrs: { 'aria-invalid': true, 'aria-describedby': id },
+      msg: (
+        <p id={id} className="mt-0.5 text-xs font-medium text-danger">
+          {texto}
+        </p>
+      )
+    }
+  }
   const celulaEstaca = (
+    l: LinhaViagem,
+    c: 'estacaCarga' | 'estacaDescarga',
     eixo: (typeof trechos)[number] | null,
-    valor: string,
     onChange: (v: string) => void,
     rotuloAria: string
-  ): ReactNode =>
-    eixo ? (
-      <Input
-        value={valor}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={formatMarcador(0, ctxObraTrecho(eixo))}
-        aria-label={rotuloAria}
-        className={`${campo} font-mono`}
-      />
-    ) : (
-      <span className="text-2xs text-text-dim" title="Fora da pista: vale a estaca do acesso">
-        acesso
-      </span>
+  ): ReactNode => {
+    if (!eixo)
+      return (
+        <span
+          className="text-xs text-text-muted"
+          title="Fora da pista vale a estaca do acesso cadastrada no local."
+        >
+          Pelo acesso
+        </span>
+      )
+    const er = erroDe(l, c)
+    return (
+      <>
+        <Input
+          value={l[c]}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={formatMarcador(0, ctxObraTrecho(eixo))}
+          aria-label={rotuloAria}
+          inputMode="text"
+          autoComplete="off"
+          spellCheck={false}
+          className="tabular"
+          {...er.attrs}
+        />
+        {er.msg}
+      </>
     )
+  }
 
   return (
     <Dialog open onOpenChange={onOpenChange} size="full" disableDismiss={salvar.isPending}>
-      <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+      <form ref={formRef} onSubmit={onSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
         <DialogHeader>
           <DialogTitle>{ficha ? 'Editar ficha de viagens' : 'Nova ficha de viagens'}</DialogTitle>
         </DialogHeader>
-        <DialogBody className="min-h-0 flex-1 space-y-3 overflow-auto">
-          <DialogErrorBanner message={erro} />
+        <DialogBody className="min-h-0 flex-1 space-y-4 overflow-auto">
+          <DialogErrorBanner message={erro ?? resumoErros} />
           {!servicosViagem.length ? (
-            <p className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn">
-              Nenhum serviço está parametrizado para viagens (Planejamento › Parametrização).
+            <p className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text">
+              Nenhum serviço está configurado para lançamento por viagens. Marque os serviços em
+              Planejamento, na página Parametrização.
             </p>
           ) : null}
-          <div className="grid grid-cols-4 gap-3 lg:grid-cols-6">
-            <div>
-              <Label>Data</Label>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+            <Campo rotulo="Data" erro={erros.data}>
               <Input
                 type="date"
                 value={data}
                 max={hojeLocalISO()}
                 onChange={(e) => setData(e.target.value)}
-                className={campo}
               />
-            </div>
-            <div className="col-span-2">
-              <Label>Veículo</Label>
-              <Select
-                value={veiculo}
-                onChange={(e) => setVeiculo(e.target.value)}
-                className={campo}
-              >
+            </Campo>
+            <Campo rotulo="Veículo" className="col-span-2">
+              <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
                 <option value="">—</option>
                 {comAtual(caminhoes, veiculo).map((v) => (
                   <option key={v.id} value={v.id}>
@@ -386,22 +489,12 @@ function Form({
                   </option>
                 ))}
               </Select>
-            </div>
-            <div>
-              <Label>Motorista</Label>
-              <Input
-                value={motorista}
-                onChange={(e) => setMotorista(e.target.value)}
-                className={campo}
-              />
-            </div>
-            <div>
-              <Label>Encarregado</Label>
-              <Select
-                value={encarregado}
-                onChange={(e) => setEncarregado(e.target.value)}
-                className={campo}
-              >
+            </Campo>
+            <Campo rotulo="Motorista">
+              <Input value={motorista} onChange={(e) => setMotorista(e.target.value)} />
+            </Campo>
+            <Campo rotulo="Encarregado">
+              <Select value={encarregado} onChange={(e) => setEncarregado(e.target.value)}>
                 <option value="">—</option>
                 {encarregados.map((x) => (
                   <option key={x.id} value={x.id}>
@@ -409,10 +502,9 @@ function Form({
                   </option>
                 ))}
               </Select>
-            </div>
-            <div>
-              <Label>Equipe</Label>
-              <Select value={equipe} onChange={(e) => setEquipe(e.target.value)} className={campo}>
+            </Campo>
+            <Campo rotulo="Equipe">
+              <Select value={equipe} onChange={(e) => setEquipe(e.target.value)}>
                 <option value="">—</option>
                 {equipes.map((x) => (
                   <option key={x.id} value={x.id}>
@@ -420,258 +512,336 @@ function Form({
                   </option>
                 ))}
               </Select>
-            </div>
+            </Campo>
           </div>
 
-          <div className="overflow-x-auto rounded border border-border">
-            <table className="w-full min-w-[1500px] border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-border text-left text-2xs font-mono uppercase tracking-wider text-text-dim">
-                  <th className="w-8 px-2 py-1.5 font-normal">#</th>
-                  <th className="min-w-[200px] px-2 py-1.5 font-normal">Serviço</th>
-                  <th className="min-w-[160px] px-2 py-1.5 font-normal">Origem</th>
-                  <th className="w-28 px-2 py-1.5 font-normal" title="Quando a origem é a pista">
-                    Est. carga
-                  </th>
-                  <th className="min-w-[160px] px-2 py-1.5 font-normal">Destino</th>
-                  <th className="w-28 px-2 py-1.5 font-normal" title="Quando o destino é a pista">
-                    Est. descarga
-                  </th>
-                  <th className="min-w-[140px] px-2 py-1.5 font-normal">Carregado por</th>
-                  <th className="w-24 px-2 py-1.5 font-normal">Carga</th>
-                  <th className="w-24 px-2 py-1.5 font-normal">Descarga</th>
-                  <th
-                    className="w-28 px-2 py-1.5 font-normal"
-                    title="Na unidade do serviço, já com o empolamento ou a densidade que você aplica"
-                  >
-                    Qtd
-                  </th>
-                  <th className="w-24 px-2 py-1.5 font-normal">Material</th>
-                  <th className="w-32 px-2 py-1.5 font-normal">DMT km</th>
-                  <th className="w-24 px-2 py-1.5 font-normal">NF/ticket</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((l, i) => {
-                  const { par, dmt } = calculo(l)
-                  const sv = servicos.find((s) => s.id === l.item)
-                  const pedeMaterial =
-                    par.controla_material &&
-                    (par.material_unidade ?? '').toLowerCase() !== (sv?.unidade ?? '').toLowerCase()
-                  const peso = par.medicao_viagem === 'peso'
-                  return (
-                    <tr key={l.id} className="border-b border-border last:border-b-0">
-                      <td className="px-2 py-1 font-mono text-2xs text-text-dim">{i + 1}</td>
-                      <td className="px-2 py-1">
-                        <Select
-                          value={l.item}
-                          onChange={(e) => setLinha(i, { item: e.target.value })}
-                          className={campo}
-                          aria-label="Serviço"
-                        >
-                          <option value="">—</option>
-                          {servicosViagem.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.codigo} {s.descricao}
-                            </option>
-                          ))}
-                        </Select>
-                      </td>
-                      <td className="px-2 py-1">
-                        <Select
-                          value={l.origem}
-                          onChange={(e) => setLinha(i, { origem: e.target.value })}
-                          className={campo}
-                          aria-label="Origem"
-                        >
-                          {opcoesLocal(l.origem)}
-                        </Select>
-                      </td>
-                      <td className="px-2 py-1">
-                        {celulaEstaca(
-                          eixoDaPonta(l.origem),
-                          l.estacaCarga,
-                          (v) => setLinha(i, { estacaCarga: v }),
-                          'Estaca de carga'
-                        )}
-                      </td>
-                      <td className="px-2 py-1">
-                        <Select
-                          value={l.destino}
-                          onChange={(e) => setLinha(i, { destino: e.target.value })}
-                          className={campo}
-                          aria-label="Destino"
-                        >
-                          {opcoesLocal(l.destino)}
-                        </Select>
-                      </td>
-                      <td className="px-2 py-1">
-                        {celulaEstaca(
-                          eixoDaPonta(l.destino),
-                          l.estacaDescarga,
-                          (v) => setLinha(i, { estacaDescarga: v }),
-                          'Estaca de descarga'
-                        )}
-                      </td>
-                      <td className="px-2 py-1">
-                        <Select
-                          value={l.carregador}
-                          onChange={(e) => setLinha(i, { carregador: e.target.value })}
-                          className={campo}
-                          aria-label="Carregado por"
-                        >
-                          <option value="">—</option>
-                          {comAtual(maquinas, l.carregador).map((x) => (
-                            <option key={x.id} value={x.id}>
-                              {rotulo(x)}
-                            </option>
-                          ))}
-                        </Select>
-                      </td>
-                      <td className="px-2 py-1">
-                        <Input
-                          type="time"
-                          value={l.horaCarga}
-                          onChange={(e) => setLinha(i, { horaCarga: e.target.value })}
-                          className={campo}
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <Input
-                          type="time"
-                          value={l.horaDescarga}
-                          onChange={(e) => setLinha(i, { horaDescarga: e.target.value })}
-                          className={campo}
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <Input
-                          inputMode="decimal"
-                          value={l.qtd}
-                          onChange={(e) => setLinha(i, { qtd: e.target.value })}
-                          placeholder={sv?.unidade ?? ''}
-                          aria-label="Quantidade"
-                          className={`${campo} font-mono`}
-                        />
-                        {capacidade && !peso ? (
-                          <div className="mt-0.5 font-mono text-2xs text-text-dim">
-                            caçamba {txtNum(capacidade)} m³
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-1">
-                        {pedeMaterial ? (
+          <section aria-label="Viagens da ficha" className="rounded border border-border">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Tabela das viagens"
+              className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+            >
+              <table className="w-full min-w-[1560px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-bg-elevated text-left">
+                    <th scope="col" className={cn(TH, 'w-10')}>
+                      Nº
+                    </th>
+                    <th scope="col" className={cn(TH, 'min-w-[200px]')}>
+                      Serviço
+                    </th>
+                    <th scope="col" className={cn(TH, 'min-w-[160px]')}>
+                      Origem
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-32')} title="Quando a origem é a pista">
+                      Estaca de carga
+                    </th>
+                    <th scope="col" className={cn(TH, 'min-w-[160px]')}>
+                      Destino
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-32')} title="Quando o destino é a pista">
+                      Estaca de descarga
+                    </th>
+                    <th scope="col" className={cn(TH, 'min-w-[140px]')}>
+                      Carregado por
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-28')}>
+                      Hora da carga
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-28')}>
+                      Hora da descarga
+                    </th>
+                    <th
+                      scope="col"
+                      className={cn(TH, 'w-32')}
+                      title="Na unidade do serviço, já com o empolamento ou a densidade que você aplica"
+                    >
+                      Quantidade
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-28')}>
+                      Material
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-36')}>
+                      DMT (km)
+                    </th>
+                    <th scope="col" className={cn(TH, 'w-32')}>
+                      Nota ou ticket
+                    </th>
+                    <th scope="col" className="w-10">
+                      <span className="sr-only">Remover</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l, i) => {
+                    const { par, dmt } = calculo(l)
+                    const sv = servicos.find((s) => s.id === l.item)
+                    const pedeMaterial =
+                      par.controla_material &&
+                      (par.material_unidade ?? '').toLowerCase() !==
+                        (sv?.unidade ?? '').toLowerCase()
+                    const peso = par.medicao_viagem === 'peso'
+                    const n = i + 1
+                    const eItem = erroDe(l, 'item')
+                    const eOrigem = erroDe(l, 'origem')
+                    const eDestino = erroDe(l, 'destino')
+                    const eQtd = erroDe(l, 'qtd')
+                    const eDmt = erroDe(l, 'dmt')
+                    const eNf = erroDe(l, 'nf')
+                    return (
+                      <tr key={l.id} className="border-b border-border align-top last:border-b-0">
+                        <td className="px-2 py-2.5 tabular text-text-muted">{n}</td>
+                        <td className="px-2 py-1.5">
+                          <Select
+                            value={l.item}
+                            onChange={(e) => setLinha(i, { item: e.target.value })}
+                            aria-label={`Serviço da viagem ${n}`}
+                            {...eItem.attrs}
+                          >
+                            <option value="">—</option>
+                            {servicosViagem.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.codigo} {s.descricao}
+                              </option>
+                            ))}
+                          </Select>
+                          {eItem.msg}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Select
+                            value={l.origem}
+                            onChange={(e) => setLinha(i, { origem: e.target.value })}
+                            aria-label={`Origem da viagem ${n}`}
+                            {...eOrigem.attrs}
+                          >
+                            {opcoesLocal(l.origem)}
+                          </Select>
+                          {eOrigem.msg}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {celulaEstaca(
+                            l,
+                            'estacaCarga',
+                            eixoDaPonta(l.origem),
+                            (v) => setLinha(i, { estacaCarga: v }),
+                            `Estaca de carga da viagem ${n}`
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Select
+                            value={l.destino}
+                            onChange={(e) => setLinha(i, { destino: e.target.value })}
+                            aria-label={`Destino da viagem ${n}`}
+                            {...eDestino.attrs}
+                          >
+                            {opcoesLocal(l.destino)}
+                          </Select>
+                          {eDestino.msg}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {celulaEstaca(
+                            l,
+                            'estacaDescarga',
+                            eixoDaPonta(l.destino),
+                            (v) => setLinha(i, { estacaDescarga: v }),
+                            `Estaca de descarga da viagem ${n}`
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Select
+                            value={l.carregador}
+                            onChange={(e) => setLinha(i, { carregador: e.target.value })}
+                            aria-label={`Máquina que carregou a viagem ${n}`}
+                          >
+                            <option value="">—</option>
+                            {comAtual(maquinas, l.carregador).map((x) => (
+                              <option key={x.id} value={x.id}>
+                                {rotulo(x)}
+                              </option>
+                            ))}
+                          </Select>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            type="time"
+                            value={l.horaCarga}
+                            onChange={(e) => setLinha(i, { horaCarga: e.target.value })}
+                            aria-label={`Hora da carga da viagem ${n}`}
+                            className="tabular"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            type="time"
+                            value={l.horaDescarga}
+                            onChange={(e) => setLinha(i, { horaDescarga: e.target.value })}
+                            aria-label={`Hora da descarga da viagem ${n}`}
+                            className="tabular"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
                           <Input
                             inputMode="decimal"
-                            value={l.mat}
-                            onChange={(e) => setLinha(i, { mat: e.target.value })}
-                            placeholder={par.material_unidade ?? ''}
-                            className={`${campo} font-mono`}
+                            value={l.qtd}
+                            onChange={(e) => setLinha(i, { qtd: e.target.value })}
+                            placeholder={sv?.unidade ?? ''}
+                            aria-label={`Quantidade da viagem ${n}${sv?.unidade ? `, em ${sv.unidade}` : ''}`}
+                            className="tabular"
+                            {...eQtd.attrs}
                           />
-                        ) : (
-                          <span className="text-2xs text-text-dim">
-                            {par.controla_material ? '= qtd' : '—'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1">
-                        <div className="flex items-center gap-1">
-                          {l.dmtManual ? (
+                          {eQtd.msg}
+                          {capacidade && !peso ? (
+                            <div className="mt-0.5 text-xs text-text-muted tabular">
+                              Caçamba: {txtNum(capacidade)} m³
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {pedeMaterial ? (
                             <Input
                               inputMode="decimal"
-                              value={l.dmt}
-                              onChange={(e) => setLinha(i, { dmt: e.target.value })}
-                              placeholder={dmt.km !== null ? txtNum(dmt.km) : 'km'}
-                              aria-label="DMT ajustada (km)"
-                              className={`${campo} w-20 font-mono`}
+                              value={l.mat}
+                              onChange={(e) => setLinha(i, { mat: e.target.value })}
+                              placeholder={par.material_unidade ?? ''}
+                              aria-label={`Material da viagem ${n}${par.material_unidade ? `, em ${par.material_unidade}` : ''}`}
+                              className="tabular"
                             />
                           ) : (
-                            <span
-                              className={cn(
-                                'font-mono text-xs',
-                                dmt.km === null ? 'text-warn' : 'text-text'
-                              )}
-                              title={dmt.motivo ?? undefined}
-                            >
-                              {dmt.km !== null ? formatNumber(dmt.km, 3) : 'sem DMT'}
+                            <span className="inline-block py-1.5 text-xs text-text-muted">
+                              {par.controla_material ? 'Igual à quantidade' : '—'}
                             </span>
                           )}
-                          <button
-                            type="button"
-                            title={l.dmtManual ? 'Voltar ao cálculo' : 'Ajustar a DMT'}
-                            onClick={() =>
-                              setLinha(i, {
-                                dmtManual: !l.dmtManual,
-                                dmt: l.dmtManual ? '' : txtNum(dmt.km)
-                              })
-                            }
-                            className={cn(
-                              'ml-auto shrink-0 hover:text-accent',
-                              l.dmtManual ? 'text-accent' : 'text-text-dim'
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <div className="flex min-h-8 items-center gap-1">
+                            {l.dmtManual ? (
+                              <Input
+                                inputMode="decimal"
+                                value={l.dmt}
+                                onChange={(e) => setLinha(i, { dmt: e.target.value })}
+                                placeholder={dmt.km !== null ? txtNum(dmt.km) : 'km'}
+                                aria-label={`DMT ajustada da viagem ${n}, em km`}
+                                className="w-20 tabular"
+                                {...eDmt.attrs}
+                              />
+                            ) : (
+                              <span
+                                className={cn(
+                                  'tabular',
+                                  dmt.km === null ? 'text-warn' : 'text-text'
+                                )}
+                                title={dmt.motivo ?? undefined}
+                              >
+                                {dmt.km !== null ? formatNumber(dmt.km, 3) : 'Sem DMT'}
+                              </span>
                             )}
+                            <IconButton
+                              size="sm"
+                              variant="accent"
+                              aria-label={
+                                l.dmtManual
+                                  ? `Voltar ao cálculo da DMT da viagem ${n}`
+                                  : `Ajustar a DMT da viagem ${n}`
+                              }
+                              title={l.dmtManual ? 'Voltar ao cálculo' : 'Ajustar a DMT'}
+                              aria-pressed={l.dmtManual}
+                              onClick={() =>
+                                setLinha(i, {
+                                  dmtManual: !l.dmtManual,
+                                  dmt: l.dmtManual ? '' : txtNum(dmt.km)
+                                })
+                              }
+                              className={cn('ml-auto shrink-0', l.dmtManual && 'text-accent')}
+                            >
+                              <Pencil size={13} />
+                            </IconButton>
+                          </div>
+                          {eDmt.msg}
+                          <div className="mt-0.5 text-xs text-text-muted tabular">
+                            {l.dmtManual
+                              ? `Ajustada. Calculada: ${dmt.km !== null ? formatNumber(dmt.km, 3) : '—'}`
+                              : dmt.via === 'rota'
+                                ? 'Distância fixa'
+                                : dmt.via === 'geometria'
+                                  ? 'Pelo eixo'
+                                  : ''}
+                          </div>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            value={l.nf}
+                            onChange={(e) => setLinha(i, { nf: e.target.value })}
+                            placeholder={peso ? 'Obrigatório' : ''}
+                            aria-label={`Nota ou ticket da viagem ${n}`}
+                            aria-required={peso || undefined}
+                            {...eNf.attrs}
+                          />
+                          {eNf.msg}
+                        </td>
+                        <td className="px-1 py-1.5">
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            aria-label={`Remover a viagem ${n}`}
+                            title="Remover a viagem"
+                            onClick={() => setLinhas((ls) => ls.filter((_, k) => k !== i))}
                           >
-                            <Pencil size={12} />
-                          </button>
-                        </div>
-                        <div className="mt-0.5 text-2xs text-text-dim">
-                          {l.dmtManual
-                            ? `ajustada · calc. ${dmt.km !== null ? formatNumber(dmt.km, 3) : '—'}`
-                            : dmt.via === 'rota'
-                              ? 'distância fixa'
-                              : dmt.via === 'geometria'
-                                ? 'pelo eixo'
-                                : ''}
-                        </div>
-                      </td>
-                      <td className="px-2 py-1">
-                        <Input
-                          value={l.nf}
-                          onChange={(e) => setLinha(i, { nf: e.target.value })}
-                          placeholder={peso ? 'obrigatório' : ''}
-                          className={campo}
-                        />
-                      </td>
-                      <td className="px-1 py-1">
-                        <button
-                          type="button"
-                          title="Remover viagem"
-                          onClick={() => setLinhas((ls) => ls.filter((_, k) => k !== i))}
-                          className="flex items-center justify-center text-text-dim hover:text-danger"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                            <Trash2 size={14} />
+                          </IconButton>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {linhas.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={14}
+                        className={cn(
+                          'px-3 py-4 text-sm',
+                          erros.viagens ? 'font-medium text-danger' : 'text-text-muted'
+                        )}
+                      >
+                        {erros.viagens ??
+                          'Nenhuma viagem na ficha. Use Adicionar viagem para lançar a primeira.'}
                       </td>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            <div className="flex items-center gap-3 border-t border-border px-2 py-1.5">
-              <Button type="button" size="sm" variant="ghost" onClick={nova}>
-                <Plus size={12} /> Viagem
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-border px-2 py-2">
+              <Button type="button" size="sm" variant="secondary" onClick={nova}>
+                <Plus size={13} /> Adicionar viagem
               </Button>
-              <span className="ml-auto font-mono text-2xs text-text-muted">
-                {contar(linhas.length, 'viagem', 'viagens')} · total {formatNumber(total, 2)}
+              <span className="ml-auto text-sm text-text-muted tabular">
+                {contar(linhas.length, 'viagem', 'viagens')}
+                {totais.length > 0 ? (
+                  <>
+                    , total de{' '}
+                    <strong className="font-semibold text-text">
+                      {totais.map(([un, q]) => `${formatNumber(q, 2)} ${un}`.trim()).join(' e ')}
+                    </strong>
+                  </>
+                ) : null}
               </span>
             </div>
-          </div>
-          <div>
-            <Label>Observação</Label>
-            <Input value={obs} onChange={(e) => setObs(e.target.value)} className={campo} />
-          </div>
+          </section>
+          <Campo rotulo="Observação">
+            <Input value={obs} onChange={(e) => setObs(e.target.value)} />
+          </Campo>
         </DialogBody>
         <DialogFooter>
           {ficha && podeExcluir ? (
             <Button
               type="button"
-              variant="ghost"
-              className="mr-auto text-danger"
+              variant="danger"
+              className="mr-auto"
               disabled={excluir.isPending}
               onClick={async () => {
                 const ok = await confirm({
                   title: 'Excluir esta ficha?',
-                  description: `${ficha.data.split('-').reverse().join('/')} · ${contar(ficha.viagens.length, 'viagem', 'viagens')}. A produção do dia é recalculada.`,
+                  description: `Ficha de ${ficha.data.split('-').reverse().join('/')} com ${contar(ficha.viagens.length, 'viagem', 'viagens')}. A produção do dia será recalculada.`,
                   confirmLabel: 'Excluir',
                   variant: 'danger'
                 })
@@ -681,18 +851,23 @@ function Form({
                     toast.success('Ficha excluída.')
                     onOpenChange(false)
                   },
-                  onError: (e) => setErro(e.message)
+                  onError: (e) => setErro(`Não foi possível excluir a ficha. ${e.message}`)
                 })
               }}
             >
-              <Trash2 size={12} /> Excluir ficha
+              <Trash2 size={13} /> {excluir.isPending ? 'Excluindo…' : 'Excluir ficha'}
             </Button>
           ) : null}
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={salvar.isPending}
+          >
             Cancelar
           </Button>
           <Button type="submit" disabled={salvar.isPending}>
-            Gravar ficha
+            {salvar.isPending ? 'Gravando…' : 'Gravar ficha'}
           </Button>
         </DialogFooter>
       </form>

@@ -51,6 +51,7 @@ export function AlocacaoGlyph({
 
   return (
     <span
+      role="img"
       className="inline-flex shrink-0"
       title={tooltip(info)}
       aria-label={ALOC_STATUS_LABEL[status]}
@@ -61,7 +62,7 @@ export function AlocacaoGlyph({
           cy={c}
           r={r}
           fill="none"
-          stroke={status === 'saldo' ? warn : status === 'sem' ? 'var(--text-faint)' : accent}
+          stroke={status === 'saldo' ? warn : status === 'sem' ? 'var(--border-strong)' : accent}
           strokeWidth={1}
         />
         {corpo}

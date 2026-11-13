@@ -96,7 +96,7 @@ function Conteudo({ calc, somenteLeitura, onFechar }: Omit<Props, 'aberto'>): Re
                   {m.nome}
                   {viol ? <span className="ml-auto text-danger">⚑</span> : null}
                 </span>
-                <span className="text-2xs text-text-dim">
+                <span className="text-xs text-text-muted">
                   {m.fim ? `até ${fmtDataLonga(isoParaSeg(m.fim))}` : 'sem fim'} ·{' '}
                   {contar(r?.tarefas.length ?? 0, 'tarefa', 'tarefas')}
                 </span>

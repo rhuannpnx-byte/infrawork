@@ -7,6 +7,7 @@ import { contar } from '@/lib/rotulos'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { hojeLocalISO } from '@/lib/format/local-date'
@@ -85,7 +86,9 @@ function Inner(): ReactNode {
       toast.success(`${contar(n, 'lançamento removido', 'lançamentos removidos')}.`)
       setUltimoLote(null)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao desfazer')
+      toast.error(
+        `Não foi possível desfazer a importação.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
+      )
     }
   }
 
@@ -108,9 +111,10 @@ function Inner(): ReactNode {
                   variant="ghost"
                   onClick={() => void desfazerUltimo()}
                   disabled={desfazer.isPending}
-                  title={`Remove os ${ultimoLote.n} lançamentos do último lote importado`}
+                  title={`Remove do último lote importado: ${contar(ultimoLote.n, 'lançamento', 'lançamentos')}`}
                 >
-                  <Undo2 size={12} /> Desfazer importação ({ultimoLote.n})
+                  <Undo2 size={12} />{' '}
+                  {desfazer.isPending ? 'Desfazendo…' : `Desfazer importação (${ultimoLote.n})`}
                 </Button>
               ) : null}
               <Button size="sm" variant="secondary" onClick={() => setImportarOpen(true)}>
@@ -137,18 +141,21 @@ function Inner(): ReactNode {
           mobile ? 'px-2' : 'px-5'
         )}
         role="tablist"
+        aria-label="Forma de lançar"
       >
         {abas.map((a) => (
           <button
             key={a.k}
+            type="button"
             role="tab"
             aria-selected={aba === a.k}
             onClick={() => setAba(a.k)}
             className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-2 text-xs border-b-2 -mb-px transition-colors',
-              mobile && 'flex-1 justify-center py-2.5 text-sm',
+              'inline-flex items-center gap-1.5 px-3 py-2.5 text-sm border-b-2 -mb-px transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+              mobile && 'flex-1 justify-center',
               aba === a.k
-                ? 'border-accent text-accent'
+                ? 'border-accent text-accent font-semibold'
                 : 'border-transparent text-text-muted hover:text-text'
             )}
           >
@@ -202,12 +209,13 @@ function Inner(): ReactNode {
         {aba === 'dia' ? (
           <div className="h-full overflow-auto">
             <div className="px-4 pt-3">
-              <input
+              <Input
                 type="date"
+                aria-label="Dia dos lançamentos"
                 value={data}
                 max={hojeLocalISO()}
                 onChange={(e) => setData(e.target.value)}
-                className="h-10 w-full rounded border border-border bg-bg px-3 text-sm text-text"
+                className="h-10 px-3"
               />
             </div>
             <LancamentosDoDia

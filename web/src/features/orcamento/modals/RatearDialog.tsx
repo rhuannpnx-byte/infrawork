@@ -1,16 +1,19 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Plus, X } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
+  DialogDescription,
   DialogErrorBanner,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { Segmentado } from '@/components/ui/segmentado'
 import { cn } from '@/lib/utils'
 import { fmtBRL, fmtPct2, parseBR } from '@/lib/money'
 import type {
@@ -39,7 +42,11 @@ interface Props {
 }
 
 const CRITERIOS: Array<{ v: CriterioRateio; label: string; ajuda: string }> = [
-  { v: 'percentual', label: '%', ajuda: 'Percentual de cada serviço. Abaixo de 100% fica saldo.' },
+  {
+    v: 'percentual',
+    label: 'Percentual',
+    ajuda: 'Percentual de cada serviço. Abaixo de 100% fica saldo.'
+  },
   {
     v: 'peso',
     label: 'Quantidade física',
@@ -52,6 +59,8 @@ const CRITERIOS: Array<{ v: CriterioRateio; label: string; ajuda: string }> = [
       'Proporcional à venda das receitas que compõem a quantidade de cada serviço. Recalcula sozinho.'
   }
 ]
+
+const GRADE = 'grid grid-cols-[1fr_120px_72px_70px_110px_28px] gap-2 px-2 items-center'
 
 export function RatearDialog(props: Props): ReactNode {
   // remonta o conteúdo a cada receita aberta (estado inicial limpo)
@@ -92,6 +101,7 @@ function RatearConteudo({
   )
   const [novoNome, setNovoNome] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
   const venda = Number(receita.venda_total_calc ?? 0)
 
   const num = (s: string): number => {
@@ -143,27 +153,38 @@ function RatearConteudo({
         return [...ls, { grupo_id: s.id, valor: '', compoe: false }]
       })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao criar serviço')
+      toast.error('Não foi possível criar o serviço.', {
+        description: err instanceof Error ? err.message : undefined
+      })
     }
   }
 
-  const onSalvar = async (): Promise<void> => {
-    setErro(null)
-    const validas = linhas.filter((l) => l.grupo_id)
-    if (new Set(validas.map((l) => l.grupo_id)).size !== validas.length) {
-      setErro('O mesmo serviço aparece mais de uma vez.')
-      return
-    }
-    if (criterio !== 'venda' && validas.some((l) => num(l.valor) <= 0)) {
-      setErro(
-        criterio === 'percentual'
-          ? 'Informe o % de cada serviço.'
+  // validação: calculada das linhas, mostrada depois da primeira tentativa de salvar
+  const validas = linhas.filter((l) => l.grupo_id)
+  const repetidos = new Set(
+    validas.map((l) => l.grupo_id).filter((id, i, ids) => ids.indexOf(id) !== i)
+  )
+  const semValor = (l: Linha): boolean => criterio !== 'venda' && !!l.grupo_id && num(l.valor) <= 0
+  const passaDe100 =
+    criterio === 'percentual' && validas.reduce((a, l) => a + num(l.valor), 0) > 100.0001
+  const erroLinhas =
+    repetidos.size > 0
+      ? 'O mesmo serviço aparece mais de uma vez. Deixe cada serviço em uma linha só.'
+      : validas.some(semValor)
+        ? criterio === 'percentual'
+          ? 'Informe o percentual de cada serviço.'
           : 'Informe a quantidade de cada serviço.'
-      )
-      return
-    }
-    if (criterio === 'percentual' && validas.reduce((a, l) => a + num(l.valor), 0) > 100.0001) {
-      setErro('A soma passa de 100%.')
+        : passaDe100
+          ? 'A soma passa de 100%. Reduza o percentual de algum serviço.'
+          : undefined
+
+  const onSalvar = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
+    setErro(null)
+    if (erroLinhas) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
       return
     }
     try {
@@ -180,171 +201,208 @@ function RatearConteudo({
       toast.success(validas.length === 0 ? 'Alocações removidas.' : 'Rateio salvo.')
       onOpenChange(false)
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Falha ao salvar o rateio')
+      setErro(
+        `Não foi possível salvar o rateio. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   const corBarra = total > 1.0001 ? 'bg-danger' : total < 0.9999 ? 'bg-warn' : 'bg-accent'
+  const rotuloValor =
+    criterio === 'percentual'
+      ? 'Percentual'
+      : criterio === 'peso'
+        ? `Quantidade${receita.unidade ? ` em ${receita.unidade}` : ''}`
+        : 'Valor'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="lg" disableDismiss={salvar.isPending}>
-      <DialogHeader>
-        <DialogTitle>Ratear receita</DialogTitle>
-      </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={erro} />
-        <div className="flex items-baseline gap-2 text-xs">
-          <span className="font-mono text-text-dim">{receita.codigo}</span>
-          <span className="text-text truncate flex-1">{receita.descricao}</span>
-          <span className="font-mono tabular-nums text-text">{fmtBRL(venda)}</span>
-        </div>
+      <form onSubmit={onSalvar} noValidate>
+        <DialogHeader>
+          <DialogTitle>Ratear receita</DialogTitle>
+          <DialogDescription>
+            {receita.codigo} {receita.descricao} · venda de{' '}
+            <span className="tabular text-text">{fmtBRL(venda)}</span>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <DialogErrorBanner message={erro} />
 
-        <div>
-          <div className="inline-flex rounded border border-border-strong overflow-hidden">
-            {CRITERIOS.map((c) => (
-              <button
-                key={c.v}
-                type="button"
-                onClick={() => setCriterio(c.v)}
+          <div>
+            <Segmentado
+              rotulo="Critério do rateio"
+              valor={criterio}
+              aoMudar={setCriterio}
+              opcoes={CRITERIOS.map((c) => ({ valor: c.v, rotulo: c.label }))}
+            />
+            <p className="mt-1 text-xs text-text-muted">
+              {CRITERIOS.find((c) => c.v === criterio)!.ajuda}
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded border border-border">
+            <div className="min-w-[560px]">
+              <div
                 className={cn(
-                  'px-3 py-1 text-2xs',
-                  criterio === c.v
-                    ? 'bg-accent text-[color:var(--primary-foreground)]'
-                    : 'text-text-muted hover:bg-bg-hover'
+                  GRADE,
+                  'border-b border-border bg-bg-elevated py-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
                 )}
               >
-                {c.label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 text-2xs text-text-dim">
-            {CRITERIOS.find((c) => c.v === criterio)!.ajuda}
-          </p>
-        </div>
-
-        <div className="rounded border border-border">
-          <div className="grid grid-cols-[1fr_120px_64px_70px_110px_24px] gap-2 px-2 py-1 text-2xs font-mono uppercase text-text-dim bg-bg-elevated border-b border-border">
-            <span>Serviço</span>
-            <span className="text-right">
-              {criterio === 'percentual'
-                ? '%'
-                : criterio === 'peso'
-                  ? (receita.unidade ?? 'qtd')
-                  : '—'}
-            </span>
-            <span className="text-center" title="Compõe a quantidade do serviço">
-              Compõe
-            </span>
-            <span className="text-right">Parte</span>
-            <span className="text-right">Venda</span>
-            <span />
-          </div>
-          {linhas.map((l, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-[1fr_120px_64px_70px_110px_24px] gap-2 px-2 py-1 items-center border-b border-border"
-            >
-              <Select value={l.grupo_id} onChange={(e) => set(i, { grupo_id: e.target.value })}>
-                <option value="">— serviço —</option>
-                {servicos.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.codigo} · {s.descricao}
-                  </option>
-                ))}
-              </Select>
-              {criterio === 'venda' ? (
-                <span className="text-right text-2xs text-text-dim">auto</span>
-              ) : (
-                <input
-                  value={l.valor}
-                  onChange={(e) => set(i, { valor: e.target.value })}
-                  inputMode="decimal"
-                  className="h-7 px-2 rounded bg-bg-elevated border border-border-strong text-xs text-right font-mono outline-none focus:border-accent"
-                />
-              )}
-              <span className="flex justify-center">
-                <input
-                  type="checkbox"
-                  checked={l.compoe}
-                  onChange={(e) => set(i, { compoe: e.target.checked })}
-                  className="accent-[var(--accent)]"
-                />
-              </span>
-              <span className="text-right text-xs font-mono tabular-nums">
-                {l.grupo_id ? fmtPct2(fracoes[i] ?? 0) : '—'}
-              </span>
-              <span className="text-right text-xs font-mono tabular-nums text-text-muted">
-                {l.grupo_id ? fmtBRL(venda * (fracoes[i] ?? 0)) : '—'}
-              </span>
-              <button
-                type="button"
-                onClick={() => setLinhas((ls) => ls.filter((_, j) => j !== i))}
-                className="w-6 h-6 grid place-items-center rounded text-text-dim hover:text-danger hover:bg-bg-hover"
-                title="Remover"
-              >
-                <X size={12} />
-              </button>
+                <span>Serviço</span>
+                <span className="text-right">
+                  {criterio === 'percentual'
+                    ? '%'
+                    : criterio === 'peso'
+                      ? (receita.unidade ?? 'Qtd.')
+                      : 'Valor'}
+                </span>
+                <span className="text-center" title="A receita compõe a quantidade do serviço">
+                  Compõe
+                </span>
+                <span className="text-right">Parte</span>
+                <span className="text-right">Venda</span>
+                <span />
+              </div>
+              {linhas.map((l, i) => (
+                <div key={i} className={cn(GRADE, 'border-b border-border py-1')}>
+                  <Select
+                    value={l.grupo_id}
+                    onChange={(e) => set(i, { grupo_id: e.target.value })}
+                    aria-label={`Serviço da linha ${i + 1}`}
+                    aria-invalid={tentou && repetidos.has(l.grupo_id) ? true : undefined}
+                    autoFocus={i === 0 && !l.grupo_id}
+                  >
+                    <option value="">Selecione…</option>
+                    {servicos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.codigo} · {s.descricao}
+                      </option>
+                    ))}
+                  </Select>
+                  {criterio === 'venda' ? (
+                    <span className="text-right text-xs text-text-muted">Automático</span>
+                  ) : (
+                    <Input
+                      value={l.valor}
+                      onChange={(e) => set(i, { valor: e.target.value })}
+                      inputMode="decimal"
+                      autoComplete="off"
+                      aria-label={`${rotuloValor} da linha ${i + 1}`}
+                      aria-invalid={
+                        tentou && repetidos.size === 0 && (semValor(l) || passaDe100)
+                          ? true
+                          : undefined
+                      }
+                      className="tabular text-right"
+                    />
+                  )}
+                  <span className="flex justify-center">
+                    <input
+                      type="checkbox"
+                      checked={l.compoe}
+                      onChange={(e) => set(i, { compoe: e.target.checked })}
+                      aria-label={`A receita compõe a quantidade do serviço da linha ${i + 1}`}
+                      className="h-4 w-4 accent-[var(--accent)]"
+                    />
+                  </span>
+                  <span className="tabular text-right text-sm text-text">
+                    {l.grupo_id ? fmtPct2(fracoes[i] ?? 0) : '—'}
+                  </span>
+                  <span className="tabular text-right text-sm text-text-muted">
+                    {l.grupo_id ? fmtBRL(venda * (fracoes[i] ?? 0)) : '—'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLinhas((ls) => ls.filter((_, j) => j !== i))}
+                    className="grid h-7 w-7 place-items-center rounded text-text-dim hover:bg-danger/10 hover:text-danger"
+                    title={`Remover a linha ${i + 1}`}
+                    aria-label={`Remover a linha ${i + 1}`}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-center gap-2 px-2 py-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setLinhas((ls) => [...ls, { grupo_id: '', valor: '', compoe: false }])
+                  }
+                >
+                  <Plus size={12} /> Adicionar linha
+                </Button>
+                {criterio === 'percentual' && linhas.length > 0 ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={restante}>
+                    Pôr o restante na última linha
+                  </Button>
+                ) : null}
+                <div className="ml-auto flex items-center gap-1">
+                  <Input
+                    value={novoNome}
+                    onChange={(e) => setNovoNome(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return
+                      e.preventDefault()
+                      void criarServico()
+                    }}
+                    placeholder="Nome do novo serviço"
+                    aria-label="Nome do novo serviço"
+                    autoComplete="off"
+                    className="h-7 w-48"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={criar.isPending}
+                    title={novoNome.trim() ? undefined : 'Digite o nome do serviço para criar'}
+                    onClick={() => void criarServico()}
+                  >
+                    {criar.isPending ? 'Criando…' : 'Criar serviço'}
+                  </Button>
+                </div>
+              </div>
             </div>
-          ))}
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <button
-              type="button"
-              onClick={() => setLinhas((ls) => [...ls, { grupo_id: '', valor: '', compoe: false }])}
-              className="text-2xs text-accent hover:underline inline-flex items-center gap-1"
-            >
-              <Plus size={12} /> serviço
-            </button>
-            {criterio === 'percentual' && linhas.length > 0 ? (
-              <button
-                type="button"
-                onClick={restante}
-                className="text-2xs text-accent hover:underline"
-              >
-                restante para a última linha
-              </button>
-            ) : null}
-            <form
-              className="ml-auto flex items-center gap-1"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void criarServico()
-              }}
-            >
-              <input
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
-                placeholder="Novo serviço…"
-                className="h-6 w-44 px-2 rounded bg-bg-elevated border border-dashed border-border-strong text-2xs outline-none focus:border-accent"
-              />
-            </form>
           </div>
-        </div>
+          {tentou && erroLinhas ? (
+            <p role="alert" className="text-xs font-medium text-danger">
+              {erroLinhas}
+            </p>
+          ) : null}
 
-        <div>
-          <div className="h-1.5 rounded-full bg-bg-elevated overflow-hidden">
-            <div
-              className={cn('h-full', corBarra)}
-              style={{ width: `${Math.min(100, total * 100)}%` }}
-            />
+          <div>
+            <div className="h-1.5 overflow-hidden rounded bg-bg-elevated" aria-hidden>
+              <div
+                className={cn('h-full', corBarra)}
+                style={{ width: `${Math.min(100, total * 100)}%` }}
+              />
+            </div>
+            <div className="tabular mt-1 flex justify-between text-xs text-text-muted">
+              <span>Alocado: {fmtPct2(total)}</span>
+              <span className={total > 1.0001 ? 'font-medium text-danger' : undefined}>
+                {total > 1.0001
+                  ? 'Acima de 100%'
+                  : `Saldo: ${fmtBRL(Math.max(0, venda * (1 - total)))}`}
+              </span>
+            </div>
           </div>
-          <div className="mt-1 flex justify-between text-2xs font-mono text-text-dim">
-            <span>Alocado {fmtPct2(total)}</span>
-            <span className={total < 0.9999 ? 'text-warn' : total > 1.0001 ? 'text-danger' : ''}>
-              {total > 1.0001
-                ? 'acima de 100%'
-                : `Saldo ${fmtBRL(Math.max(0, venda * (1 - total)))}`}
-            </span>
-          </div>
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={salvar.isPending}>
-          Cancelar
-        </Button>
-        <Button onClick={() => void onSalvar()} disabled={salvar.isPending}>
-          {salvar.isPending ? 'Salvando…' : 'Salvar rateio'}
-        </Button>
-      </DialogFooter>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={salvar.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={salvar.isPending}>
+            {salvar.isPending ? 'Salvando…' : 'Salvar rateio'}
+          </Button>
+        </DialogFooter>
+      </form>
     </Dialog>
   )
 }

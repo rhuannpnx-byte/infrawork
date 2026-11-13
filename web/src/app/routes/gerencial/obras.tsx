@@ -6,17 +6,19 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
 import { useObras } from '@/features/gerencial/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import { NewObraDialog } from '@/features/gerencial/modals/NewObraDialog'
+import { rotuloStatusObra } from '@/features/gerencial/lib/status-obra'
 import { formatDate } from '@/lib/format'
 import type { ObraComEmpresa } from '@/types/gerencial'
 
 export function ObrasPage(): ReactNode {
   const navigate = useNavigate()
   const role = useAuthStore((s) => s.profile?.role)
-  const { data: obras = [], isLoading, error } = useObras()
+  const { data: obras = [], isLoading, error, refetch } = useObras()
   const [openNew, setOpenNew] = useState(false)
 
   const podeAcessar = role === 'god' || role === 'adm'
@@ -26,7 +28,7 @@ export function ObrasPage(): ReactNode {
       {
         accessorKey: 'codigo',
         header: 'Código',
-        cell: (info) => <span className="font-mono text-accent">{String(info.getValue())}</span>,
+        cell: (info) => <span className="font-medium text-accent">{String(info.getValue())}</span>,
         meta: { label: 'Código' },
         size: 130
       },
@@ -58,7 +60,7 @@ export function ObrasPage(): ReactNode {
                   : 'default'
           return (
             <Badge variant={variant as 'success' | 'warn' | 'accent' | 'default'}>
-              {v.replace('_', ' ')}
+              {rotuloStatusObra(v)}
             </Badge>
           )
         },
@@ -71,7 +73,7 @@ export function ObrasPage(): ReactNode {
         accessorFn: (row) => (row.ativa ? 'Ativa' : 'Desabilitada'),
         cell: ({ row }) =>
           row.original.ativa ? (
-            <span className="text-2xs font-mono text-text-dim">Ativa</span>
+            <span className="text-text-muted">Ativa</span>
           ) : (
             <Badge variant="warn">Desabilitada</Badge>
           ),
@@ -82,9 +84,7 @@ export function ObrasPage(): ReactNode {
         accessorKey: 'created_at',
         header: 'Criada em',
         cell: (info) => (
-          <span className="font-mono text-2xs text-text-dim">
-            {formatDate(info.getValue() as string)}
-          </span>
+          <span className="tabular text-text-muted">{formatDate(info.getValue() as string)}</span>
         ),
         meta: { label: 'Criada em' },
         size: 110
@@ -101,7 +101,7 @@ export function ObrasPage(): ReactNode {
           <EmptyState
             icon="shield"
             title="Sem permissão"
-            description="Você não tem permissão para gerenciar obras."
+            description="Só o administrador cadastra e gerencia obras. Peça ao administrador da sua empresa."
           />
         </div>
       </div>
@@ -115,7 +115,7 @@ export function ObrasPage(): ReactNode {
         subtitle={
           role === 'god'
             ? 'Obras de todas as empresas.'
-            : 'Obras da sua empresa. Clique em uma obra para gerenciar permissões.'
+            : 'Obras da sua empresa. Abra uma obra para editar os dados e os acessos.'
         }
         actions={
           <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
@@ -124,16 +124,19 @@ export function ObrasPage(): ReactNode {
         }
       />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
-        </div>
+        <ErroConsulta
+          erro={error}
+          oQue="as obras"
+          aoTentar={() => void refetch()}
+          className="mx-3 my-2"
+        />
       ) : null}
-      {obras.length === 0 && !isLoading ? (
+      {error && obras.length === 0 ? null : obras.length === 0 && !isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="folder"
             title="Nenhuma obra cadastrada"
-            description="Cadastre a primeira obra para começar a alocar engenheiros."
+            description="Cadastre a primeira obra para montar o orçamento e dar acesso aos engenheiros."
             action={
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
                 <Plus size={12} /> Nova obra
@@ -148,7 +151,7 @@ export function ObrasPage(): ReactNode {
           columns={columns}
           loading={isLoading}
           globalSearchPlaceholder="Buscar por código ou nome…"
-          emptyMessage="Nenhuma obra encontrada"
+          emptyMessage="Nenhuma obra encontrada com essa busca."
           onRowClick={(row) => navigate({ to: `/gerencial/obras/${row.id}` })}
         />
       )}

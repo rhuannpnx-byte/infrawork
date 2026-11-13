@@ -406,7 +406,7 @@ function EditorCalendario({
 
         <section className="shrink-0 border-b border-border">
           <header className="flex h-9 items-center gap-2 px-3">
-            <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">
+            <h3 className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
               Semana padrão
             </h3>
             {!ro ? (
@@ -447,7 +447,7 @@ function EditorCalendario({
                 {n}
               </span>
             ))}
-            <span className="text-2xs text-text-muted">Início</span>
+            <span className="text-xs text-text-muted">Início</span>
             {semana.map((d, i) => (
               <Input
                 key={i}
@@ -459,7 +459,7 @@ function EditorCalendario({
                 className="h-7 px-0 text-center font-mono text-2xs [&::-webkit-calendar-picker-indicator]:hidden"
               />
             ))}
-            <span className="text-2xs text-text-muted">Horas</span>
+            <span className="text-xs text-text-muted">Horas</span>
             {semana.map((d, i) => (
               <Input
                 key={i}
@@ -506,24 +506,23 @@ function EditorCalendario({
         </section>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div
-            className="flex h-9 shrink-0 items-center gap-4 border-b border-border px-3"
-            role="tablist"
-          >
-            <TabPill
-              active={aba === 'excecoes'}
-              onClick={() => setAba('excecoes')}
-              className="h-9 py-0 uppercase tracking-wider text-2xs"
-            >
-              Exceções <span className="tabular-nums">{c.definicoes.length}</span>
-            </TabPill>
-            <TabPill
-              active={aba === 'fatores'}
-              onClick={() => setAba('fatores')}
-              className="h-9 py-0 uppercase tracking-wider text-2xs"
-            >
-              Fatores mensais <span className="tabular-nums">{fatores.length}</span>
-            </TabPill>
+          <div className="flex h-9 shrink-0 items-center gap-4 border-b border-border px-3">
+            <div role="tablist" aria-label="Exceções e fatores" className="flex h-full gap-4">
+              <TabPill
+                active={aba === 'excecoes'}
+                onClick={() => setAba('excecoes')}
+                className="h-9 py-0 text-sm"
+              >
+                Exceções <span className="tabular-nums">{c.definicoes.length}</span>
+              </TabPill>
+              <TabPill
+                active={aba === 'fatores'}
+                onClick={() => setAba('fatores')}
+                className="h-9 py-0 text-sm"
+              >
+                Fatores mensais <span className="tabular-nums">{fatores.length}</span>
+              </TabPill>
+            </div>
             {aba === 'excecoes' && !ro ? (
               <div className="ml-auto flex items-center gap-1">
                 <Button
@@ -636,13 +635,13 @@ function LinhaDefinicao({
   const desc = descricaoDefinicao(d)
   return (
     <li className="group flex h-8 items-center gap-2 px-3 hover:bg-bg-hover/40">
-      <span className="w-[52px] shrink-0 font-mono text-2xs uppercase tracking-wider text-text-dim">
+      <span className="w-[52px] shrink-0 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
         {ROTULO_TIPO[d.tipo]}
       </span>
       <span className="max-w-[45%] shrink-0 truncate text-xs text-text" title={d.nome}>
         {d.nome || ROTULO_TIPO[d.tipo]}
       </span>
-      <span className="min-w-0 flex-1 truncate text-2xs text-text-muted" title={desc}>
+      <span className="min-w-0 flex-1 truncate text-xs text-text-muted" title={desc}>
         {desc}
       </span>
       {!ro ? (
@@ -785,7 +784,7 @@ function PreviaAno({
   return (
     <section className="flex min-w-0 flex-1 flex-col">
       <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border px-4">
-        <h3 className="text-2xs font-mono uppercase tracking-wider text-text-muted">Prévia</h3>
+        <h3 className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">Prévia</h3>
         <div className="flex items-center">
           <Button
             variant="ghost"
@@ -821,7 +820,7 @@ function PreviaAno({
           </span>
         ) : null}
         {onSelecionar ? (
-          <span className="ml-auto min-w-0 truncate text-2xs text-text-muted">
+          <span className="ml-auto min-w-0 truncate text-xs text-text-muted">
             Clique ou arraste nos dias para editar
           </span>
         ) : null}
@@ -912,7 +911,7 @@ function PreviaAno({
                           style={{
                             background:
                               h > 0
-                                ? `color-mix(in oklch, var(--accent) ${Math.round(18 + 42 * frac)}%, transparent)`
+                                ? `color-mix(in oklch, var(--accent) ${Math.round(14 + 26 * frac)}%, transparent)`
                                 : perdido
                                   ? 'color-mix(in oklch, var(--danger) 18%, transparent)'
                                   : undefined
@@ -946,8 +945,8 @@ function Legenda(): ReactNode {
   )
   return (
     <footer className="flex h-8 shrink-0 items-center gap-4 whitespace-nowrap border-t border-border px-4 text-2xs text-text-muted">
-      {item('color-mix(in oklch, var(--accent) 60%, transparent)', 'dia cheio')}
-      {item('color-mix(in oklch, var(--accent) 30%, transparent)', 'jornada reduzida')}
+      {item('color-mix(in oklch, var(--accent) 40%, transparent)', 'dia cheio')}
+      {item('color-mix(in oklch, var(--accent) 22%, transparent)', 'jornada reduzida')}
       {item('color-mix(in oklch, var(--danger) 18%, transparent)', 'dia de trabalho perdido')}
       {item(undefined, 'sem trabalho', true)}
       <span className="flex items-center gap-1.5">
@@ -1146,7 +1145,7 @@ function EditorDias({
         <ul className="border-b border-border py-1">
           {defs.map((d) => (
             <li key={d.id} className="group flex h-8 items-center gap-2 px-3">
-              <span className="w-[52px] shrink-0 font-mono text-2xs uppercase tracking-wider text-text-dim">
+              <span className="w-[52px] shrink-0 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                 {ROTULO_TIPO[d.tipo]}
               </span>
               <span
@@ -1220,7 +1219,7 @@ function EditorDias({
             aria-label="Horas por dia"
             className="h-6 w-12 px-1 text-right font-mono tabular-nums"
           />
-          <span className="text-2xs text-text-muted">h/dia</span>
+          <span className="text-xs text-text-muted">h/dia</span>
           <Button
             variant="secondary"
             size="sm"
@@ -1303,7 +1302,7 @@ function Fatores({
   }
   return (
     <div>
-      <p className="px-3 pt-2 text-2xs text-text-muted">
+      <p className="px-3 pt-2 text-xs text-text-muted">
         Fração das horas trabalhadas no mês, em todos os calendários: 1 = normal; 0,6 = 60% (chuvas,
         por exemplo).
       </p>

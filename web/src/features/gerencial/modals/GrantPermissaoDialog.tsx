@@ -4,13 +4,15 @@ import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+import { Campo } from '@/components/ui/campo'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { rotuloPapel } from '@/lib/rotulos'
 import { useClientes, useEngenheiros, useGrantPermissao } from '../hooks'
 
 interface Props {
@@ -36,22 +38,29 @@ export function GrantPermissaoDialog({
   const grant = useGrantPermissao()
   const [userId, setUserId] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
-  // Engenheiros e Clientes recebem permissão direta (Apoio herda do engenheiro).
+  // Engenheiros, clientes e apontadores recebem permissão direta (o apoio herda do engenheiro).
   const disponiveis = [...engenheiros, ...clientes].filter((e) => !existingUserIds.includes(e.id))
+  const semDisponiveis = disponiveis.length === 0
 
   useEffect(() => {
     if (!open) {
       setUserId('')
       setError(null)
+      setTentou(false)
     }
   }, [open])
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const erroUsuario = userId ? undefined : 'Selecione o usuário que vai receber o acesso.'
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
-    if (!userId) {
-      setError('Selecione um usuário.')
+    if (erroUsuario) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
       return
     }
     try {
@@ -59,62 +68,64 @@ export function GrantPermissaoDialog({
       toast.success(`Acesso concedido na obra ${obraCodigo}.`)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao conceder')
+      setError(
+        `Não foi possível conceder o acesso. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="sm" disableDismiss={grant.isPending}>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>Conceder acesso à obra {obraCodigo}</DialogTitle>
+          <DialogTitle>Conceder acesso</DialogTitle>
+          <DialogDescription>Obra {obraCodigo}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
-          <div>
-            <Label htmlFor="grant-user">Engenheiro, Cliente ou Apontador</Label>
-            <Select
-              id="grant-user"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              disabled={disponiveis.length === 0}
-              autoFocus
+          {semDisponiveis ? (
+            <p className="text-sm text-text-muted">
+              Todos os engenheiros, clientes e apontadores desta empresa já têm acesso a esta obra.
+              Para liberar outra pessoa, cadastre o usuário em Usuários.
+            </p>
+          ) : (
+            <Campo
+              rotulo="Usuário"
+              obrigatorio
+              dica="Engenheiro, cliente ou apontador da empresa. O apoio herda o acesso do seu engenheiro."
+              erro={tentou ? erroUsuario : undefined}
             >
-              <option value="">
-                {disponiveis.length === 0
-                  ? 'Todos os engenheiros e clientes desta empresa já têm acesso'
-                  : 'Selecione…'}
-              </option>
-              {disponiveis.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.role === 'cliente'
-                    ? '[Cliente] '
-                    : e.role === 'apontador'
-                      ? '[Apontador] '
-                      : '[Eng] '}
-                  {e.nome} · {e.email}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="text-2xs font-mono text-text-dim bg-bg-elevated rounded border border-border px-2 py-1.5">
-            Engenheiros e Clientes recebem acesso direto. Apoios vinculados a um engenheiro herdam o
-            acesso automaticamente.
-          </div>
+              <Select value={userId} onChange={(e) => setUserId(e.target.value)} autoFocus>
+                <option value="">Selecione…</option>
+                {disponiveis.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {rotuloPapel(e.role)}: {e.nome} · {e.email}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
+          )}
         </DialogBody>
         <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={grant.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" variant="default" disabled={grant.isPending || !userId}>
-            {grant.isPending ? 'Concedendo…' : 'Conceder acesso'}
-          </Button>
+          {semDisponiveis ? (
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+              Fechar
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => onOpenChange(false)}
+                disabled={grant.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={grant.isPending}>
+                {grant.isPending ? 'Concedendo…' : 'Conceder acesso'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </form>
     </Dialog>

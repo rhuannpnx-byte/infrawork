@@ -21,7 +21,12 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
           Últimos lançamentos
         </h4>
       </div>
-      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Últimos lançamentos"
+        className="flex-1 overflow-auto px-4 pb-3 space-y-1.5"
+      >
         {itens.length === 0 && (
           <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
             Nenhum lançamento ainda.
@@ -37,7 +42,7 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
             <div key={i.id} className="flex items-start gap-2 text-sm">
               <div
                 className="size-2 mt-1 rounded-full shrink-0"
-                style={{ background: i.equipe_display_cor ?? '#94a3b8' }}
+                style={{ background: i.equipe_display_cor ?? 'var(--text-dim)' }}
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">

@@ -1,14 +1,15 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogBody,
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+import { Campo } from '@/components/ui/campo'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { usePlanOrc, useReparentItem } from '../hooks/plan-orc'
@@ -37,6 +38,7 @@ export function MoveItemDialog({ open, onOpenChange, obraId, item }: Props): Rea
   const reparent = useReparentItem()
   const [novoPaiId, setNovoPaiId] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const proibidos = useMemo(() => {
     if (!item) return new Set<string>()
@@ -76,13 +78,27 @@ export function MoveItemDialog({ open, onOpenChange, obraId, item }: Props): Rea
   const reset = (): void => {
     setNovoPaiId('')
     setError(null)
+    setTentou(false)
   }
 
-  const onSubmit = async (): Promise<void> => {
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  const novo = novoPaiId === '__raiz__' ? null : novoPaiId || null
+  const erroDestino = !novoPaiId
+    ? 'Escolha para onde mover o item.'
+    : novo === item.parent_id
+      ? 'O item já está nesse lugar. Escolha outro destino.'
+      : undefined
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
     setError(null)
-    const novo = novoPaiId === '__raiz__' ? null : novoPaiId || null
-    if (novo === item.parent_id) {
-      setError('Item já está sob este pai.')
+    if (erroDestino) {
+      setTentou(true)
+      e.currentTarget.querySelector<HTMLElement>('select')?.focus()
       return
     }
     try {
@@ -91,80 +107,65 @@ export function MoveItemDialog({ open, onOpenChange, obraId, item }: Props): Rea
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao mover')
+      setError(
+        `Não foi possível mover o item. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="md"
-      disableDismiss={reparent.isPending}
-    >
-      <DialogHeader>
-        <DialogTitle>Mover item</DialogTitle>
-      </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={error} />
+    <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={reparent.isPending}>
+      <form onSubmit={onSubmit} noValidate>
+        <DialogHeader>
+          <DialogTitle>Mover item</DialogTitle>
+          <DialogDescription>
+            {item.codigo} {item.descricao}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <DialogErrorBanner message={error} />
 
-        <div className="text-xs font-mono text-text-muted">
-          Movendo: <span className="text-text">{item.codigo}</span>{' '}
-          <span className="text-text">{item.descricao}</span>
-        </div>
-
-        <div>
-          <Label htmlFor="m-pai" className="block">
-            Novo pai
-          </Label>
-          <Select
-            id="m-pai"
-            value={novoPaiId}
-            onChange={(e) => setNovoPaiId(e.target.value)}
-            autoFocus
+          <Campo
+            rotulo="Mover para"
+            obrigatorio
+            erro={tentou ? erroDestino : undefined}
+            dica={
+              (item.tipo === 'receita'
+                ? 'Uma receita pode ficar dentro de um índice ou de um serviço.'
+                : 'Índice e serviço só podem ficar dentro de um índice ou na raiz.') +
+              ' Os itens que estão dentro deste não aparecem na lista.'
+            }
           >
-            <option value="">— selecione —</option>
-            <option value="__raiz__">↑ Mover para raiz</option>
-            {possiveisPais.length > 0 ? (
-              <optgroup label="Sob outro item">
-                {possiveisPais.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {'  '.repeat(p.depth)}
-                    {p.codigo} · {p.descricao}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-          </Select>
-          <p className="text-2xs text-text-dim font-mono mt-1">
-            Itens descendentes do que está sendo movido são ocultados (evita ciclo).
-            {item.tipo === 'receita'
-              ? ' Receita pode ser pendurada em índice ou em grupo de serviço.'
-              : ' Índice e grupo de serviço só podem ir em índice ou raiz.'}
-          </p>
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => onOpenChange(false)}
-          disabled={reparent.isPending}
-        >
-          Cancelar
-        </Button>
-        <Button
-          type="button"
-          variant="default"
-          onClick={onSubmit}
-          disabled={reparent.isPending || !novoPaiId}
-        >
-          {reparent.isPending ? 'Movendo…' : 'Mover'}
-        </Button>
-      </DialogFooter>
+            <Select value={novoPaiId} onChange={(e) => setNovoPaiId(e.target.value)} autoFocus>
+              <option value="">Selecione…</option>
+              <option value="__raiz__">Raiz da planilha</option>
+              {possiveisPais.length > 0 ? (
+                <optgroup label="Dentro de outro item">
+                  {possiveisPais.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {'  '.repeat(p.depth)}
+                      {p.codigo} · {p.descricao}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+            </Select>
+          </Campo>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => aoMudar(false)}
+            disabled={reparent.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={reparent.isPending}>
+            {reparent.isPending ? 'Movendo…' : 'Mover item'}
+          </Button>
+        </DialogFooter>
+      </form>
     </Dialog>
   )
 }

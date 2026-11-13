@@ -66,7 +66,7 @@ export const MODULES: ModuleConfig[] = [
           },
           {
             icon: 'list-tree',
-            label: 'Planilha Orçamentária',
+            label: 'Planilha orçamentária',
             route: '/orcamento/obra/plan-orc',
             requiresObra: true
           },
@@ -95,7 +95,7 @@ export const MODULES: ModuleConfig[] = [
           },
           {
             icon: 'file-lock',
-            label: 'Planilha Inicial',
+            label: 'Planilha inicial',
             route: '/orcamento/obra/planilha-inicial',
             requiresObra: true
           }
@@ -166,7 +166,7 @@ export const MODULES: ModuleConfig[] = [
         ]
       },
       {
-        title: 'CONFIG',
+        title: 'CONFIGURAÇÃO',
         items: [
           {
             icon: 'sliders-horizontal',
@@ -205,13 +205,13 @@ export const MODULES: ModuleConfig[] = [
           },
           {
             icon: 'trending-up',
-            label: 'Curva-S',
+            label: 'Curva S',
             route: '/planejamento/curva-s',
             requiresObra: true
           },
           {
             icon: 'bar-chart-3',
-            label: 'Histograma',
+            label: 'Histograma de recursos',
             route: '/planejamento/recursos',
             requiresObra: true
           },
@@ -262,7 +262,7 @@ export const MODULES: ModuleConfig[] = [
           },
           {
             icon: 'trending-up',
-            label: 'Valor Agregado',
+            label: 'Valor agregado',
             route: '/acompanhamento/valor-agregado',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
@@ -282,13 +282,13 @@ export const MODULES: ModuleConfig[] = [
           },
           {
             icon: 'map-pin',
-            label: 'Fotos & Mapa',
+            label: 'Fotos e mapa',
             route: '/acompanhamento/fotos',
             requiresObra: true
           },
           {
             icon: 'scale',
-            label: 'Previsto × Realizado',
+            label: 'Previsto e realizado',
             route: '/acompanhamento/comparativo',
             requiresObra: true
           },
@@ -307,7 +307,7 @@ export const MODULES: ModuleConfig[] = [
         items: [
           {
             icon: 'users',
-            label: 'Equipes & Encarregados',
+            label: 'Equipes e encarregados',
             route: '/acompanhamento/equipes',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']

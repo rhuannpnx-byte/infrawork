@@ -10,8 +10,8 @@ import {
   DialogErrorBanner
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
 import type { ObraComEmpresa } from '@/types/gerencial'
@@ -40,26 +40,32 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
     data_inicio_planejada: obra.data_inicio_planejada ?? '',
     data_fim_planejada: obra.data_fim_planejada ?? ''
   })
-  const [erro, setErro] = useState<string | null>(null)
+  type Chave = keyof typeof f
+  const [erroServidor, setErroServidor] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
   const set =
-    (k: keyof typeof f) =>
+    (k: Chave) =>
     (v: string): void =>
       setF((x) => ({ ...x, [k]: v }))
 
+  const ext = f.extensao_km.trim()
+    ? Number(f.extensao_km.replace(/\./g, '').replace(',', '.'))
+    : null
+
+  const erros: Partial<Record<Chave, string>> = {}
+  if (!f.codigo.trim()) erros.codigo = 'Informe o código da obra.'
+  if (f.nome.trim().length < 3) erros.nome = 'Informe o nome da obra, com pelo menos 3 letras.'
+  if (ext !== null && !(ext >= 0)) erros.extensao_km = 'Digite a extensão em km, como 12,5.'
+  if (
+    f.data_inicio_planejada &&
+    f.data_fim_planejada &&
+    f.data_fim_planejada < f.data_inicio_planejada
+  )
+    erros.data_fim_planejada = 'O término não pode ser antes do início.'
+  const erro = (k: Chave): string | undefined => (tentou ? erros[k] : undefined)
+
   const salvar = useMutation({
     mutationFn: async () => {
-      const ext = f.extensao_km.trim()
-        ? Number(f.extensao_km.replace(/\./g, '').replace(',', '.'))
-        : null
-      if (ext !== null && !(ext >= 0)) throw new Error('Extensão inválida.')
-      if (f.nome.trim().length < 3) throw new Error('Nome muito curto.')
-      if (!f.codigo.trim()) throw new Error('Informe o código.')
-      if (
-        f.data_inicio_planejada &&
-        f.data_fim_planejada &&
-        f.data_fim_planejada < f.data_inicio_planejada
-      )
-        throw new Error('O término não pode ser antes do início.')
       const { error } = await supabase
         .from('obras')
         .update({
@@ -76,7 +82,9 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
         .eq('id', obra.id)
       if (error)
         throw new Error(
-          /duplicate|unique/.test(error.message) ? 'Já existe obra com esse código.' : error.message
+          /duplicate|unique/.test(error.message)
+            ? 'Já existe uma obra com esse código. Use outro código.'
+            : `Não foi possível salvar os dados da obra. ${error.message}`
         )
     },
     onSuccess: () => {
@@ -85,61 +93,69 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
       toast.success('Dados da obra salvos.')
       onOpenChange(false)
     },
-    onError: (e) => setErro(e.message)
+    onError: (e) => setErroServidor(e.message)
   })
 
-  const enviar = (e: FormEvent): void => {
+  const enviar = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
-    setErro(null)
+    setErroServidor(null)
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+      return
+    }
     salvar.mutate()
   }
 
   const campo = (
-    k: keyof typeof f,
+    k: Chave,
     rotulo: string,
-    extra: Partial<Parameters<typeof Input>[0]> = {}
+    extra: Partial<Parameters<typeof Input>[0]> = {},
+    opcoes: { obrigatorio?: boolean; dica?: string; className?: string } = {}
   ): ReactNode => (
-    <div>
-      <Label htmlFor={`obra-${k}`}>{rotulo}</Label>
-      <Input id={`obra-${k}`} value={f[k]} onChange={(e) => set(k)(e.target.value)} {...extra} />
-    </div>
+    <Campo
+      rotulo={rotulo}
+      obrigatorio={opcoes.obrigatorio}
+      dica={opcoes.dica}
+      erro={erro(k)}
+      className={opcoes.className}
+    >
+      <Input value={f[k]} onChange={(e) => set(k)(e.target.value)} autoComplete="off" {...extra} />
+    </Campo>
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} size="md">
-      <form onSubmit={enviar}>
+    <Dialog open={open} onOpenChange={onOpenChange} size="lg" disableDismiss={salvar.isPending}>
+      <form onSubmit={enviar} noValidate>
         <DialogHeader>
-          <DialogTitle>Dados da obra</DialogTitle>
+          <DialogTitle>Editar obra</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
-          <DialogErrorBanner message={erro} />
+          <DialogErrorBanner message={erroServidor} />
           <div className="grid grid-cols-3 gap-3">
-            {campo('codigo', 'Código')}
-            <div className="col-span-2">{campo('nome', 'Nome')}</div>
+            {campo('codigo', 'Código', { autoFocus: true }, { obrigatorio: true })}
+            {campo('nome', 'Nome', {}, { obrigatorio: true, className: 'col-span-2' })}
           </div>
           <div className="grid grid-cols-3 gap-3">
-            {campo('rodovia', 'Rodovia', { placeholder: 'GO-010' })}
-            {campo('trecho', 'Trecho', { placeholder: 'Entr. GO-437 / Entr. GO-010' })}
+            {campo('rodovia', 'Rodovia', { placeholder: 'Ex.: GO-010' })}
+            {campo('trecho', 'Trecho', { placeholder: 'Ex.: Entr. GO-437 / Entr. GO-010' })}
             {campo('extensao_km', 'Extensão (km)', {
               inputMode: 'decimal',
-              className: 'text-right'
+              placeholder: 'Ex.: 12,5',
+              className: 'text-right tabular'
             })}
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            <div>
-              <Label htmlFor="obra-status">Status</Label>
-              <Select
-                id="obra-status"
-                value={f.status}
-                onChange={(e) => set('status')(e.target.value)}
-              >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Campo rotulo="Status">
+              <Select value={f.status} onChange={(e) => set('status')(e.target.value)}>
                 {STATUS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
                 ))}
               </Select>
-            </div>
+            </Campo>
             {campo('data_base_orcamento', 'Data-base', { type: 'date' })}
             {campo('data_inicio_planejada', 'Início', { type: 'date' })}
             {campo('data_fim_planejada', 'Término', { type: 'date' })}
@@ -151,7 +167,7 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={salvar.isPending}
           >

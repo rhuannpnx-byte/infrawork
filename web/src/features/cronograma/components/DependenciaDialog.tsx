@@ -269,7 +269,7 @@ function Conteudo({
             {TIPOS.map((t) => (
               <option key={t} value={t}>
                 {t === 'EST'
-                  ? 'Por estacas — a sucessora passa em cada estaca depois da predecessora'
+                  ? 'Por estacas: a sucessora passa em cada estaca depois da predecessora'
                   : `${NOME_TIPO[t]} (${t})`}
               </option>
             ))}
@@ -295,7 +295,7 @@ function Conteudo({
               />
               <span className="text-xs text-text-muted">dias</span>
             </div>
-            <p className="text-2xs text-text-muted">
+            <p className="text-xs text-text-muted">
               Vale para todos os planos da obra. Numa tarefa, a regra pode ser desligada em
               Propriedades › Geral.
             </p>

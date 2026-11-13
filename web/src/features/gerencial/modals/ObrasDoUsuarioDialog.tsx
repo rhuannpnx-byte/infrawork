@@ -10,6 +10,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Carregando, ErroConsulta, Vazio } from '@/components/ui/estado'
 import { supabase } from '@/lib/supabase/client'
 import { useGrantPermissao, useObras, useRevokePermissao } from '../hooks'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
@@ -60,43 +61,67 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
       void qc.invalidateQueries({ queryKey: chave }).then(() => marcar(obraId, null))
     const erro = (e: Error): void => {
       marcar(obraId, null)
-      toast.error(e.message)
+      toast.error(
+        liberada ? 'Não foi possível retirar o acesso à obra.' : 'Não foi possível liberar a obra.',
+        { description: e.message }
+      )
     }
     if (liberada)
       revoke.mutate({ obra_id: obraId, user_id: usuario.id }, { onSuccess: fim, onError: erro })
     else grant.mutate({ obra_id: obraId, user_id: usuario.id }, { onSuccess: fim, onError: erro })
   }
 
+  const erroConsulta = obras.error ?? perms.error
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} size="md">
       <DialogHeader>
         <DialogTitle>Obras liberadas</DialogTitle>
         <DialogDescription>
-          {usuario ? `${usuario.nome} · ${usuario.email}` : ''} · marque as obras em que ele lança
-          pelo app de campo.
+          {usuario
+            ? `Marque as obras em que ${usuario.nome} lança pelo app de campo. A mudança vale na hora.`
+            : ''}
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
         {obras.isLoading || perms.isLoading ? (
-          <p className="text-xs text-text-muted">Carregando…</p>
+          <Carregando texto="Carregando as obras…" />
+        ) : erroConsulta ? (
+          <ErroConsulta
+            erro={erroConsulta}
+            oQue="as obras liberadas"
+            aoTentar={() => {
+              void obras.refetch()
+              void perms.refetch()
+            }}
+            compacto
+          />
         ) : lista.length === 0 ? (
-          <p className="text-xs text-text-muted">Nenhuma obra disponível para liberar.</p>
+          <Vazio>
+            A empresa deste usuário ainda não tem obra cadastrada. Cadastre a obra em Obras e volte
+            aqui para liberar.
+          </Vazio>
         ) : (
           <ul className="max-h-[50vh] divide-y divide-border overflow-y-auto rounded border border-border">
             {lista.map((o) => {
               const liberada = desejado.get(o.id) ?? perms.data?.has(o.id) ?? false
               return (
                 <li key={o.id}>
-                  <label className="flex h-9 cursor-pointer items-center gap-2.5 px-3 text-xs hover:bg-bg-hover">
+                  <label className="flex min-h-9 cursor-pointer items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-bg-hover">
                     <input
                       type="checkbox"
-                      className="accent-[var(--accent)]"
+                      className="h-4 w-4 shrink-0 accent-[var(--accent)]"
                       checked={liberada}
                       disabled={desejado.has(o.id)}
                       onChange={() => alternar(o.id, liberada)}
                     />
-                    <span className="w-20 shrink-0 font-mono text-text-muted">{o.codigo}</span>
+                    <span className="w-24 shrink-0 truncate text-text-muted">{o.codigo}</span>
                     <span className="min-w-0 flex-1 truncate text-text">{o.nome}</span>
+                    {desejado.has(o.id) ? (
+                      <span className="shrink-0 text-xs text-text-muted" role="status">
+                        Salvando…
+                      </span>
+                    ) : null}
                   </label>
                 </li>
               )
@@ -105,7 +130,9 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
         )}
       </DialogBody>
       <DialogFooter>
-        <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+        <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+          Fechar
+        </Button>
       </DialogFooter>
     </Dialog>
   )

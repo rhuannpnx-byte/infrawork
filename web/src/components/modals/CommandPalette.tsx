@@ -89,7 +89,7 @@ export function CommandPalette(): ReactNode {
               >
                 <Icon name="home" size={14} className="text-text-dim shrink-0" strokeWidth={1.8} />
                 <span className="flex-1">Início</span>
-                <kbd className="text-2xs text-text-dim">G H</kbd>
+                <kbd className="text-2xs text-text-muted">G H</kbd>
               </Command.Item>
               {modulos.flatMap((m) =>
                 visibleFor(m.sections, role).flatMap((secao) =>
@@ -110,7 +110,7 @@ export function CommandPalette(): ReactNode {
                           strokeWidth={1.8}
                         />
                         <span className="flex-1 truncate">{item.label}</span>
-                        <span className="text-xs text-text-dim shrink-0">{m.title}</span>
+                        <span className="text-xs text-text-muted shrink-0">{m.title}</span>
                         {bloqueado ? (
                           <Lock
                             size={12}
@@ -143,7 +143,7 @@ export function CommandPalette(): ReactNode {
                     <span className="tabular font-semibold text-accent shrink-0">{o.codigo}</span>
                     <span className="flex-1 truncate">{o.nome}</span>
                     {o.id === obraId ? (
-                      <span className="text-xs text-text-dim shrink-0">em uso</span>
+                      <span className="text-xs text-text-muted shrink-0">em uso</span>
                     ) : null}
                   </Command.Item>
                 ))}
@@ -195,7 +195,7 @@ export function CommandPalette(): ReactNode {
               >
                 <Icon name="keyboard" size={14} className="text-text-dim shrink-0" />
                 <span className="flex-1">Atalhos de teclado</span>
-                <kbd className="text-2xs text-text-dim">?</kbd>
+                <kbd className="text-2xs text-text-muted">?</kbd>
               </Command.Item>
               <Command.Item
                 value="Sair encerrar sessão logout"

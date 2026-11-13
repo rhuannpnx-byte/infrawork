@@ -236,7 +236,9 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
               onClick={() => setVisao(v)}
               className={cn(
                 'px-2.5 py-1 text-2xs font-mono transition-colors',
-                v === visao ? 'bg-accent text-[color:var(--on-accent)]' : 'bg-bg-panel text-text-dim hover:text-text'
+                v === visao
+                  ? 'bg-accent text-[color:var(--on-accent)]'
+                  : 'bg-bg-panel text-text-dim hover:text-text'
               )}
             >
               {v === 'semanal' ? 'Semanal' : 'Visão geral'}
@@ -257,9 +259,10 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
             <ChevronLeft size={14} />
           </button>
           <select
+            aria-label="Semana"
             value={semanaEfetiva}
             onChange={(e) => setSemanaSel(e.target.value)}
-            className="bg-bg border border-border rounded px-2 py-1 text-xs font-mono"
+            className="h-7 bg-bg-panel border border-border-strong rounded px-2 text-sm tabular text-text"
           >
             {result.semanas.map((s) => (
               <option key={s} value={s}>
@@ -392,10 +395,15 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
       {/* Tabela matriz (grupo selecionado) — única área com rolagem */}
       {grupoSel && recursosG.length > 0 ? (
         <div className="rounded border border-border bg-bg-panel overflow-hidden flex-1 min-h-[220px] flex flex-col">
-          <div className="px-3 py-2 border-b border-border text-2xs font-mono text-text-dim uppercase shrink-0">
-            {RECURSO_GRUPO_LABEL[grupoSel]} — distribuição semanal ({unidadeGrupo})
+          <div className="px-3 py-2 border-b border-border text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim shrink-0">
+            {RECURSO_GRUPO_LABEL[grupoSel]}: distribuição semanal ({unidadeGrupo})
           </div>
-          <div className="overflow-auto flex-1 min-h-0">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Distribuição dos recursos por período"
+            className="overflow-auto flex-1 min-h-0"
+          >
             <table className="text-2xs font-mono border-collapse">
               <thead>
                 <tr>

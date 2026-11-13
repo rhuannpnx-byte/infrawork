@@ -28,7 +28,7 @@ export function FaixaIndicadores({
     <section
       aria-label={rotulo}
       className={cn(
-        'grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] bg-bg-panel border border-border rounded overflow-hidden',
+        'grid shrink-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] bg-bg-panel border border-border rounded overflow-hidden',
         className
       )}
     >

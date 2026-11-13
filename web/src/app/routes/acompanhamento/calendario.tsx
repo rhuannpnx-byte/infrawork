@@ -2,6 +2,7 @@ import { AvisoSemLinhaDeBase } from '@/features/acompanhamento/components/AvisoS
 import { type ReactNode, useMemo } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RequireObra } from '@/components/layout/RequireObra'
+import { ErroConsulta } from '@/components/ui/estado'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useCurvaS, usePrevistoXRealizado } from '@/features/acompanhamento/hooks/comparativo'
 import {
@@ -21,8 +22,11 @@ function Inner(): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!
   // Janela ampla (~13 meses) para navegar pelos meses anteriores.
-  const { data: curva = [], isLoading: loadingCurva } = useCurvaS(obraId, 400)
-  const { data: itens = [], isLoading: loadingItens } = usePrevistoXRealizado(obraId)
+  const consultaCurva = useCurvaS(obraId, 400)
+  const consultaItens = usePrevistoXRealizado(obraId)
+  const { data: curva = [], isLoading: loadingCurva } = consultaCurva
+  const { data: itens = [], isLoading: loadingItens } = consultaItens
+  const erro = consultaCurva.error ?? consultaItens.error
 
   const servicos = useMemo<ServicoInfo[]>(
     () =>
@@ -37,18 +41,26 @@ function Inner(): ReactNode {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader
-        title="Calendário"
-        subtitle="Programação mensal: previsto e realizado por serviço"
-      />
+      <PageHeader title="Calendário" subtitle="Previsto e realizado de cada serviço, dia a dia" />
       <AvisoSemLinhaDeBase obraId={obraId} />
       <div className="flex-1 overflow-auto p-5">
-        <CalendarioPrevExec
-          pontos={curva}
-          servicos={servicos}
-          obraNome={scope.obra?.nome ?? 'obra'}
-          loading={loadingCurva || loadingItens}
-        />
+        {erro ? (
+          <ErroConsulta
+            erro={erro}
+            oQue="a programação"
+            aoTentar={() => {
+              void consultaCurva.refetch()
+              void consultaItens.refetch()
+            }}
+          />
+        ) : (
+          <CalendarioPrevExec
+            pontos={curva}
+            servicos={servicos}
+            obraNome={scope.obra?.nome ?? 'obra'}
+            loading={loadingCurva || loadingItens}
+          />
+        )}
       </div>
     </div>
   )

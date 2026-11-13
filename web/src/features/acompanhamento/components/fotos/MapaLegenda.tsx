@@ -15,8 +15,8 @@ interface Props {
 }
 
 /**
- * Legenda flutuante (canto inferior esquerdo) que se adapta às camadas ativas:
- * cor dos pins (equipe/serviço) e a seta da sequência de ataque.
+ * Legenda flutuante (canto inferior esquerdo) que acompanha as camadas ativas: a cor dos marcadores (por equipe
+ * ou por serviço) e a seta da sequência de ataque.
  */
 export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props): ReactNode {
   const [aberto, setAberto] = useState(true)
@@ -25,42 +25,46 @@ export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props):
   if (!temFotos && !mostrarSeq) return null
 
   return (
-    <div className="rounded-md border border-border-strong bg-bg-elevated/95 backdrop-blur-sm shadow-2xl overflow-hidden w-[210px]">
+    <div className="rounded border border-border-strong bg-[color:var(--popover)] shadow-[var(--sombra-flutuante)] overflow-hidden w-[220px]">
       <button
         type="button"
+        aria-expanded={aberto}
         onClick={() => setAberto((a) => !a)}
-        className="w-full flex items-center justify-between px-2.5 py-1.5 bg-bg-panel hover:bg-bg-hover"
+        className="w-full flex items-center justify-between min-h-8 px-3 py-1.5 hover:bg-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       >
-        <span className="text-[10px] font-mono font-semibold uppercase tracking-wide text-text">
-          Legenda
-        </span>
+        <span className="text-sm font-semibold text-text">Legenda</span>
         {aberto ? (
-          <ChevronDown size={12} className="text-text-dim" />
+          <ChevronDown size={14} className="text-text-muted" />
         ) : (
-          <ChevronUp size={12} className="text-text-dim" />
+          <ChevronUp size={14} className="text-text-muted" />
         )}
       </button>
 
       {aberto && (
-        <div className="max-h-[260px] overflow-auto divide-y divide-border">
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Itens da legenda"
+          className="max-h-[260px] overflow-auto divide-y divide-border border-t border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+        >
           {temFotos && (
-            <Secao titulo={`Fotos · por ${corPor === 'servico' ? 'serviço' : 'equipe'}`}>
+            <Grupo titulo={corPor === 'servico' ? 'Fotos por serviço' : 'Fotos por equipe'}>
               {fotos.map((it, i) => (
                 <Linha key={`f${i}`} label={it.label}>
                   <span
-                    className="size-2.5 rounded-full border border-white/70 shrink-0"
+                    className="size-2.5 rounded-full border border-border-strong shrink-0"
                     style={{ background: it.cor }}
                   />
                 </Linha>
               ))}
-            </Secao>
+            </Grupo>
           )}
 
           {mostrarSeq && (
-            <Secao titulo="Sequência de ataque">
-              <Linha label="Seta (cor por serviço)">
+            <Grupo titulo="Sequência de ataque">
+              <Linha label="Seta com a cor do serviço">
                 <span className="relative w-5 h-2 shrink-0">
-                  <span className="absolute top-1/2 left-0 -translate-y-1/2 w-4 h-[3px] rounded-full bg-text" />
+                  <span className="absolute top-1/2 left-0 -translate-y-1/2 w-4 h-[3px] bg-text" />
                   <span
                     className="absolute top-1/2 right-0 -translate-y-1/2"
                     style={{
@@ -73,7 +77,7 @@ export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props):
                   />
                 </span>
               </Linha>
-            </Secao>
+            </Grupo>
           )}
         </div>
       )}
@@ -81,10 +85,10 @@ export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props):
   )
 }
 
-function Secao({ titulo, children }: { titulo: string; children: ReactNode }): ReactNode {
+function Grupo({ titulo, children }: { titulo: string; children: ReactNode }): ReactNode {
   return (
-    <div className="px-2.5 py-1.5">
-      <div className="text-[10px] font-mono font-semibold uppercase tracking-wide text-text/90 mb-1">
+    <div className="px-3 py-2">
+      <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-1.5">
         {titulo}
       </div>
       <div className="space-y-1">{children}</div>
@@ -96,7 +100,7 @@ function Linha({ label, children }: { label: string; children: ReactNode }): Rea
   return (
     <div className="flex items-center gap-2">
       {children}
-      <span className="text-2xs font-mono text-text truncate" title={label}>
+      <span className="text-xs text-text truncate" title={label}>
         {label}
       </span>
     </div>

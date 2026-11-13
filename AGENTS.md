@@ -52,7 +52,7 @@ A identidade visual é a "Prancheta técnica" (claro por padrão, escuro como va
 Ao mexer em tela do `web/`:
 
 - cor só por token (`bg-bg-panel`, `text-text-muted`, `bg-danger/10`…); nada de cor literal nem classe da paleta
-  padrão do Tailwind, fora do que fica sobre foto ou mapa;
+  padrão do Tailwind, fora das exceções listadas em `web/src/styles/cores.test.ts` (que cobra);
 - token novo entra nos dois temas em `web/src/styles/theme.css` (`theme.test.ts` cobra);
 - ícone chamado pelo nome entra no mapa de `web/src/components/layout/IconRenderer.tsx` (`icones.test.ts` cobra);
 - página nova entra em `web/src/config/modules.ts` (menu) e em `web/scripts/rotas-telas.mjs` (fumaça e capturas);
@@ -61,7 +61,12 @@ Ao mexer em tela do `web/`:
 - número que junta serviços de unidades diferentes vai em valor (R$) ou em dias, nunca somando m², m³ e metros;
 - texto de tela segue o glossário do `web/DESIGN.md` (linha de base, plano, lançamento); código do banco e plural
   passam por `web/src/lib/rotulos.ts`;
-- confira nos dois temas com `node scripts/capturas-telas.mjs` e rode `node scripts/fumaca-telas.mjs`.
+- todo campo tem nome, botão só com ícone tem `aria-label`, erro de formulário aparece no campo e controle
+  desabilitado diz o motivo;
+- confira nos dois temas com `node scripts/capturas-telas.mjs`, rode `node scripts/fumaca-telas.mjs` e o axe
+  (`node scripts/acessibilidade-telas.mjs` nas rotas, `node scripts/acessibilidade-dialogos.mjs` nos diálogos;
+  diálogo novo entra na lista deste último). A tabela dos roteiros está em `web/DESIGN.md`;
+- o app de campo (`campo/`) segue a mesma identidade, com os tokens em `campo/src/styles/theme.css`.
 
 ## Publicação na Vercel
 

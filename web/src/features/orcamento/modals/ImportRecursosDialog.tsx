@@ -35,7 +35,7 @@ export function ImportRecursosDialog({ open, onOpenChange, obraId }: Props): Rea
     <ImportTemplateDialog<RecursoLinha, Opcoes>
       open={open}
       onOpenChange={onOpenChange}
-      titulo="Importar recursos (modelo padrão)"
+      titulo="Importar recursos"
       entidadeLabel="recursos"
       gerarModelo={() =>
         gerarModeloRecursos({
@@ -56,15 +56,15 @@ export function ImportRecursosDialog({ open, onOpenChange, obraId }: Props): Rea
         {
           key: 'codigo',
           header: 'Código',
-          render: (r) => <span className="font-mono text-2xs">{r.data.codigo ?? '—'}</span>,
+          render: (r) => r.data.codigo ?? '—',
           width: 90
         },
         { key: 'nome', header: 'Nome', render: (r) => r.data.nome },
         {
           key: 'unidade',
-          header: 'Un.',
-          render: (r) => <span className="font-mono">{r.data.unidade}</span>,
-          width: 60
+          header: 'Unidade',
+          render: (r) => r.data.unidade,
+          width: 80
         },
         {
           key: 'preco',
@@ -77,24 +77,24 @@ export function ImportRecursosDialog({ open, onOpenChange, obraId }: Props): Rea
       opcoes={{
         inicial: { atualizar_existentes: true, atualizar_precos: true },
         render: (v, set) => (
-          <div className="flex flex-wrap gap-4 text-xs text-text">
-            <label className="flex items-center gap-1.5 cursor-pointer">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-text">
+            <label className="flex cursor-pointer items-center gap-1.5">
               <input
                 type="checkbox"
                 checked={v.atualizar_existentes}
                 onChange={(e) => set({ ...v, atualizar_existentes: e.target.checked })}
-                className="accent-[var(--accent)]"
+                className="h-4 w-4 accent-[var(--accent)]"
               />
-              Atualizar nome/unidade/código dos recursos existentes
+              Atualizar nome, unidade e código dos recursos que já existem
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-1.5">
               <input
                 type="checkbox"
                 checked={v.atualizar_precos}
                 onChange={(e) => set({ ...v, atualizar_precos: e.target.checked })}
-                className="accent-[var(--accent)]"
+                className="h-4 w-4 accent-[var(--accent)]"
               />
-              Preço informado vira o preço vigente
+              O preço informado vira o preço vigente
             </label>
           </div>
         )
@@ -110,10 +110,10 @@ export function ImportRecursosDialog({ open, onOpenChange, obraId }: Props): Rea
         })
       }
       resultadoMetrics={(r) => [
-        { label: 'criados', value: r.stats.criados ?? 0 },
-        { label: 'atualizados', value: r.stats.atualizados ?? 0 },
-        { label: 'inalterados', value: r.stats.inalterados ?? 0 },
-        { label: 'preços criados', value: r.stats.precos_criados ?? 0 }
+        { label: 'Recursos criados', value: r.stats.criados ?? 0 },
+        { label: 'Recursos atualizados', value: r.stats.atualizados ?? 0 },
+        { label: 'Sem alteração', value: r.stats.inalterados ?? 0 },
+        { label: 'Preços criados', value: r.stats.precos_criados ?? 0 }
       ]}
     />
   )

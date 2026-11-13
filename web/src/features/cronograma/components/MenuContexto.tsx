@@ -112,9 +112,7 @@ function Lista({ x, y, itens, onFechar, lado }: Props & { lado?: number }): Reac
               {it.marcado ? <Check size={12} /> : it.icone}
             </span>
             <span className="flex-1 truncate">{it.rotulo}</span>
-            {it.atalho ? (
-              <span className="font-mono text-2xs text-text-faint">{it.atalho}</span>
-            ) : null}
+            {it.atalho ? <span className="tabular text-2xs text-text-dim">{it.atalho}</span> : null}
             {it.sub !== undefined ? <ChevronRight size={12} className="text-text-dim" /> : null}
           </button>
         )

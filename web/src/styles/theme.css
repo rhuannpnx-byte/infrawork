@@ -88,6 +88,9 @@
   --chart-laranja: oklch(62% 0.15 50);
 
   --veu: oklch(21% 0.006 280 / 0.38);
+  /* controle sobre foto ou mapa de satélite: não muda com o tema */
+  --sobre-foto: oklch(16% 0.005 90 / 0.66);
+  --na-foto: oklch(98% 0.003 90);
   --sombra-flutuante: 0 8px 24px oklch(21% 0.006 280 / 0.14), 0 1px 2px oklch(21% 0.006 280 / 0.1);
 
   /* shadcn tokens mapeados pra paleta */
@@ -113,7 +116,7 @@
   --bg-active: color-mix(in oklab, var(--text) 12%, transparent);
 
   --border: oklch(31% 0.005 90);
-  --border-strong: oklch(50% 0.008 90);
+  --border-strong: oklch(53% 0.008 90);
   --border-accent: oklch(66% 0.01 90);
 
   --text: oklch(93.5% 0.012 90);

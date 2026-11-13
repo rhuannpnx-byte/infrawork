@@ -2,6 +2,8 @@ import { useRef, type ChangeEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Paperclip, Upload, Trash2, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { EstadoConsulta } from '@/components/ui/estado'
 import { getAnexoSignedUrl, useAnexos, useDeleteAnexo, useUploadAnexo } from '../hooks/anexos'
 import { formatDate } from '@/lib/format'
 import type { AnexoEscopo } from '@/types/orcamento'
@@ -23,7 +25,8 @@ function fmtBytes(n: number | null): string {
 
 export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): ReactNode {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { data: anexos = [], isLoading } = useAnexos(escopo, escopoId)
+  const consulta = useAnexos(escopo, escopoId)
+  const anexos = consulta.data ?? []
   const upload = useUploadAnexo()
   const remove = useDeleteAnexo()
   const confirm = useConfirm()
@@ -42,7 +45,9 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
       })
       toast.success(`Anexo "${file.name}" enviado.`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao enviar')
+      toast.error(
+        `Não foi possível enviar "${file.name}". ${err instanceof Error ? err.message : ''}`.trim()
+      )
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -53,15 +58,16 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
     if (url) {
       window.open(url, '_blank')
     } else {
-      toast.error('Falha ao gerar link')
+      toast.error('Não foi possível abrir o anexo. Tente de novo em instantes.')
     }
   }
 
   return (
-    <div className="space-y-2 text-xs">
-      <div className="flex items-center justify-between">
-        <h3 className="text-2xs font-mono uppercase tracking-wider text-text-dim flex items-center gap-1">
-          <Paperclip size={12} /> Anexos ({anexos.length})
+    <div className="space-y-2 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+          <Paperclip size={12} aria-hidden /> Anexos
+          {consulta.isLoading ? null : <span className="tabular">({anexos.length})</span>}
         </h3>
         {podeEditar ? (
           <Button
@@ -71,51 +77,67 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
             onClick={onPick}
             disabled={upload.isPending}
           >
-            <Upload size={12} /> {upload.isPending ? 'Enviando…' : 'Enviar arquivo'}
+            <Upload size={12} aria-hidden /> {upload.isPending ? 'Enviando…' : 'Enviar arquivo'}
           </Button>
         ) : null}
-        <input ref={fileInputRef} type="file" onChange={onChange} className="hidden" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={onChange}
+          className="hidden"
+          tabIndex={-1}
+          aria-label="Arquivo para anexar"
+        />
       </div>
 
-      {isLoading ? (
-        <div className="text-text-muted font-mono">Carregando…</div>
-      ) : anexos.length === 0 ? (
-        <div className="text-text-muted font-mono italic">Nenhum anexo.</div>
-      ) : (
-        <div className="rounded border border-border bg-bg-elevated divide-y divide-border">
+      <EstadoConsulta
+        consulta={consulta}
+        oQue="os anexos"
+        vazio={anexos.length === 0}
+        textoVazio={
+          podeEditar
+            ? 'Nenhum arquivo anexado. Use "Enviar arquivo" para anexar projeto, memória ou foto.'
+            : 'Nenhum arquivo anexado.'
+        }
+        className="py-2"
+      >
+        <ul className="rounded border border-border bg-bg-elevated divide-y divide-border">
           {anexos.map((a) => (
-            <div key={a.id} className="flex items-center gap-2 px-2 py-1.5 group">
-              <Paperclip size={12} className="text-text-dim shrink-0" />
+            <li key={a.id} className="flex items-center gap-2 px-2.5 py-1.5">
+              <Paperclip size={14} aria-hidden className="text-text-dim shrink-0" />
               <div className="flex-1 min-w-0">
                 <button
                   type="button"
                   onClick={() => openSigned(a.storage_path)}
-                  className="text-text hover:text-accent truncate text-left block w-full"
-                  title={a.nome}
+                  className="block w-full truncate rounded text-left font-medium text-text hover:text-accent hover:underline"
+                  title={`Abrir ${a.nome}`}
                 >
                   {a.nome}
                 </button>
-                <div className="text-2xs text-text-dim font-mono">
-                  {fmtBytes(a.tamanho_bytes)} · {formatDate(a.created_at)}
+                <div className="text-xs text-text-muted tabular">
+                  {fmtBytes(a.tamanho_bytes)}, enviado em {formatDate(a.created_at)}
                 </div>
               </div>
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
+              <div className="flex shrink-0 items-center gap-0.5">
+                <IconButton
+                  size="sm"
+                  variant="accent"
                   onClick={() => openSigned(a.storage_path)}
-                  className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-hover"
-                  title="Abrir"
+                  aria-label={`Abrir ${a.nome} em outra aba`}
+                  title="Abrir em outra aba"
                 >
-                  <ExternalLink size={12} />
-                </button>
+                  <ExternalLink size={12} aria-hidden />
+                </IconButton>
                 {podeEditar ? (
-                  <button
-                    type="button"
+                  <IconButton
+                    size="sm"
+                    variant="danger"
+                    disabled={remove.isPending}
                     onClick={async () => {
                       const ok = await confirm({
                         title: `Excluir "${a.nome}"?`,
-                        description: 'O arquivo será removido do bucket.',
-                        confirmLabel: 'Excluir',
+                        description: 'O arquivo é apagado e não pode ser recuperado.',
+                        confirmLabel: 'Excluir anexo',
                         variant: 'danger'
                       })
                       if (ok) {
@@ -127,17 +149,17 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
                         })
                       }
                     }}
-                    className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
+                    aria-label={`Excluir ${a.nome}`}
                     title="Excluir"
                   >
-                    <Trash2 size={12} />
-                  </button>
+                    <Trash2 size={12} aria-hidden />
+                  </IconButton>
                 ) : null}
               </div>
-            </div>
+            </li>
           ))}
-        </div>
-      )}
+        </ul>
+      </EstadoConsulta>
     </div>
   )
 }

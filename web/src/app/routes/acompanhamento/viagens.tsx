@@ -1,11 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { PlusCircle, Truck } from 'lucide-react'
+import { PlusCircle } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { contar } from '@/lib/rotulos'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
+import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
+import { BarraFiltros, Filtro } from '@/components/ui/filtros'
+import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
 import type { TableExportConfig } from '@/components/data-table/export-types'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
@@ -54,6 +57,11 @@ const ORIGEM_DMT: Record<string, string> = {
   geometria: 'pelo eixo',
   rota: 'distância fixa',
   manual: 'ajustada'
+}
+
+const ORIGEM_REGISTRO: Record<string, string> = {
+  web: 'Site',
+  campo: 'App de campo'
 }
 
 const menosDias = (iso: string, d: number): string => {
@@ -132,12 +140,12 @@ function Inner(): ReactNode {
     },
     { header: 'Veículo', accessorKey: 'veiculo' },
     { header: 'Motorista', accessorFn: (r) => r.ficha.motorista ?? '' },
-    { header: '#', accessorFn: (r) => r.n },
+    { header: 'Nº', accessorFn: (r) => r.n },
     { header: 'Serviço', accessorKey: 'servico' },
     { header: 'Origem', accessorKey: 'origem' },
-    { header: 'Est. carga', accessorKey: 'estacaCarga' },
+    { header: 'Estaca de carga', accessorKey: 'estacaCarga' },
     { header: 'Destino', accessorKey: 'destino' },
-    { header: 'Est. descarga', accessorKey: 'estacaDescarga' },
+    { header: 'Estaca de descarga', accessorKey: 'estacaDescarga' },
     {
       header: 'Horário',
       accessorFn: (r) =>
@@ -147,7 +155,7 @@ function Inner(): ReactNode {
       header: 'Qtd',
       accessorFn: (r) => r.v.quantidade,
       cell: ({ row }) => (
-        <span className="font-mono tabular-nums">
+        <span className="tabular">
           {formatNumber(row.original.v.quantidade, 2)} {row.original.unidade}
         </span>
       )
@@ -160,23 +168,26 @@ function Inner(): ReactNode {
         if (v.dmt_km === null) return ''
         return (
           <span
-            className="font-mono tabular-nums"
+            className="tabular"
             title={
               v.dmt_manual && v.dmt_calculada_km !== null
-                ? `ajustada; calculada ${formatNumber(v.dmt_calculada_km, 3)} km`
+                ? `Ajustada à mão. Calculada: ${formatNumber(v.dmt_calculada_km, 3)} km`
                 : undefined
             }
           >
             {formatNumber(v.dmt_km, 3)} km
-            <span className="ml-1 font-sans text-2xs text-text-dim">
+            <span className="ml-1 text-xs text-text-muted">
               {ORIGEM_DMT[v.dmt_origem ?? ''] ?? ''}
             </span>
           </span>
         )
       }
     },
-    { header: 'NF/ticket', accessorFn: (r) => r.v.nf_ticket ?? '' },
-    { header: 'Origem do registro', accessorFn: (r) => r.ficha.origem }
+    { header: 'Nota ou ticket', accessorFn: (r) => r.v.nf_ticket ?? '' },
+    {
+      header: 'Lançada por',
+      accessorFn: (r) => ORIGEM_REGISTRO[r.ficha.origem] ?? r.ficha.origem
+    }
   ]
 
   const getExportConfig = (visiveis: LinhaTabela[]): TableExportConfig => ({
@@ -225,58 +236,86 @@ function Inner(): ReactNode {
     ])
   })
 
+  const podeLancar = role !== 'cliente'
+  const novaFicha = podeLancar ? (
+    <Button size="sm" onClick={() => setAberta({ ficha: null })}>
+      <PlusCircle size={13} /> Nova ficha
+    </Button>
+  ) : null
+  const semViagens = !fichas.isLoading && !fichas.error && linhas.length === 0
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Viagens"
-        subtitle="Viagens dos carreteiros. Nos serviços lançados por viagens, a produção do dia é a soma delas."
-        actions={
-          role !== 'cliente' ? (
-            <Button size="sm" onClick={() => setAberta({ ficha: null })}>
-              <PlusCircle size={13} /> Nova ficha
-            </Button>
-          ) : null
-        }
+        subtitle="Nos serviços lançados por viagens, a produção do dia é a soma das viagens."
+        actions={novaFicha}
       />
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
-        <DateRangePopover
-          from={de}
-          to={ate}
-          onChange={(a, b) => {
-            setDe(a ?? menosDias(hojeLocalISO(), 6))
-            setAte(b ?? hojeLocalISO())
-          }}
-        />
-        <span className="text-sm text-text-muted">
-          {contar(fichas.data?.length ?? 0, 'ficha', 'fichas')} ·{' '}
-          {contar(linhas.length, 'viagem', 'viagens')}
-        </span>
-        <div className="ml-auto flex flex-wrap gap-2">
+      <BarraFiltros>
+        <Filtro rotulo="Período">
+          <DateRangePopover
+            from={de}
+            to={ate}
+            onChange={(a, b) => {
+              setDe(a ?? menosDias(hojeLocalISO(), 6))
+              setAte(b ?? hojeLocalISO())
+            }}
+          />
+        </Filtro>
+        {fichas.isLoading || fichas.error ? null : (
+          <span className="text-sm text-text-muted">
+            {contar(fichas.data?.length ?? 0, 'ficha', 'fichas')},{' '}
+            {contar(linhas.length, 'viagem', 'viagens')}
+          </span>
+        )}
+      </BarraFiltros>
+      {totais.length > 0 ? (
+        <ul
+          aria-label="Total do período por serviço"
+          className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border bg-bg-panel px-5 py-2 text-sm"
+        >
           {totais.map(([id, t]) => (
-            <span
-              key={id}
-              className="inline-flex items-center gap-1 rounded border border-border bg-bg-panel px-2 py-0.5 text-2xs"
-            >
-              <Truck size={12} className="text-accent" />
+            <li key={id} className="flex flex-wrap items-baseline gap-x-2">
               <span className="text-text">{nomeServico(id)}</span>
-              <span className="font-mono text-text-muted">
-                {formatNumber(t.qtd, 2)} {unidade(id)} · {t.n} vg
+              <span className="tabular font-semibold text-text">
+                {formatNumber(t.qtd, 2)} {unidade(id)}
               </span>
-            </span>
+              <span className="text-text-muted">em {contar(t.n, 'viagem', 'viagens')}</span>
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+      ) : null}
       <div className="min-h-0 flex-1 px-4 pb-4">
-        <DataTable
-          data={linhas}
-          columns={columns}
-          loading={fichas.isLoading}
-          globalSearchPlaceholder="Buscar veículo, motorista, origem, destino…"
-          onRowClick={(r) => (podeEditar(r.ficha) ? setAberta({ ficha: r.ficha }) : undefined)}
-          emptyMessage="Sem viagens no período"
-          emptyDescription="Lance pelo app de campo ou em Nova ficha."
-          getExportConfig={getExportConfig}
-        />
+        {fichas.error ? (
+          <ErroConsulta
+            erro={fichas.error}
+            oQue="as viagens"
+            aoTentar={() => void fichas.refetch()}
+            className="mt-4"
+          />
+        ) : semViagens ? (
+          <EmptyState
+            icon="truck"
+            title="Sem viagens neste período"
+            description={
+              podeLancar
+                ? 'Escolha outro período, lance pelo app de campo ou registre uma ficha aqui.'
+                : 'Escolha outro período para ver as viagens lançadas.'
+            }
+            action={novaFicha}
+          />
+        ) : (
+          <DataTable
+            data={linhas}
+            columns={columns}
+            loading={fichas.isLoading}
+            globalSearchPlaceholder="Buscar veículo, motorista, origem, destino…"
+            onRowClick={(r) => (podeEditar(r.ficha) ? setAberta({ ficha: r.ficha }) : undefined)}
+            emptyMessage="Sem viagens no período"
+            emptyDescription="Lance pelo app de campo ou em Nova ficha."
+            getExportConfig={getExportConfig}
+          />
+        )}
       </div>
       <FichaDialog
         open={!!aberta}

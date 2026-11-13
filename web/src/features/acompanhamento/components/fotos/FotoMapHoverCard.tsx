@@ -52,7 +52,7 @@ export function FotoMapHoverCard({ fotos, position }: Props): ReactNode {
 
   return createPortal(
     <div
-      className="fixed z-[200] pointer-events-none rounded border border-border-strong shadow-2xl bg-bg-elevated overflow-hidden animate-fade-in"
+      className="fixed z-[200] pointer-events-none rounded border border-border-strong shadow-[var(--sombra-flutuante)] bg-[color:var(--popover)] overflow-hidden animate-fade-in"
       style={{ left, top, width: CARD_W }}
     >
       {isCluster ? (
@@ -87,14 +87,14 @@ function SingleContent({
           <ImageIcon size={24} />
         </div>
       )}
-      <div className="p-2 space-y-0.5">
+      <div className="px-3 py-2 space-y-0.5">
         <div
-          className="text-2xs font-mono text-text truncate"
+          className="text-sm font-semibold text-text truncate"
           title={foto.servico_display_nome ?? ''}
         >
           {foto.servico_display_nome ?? foto.servico_nome ?? '—'}
         </div>
-        <div className="text-2xs font-mono text-text-dim">{fmtDate(foto.captured_at)}</div>
+        <div className="text-xs text-text-muted tabular">{fmtDate(foto.captured_at)}</div>
       </div>
     </>
   )
@@ -113,10 +113,8 @@ function ClusterContent({
 }): ReactNode {
   return (
     <>
-      <div className="px-2 py-1.5 border-b border-border bg-bg-panel flex items-center justify-between">
-        <div className="text-2xs font-mono uppercase text-text-dim flex items-center gap-1.5">
-          <Layers size={12} /> {fotos.length} fotos neste ponto
-        </div>
+      <div className="px-3 py-2 border-b border-border text-sm font-semibold text-text flex items-center gap-1.5">
+        <Layers size={14} className="text-text-muted" /> {fotos.length} fotos neste ponto
       </div>
       <div className="grid grid-cols-3 gap-px bg-border">
         {visiveis.map((f) => (
@@ -135,13 +133,13 @@ function ClusterContent({
           </div>
         ))}
         {restante > 0 && (
-          <div className="aspect-square bg-bg flex items-center justify-center text-xs font-mono text-text-muted">
+          <div className="aspect-square bg-bg flex items-center justify-center text-sm font-semibold tabular text-text-muted">
             +{restante}
           </div>
         )}
       </div>
-      <div className="px-2 py-1 text-[10px] font-mono text-text-dim text-center">
-        clique para expandir
+      <div className="px-3 py-1.5 text-xs text-text-muted text-center">
+        Clique para ver as fotos
       </div>
     </>
   )

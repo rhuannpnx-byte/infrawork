@@ -408,8 +408,9 @@ function FormInner({
             <ErroCampo texto={erro('data')} />
           </div>
           <div>
-            <Label>Equipe</Label>
+            <Label htmlFor="lc-equipe">Equipe</Label>
             <select
+              id="lc-equipe"
               value={equipeId}
               onChange={(e) => {
                 setEquipeId(e.target.value)
@@ -476,9 +477,10 @@ function FormInner({
             />
           </div>
           <div>
-            <Label>Encarregado</Label>
+            <Label htmlFor="lc-encarregado">Encarregado</Label>
             <div className="flex gap-1.5">
               <select
+                id="lc-encarregado"
                 value={encarregadoId}
                 onChange={(e) => setEncarregadoId(e.target.value)}
                 className={campo}
@@ -495,6 +497,7 @@ function FormInner({
                 variant="outline"
                 className="h-10 w-10 p-0 shrink-0"
                 title="Novo encarregado"
+                aria-label="Novo encarregado"
                 onClick={() => setEncDialog(true)}
               >
                 <UserPlus size={14} />
@@ -713,8 +716,9 @@ function FormInner({
                   <button
                     type="button"
                     onClick={() => setFotos((prev) => prev.filter((_, j) => j !== i))}
-                    className="absolute top-0.5 right-0.5 size-5 rounded-full bg-black/60 text-white flex items-center justify-center"
-                    title="Remover"
+                    className="absolute top-0.5 right-0.5 size-6 rounded-full bg-[color:var(--sobre-foto)] text-[color:var(--na-foto)] flex items-center justify-center"
+                    title="Remover a foto"
+                    aria-label="Remover a foto"
                   >
                     <X size={12} />
                   </button>

@@ -8,11 +8,11 @@ import {
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Segmentado } from '@/components/ui/segmentado'
 import { useCreateServico, useServicos } from '../hooks/servicos'
 import { useCpusOrfas, useCreateServicoFromCpu } from '../hooks/servico-links'
 import { parseBR } from '@/lib/money'
@@ -30,6 +30,8 @@ interface Props {
 }
 
 type Modo = 'novo' | 'importar_cpu'
+
+type CampoComErro = 'cpu' | 'fator' | 'codigo' | 'unidade' | 'nome'
 
 export function NewServicoDialog({
   open,
@@ -52,6 +54,7 @@ export function NewServicoDialog({
   const [cpuId, setCpuId] = useState('')
   const [fator, setFator] = useState('1')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const nextImpCodigo = useMemo(() => {
     const nums = servicos
@@ -73,21 +76,45 @@ export function NewServicoDialog({
     setCpuId('')
     setFator('1')
     setError(null)
+    setTentou(false)
+  }
+
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
   }
 
   const codigoTrim = codigo.trim()
-  const codigoValido = codigoTrim === '' || CODIGO_REGEX.test(codigoTrim)
+  const fatorN = Number(parseBR(fator).toString())
+  const gravando = create.isPending || createFromCpu.isPending
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (modo === 'novo') {
+    if (!codigoTrim) erros.codigo = 'Informe o código do serviço.'
+    else if (!CODIGO_REGEX.test(codigoTrim))
+      erros.codigo = 'Use só algarismos e pontos, de 1 a 3 algarismos por nível, como 01.02.03.'
+  } else {
+    if (!cpuId) erros.cpu = 'Escolha a composição que vira serviço.'
+    if (!isFinite(fatorN) || fatorN === 0)
+      erros.fator = 'O fator deve ser um número diferente de zero.'
+    if (!unidade.trim())
+      erros.unidade = 'Informe a unidade. Serviço criado de uma composição sempre tem unidade.'
+  }
+  if (nome.trim().length < 2) erros.nome = 'Informe o nome do serviço.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() =>
+        form.querySelector<HTMLElement>('[aria-invalid="true"]:not(:disabled)')?.focus()
+      )
+      return
+    }
     if (modo === 'novo') {
-      if (!codigoValido) {
-        setError(
-          'Código inválido. Use o formato "01.02.03" (1 a 3 dígitos por nível, separados por ponto).'
-        )
-        return
-      }
       try {
         await create.mutateAsync({
           obra_id: obraId,
@@ -102,30 +129,14 @@ export function NewServicoDialog({
         reset()
         onOpenChange(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Falha ao criar serviço')
+        setError(
+          `Não foi possível criar o serviço. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+        )
       }
     } else {
-      // modo === 'importar_cpu'
-      if (!cpuId) {
-        setError('Escolha uma CPU para importar.')
-        return
-      }
-      const fatorN = Number(parseBR(fator).toString())
-      if (!isFinite(fatorN) || fatorN === 0) {
-        setError('Fator deve ser número diferente de zero.')
-        return
-      }
       const codigoFinal = codigo.trim() || nextImpCodigo
       const nomeFinal = nome.trim()
       const unidadeFinal = unidade.trim()
-      if (!nomeFinal) {
-        setError('Nome do serviço é obrigatório.')
-        return
-      }
-      if (!unidadeFinal) {
-        setError('Unidade é obrigatória (servico-folha sempre tem unidade).')
-        return
-      }
       try {
         await createFromCpu.mutateAsync({
           obra_id: obraId,
@@ -136,66 +147,61 @@ export function NewServicoDialog({
           cpu_id: cpuId,
           fator: fatorN
         })
-        toast.success(`Serviço "${codigoFinal}: ${nomeFinal}" criado a partir da CPU.`)
+        toast.success(`Serviço "${codigoFinal}: ${nomeFinal}" criado a partir da composição.`)
         reset()
         onOpenChange(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Falha ao criar serviço')
+        setError(
+          `Não foi possível criar o serviço. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+        )
       }
     }
   }
 
   const indices = servicos.filter((s) => s.unidade === null)
+  const semComposicao = cpusOrfas.length === 0
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="md"
-      disableDismiss={create.isPending}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={gravando}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Novo serviço</DialogTitle>
-          <div className="flex gap-1 mt-2">
-            <button
-              type="button"
-              onClick={() => setModo('novo')}
-              className={cn(
-                'px-2 py-1 text-2xs font-mono uppercase tracking-wider rounded border',
-                modo === 'novo'
-                  ? 'bg-accent-glow text-accent border-accent-line'
-                  : 'text-text-muted hover:text-text border-transparent'
-              )}
-            >
-              Criar do zero
-            </button>
-            <button
-              type="button"
-              onClick={() => setModo('importar_cpu')}
-              className={cn(
-                'px-2 py-1 text-2xs font-mono uppercase tracking-wider rounded border',
-                modo === 'importar_cpu'
-                  ? 'bg-accent-glow text-accent border-accent-line'
-                  : 'text-text-muted hover:text-text border-transparent'
-              )}
-            >
-              Importar CPU como serviço {cpusOrfas.length > 0 ? `(${cpusOrfas.length})` : ''}
-            </button>
-          </div>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
 
+          <Segmentado
+            rotulo="Como criar o serviço"
+            valor={modo}
+            aoMudar={(m) => {
+              setModo(m)
+              setTentou(false)
+            }}
+            opcoes={[
+              { valor: 'novo', rotulo: 'Criar do zero' },
+              {
+                valor: 'importar_cpu',
+                rotulo:
+                  cpusOrfas.length > 0
+                    ? `A partir de uma composição (${cpusOrfas.length})`
+                    : 'A partir de uma composição'
+              }
+            ]}
+          />
+
           {modo === 'importar_cpu' ? (
             <div className="space-y-3">
-              <div>
-                <Label htmlFor="s-cpu">CPU a importar</Label>
+              <Campo
+                rotulo="Composição"
+                obrigatorio
+                erro={erro('cpu')}
+                dica={
+                  semComposicao
+                    ? 'Todas as composições da obra já pertencem a um serviço.'
+                    : 'Só aparecem as composições que ainda não pertencem a um serviço. Depois de criar, dá para ligar outras composições e ajustar o fator na página Serviços.'
+                }
+              >
                 <Select
-                  id="s-cpu"
                   value={cpuId}
                   onChange={(e) => {
                     setCpuId(e.target.value)
@@ -206,141 +212,121 @@ export function NewServicoDialog({
                       if (!codigo.trim()) setCodigo(nextImpCodigo)
                     }
                   }}
-                  required
                   autoFocus
                 >
-                  <option value="">— escolha uma CPU órfã —</option>
+                  <option value="">
+                    {semComposicao ? 'Nenhuma composição disponível' : 'Selecione…'}
+                  </option>
                   {cpusOrfas.map((cpu) => (
                     <option key={cpu.id} value={cpu.id}>
                       {nomeDaCpu(cpu)} · {cpu.producao_diaria_unidade}
                     </option>
                   ))}
                 </Select>
-                <div className="text-2xs text-text-dim font-mono mt-1">
-                  Só aparecem CPUs sem servico-dono. Após criar, será possível vincular outras CPUs
-                  e ajustar fator pela página Serviços.
-                </div>
-              </div>
+              </Campo>
 
-              <div>
-                <Label htmlFor="s-fator-imp">Fator (divisor) inicial</Label>
+              <Campo
+                rotulo="Fator inicial (divisor)"
+                obrigatorio
+                erro={erro('fator')}
+                dica="O custo do serviço é o custo unitário da composição dividido pelo fator. Use 1 quando as unidades são iguais, ou outro valor para converter (ex.: 2,4 para passar de m³ para t)."
+              >
                 <Input
-                  id="s-fator-imp"
                   inputMode="decimal"
+                  autoComplete="off"
                   value={fator}
                   onChange={(e) => setFator(e.target.value)}
+                  className="tabular text-right"
                 />
-                <div className="text-2xs text-text-dim font-mono mt-1">
-                  custo_servico = cpu.custo_unit ÷ fator. Use 1 quando unidades batem; outro valor
-                  para converter (ex.: m³→ton com 2,4).
-                </div>
-              </div>
+              </Campo>
             </div>
           ) : null}
 
-          <div>
-            <Label htmlFor="s-parent">Pai (índice)</Label>
-            <Select id="s-parent" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-              <option value="">— raiz —</option>
+          <Campo rotulo="Dentro de" dica="Só aparecem os índices, que são os serviços sem unidade.">
+            <Select value={parentId} onChange={(e) => setParentId(e.target.value)}>
+              <option value="">Raiz</option>
               {indices.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.codigo} — {s.nome}
+                  {s.codigo} · {s.nome}
                 </option>
               ))}
             </Select>
-            <div className="text-2xs text-text-dim font-mono mt-1">
-              Apenas serviços sem unidade aparecem (índices).
-            </div>
-          </div>
+          </Campo>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="s-codigo">Código</Label>
+            <Campo
+              rotulo="Código"
+              obrigatorio={modo === 'novo'}
+              erro={erro('codigo')}
+              dica={
+                modo === 'novo'
+                  ? 'De 1 a 3 algarismos por nível, separados por ponto.'
+                  : `Em branco, usa ${nextImpCodigo}.`
+              }
+            >
               <Input
-                id="s-codigo"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                required
-                placeholder="02.03.50"
+                placeholder="Ex.: 02.03.50"
+                autoComplete="off"
                 autoFocus={modo === 'novo'}
-                className={cn(!codigoValido && '!border-danger focus:!border-danger')}
-                aria-invalid={!codigoValido}
               />
-              <div
-                className={cn(
-                  'text-2xs font-mono mt-1',
-                  codigoValido ? 'text-text-dim' : 'text-danger'
-                )}
-              >
-                {codigoValido
-                  ? 'Formato: 01.02.03 — 1 a 3 dígitos por nível, separados por ponto.'
-                  : 'Use apenas dígitos e pontos (ex.: 01.02.03).'}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="s-unid">Unidade</Label>
+            </Campo>
+            <Campo
+              rotulo="Unidade"
+              obrigatorio={modo === 'importar_cpu'}
+              erro={erro('unidade')}
+              dica={modo === 'novo' ? 'Em branco, o serviço vira um índice.' : undefined}
+            >
               <Input
-                id="s-unid"
                 value={unidade}
                 onChange={(e) => setUnidade(e.target.value)}
-                placeholder="m³, t, m², VB… (em branco = índice)"
+                autoComplete="off"
+                placeholder="Ex.: m³, t, m²"
               />
-            </div>
+            </Campo>
           </div>
 
-          <div>
-            <Label htmlFor="s-nome">Nome</Label>
+          <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>
             <Input
-              id="s-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={2}
-              placeholder="Ex.: Capa - CBUQ"
+              autoComplete="off"
+              placeholder="Ex.: Capa de CBUQ"
             />
-          </div>
+          </Campo>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="s-ref">Referência (opcional)</Label>
-              <Input
-                id="s-ref"
-                value={referencia}
-                onChange={(e) => setReferencia(e.target.value)}
-                placeholder="SINAPI 95879 / SICRO 2-S-04-…"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="s-desc">Descrição (opcional)</Label>
-            <Input id="s-desc" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-          </div>
+          {modo === 'novo' ? (
+            <>
+              <Campo rotulo="Referência" dica="Opcional. Código na tabela de referência.">
+                <Input
+                  value={referencia}
+                  onChange={(e) => setReferencia(e.target.value)}
+                  autoComplete="off"
+                  placeholder="Ex.: SINAPI 95879"
+                />
+              </Campo>
+              <Campo rotulo="Descrição" dica="Opcional.">
+                <Input
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  autoComplete="off"
+                />
+              </Campo>
+            </>
+          ) : null}
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={create.isPending || createFromCpu.isPending}
+            variant="secondary"
+            onClick={() => aoMudar(false)}
+            disabled={gravando}
           >
             Cancelar
           </Button>
-          <Button
-            type="submit"
-            variant="default"
-            disabled={
-              create.isPending ||
-              createFromCpu.isPending ||
-              (modo === 'novo' && (!codigoValido || codigoTrim === '')) ||
-              (modo === 'importar_cpu' && !cpuId)
-            }
-          >
-            {create.isPending || createFromCpu.isPending
-              ? 'Criando…'
-              : modo === 'importar_cpu'
-                ? 'Criar serviço a partir da CPU'
-                : 'Criar serviço'}
+          <Button type="submit" disabled={gravando}>
+            {gravando ? 'Criando…' : 'Criar serviço'}
           </Button>
         </DialogFooter>
       </form>

@@ -8,8 +8,8 @@ import {
   DialogFooter,
   DialogErrorBanner
 } from '@/components/ui/dialog'
+import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
@@ -24,6 +24,11 @@ interface Props {
 
 const TIPOS: IndiretoTipo[] = ['mobilizacao', 'desmob', 'admin_local', 'outros']
 
+/** Só algarismos, ponto e vírgula: o que o `parseBR` entende como número. */
+const NUMERO = /^\d[\d.,]*$/
+
+type CampoComErro = 'codigo' | 'descricao' | 'valor' | 'distribuicao'
+
 export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactNode {
   const upsert = useUpsertIndireto()
   const [codigo, setCodigo] = useState('')
@@ -32,6 +37,7 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
   const [valor, setValor] = useState('')
   const [distribuicao, setDistribuicao] = useState('100')
   const [error, setError] = useState<string | null>(null)
+  const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
     setCodigo('')
@@ -40,20 +46,35 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
     setValor('')
     setDistribuicao('100')
     setError(null)
+    setTentou(false)
   }
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
+  const aoMudar = (o: boolean): void => {
+    if (!o) reset()
+    onOpenChange(o)
+  }
+
+  // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
+  const v = parseBR(valor).toNumber()
+  const d = parseBR(distribuicao).toNumber()
+
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (!codigo.trim()) erros.codigo = 'Informe o código.'
+  if (descricao.trim().length < 2) erros.descricao = 'Informe a descrição do custo.'
+  if (!valor.trim()) erros.valor = 'Informe o valor total.'
+  else if (!NUMERO.test(valor.trim()) || isNaN(v) || v < 0)
+    erros.valor = 'Digite o valor como um número, por exemplo 125.000,00.'
+  if ((distribuicao.trim() && !NUMERO.test(distribuicao.trim())) || isNaN(d) || d < 0 || d > 100)
+    erros.distribuicao = 'A distribuição deve ficar entre 0 e 100%.'
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
-    // parseBR: remove separador de milhar (.) ANTES de trocar a vírgula.
-    const v = parseBR(valor).toNumber()
-    const d = parseBR(distribuicao).toNumber()
-    if (isNaN(v) || v < 0) {
-      setError('Valor inválido.')
-      return
-    }
-    if (isNaN(d) || d < 0 || d > 100) {
-      setError('Distribuição deve estar entre 0 e 100%.')
+    if (Object.keys(erros).length > 0) {
+      setTentou(true)
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
       return
     }
     try {
@@ -69,100 +90,85 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar')
+      setError(
+        `Não foi possível criar o custo indireto. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+      )
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-      size="md"
-      disableDismiss={upsert.isPending}
-    >
-      <form onSubmit={onSubmit}>
+    <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={upsert.isPending}>
+      <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
           <DialogTitle>Novo custo indireto</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="in-cod">Código</Label>
+            <Campo rotulo="Código" obrigatorio erro={erro('codigo')}>
               <Input
-                id="in-cod"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                required
-                placeholder="IND.01"
+                placeholder="Ex.: IND.01"
+                autoComplete="off"
                 autoFocus
               />
-            </div>
-            <div>
-              <Label htmlFor="in-tipo">Tipo</Label>
-              <Select
-                id="in-tipo"
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as IndiretoTipo)}
-              >
+            </Campo>
+            <Campo rotulo="Tipo" obrigatorio>
+              <Select value={tipo} onChange={(e) => setTipo(e.target.value as IndiretoTipo)}>
                 {TIPOS.map((t) => (
                   <option key={t} value={t}>
                     {INDIRETO_TIPO_LABEL[t]}
                   </option>
                 ))}
               </Select>
-            </div>
+            </Campo>
           </div>
-          <div>
-            <Label htmlFor="in-desc">Descrição</Label>
+          <Campo rotulo="Descrição" obrigatorio erro={erro('descricao')}>
             <Input
-              id="in-desc"
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              required
-              minLength={2}
+              autoComplete="off"
               placeholder="Ex.: Mobilização inicial da equipe"
             />
-          </div>
+          </Campo>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="in-valor">Valor total (R$)</Label>
+            <Campo rotulo="Valor total (R$)" obrigatorio erro={erro('valor')}>
               <Input
-                id="in-valor"
                 value={valor}
                 onChange={(e) => setValor(e.target.value)}
-                required
                 inputMode="decimal"
+                autoComplete="off"
+                placeholder="Ex.: 125.000,00"
+                className="tabular text-right"
               />
-            </div>
-            <div>
-              <Label htmlFor="in-dist">Distribuição (%)</Label>
+            </Campo>
+            <Campo
+              rotulo="Distribuição (%)"
+              dica="Quanto do valor entra no cálculo do lucro. 100 é o valor todo."
+              erro={erro('distribuicao')}
+            >
               <Input
-                id="in-dist"
                 value={distribuicao}
                 onChange={(e) => setDistribuicao(e.target.value)}
                 inputMode="decimal"
+                autoComplete="off"
+                className="tabular text-right"
               />
-              <div className="text-2xs text-text-dim font-mono mt-1">
-                Quanto do valor entra na lucratividade (100 = total).
-              </div>
-            </div>
+            </Campo>
           </div>
         </DialogBody>
         <DialogFooter>
           <Button
             type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
+            variant="secondary"
+            onClick={() => aoMudar(false)}
             disabled={upsert.isPending}
           >
             Cancelar
           </Button>
-          <Button type="submit" variant="default" disabled={upsert.isPending}>
-            {upsert.isPending ? 'Criando…' : 'Criar'}
+          <Button type="submit" disabled={upsert.isPending}>
+            {upsert.isPending ? 'Criando…' : 'Criar custo indireto'}
           </Button>
         </DialogFooter>
       </form>

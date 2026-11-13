@@ -18,23 +18,22 @@ export function ProgressBarPrevReal({ pct, esperado, status, neutral }: Props): 
   return (
     <div className="flex items-center gap-2 min-w-[140px]">
       <div className="flex-1 relative h-2">
-        {/* trilho + carga (clipado pras bordas arredondadas) */}
-        <div className="absolute inset-0 rounded bg-bg overflow-hidden">
+        <div className="absolute inset-0 bg-bg-elevated border border-border overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 transition-all"
             style={{ width: `${real * 100}%`, background: cor }}
           />
         </div>
-        {/* marcador "esperado hoje" — onde a barra DEVERIA estar */}
+        {/* marcador do esperado hoje: onde a barra deveria estar */}
         {exp != null && (
           <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-[3px] rounded-full bg-text ring-1 ring-bg shadow-sm"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-[3px] bg-text ring-1 ring-bg-panel"
             style={{ left: `${exp * 100}%` }}
             title={`Esperado hoje: ${(exp * 100).toFixed(0)}%`}
           />
         )}
       </div>
-      <span className="font-mono tabular-nums text-2xs text-text shrink-0">
+      <span className="tabular text-xs text-text shrink-0 w-9 text-right">
         {pct != null ? `${(real * 100).toFixed(0)}%` : '—'}
       </span>
     </div>

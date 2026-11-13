@@ -79,7 +79,7 @@ function Conteudo({
       if (v === null || v < 0) return setErro(`${l.rotulo}: quantidade inválida.`)
       if (v > l.quantidade + 1e-9)
         return setErro(`${l.rotulo}: a parte não pode passar de ${fmtNum(l.quantidade, 'auto')}.`)
-      if (!l.manual && v > 0) return setErro(`${l.rotulo}: local do template — divida por estaca.`)
+      if (!l.manual && v > 0) return setErro(`${l.rotulo}: local com quantidades da planilha; divida por estaca.`)
       fica += l.quantidade - v
       if (v > 0) out.push({ local_id: l.local_id, quantidade: v })
     }
@@ -99,7 +99,7 @@ function Conteudo({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Dividir por quantidade — {t.nome}</DialogTitle>
+        <DialogTitle>Dividir por quantidade: {t.nome}</DialogTitle>
         <DialogDescription>
           Informe quanto de cada local vai para a tarefa nova; ela fica com as mesmas faixas e as
           duas partes passam a ser manuais.
@@ -108,7 +108,7 @@ function Conteudo({
       <DialogBody className="space-y-3">
         <DialogErrorBanner message={erro} />
         <table className="w-full text-xs">
-          <thead className="text-2xs font-mono uppercase tracking-wider text-text-dim">
+          <thead className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
             <tr>
               <th className="px-2 py-1 text-left">Local</th>
               <th className="px-2 py-1 text-right">Quantidade</th>

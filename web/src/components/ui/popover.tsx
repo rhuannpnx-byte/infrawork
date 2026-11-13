@@ -71,7 +71,9 @@ export function Popover({
       onOpenChange(false)
     }
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onOpenChange(false)
+      if (e.key !== 'Escape') return
+      onOpenChange(false)
+      triggerRef.current?.querySelector<HTMLElement>('button, [tabindex], a, input')?.focus()
     }
     document.addEventListener('mousedown', onClick)
     document.addEventListener('keydown', onKey)
@@ -80,6 +82,18 @@ export function Popover({
       document.removeEventListener('keydown', onKey)
     }
   }, [open, onOpenChange])
+
+  // Com o conteúdo posicionado, o foco entra nele (se nada dentro já pegou o foco, como um campo de busca).
+  const posicionado = open && pos !== null
+  useEffect(() => {
+    const menu = menuRef.current
+    if (!posicionado || !menu || menu.contains(document.activeElement)) return
+    menu
+      .querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      ?.focus({ preventScroll: true })
+  }, [posicionado])
 
   return (
     <>

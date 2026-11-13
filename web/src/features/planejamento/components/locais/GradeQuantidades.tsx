@@ -51,7 +51,8 @@ const fmtMarcador = (m: number, ctx: TrechoCtx): string => {
 }
 
 const INPUT =
-  'h-6 w-full bg-transparent px-1 text-xs font-mono tabular-nums outline-none rounded-sm focus:bg-accent-glow focus:ring-1 focus:ring-accent disabled:text-text-muted'
+  'h-6 w-full bg-transparent px-1 text-xs tabular outline-none rounded-sm focus:bg-accent-glow focus:ring-1 focus:ring-accent disabled:text-text-muted'
+const ROTULO = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 
 export function GradeQuantidades({
   segmentos,
@@ -127,17 +128,28 @@ export function GradeQuantidades({
     )
     return true
   }
+  // nome da faixa para leitor de tela: "faixa km 0 a km 1,5"
+  const nomeFaixa = (seg: SegmentoValores): string =>
+    tipo === 'area'
+      ? 'área inteira'
+      : `faixa ${seg.label_ini || fmtMarcador(seg.ini, ctx)} a ${seg.label_fim || fmtMarcador(seg.fim, ctx)}`
   const totais = new Map<string, number>()
   for (const s of segmentos)
     for (const [id, v] of Object.entries(s.valores)) totais.set(id, (totais.get(id) ?? 0) + v)
 
   const larg = `${Math.max(640, 200 + colunas.length * 120)}px`
   return (
-    <div ref={raiz} className="overflow-auto h-full">
+    <div
+      ref={raiz}
+      role="region"
+      aria-label="Grade de quantidades por faixa e serviço"
+      tabIndex={editavel ? undefined : 0}
+      className="overflow-auto h-full"
+    >
       <table className="text-xs border-separate border-spacing-0" style={{ minWidth: larg }}>
-        <thead className="sticky top-0 z-10 bg-bg">
-          <tr className="text-2xs font-mono uppercase text-text-dim">
-            <th className="sticky left-0 z-20 bg-bg text-left px-2 py-1.5 border-b border-r border-border w-[200px] min-w-[200px]">
+        <thead className="sticky top-0 z-10 bg-bg-elevated">
+          <tr className={ROTULO}>
+            <th className="sticky left-0 z-20 bg-bg-elevated text-left px-2 py-1.5 border-b border-r border-border w-[200px] min-w-[200px]">
               {tipo === 'area' ? 'Local' : 'Faixa de estacas'}
             </th>
             {colunas.map((k) => (
@@ -146,33 +158,41 @@ export function GradeQuantidades({
                 className="text-right px-2 py-1.5 border-b border-border w-[120px] min-w-[120px] align-bottom"
                 title={`${k.codigo} ${k.descricao}`}
               >
-                <div className="text-text truncate normal-case font-sans font-medium">
+                <div className="text-text truncate normal-case tracking-normal tabular">
                   {k.codigo}
                 </div>
-                <div className="truncate normal-case font-sans" title={k.descricao}>
+                <div className="truncate normal-case tracking-normal font-normal">
                   {k.descricao}
                 </div>
-                <div className="text-text-dim">{k.unidade || '—'}</div>
+                <div className="normal-case tracking-normal font-normal">{k.unidade || '—'}</div>
               </th>
             ))}
-            {colExtra ? <th className="border-b border-border w-8" /> : null}
+            {colExtra ? (
+              <th className="border-b border-border w-8">
+                <span className="sr-only">Remover</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
           {segmentos.map((s, r) => (
             <tr key={r} className="group hover:bg-bg-hover/40">
-              <td className="sticky left-0 z-[5] bg-bg-panel group-hover:bg-bg-elevated px-1 py-0.5 border-b border-r border-border font-mono">
+              <td className="sticky left-0 z-[5] bg-bg-panel group-hover:bg-bg-elevated px-1 py-0.5 border-b border-r border-border tabular">
                 {tipo === 'area' ? (
                   <span className="px-1 text-text-muted">Área inteira</span>
                 ) : colExtra ? (
                   <div className="flex items-center gap-1">
                     <CelulaFaixa
+                      rotulo={`Início da faixa ${r + 1}, em ${rotulo(ctx)}`}
                       valor={fmtMarcador(s.ini, ctx)}
                       ctx={ctx}
                       onCommit={(m) => setFaixa(r, 'ini', m)}
                     />
-                    <span className="text-text-dim">–</span>
+                    <span className="text-text-dim" aria-hidden>
+                      –
+                    </span>
                     <CelulaFaixa
+                      rotulo={`Fim da faixa ${r + 1}, em ${rotulo(ctx)}`}
                       valor={fmtMarcador(s.fim, ctx)}
                       ctx={ctx}
                       onCommit={(m) => setFaixa(r, 'fim', m)}
@@ -196,6 +216,7 @@ export function GradeQuantidades({
                   <Celula
                     r={r}
                     c={c}
+                    rotulo={`Quantidade de ${k.codigo} ${k.descricao}${k.unidade ? `, em ${k.unidade}` : ''}, ${nomeFaixa(s)}`}
                     valor={s.valores[k.id] ?? 0}
                     editavel={editavel}
                     onCommit={(v) => setValor(r, k.id, v)}
@@ -209,7 +230,12 @@ export function GradeQuantidades({
                   <IconButton
                     size="sm"
                     variant="ghost"
-                    aria-label="Remover faixa"
+                    aria-label={`Remover a ${nomeFaixa(s)}`}
+                    title={
+                      segmentos.length <= 1
+                        ? 'O eixo precisa de ao menos uma faixa'
+                        : 'Remover a faixa'
+                    }
                     disabled={segmentos.length <= 1}
                     onClick={() => onChange(segmentos.filter((_, i) => i !== r))}
                   >
@@ -223,14 +249,14 @@ export function GradeQuantidades({
             <tr>
               <td
                 colSpan={colunas.length + 1}
-                className="px-3 py-6 text-center text-text-dim italic"
+                className="px-3 py-6 text-center text-sm text-text-muted"
               >
-                Sem faixas — defina o comprimento do eixo ou adicione uma faixa.
+                Sem faixas. Defina o comprimento do eixo ou adicione uma faixa.
               </td>
             </tr>
           ) : null}
         </tbody>
-        <tfoot className="sticky bottom-0 z-10 bg-bg font-mono tabular-nums">
+        <tfoot className="sticky bottom-0 z-10 bg-bg-elevated tabular">
           <LinhaRodape
             titulo="Total neste local"
             colunas={colunas}
@@ -265,7 +291,12 @@ export function GradeQuantidades({
                 negativoEmVermelho
               />
               <tr>
-                <td className="sticky left-0 z-20 bg-bg px-2 py-1 border-t border-r border-border text-2xs uppercase text-text-dim">
+                <td
+                  className={cn(
+                    'sticky left-0 z-20 bg-bg-elevated px-2 py-1 border-t border-r border-border',
+                    ROTULO
+                  )}
+                >
                   Situação
                 </td>
                 {colunas.map((k) => {
@@ -280,7 +311,7 @@ export function GradeQuantidades({
                       ) : tarefasAcima ? (
                         <Badge
                           variant="warn"
-                          title="As tarefas deste local somam mais que o template"
+                          title="As tarefas deste local somam mais que a quantidade informada aqui"
                         >
                           tarefas acima
                         </Badge>
@@ -329,7 +360,10 @@ function LinhaRodape({
   return (
     <tr className={cn(forte ? 'text-text' : 'text-text-muted')}>
       <td
-        className="sticky left-0 z-20 bg-bg px-2 py-1 border-t border-r border-border text-2xs uppercase text-text-dim"
+        className={cn(
+          'sticky left-0 z-20 bg-bg-elevated px-2 py-1 border-t border-r border-border',
+          ROTULO
+        )}
         title={dica}
       >
         {titulo}
@@ -356,6 +390,7 @@ function LinhaRodape({
 function Celula({
   r,
   c,
+  rotulo,
   valor,
   editavel,
   onCommit,
@@ -364,6 +399,7 @@ function Celula({
 }: {
   r: number
   c: number
+  rotulo: string
   valor: number
   editavel: boolean
   onCommit: (v: number | null) => void
@@ -411,6 +447,7 @@ function Celula({
     <input
       data-r={r}
       data-c={c}
+      aria-label={rotulo}
       value={txt}
       disabled={!editavel}
       onChange={(e) => setTxt(e.target.value)}
@@ -426,10 +463,12 @@ function Celula({
 }
 
 function CelulaFaixa({
+  rotulo: nome,
   valor,
   ctx,
   onCommit
 }: {
+  rotulo: string
   valor: string
   ctx: TrechoCtx
   onCommit: (m: number) => boolean
@@ -464,6 +503,8 @@ function CelulaFaixa({
         }
       }}
       className={cn(INPUT, 'w-[70px] text-right', erro && 'ring-1 ring-danger text-danger')}
+      aria-label={nome}
+      aria-invalid={erro || undefined}
       title={`${rotulo(ctx)} (valor do marcador)`}
     />
   )

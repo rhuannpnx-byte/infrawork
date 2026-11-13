@@ -10,9 +10,10 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
+import { Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { COR, escalaVerde, type EntidadeSerie, type Dimensao } from '../../lib/performance-calc'
+import { COR, type EntidadeSerie, type Dimensao } from '../../lib/performance-calc'
 import type { PerfHistorico } from '@/types/acompanhamento'
 
 interface Props {
@@ -32,6 +33,21 @@ const fmtDM = (iso: string): string => {
   return `${d}/${m}`
 }
 const MAX_LINHAS = 6
+const eixo = { ...axisStyle, fontSize: 11 }
+// Uma cor por linha, fora o azul da meta (--chart-1).
+const CORES_LINHA = [
+  'var(--chart-3)',
+  'var(--chart-5)',
+  'var(--chart-4)',
+  'var(--chart-6)',
+  'var(--chart-2)',
+  'var(--chart-laranja)'
+]
+const TH = 'px-3 py-2 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
+const TENDENCIA: Record<string, { simbolo: string; rotulo: string; cor: string }> = {
+  subindo: { simbolo: '▲', rotulo: 'Subindo', cor: 'text-success' },
+  caindo: { simbolo: '▼', rotulo: 'Caindo', cor: 'text-danger' }
+}
 
 export function ComparativoEntidades({
   series,
@@ -46,9 +62,8 @@ export function ComparativoEntidades({
 }: Props): ReactNode {
   const topSeries = useMemo(() => series.slice(0, MAX_LINHAS), [series])
   const corPorKey = useMemo(() => {
-    const tons = escalaVerde(topSeries.length)
     const m = new Map<string, string>()
-    topSeries.forEach((s, i) => m.set(s.key, tons[i]))
+    topSeries.forEach((s, i) => m.set(s.key, CORES_LINHA[i]))
     return m
   }, [topSeries])
   const chartData = useMemo(() => {
@@ -63,31 +78,30 @@ export function ComparativoEntidades({
   const labelDim = dimensao === 'equipe' ? 'Equipe' : 'Encarregado'
 
   if (series.length === 0) {
-    return (
-      <div className="h-40 flex items-center justify-center text-xs text-text-dim font-mono border border-dashed border-border rounded">
-        Sem dados para comparar no período.
-      </div>
-    )
+    return <Vazio>Sem produção no período para comparar.</Vazio>
   }
 
   return (
     <div className="space-y-3">
-      <div className="text-2xs font-mono text-text-dim">
-        Produção diária (valores reais) · top {Math.min(MAX_LINHAS, series.length)} por média/dia
-      </div>
+      <p className="text-sm text-text-muted">
+        {series.length > MAX_LINHAS
+          ? `O gráfico mostra as ${MAX_LINHAS} maiores médias por dia; a tabela traz todas.`
+          : 'Uma linha para cada nome da tabela.'}{' '}
+        Clique numa linha da tabela para focar.
+      </p>
       <div style={{ height: 240 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 8, right: 16, left: 4, bottom: 4 }}>
             <CartesianGrid stroke={CHART_THEME.gridStroke} strokeDasharray="2 3" />
             <XAxis
               dataKey="data"
-              tick={axisStyle}
+              tick={eixo}
               stroke={CHART_THEME.axisStroke}
               tickFormatter={fmtDM}
               minTickGap={28}
             />
             <YAxis
-              tick={axisStyle}
+              tick={eixo}
               stroke={CHART_THEME.axisStroke}
               tickFormatter={(v: number) => formatNumber(v, 0)}
             />
@@ -104,8 +118,8 @@ export function ComparativoEntidades({
               stroke={COR.mediaObra}
               strokeDasharray="4 4"
               label={{
-                value: `média obra ${formatNumber(mediaObra, 0)}`,
-                fontSize: 9,
+                value: `média da obra ${formatNumber(mediaObra, 0)}`,
+                fontSize: 11,
                 fill: COR.mediaObra,
                 position: 'insideTopLeft'
               }}
@@ -116,8 +130,8 @@ export function ComparativoEntidades({
                 stroke={COR.meta}
                 strokeWidth={1.2}
                 label={{
-                  value: `CPU ${formatNumber(cpuMeta, 0)}`,
-                  fontSize: 9,
+                  value: `meta da composição ${formatNumber(cpuMeta, 0)}`,
+                  fontSize: 11,
                   fill: COR.meta,
                   position: 'insideBottomLeft'
                 }}
@@ -142,69 +156,87 @@ export function ComparativoEntidades({
       </div>
 
       <div className="overflow-x-auto rounded border border-border">
-        <table className="w-full text-xs">
-          <thead className="bg-bg text-text-dim font-mono uppercase text-2xs">
+        <table className="w-full text-sm">
+          <thead className="bg-bg-elevated">
             <tr className="border-b border-border">
-              <th className="text-left px-2 py-1.5">{labelDim}</th>
-              <th className="text-right px-2 py-1.5">Dias</th>
-              <th className="text-right px-2 py-1.5">Total</th>
-              <th className="text-right px-2 py-1.5">Média/dia</th>
-              <th className="text-right px-2 py-1.5">Mediana</th>
-              <th className="text-right px-2 py-1.5">Melhor dia</th>
-              <th className="text-right px-2 py-1.5">vs CPU</th>
-              <th className="text-right px-2 py-1.5">vs hist.</th>
-              <th className="text-center px-2 py-1.5">Tend.</th>
+              <th className={cn(TH, 'text-left')}>{labelDim}</th>
+              <th className={cn(TH, 'text-right')}>Dias</th>
+              <th className={cn(TH, 'text-right')}>Total{un ? ` (${un})` : ''}</th>
+              <th className={cn(TH, 'text-right')}>Média por dia</th>
+              <th className={cn(TH, 'text-right')}>Mediana</th>
+              <th className={cn(TH, 'text-right')}>Melhor dia</th>
+              <th
+                className={cn(TH, 'text-right')}
+                title="Média por dia dividida pela meta da composição"
+              >
+                % da meta
+              </th>
+              <th
+                className={cn(TH, 'text-right')}
+                title="Média por dia comparada com a mediana histórica do serviço"
+              >
+                Sobre o histórico
+              </th>
+              <th className={cn(TH, 'text-center')}>Tendência</th>
             </tr>
           </thead>
           <tbody>
             {series.map((s) => {
               const adCpu = cpuMeta && cpuMeta > 0 ? s.media / cpuMeta : null
               const adHist = historico?.p50 ? s.media / historico.p50 - 1 : null
-              const tendCor =
-                s.tendencia.rotulo === 'subindo'
-                  ? 'text-success'
-                  : s.tendencia.rotulo === 'caindo'
-                    ? 'text-danger'
-                    : 'text-text-dim'
-              const tendSym =
-                s.tendencia.rotulo === 'subindo' ? '▲' : s.tendencia.rotulo === 'caindo' ? '▼' : '▬'
+              const tend = TENDENCIA[s.tendencia.rotulo] ?? {
+                simbolo: '▬',
+                rotulo: 'Estável',
+                cor: 'text-text-muted'
+              }
+              const focada = selectedKey === s.key
               return (
                 <tr
                   key={s.key}
                   onClick={() => onSelect(s.key)}
                   className={cn(
-                    'border-b border-border cursor-pointer hover:bg-bg-hover transition-colors',
-                    selectedKey === s.key && 'bg-accent-glow'
+                    'border-b border-border last:border-b-0 cursor-pointer hover:bg-bg-hover transition-colors',
+                    focada && 'bg-accent-glow'
                   )}
                 >
-                  <td className="px-2 py-1.5">
-                    <span className="inline-flex items-center gap-1.5">
+                  <td className="px-3 py-1.5">
+                    <button
+                      type="button"
+                      aria-pressed={focada}
+                      title={focada ? 'Tirar o foco' : `Focar em ${s.nome}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onSelect(s.key)
+                      }}
+                      className="inline-flex items-center gap-2 min-h-7 max-w-full rounded text-left text-text hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
                       <span
-                        className="size-2 rounded-sm shrink-0"
+                        aria-hidden
+                        className="size-2.5 rounded-sm shrink-0"
                         style={{
                           background: corPorKey.get(s.key) ?? COR.mediaObra,
-                          opacity: selectedKey && selectedKey !== s.key ? 0.4 : 1
+                          opacity: selectedKey && !focada ? 0.4 : 1
                         }}
                       />
-                      <span className="text-text truncate max-w-[180px]">{s.nome}</span>
-                    </span>
+                      <span className={cn('truncate max-w-[220px]', focada && 'font-semibold')}>
+                        {s.nome}
+                      </span>
+                    </button>
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums text-text-muted">
-                    {s.dias}
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums text-text-muted">
+                  <td className="px-3 py-1.5 text-right tabular text-text-muted">{s.dias}</td>
+                  <td className="px-3 py-1.5 text-right tabular text-text-muted">
                     {formatNumber(s.total, 0)}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums text-text">
+                  <td className="px-3 py-1.5 text-right tabular text-text">
                     {formatNumber(s.media, 1)}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums text-text-muted">
+                  <td className="px-3 py-1.5 text-right tabular text-text-muted">
                     {formatNumber(s.mediana, 1)}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums text-text-muted">
+                  <td className="px-3 py-1.5 text-right tabular text-text-muted">
                     {formatNumber(s.melhorDia, 1)}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                  <td className="px-3 py-1.5 text-right tabular">
                     {adCpu == null ? (
                       <span className="text-text-dim">—</span>
                     ) : (
@@ -217,21 +249,21 @@ export function ComparativoEntidades({
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                  <td className="px-3 py-1.5 text-right tabular">
                     {adHist == null ? (
                       <span className="text-text-dim">—</span>
                     ) : (
                       <span className={adHist >= 0 ? 'text-success' : 'text-danger'}>
-                        {adHist >= 0 ? '+' : ''}
-                        {formatNumber(adHist * 100, 0)}%
+                        {adHist >= 0 ? '+' : '−'}
+                        {formatNumber(Math.abs(adHist) * 100, 0)}%
                       </span>
                     )}
                   </td>
                   <td
-                    className={cn('px-2 py-1.5 text-center font-mono', tendCor)}
-                    title={`R²=${s.tendencia.r2.toFixed(2)}`}
+                    className={cn('px-3 py-1.5 text-center whitespace-nowrap', tend.cor)}
+                    title={`R² ${formatNumber(s.tendencia.r2, 2)}`}
                   >
-                    {tendSym}
+                    <span aria-hidden>{tend.simbolo}</span> {tend.rotulo}
                   </td>
                 </tr>
               )

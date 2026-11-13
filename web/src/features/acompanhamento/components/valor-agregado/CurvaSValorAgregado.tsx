@@ -14,6 +14,8 @@ import type { ValorAgregadoBucket } from '../../lib/valor-agregado-calc'
 import { fmtBRL } from '@/lib/money'
 import { fmtDataMonoBR } from '@/features/planejamento/lib/dates'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
+import { reaisCurto } from '@/components/charts/CurvaS'
+import { axisStyle, tooltipStyle } from '@/components/charts/theme'
 
 interface Props {
   dados: ValorAgregadoBucket[]
@@ -24,18 +26,12 @@ const COR_RECEITA = 'var(--success)'
 const COR_CUSTO = 'var(--danger)'
 
 const labels: Record<string, string> = {
-  receita_planejada_acum: 'Receita planejada',
-  receita_projetada_acum: 'Receita projetada',
-  custo_projetado_acum: 'Custo projetado',
-  custo_planejado_acum: 'Custo planejado'
+  receita_planejada_acum: 'Receita prevista',
+  receita_projetada_acum: 'Receita executada',
+  custo_projetado_acum: 'Custo executado',
+  custo_planejado_acum: 'Custo previsto'
 }
-
-function fmtCompactBRL(v: number): string {
-  const abs = Math.abs(v)
-  if (abs >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2)}M`
-  if (abs >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}k`
-  return `R$ ${v.toFixed(0)}`
-}
+const eixo = { ...axisStyle, fontSize: 11 }
 
 interface LabelSpec {
   periodo: string
@@ -102,7 +98,7 @@ function RotulosAcumulado(specs: LabelSpec[]) {
               fontWeight={600}
               fill={p.color}
             >
-              {fmtCompactBRL(p.value)}
+              {reaisCurto(p.value)}
             </text>
           </g>
         ))}
@@ -112,12 +108,12 @@ function RotulosAcumulado(specs: LabelSpec[]) {
 }
 
 /**
- * Curva-S de Valor Agregado:
- *   - Receita planejada (verde tracejada) — Curva-S do planejamento
- *   - Receita projetada (verde sólida) — valor agregado do que foi produzido
- *   - Custo projetado (vermelho sólido) — produzido + indireto + impostos
- *   - Custo planejado (cinza tracejado fino) — referência
- * Séries projetadas vão só até hoje. Rótulos mostram o acumulado atual.
+ * Curva S de valor agregado:
+ *   - Receita prevista (verde tracejada): a curva S do planejamento
+ *   - Receita executada (verde sólida): valor agregado do que foi produzido
+ *   - Custo executado (vermelho sólido): produzido + indireto + impostos
+ *   - Custo previsto (cinza tracejado fino): referência
+ * As séries executadas vão só até hoje. Os rótulos mostram o acumulado atual.
  */
 export function CurvaSValorAgregado({ dados, height = 400 }: Props): ReactNode {
   if (dados.length === 0) {
@@ -147,13 +143,6 @@ export function CurvaSValorAgregado({ dados, height = 400 }: Props): ReactNode {
     }
   }
 
-  const fmtTickBRL = (v: number): string => {
-    const abs = Math.abs(v)
-    if (abs >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`
-    if (abs >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}k`
-    return fmtBRL(v)
-  }
-
   return (
     <div className="rounded border border-border bg-bg-panel p-3" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -162,21 +151,13 @@ export function CurvaSValorAgregado({ dados, height = 400 }: Props): ReactNode {
           <XAxis
             dataKey="periodo"
             tickFormatter={(v) => fmtDataMonoBR(v)}
-            tick={{ fontSize: 10, fill: 'var(--text-dim)' }}
+            tick={eixo}
+            minTickGap={28}
           />
-          <YAxis
-            tickFormatter={fmtTickBRL}
-            tick={{ fontSize: 10, fill: 'var(--text-dim)' }}
-            width={60}
-          />
+          <YAxis tickFormatter={reaisCurto} tick={eixo} width={76} />
           <Tooltip
             cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
-            contentStyle={{
-              background: 'var(--bg-panel)',
-              border: '1px solid var(--border)',
-              borderRadius: 6,
-              fontSize: 11
-            }}
+            contentStyle={{ ...tooltipStyle, fontSize: '12px' }}
             itemStyle={{ color: 'var(--text)' }}
             labelStyle={{ color: 'var(--text)', marginBottom: 2 }}
             labelFormatter={(v) => fmtDataMonoBR(v as string)}
@@ -187,8 +168,10 @@ export function CurvaSValorAgregado({ dados, height = 400 }: Props): ReactNode {
             }}
           />
           <Legend
-            wrapperStyle={{ fontSize: 11 }}
-            formatter={(v) => labels[String(v)] ?? String(v)}
+            wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }}
+            formatter={(v) => (
+              <span style={{ color: 'var(--text-muted)' }}>{labels[String(v)] ?? String(v)}</span>
+            )}
           />
           <Line
             type="monotone"
@@ -217,7 +200,7 @@ export function CurvaSValorAgregado({ dados, height = 400 }: Props): ReactNode {
           <Line
             type="monotone"
             dataKey="custo_planejado_acum"
-            stroke="var(--text-dim)"
+            stroke="var(--text-muted)"
             strokeWidth={1.2}
             strokeDasharray="3 3"
             dot={false}

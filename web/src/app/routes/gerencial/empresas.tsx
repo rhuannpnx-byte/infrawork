@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
 import { useEmpresas } from '@/features/gerencial/hooks'
 import { useAuthStore } from '@/stores/auth-store'
@@ -14,7 +15,7 @@ import type { Empresa } from '@/types/gerencial'
 
 export function EmpresasPage(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
-  const { data: empresas = [], isLoading, error } = useEmpresas()
+  const { data: empresas = [], isLoading, error, refetch } = useEmpresas()
   const [openNew, setOpenNew] = useState(false)
 
   const columns = useMemo<ColumnDef<Empresa, unknown>[]>(
@@ -29,30 +30,28 @@ export function EmpresasPage(): ReactNode {
         accessorKey: 'cnpj',
         header: 'CNPJ',
         cell: (info) => (
-          <span className="font-mono text-text-muted">{(info.getValue() as string) ?? '—'}</span>
+          <span className="tabular text-text-muted">{(info.getValue() as string) ?? '—'}</span>
         ),
         meta: { label: 'CNPJ' },
         size: 180
       },
       {
         accessorKey: 'ativo',
-        header: 'Status',
+        header: 'Situação',
         cell: (info) =>
           (info.getValue() as boolean) ? (
-            <Badge variant="success">ativa</Badge>
+            <Badge variant="success">Ativa</Badge>
           ) : (
-            <Badge>inativa</Badge>
+            <Badge>Inativa</Badge>
           ),
-        meta: { label: 'Status' },
+        meta: { label: 'Situação' },
         size: 100
       },
       {
         accessorKey: 'created_at',
         header: 'Criada em',
         cell: (info) => (
-          <span className="font-mono text-2xs text-text-dim">
-            {formatDate(info.getValue() as string)}
-          </span>
+          <span className="tabular text-text-muted">{formatDate(info.getValue() as string)}</span>
         ),
         meta: { label: 'Criada em' },
         size: 130
@@ -68,8 +67,8 @@ export function EmpresasPage(): ReactNode {
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="shield"
-            title="Apenas para God"
-            description="Somente o papel God tem permissão para gerenciar empresas."
+            title="Sem permissão"
+            description="Só o administrador geral cadastra e gerencia empresas."
           />
         </div>
       </div>
@@ -88,11 +87,14 @@ export function EmpresasPage(): ReactNode {
         }
       />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
-        </div>
+        <ErroConsulta
+          erro={error}
+          oQue="as empresas"
+          aoTentar={() => void refetch()}
+          className="mx-3 my-2"
+        />
       ) : null}
-      {empresas.length === 0 && !isLoading ? (
+      {error && empresas.length === 0 ? null : empresas.length === 0 && !isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="building-2"
@@ -112,7 +114,7 @@ export function EmpresasPage(): ReactNode {
           columns={columns}
           loading={isLoading}
           globalSearchPlaceholder="Buscar empresa…"
-          emptyMessage="Nenhuma empresa encontrada"
+          emptyMessage="Nenhuma empresa encontrada com essa busca."
         />
       )}
 

@@ -24,7 +24,12 @@ export function FrentesAtivasLista({ frentes, altura = 200 }: Props): ReactNode 
         </h4>
         <span className="text-xs text-text-muted">últimos 7 dias</span>
       </div>
-      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Frentes ativas"
+        className="flex-1 overflow-auto px-4 pb-3 space-y-1.5"
+      >
         {dados.length === 0 && (
           <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
             Nenhuma frente com lançamento nos últimos 7 dias.

@@ -1,13 +1,13 @@
 import { type ReactNode, useState } from 'react'
 import { Settings2 } from 'lucide-react'
 import { Popover } from '@/components/ui/popover'
+import { Segmentado } from '@/components/ui/segmentado'
 import { useMapaPrefsStore, type MapaPrefs, type CorPorMapa } from '../../stores/mapa-prefs'
 import { cn } from '@/lib/utils'
 
 /**
- * Engrenagem sobreposta ao mapa que abre o painel de camadas/preferências.
- * Lê/grava no store persistente — as escolhas valem na página dedicada e no
- * mini-mapa do dashboard.
+ * Botão sobre o mapa que abre o painel de camadas e preferências. Lê e grava no store persistente: as
+ * escolhas valem na página de fotos e no mapa do dashboard.
  */
 export function MapaConfigPopover(): ReactNode {
   const [open, setOpen] = useState(false)
@@ -18,45 +18,60 @@ export function MapaConfigPopover(): ReactNode {
       open={open}
       onOpenChange={setOpen}
       align="end"
-      className="w-[230px] p-0"
+      className="w-[250px] p-0"
       trigger={
+        // sobre o mapa de satélite: cor fixa
         <button
+          type="button"
           onClick={() => setOpen((o) => !o)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
           title="Camadas e exibição do mapa"
           className={cn(
-            'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border text-2xs font-mono font-medium shadow-lg',
-            'bg-[#0b1726] border-white/25 text-white hover:bg-[#13243a] hover:border-accent',
-            open && 'border-accent text-accent'
+            'inline-flex items-center gap-1.5 h-8 px-2.5 rounded border text-xs font-semibold shadow-lg',
+            'bg-[#0b1726] border-white/25 text-white hover:bg-[#13243a] hover:border-white/60',
+            open && 'border-white/70'
           )}
         >
           <Settings2 size={14} />
-          <span className="uppercase tracking-wide">Camadas</span>
+          Camadas
         </button>
       }
     >
-      <div className="text-2xs font-mono">
-        <Secao titulo="Camadas base">
+      <div className="text-sm">
+        <Grupo titulo="Camadas base">
           <Toggle k="camadaSatelite" label="Satélite" prefs={prefs} />
           <Toggle k="camadaFronteiras" label="Fronteiras e lugares" prefs={prefs} />
           <Toggle k="camadaRodovias" label="Rodovias" prefs={prefs} />
-        </Secao>
-        <Secao titulo="Dados">
+        </Grupo>
+        <Grupo titulo="Dados">
           <Toggle k="mostrarFotos" label="Fotos" prefs={prefs} />
           <Toggle k="mostrarSequenciaAtaque" label="Sequência de ataque" prefs={prefs} />
           <Toggle k="mostrarLegenda" label="Legenda" prefs={prefs} />
-        </Secao>
-        <Secao titulo="Cor dos marcadores">
-          <Segmented value={prefs.corPor} onChange={(v) => prefs.set('corPor', v)} />
-        </Secao>
+        </Grupo>
+        <Grupo titulo="Cor dos marcadores">
+          <Segmentado<CorPorMapa>
+            rotulo="Cor dos marcadores"
+            tamanho="sm"
+            valor={prefs.corPor}
+            aoMudar={(v) => prefs.set('corPor', v)}
+            opcoes={[
+              { valor: 'equipe', rotulo: 'Por equipe' },
+              { valor: 'servico', rotulo: 'Por serviço' }
+            ]}
+          />
+        </Grupo>
       </div>
     </Popover>
   )
 }
 
-function Secao({ titulo, children }: { titulo: string; children: ReactNode }): ReactNode {
+function Grupo({ titulo, children }: { titulo: string; children: ReactNode }): ReactNode {
   return (
-    <div className="px-2 py-1.5 border-b border-border last:border-b-0">
-      <div className="text-[9px] uppercase tracking-wide text-text-dim mb-1">{titulo}</div>
+    <div className="px-3 py-2.5 border-b border-border last:border-b-0">
+      <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-1.5">
+        {titulo}
+      </div>
       <div className="space-y-0.5">{children}</div>
     </div>
   )
@@ -75,45 +90,14 @@ function Toggle({
 }): ReactNode {
   const checked = prefs[k]
   return (
-    <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-bg-hover cursor-pointer">
+    <label className="flex items-center gap-2 min-h-7 px-1 rounded hover:bg-bg-hover cursor-pointer">
       <input
         type="checkbox"
         checked={checked}
         onChange={() => prefs.toggle(k)}
-        className="accent-accent"
+        className="size-4 accent-[color:var(--accent)]"
       />
       <span className="text-text">{label}</span>
     </label>
-  )
-}
-
-function Segmented({
-  value,
-  onChange
-}: {
-  value: CorPorMapa
-  onChange: (v: CorPorMapa) => void
-}): ReactNode {
-  const opts: Array<{ v: CorPorMapa; label: string }> = [
-    { v: 'equipe', label: 'Equipe' },
-    { v: 'servico', label: 'Serviço' }
-  ]
-  return (
-    <div className="inline-flex rounded border border-border overflow-hidden w-full">
-      {opts.map((o) => (
-        <button
-          key={o.v}
-          onClick={() => onChange(o.v)}
-          className={cn(
-            'flex-1 px-2 py-1 transition-colors',
-            value === o.v
-              ? 'bg-accent/15 text-accent'
-              : 'text-text-dim hover:text-text hover:bg-bg-hover'
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
   )
 }

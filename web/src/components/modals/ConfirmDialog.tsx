@@ -82,9 +82,7 @@ export function ConfirmDialog(): ReactNode {
       <DialogBody>
         {options?.description ? (
           typeof options.description === 'string' ? (
-            <p className="text-sm text-text-muted whitespace-pre-line">
-              {options.description}
-            </p>
+            <p className="text-sm text-text-muted whitespace-pre-line">{options.description}</p>
           ) : (
             <div className="text-sm text-text-muted">{options.description}</div>
           )

@@ -142,7 +142,7 @@ export function SeletorPlano({
               <Pencil size={12} className="text-accent" />
             )}
             <span className="truncate">{plano.nome}</span>
-            <span className="shrink-0 text-2xs text-text-dim">
+            <span className="shrink-0 text-xs text-text-muted">
               {plano.is_baseline ? (plano.vigente ? 'LB vigente' : 'LB') : 'em edição'}
             </span>
             <ChevronDown size={12} className="shrink-0 text-text-dim" />
@@ -157,12 +157,12 @@ export function SeletorPlano({
               atual={edicao.id === plano.id}
               onClick={() => escolher(edicao.id)}
             >
-              <span className="text-2xs text-text-dim">
+              <span className="text-xs text-text-muted">
                 início {fmtDataBR(edicao.data_referencia_inicio)}
               </span>
             </ItemPlano>
           ) : (
-            <div className="px-3 py-1.5 text-2xs text-text-dim">
+            <div className="px-3 py-1.5 text-xs text-text-muted">
               Nenhum. Para replanejar, abra uma linha de base e use “Editar a partir desta”.
             </div>
           )}
@@ -192,13 +192,13 @@ export function SeletorPlano({
             Linhas de base ({lbs.length}/{MAX_LB})
           </Titulo>
           {lbs.length === 0 ? (
-            <div className="px-3 py-1.5 text-2xs text-text-dim">
+            <div className="px-3 py-1.5 text-xs text-text-muted">
               Nenhuma. Trave o plano em edição quando ele for aprovado.
             </div>
           ) : (
             lbs.map((p) => (
               <ItemPlano key={p.id} p={p} atual={p.id === plano.id} onClick={() => escolher(p.id)}>
-                <span className="text-2xs text-text-dim">travada {travadaEm(p)}</span>
+                <span className="text-xs text-text-muted">travada {travadaEm(p)}</span>
                 {p.vigente ? <Badge variant="accent">vigente</Badge> : null}
                 {p.id === provisoria ? <Badge variant="warn">provisória</Badge> : null}
               </ItemPlano>
@@ -272,7 +272,7 @@ export function SeletorPlano({
 
 function Titulo({ children }: { children: ReactNode }): ReactNode {
   return (
-    <div className="px-3 pt-2 pb-1 font-mono text-2xs uppercase tracking-wider text-text-dim">
+    <div className="px-3 pt-2 pb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
       {children}
     </div>
   )
@@ -304,10 +304,7 @@ function ItemPlano({
       {p.is_baseline ? (
         <Star
           size={12}
-          className={cn(
-            'shrink-0',
-            p.vigente ? 'fill-warn text-warn' : 'text-text-dim/40'
-          )}
+          className={cn('shrink-0', p.vigente ? 'fill-warn text-warn' : 'text-text-dim/40')}
         />
       ) : (
         <Pencil size={12} className="shrink-0 text-accent" />
@@ -601,7 +598,7 @@ function PremissasDialog({
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} size="lg">
       <DialogHeader>
-        <DialogTitle>Premissas que mudaram — {nome}</DialogTitle>
+        <DialogTitle>Premissas que mudaram: {nome}</DialogTitle>
       </DialogHeader>
       <DialogBody className="space-y-3 text-left">
         <p className="text-xs text-text-muted">

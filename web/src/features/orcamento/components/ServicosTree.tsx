@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight, Plus, Power, Folder, FileText } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Plus, Power, Folder, FileText } from 'lucide-react'
+import { IconButton } from '@/components/ui/IconButton'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { useToggleAtivoServico } from '../hooks/servicos'
 import type { ServicoTreeNode } from '@/types/orcamento'
@@ -20,6 +22,8 @@ interface Props {
   /** Seleção em lote (checkbox por linha). Null = desabilitado. */
   selectedIds?: Set<string> | null
   onToggleSelect?: (id: string) => void
+  /** Esconde as ações de linha (adicionar dentro do grupo, desativar). */
+  somenteLeitura?: boolean
 }
 
 /**
@@ -56,14 +60,15 @@ export function ServicosTree({
   expandedIds,
   onToggleExpand,
   selectedIds,
-  onToggleSelect
+  onToggleSelect,
+  somenteLeitura
 }: Props): ReactNode {
   const filterResult = useMemo(
     () => (filter ? computeMatchedSet(nodes, filter) : null),
     [nodes, filter]
   )
   return (
-    <div className="text-xs font-mono">
+    <div className="text-sm">
       {nodes.map((n) => (
         <ServicoRow
           key={n.id}
@@ -78,12 +83,13 @@ export function ServicosTree({
           onToggleExpand={onToggleExpand}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
+          somenteLeitura={somenteLeitura}
         />
       ))}
       {filterResult && filterResult.matched.size === 0 ? (
-        <div className="text-2xs text-text-dim italic px-2 py-3">
-          Nenhum serviço corresponde a “{filter}”.
-        </div>
+        <p className="px-2 py-3 text-sm text-text-muted">
+          Nenhum serviço corresponde a “{filter}”. Confira o código ou o nome digitado.
+        </p>
       ) : null}
     </div>
   )
@@ -101,6 +107,7 @@ interface RowProps {
   onToggleExpand?: (id: string) => void
   selectedIds?: Set<string> | null
   onToggleSelect?: (id: string) => void
+  somenteLeitura?: boolean
 }
 
 function ServicoRow({
@@ -114,7 +121,8 @@ function ServicoRow({
   expandedIds,
   onToggleExpand,
   selectedIds,
-  onToggleSelect
+  onToggleSelect,
+  somenteLeitura
 }: RowProps): ReactNode {
   const controlled = expandedIds != null
   const [localExpanded, setLocalExpanded] = useState(depth < 2)
@@ -137,18 +145,17 @@ function ServicoRow({
 
   const matchedDirect = filterResult?.matched.has(node.id) ?? false
 
+  const marcado = selectedIds?.has(node.id) ?? false
+  const rotuloNo = `${node.codigo} ${node.nome}`
+
   return (
     <div>
       <div
         className={cn(
-          'group flex items-center gap-1 py-1 px-1 rounded relative',
-          // Bg distinto por tipo de nó:
-          !isFolha ? 'bg-bg-elevated/30' : '',
-          // Hover sólido (sem transparência).
+          'group flex items-center gap-1 py-0.5 px-1 rounded relative',
           'hover:bg-bg-hover',
           selectedId === node.id ? 'bg-bg-active' : '',
-          matchedDirect ? 'ring-1 ring-accent/40' : '',
-          !node.ativo ? 'opacity-60' : ''
+          matchedDirect ? 'ring-1 ring-accent/40' : ''
         )}
         style={{ paddingLeft: `${depth * 20 + 4}px` }}
       >
@@ -165,89 +172,109 @@ function ServicoRow({
         {selectedIds && onToggleSelect ? (
           <button
             type="button"
+            role="checkbox"
+            aria-checked={marcado}
+            aria-label={`Selecionar ${rotuloNo}`}
+            title={marcado ? 'Desmarcar' : 'Selecionar'}
             onClick={(e) => {
               e.stopPropagation()
               onToggleSelect(node.id)
             }}
-            className={cn(
-              'w-4 h-4 inline-flex items-center justify-center rounded border text-2xs shrink-0',
-              selectedIds.has(node.id)
-                ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
-                : 'border-border text-text-faint hover:border-accent hover:text-text-dim'
-            )}
-            title={selectedIds.has(node.id) ? 'Desmarcar' : 'Selecionar'}
+            className="h-7 w-6 inline-flex items-center justify-center rounded shrink-0 group/caixa"
           >
-            {selectedIds.has(node.id) ? '✓' : ''}
+            <span
+              aria-hidden
+              className={cn(
+                'size-4 inline-flex items-center justify-center rounded-sm border',
+                marcado
+                  ? 'border-accent bg-accent text-[color:var(--on-accent)]'
+                  : 'border-border-strong bg-bg-panel group-hover/caixa:border-accent'
+              )}
+            >
+              {marcado ? <Check size={12} strokeWidth={3} /> : null}
+            </span>
           </button>
         ) : null}
 
-        <button
-          type="button"
-          onClick={toggle}
-          className={cn(
-            'w-4 h-4 flex items-center justify-center text-text-dim hover:text-text',
-            !temFilhos && 'invisible'
-          )}
-          disabled={!temFilhos}
-          title={temFilhos ? (expanded ? 'Colapsar' : 'Expandir') : undefined}
-        >
-          {temFilhos ? expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} /> : null}
-        </button>
-        {isFolha ? (
-          <FileText size={12} className="text-text-dim shrink-0" />
+        {temFilhos ? (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Recolher' : 'Expandir'} ${rotuloNo}`}
+            title={expanded ? 'Recolher' : 'Expandir'}
+            className="h-7 w-6 shrink-0 inline-flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-hover"
+          >
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
         ) : (
-          <Folder size={12} className="text-accent shrink-0" />
+          <span aria-hidden className="w-6 shrink-0" />
+        )}
+        {isFolha ? (
+          <FileText size={14} aria-hidden className="text-text-dim shrink-0" />
+        ) : (
+          <Folder size={14} aria-hidden className="text-accent shrink-0" />
         )}
         <button
           type="button"
-          onClick={() => podeSelecionar && onSelect?.(node.id)}
+          onClick={() => {
+            if (podeSelecionar) onSelect?.(node.id)
+            // Grupo não abre painel: o clique no nome abre ou recolhe os filhos.
+            if (!isFolha && temFilhos) toggle()
+          }}
+          title={isFolha && podeSelecionar ? 'Abrir as composições do serviço' : undefined}
           className={cn(
-            'flex-1 text-left truncate',
-            podeSelecionar
-              ? isFolha
+            'flex-1 min-w-0 h-7 text-left truncate rounded',
+            !node.ativo ? 'text-text-muted' : 'text-text',
+            isFolha
+              ? podeSelecionar
                 ? 'cursor-pointer hover:text-accent hover:underline'
-                : 'cursor-pointer hover:text-text font-semibold'
-              : 'cursor-default text-text-muted',
-            !isFolha && 'text-text font-semibold'
+                : 'cursor-default'
+              : 'cursor-pointer font-semibold'
           )}
         >
-          <span className="text-text-dim mr-2">{node.codigo}</span>
+          <span className="tabular text-text-dim mr-2">{node.codigo}</span>
           <span>{node.nome}</span>
           {isFolha ? (
-            <span className="text-text-dim ml-2 font-normal">({node.unidade})</span>
+            <span className="text-text-muted ml-2 font-normal">({node.unidade})</span>
           ) : temFilhos ? (
-            <span className="text-text-faint ml-2 font-normal text-2xs">
+            <span
+              className="tabular text-text-muted ml-2 font-normal text-xs"
+              title={contar(node.children.length, 'item no grupo', 'itens no grupo')}
+            >
               ({node.children.length})
             </span>
           ) : null}
           {!node.ativo ? (
-            <span className="ml-2 text-warn text-2xs font-normal">· inativo</span>
+            <span className="ml-2 text-xs font-semibold text-warn">Inativo</span>
           ) : null}
         </button>
-        {/* Ações sempre visíveis (mutadas por default, realçam ao hover do próprio botão). */}
-        <div className="flex items-center gap-0.5">
-          {!isFolha ? (
-            <button
-              type="button"
-              onClick={() => onAddChild(node.id)}
-              className="w-5 h-5 flex items-center justify-center text-text-dim hover:text-accent rounded hover:bg-bg-elevated"
-              title="Adicionar filho"
+        {somenteLeitura ? null : (
+          <div className="flex items-center gap-0.5">
+            {!isFolha ? (
+              <IconButton
+                size="sm"
+                variant="accent"
+                onClick={() => onAddChild(node.id)}
+                aria-label={`Adicionar serviço dentro de ${rotuloNo}`}
+                title="Adicionar serviço dentro deste grupo"
+              >
+                <Plus size={14} aria-hidden />
+              </IconButton>
+            ) : null}
+            <IconButton
+              size="sm"
+              variant="ghost"
+              disabled={toggleAtivo.isPending}
+              onClick={() => toggleAtivo.mutate({ id: node.id, ativo: !node.ativo })}
+              className={node.ativo ? undefined : 'text-warn'}
+              aria-label={`${node.ativo ? 'Desativar' : 'Reativar'} ${rotuloNo}`}
+              title={node.ativo ? 'Desativar' : 'Reativar'}
             >
-              <Plus size={12} />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => toggleAtivo.mutate({ id: node.id, ativo: !node.ativo })}
-            className={cn(
-              'w-5 h-5 flex items-center justify-center rounded hover:bg-bg-elevated',
-              node.ativo ? 'text-text-dim hover:text-warn' : 'text-warn hover:text-text-muted'
-            )}
-            title={node.ativo ? 'Desativar' : 'Reativar'}
-          >
-            <Power size={12} />
-          </button>
-        </div>
+              <Power size={14} aria-hidden />
+            </IconButton>
+          </div>
+        )}
       </div>
       {expanded && temFilhos
         ? node.children.map((c) => (
@@ -264,6 +291,7 @@ function ServicoRow({
               onToggleExpand={onToggleExpand}
               selectedIds={selectedIds}
               onToggleSelect={onToggleSelect}
+              somenteLeitura={somenteLeitura}
             />
           ))
         : null}

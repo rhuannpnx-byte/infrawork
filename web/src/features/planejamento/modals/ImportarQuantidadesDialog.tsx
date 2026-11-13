@@ -23,6 +23,7 @@ import { Select } from '@/components/ui/select'
 import { pickFile } from '@/lib/files/pick-file'
 import { loadWorkbookFromFile } from '@/lib/xlsx/download'
 import { formatNumber } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import {
   divisorMetrosPorUnidade,
   formatMarcadorCompacto,
@@ -128,10 +129,14 @@ interface PlanoLocal {
 }
 
 const UNIDADES: { v: UnidadeEspacoPadrao; t: string }[] = [
-  { v: 'km', t: 'km' },
-  { v: 'estaca', t: 'estaca (20 m)' },
-  { v: 'm', t: 'metro' }
+  { v: 'km', t: 'Quilômetro (km)' },
+  { v: 'estaca', t: 'Estaca (20 m)' },
+  { v: 'm', t: 'Metro (m)' }
 ]
+
+const CABECALHO =
+  'border-b border-border bg-bg-elevated text-left text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
+const PASSOS = ['Arquivo', 'Locais e serviços', 'Prévia'] as const
 
 function unidadeSugerida(aba: AbaBoq): UnidadeEspacoPadrao {
   const vals =
@@ -287,7 +292,7 @@ export function ImportarQuantidadesDialog({
       setDestCols(dc)
       setEstender({})
     } catch (e) {
-      setErro(`Não foi possível ler a planilha: ${(e as Error).message}`)
+      setErro(`Não foi possível ler a planilha. ${(e as Error).message}`)
     }
   }
 
@@ -363,7 +368,7 @@ export function ImportarQuantidadesDialog({
           finais,
           servicos,
           linhas: linhasDe(seg.valores),
-          faixaTexto: 'área inteira'
+          faixaTexto: 'Área inteira'
         }
       }
 
@@ -436,7 +441,7 @@ export function ImportarQuantidadesDialog({
         linhas: linhasDe(conv.totais),
         faixaTexto:
           conv.minM !== null && conv.maxM !== null
-            ? `${formatMarcadorCompacto(conv.minM, ctx)} – ${formatMarcadorCompacto(conv.maxM, ctx)} · ${formatNumber(conv.maxM - conv.minM, 0)} m`
+            ? `De ${formatMarcadorCompacto(conv.minM, ctx)} a ${formatMarcadorCompacto(conv.maxM, ctx)}, ${formatNumber(conv.maxM - conv.minM, 0)} m`
             : '—'
       }
     })
@@ -456,10 +461,12 @@ export function ImportarQuantidadesDialog({
     return [...porItem.values()].filter((x) => x.soma > x.orcamento + 0.0005)
   }, [agrupadores, ativos])
   const bloqueios = [
-    ...ativos.filter((p) => p.erros.length > 0).map((p) => `${p.local.nome}: corrija os erros`),
+    ...ativos
+      .filter((p) => p.erros.length > 0)
+      .map((p) => `${p.local.nome}: corrija na planilha os erros listados acima e envie de novo.`),
     ...excedeGlobal.map(
       (x) =>
-        `${x.codigo}: ${formatNumber(x.soma, 3)} nos locais > orçamento ${formatNumber(x.orcamento, 3)}`
+        `${x.codigo}: a soma nos locais (${formatNumber(x.soma, 3)}) passa do orçado (${formatNumber(x.orcamento, 3)}).`
     )
   ]
 
@@ -514,14 +521,14 @@ export function ImportarQuantidadesDialog({
           .map((c) => ({ chave: c.chave, item_orcamentario_id: destCols[c.chave] ?? null }))
       })
       toast.success(
-        `Quantidades importadas em ${feitos.length} ${feitos.length === 1 ? 'local' : 'locais'}: ${feitos.join(', ')}. Tarefas “do template” recalculadas.`
+        `Quantidades importadas em ${contar(feitos.length, 'local', 'locais')}: ${feitos.join(', ')}. As tarefas “do template” foram recalculadas.`
       )
       onConcluido?.({ trechoIds, itemIds: [...itemIds] })
       reiniciar()
       onOpenChange(false)
     } catch (e) {
       setErro(
-        `${(e as Error).message}${feitos.length ? ` — já gravados: ${feitos.join(', ')}.` : ''}`
+        `Não foi possível concluir a importação. ${(e as Error).message}${feitos.length ? ` Já foram importados: ${feitos.join(', ')}.` : ''}`
       )
     } finally {
       setGravando(false)
@@ -534,89 +541,122 @@ export function ImportarQuantidadesDialog({
     ativos.length > 0 && colunasUnicas.some((c) => typeof destCols[c.chave] === 'string')
   const eixos = trechos.filter((t) => t.tipo === 'eixo')
   const areas = trechos.filter((t) => t.tipo === 'area')
+  const motivoNaoAvanca =
+    passo === 1 && !podeAvancar1
+      ? !leitura
+        ? 'Escolha a planilha para continuar.'
+        : leitura.erros.length > 0
+          ? 'Corrija os erros na planilha e escolha o arquivo de novo.'
+          : 'A planilha não tem aba com quantidades.'
+      : passo === 2 && !podeAvancar2
+        ? 'Para continuar, importe ao menos um local e ligue ao menos uma coluna a um serviço.'
+        : null
+  const motivoNaoImporta = trava
+    ? `Somente leitura: ${trava}.`
+    : ativos.length === 0
+      ? 'Nada para importar com essa escolha.'
+      : bloqueios.length > 0
+        ? 'Resolva os problemas listados na prévia.'
+        : null
 
   return (
     <Dialog open={open} onOpenChange={fechar} size="xl" disableDismiss={gravando}>
       <DialogHeader>
         <DialogTitle>Importar quantidades por local</DialogTitle>
         <DialogDescription>
-          Uma aba por local. Por estaca (coluna “Estaca” + uma coluna por serviço, como no
-          DynaRoad), por faixa (Início/Fim) ou a aba “Áreas”. A quantidade de uma estaca vale até
-          meio caminho das vizinhas; zero fecha a sequência.
+          Uma aba por local: por estaca (coluna “Estaca” e uma coluna por serviço), por faixa
+          (colunas “Início” e “Fim”) ou a aba “Áreas”. A quantidade de uma estaca vale até o meio do
+          caminho para as vizinhas; zero fecha a sequência.
         </DialogDescription>
-        <div className="mt-2 flex gap-1 text-2xs font-mono">
-          {(['Arquivo', 'Mapeamento', 'Prévia e gravar'] as const).map((t, i) => (
-            <span
+        <ol className="mt-2 flex flex-wrap gap-1 text-xs" aria-label="Passos da importação">
+          {PASSOS.map((t, i) => (
+            <li
               key={t}
-              className={`px-2 py-0.5 rounded border ${passo === i + 1 ? 'border-accent text-accent bg-accent-glow' : 'border-border text-text-dim'}`}
+              aria-current={passo === i + 1 ? 'step' : undefined}
+              className={`rounded border px-2 py-0.5 ${passo === i + 1 ? 'border-accent bg-accent-glow font-medium text-text' : 'border-border text-text-muted'}`}
             >
               {i + 1}. {t}
-            </span>
+            </li>
           ))}
-        </div>
+        </ol>
       </DialogHeader>
       <DialogBody className="space-y-3 max-h-[62vh] overflow-auto">
         <DialogErrorBanner message={erro} />
         {trava ? (
-          <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn">
+          <div
+            role="status"
+            className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text"
+          >
             Somente leitura: {trava}.
           </div>
         ) : null}
 
         {passo === 1 ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button variant="secondary" onClick={() => void escolherArquivo()} disabled={!!trava}>
-                <Upload size={12} /> Escolher planilha…
+                <Upload size={12} /> {arquivo ? 'Escolher outra planilha' : 'Escolher planilha'}
               </Button>
               {arquivo ? (
-                <span className="text-xs text-text-muted inline-flex items-center gap-1.5">
-                  <FileSpreadsheet size={12} /> {arquivo.nome}
+                <span className="inline-flex items-center gap-1.5 text-sm text-text-muted">
+                  <FileSpreadsheet size={14} aria-hidden /> {arquivo.nome}
                 </span>
               ) : null}
             </div>
             {leitura ? (
               <>
-                <div className="rounded border border-border">
-                  <table className="w-full text-xs">
-                    <thead className="text-2xs font-mono uppercase text-text-dim bg-bg">
-                      <tr className="border-b border-border">
-                        <th className="text-left px-2 py-1.5">Aba</th>
-                        <th className="text-left px-2 py-1.5">Layout</th>
-                        <th className="text-right px-2 py-1.5">Linhas</th>
-                        <th className="text-left px-2 py-1.5">Colunas de serviço</th>
+                <p className="text-sm text-text" role="status">
+                  <span className="font-semibold">
+                    {contar(leitura.abas.length, 'aba lida', 'abas lidas')}
+                  </span>
+                  {leitura.erros.length > 0
+                    ? `, ${contar(leitura.erros.length, 'erro', 'erros')}`
+                    : ', sem erros'}
+                  .
+                </p>
+                <div className="overflow-x-auto rounded border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className={CABECALHO}>
+                        <th className="px-2 py-1.5">Aba</th>
+                        <th className="px-2 py-1.5">Formato</th>
+                        <th className="px-2 py-1.5 text-right">Linhas</th>
+                        <th className="px-2 py-1.5">Colunas de serviço</th>
                       </tr>
                     </thead>
                     <tbody>
                       {leitura.abas.map((a) => (
-                        <tr key={a.nome} className="border-b border-border">
+                        <tr key={a.nome} className="border-b border-border last:border-b-0">
                           <td className="px-2 py-1 font-medium text-text">{a.nome}</td>
                           <td className="px-2 py-1">
                             <Badge variant="outline">
                               {a.layout === 'ponto'
-                                ? 'por estaca'
+                                ? 'Por estaca'
                                 : a.layout === 'faixa'
-                                  ? 'por faixa'
-                                  : 'áreas'}
+                                  ? 'Por faixa'
+                                  : 'Áreas'}
                             </Badge>
                           </td>
-                          <td className="px-2 py-1 text-right font-mono tabular-nums">
+                          <td className="tabular px-2 py-1 text-right">
                             {a.layout === 'ponto'
                               ? a.pontos.length
                               : a.layout === 'faixa'
                                 ? a.faixas.length
                                 : a.areas.length}
                           </td>
-                          <td className="px-2 py-1 text-text-muted truncate max-w-[420px]">
+                          <td
+                            className="max-w-[420px] truncate px-2 py-1 text-text-muted"
+                            title={a.colunas.map((k) => k.titulo).join(' · ')}
+                          >
                             {a.colunas.map((k) => k.titulo).join(' · ')}
                           </td>
                         </tr>
                       ))}
                       {leitura.abas.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-2 py-3 text-text-dim italic">
-                            Nenhuma aba com tabela de quantidades (procuro “Estaca”, “Início/Fim” ou
-                            “Área” no cabeçalho).
+                          <td colSpan={4} className="px-2 py-3 text-text-muted">
+                            Nenhuma aba tem tabela de quantidades. O cabeçalho precisa ter “Estaca”,
+                            “Início” e “Fim”, ou “Área”.
                           </td>
                         </tr>
                       ) : null}
@@ -624,18 +664,18 @@ export function ImportarQuantidadesDialog({
                   </table>
                 </div>
                 {leitura.ignoradas.length ? (
-                  <div className="text-2xs text-text-dim">
-                    Abas ignoradas (sem tabela): {leitura.ignoradas.join(', ')}
-                  </div>
+                  <p className="text-sm text-text-muted">
+                    Abas ignoradas, por não terem tabela: {leitura.ignoradas.join(', ')}.
+                  </p>
                 ) : null}
                 {leitura.erros.length ? <ListaErros erros={leitura.erros} /> : null}
               </>
             ) : (
-              <div className="text-2xs text-text-dim leading-relaxed">
-                Dica: “Exportar planilha” na página Locais gera o modelo com os serviços do
-                orçamento e os locais atuais — preencha e importe de volta. Planilhas do DynaRoad
-                (uma aba por local, coluna “Station”) também são aceitas.
-              </div>
+              <p className="text-sm text-text-muted">
+                Em Locais, “Exportar planilha” gera o modelo com os serviços do orçamento e os
+                locais atuais: preencha e importe de volta. Planilha do DynaRoad (uma aba por local,
+                coluna “Station”) também é aceita.
+              </p>
             )}
           </div>
         ) : null}
@@ -643,14 +683,14 @@ export function ImportarQuantidadesDialog({
         {passo === 2 && arquivo ? (
           <div className="space-y-4">
             <section className="space-y-1.5">
-              <div className="text-2xs font-mono uppercase text-text-dim">Abas → locais</div>
-              <div className="rounded border border-border">
-                <table className="w-full text-xs">
-                  <thead className="text-2xs font-mono uppercase text-text-dim bg-bg">
-                    <tr className="border-b border-border">
-                      <th className="text-left px-2 py-1.5">Na planilha</th>
-                      <th className="text-left px-2 py-1.5 w-[300px]">Local no InfraWork</th>
-                      <th className="text-left px-2 py-1.5 w-[150px]">Unidade (novo eixo)</th>
+              <h3 className="text-md font-semibold text-text">Abas da planilha e locais</h3>
+              <div className="overflow-x-auto rounded border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className={CABECALHO}>
+                      <th className="px-2 py-1.5">Na planilha</th>
+                      <th className="w-[300px] px-2 py-1.5">Local no InfraWork</th>
+                      <th className="w-[170px] px-2 py-1.5">Unidade do novo eixo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -664,20 +704,21 @@ export function ImportarQuantidadesDialog({
                             : 'nao'
                       const opcoes = l.tipo === 'eixo' ? eixos : areas
                       return (
-                        <tr key={l.chave} className="border-b border-border">
+                        <tr key={l.chave} className="border-b border-border last:border-b-0">
                           <td className="px-2 py-1">
                             <span className="font-medium text-text">{l.nome}</span>{' '}
                             <Badge variant="outline" className="ml-1">
                               {l.tipo === 'eixo'
                                 ? l.aba.layout === 'ponto'
-                                  ? 'por estaca'
-                                  : 'por faixa'
-                                : 'área'}
+                                  ? 'Por estaca'
+                                  : 'Por faixa'
+                                : 'Área'}
                             </Badge>
                           </td>
                           <td className="px-2 py-1">
                             <Select
                               value={valor}
+                              aria-label={`Local para ${l.nome}`}
                               onChange={(e) => {
                                 const v = e.target.value
                                 setDestLocais((s) => ({
@@ -700,8 +741,8 @@ export function ImportarQuantidadesDialog({
                             >
                               <option value="criar">
                                 {l.tipo === 'eixo'
-                                  ? `Criar eixo “${l.nome}”`
-                                  : `Criar área “${l.nome}”`}
+                                  ? `Criar o eixo “${l.nome}”`
+                                  : `Criar a área “${l.nome}”`}
                               </option>
                               {opcoes.length ? (
                                 <optgroup
@@ -723,6 +764,7 @@ export function ImportarQuantidadesDialog({
                             {d.modo === 'criar' && l.tipo === 'eixo' ? (
                               <Select
                                 value={d.unidade}
+                                aria-label={`Unidade do novo eixo ${l.nome}`}
                                 onChange={(e) =>
                                   setDestLocais((s) => ({
                                     ...s,
@@ -751,16 +793,14 @@ export function ImportarQuantidadesDialog({
               </div>
             </section>
             <section className="space-y-1.5">
-              <div className="text-2xs font-mono uppercase text-text-dim">
-                Colunas → serviços do orçamento
-              </div>
-              <div className="rounded border border-border">
-                <table className="w-full text-xs">
-                  <thead className="text-2xs font-mono uppercase text-text-dim bg-bg">
-                    <tr className="border-b border-border">
-                      <th className="text-left px-2 py-1.5">Coluna na planilha</th>
-                      <th className="text-left px-2 py-1.5 w-20">Unid.</th>
-                      <th className="text-left px-2 py-1.5 w-[360px]">Serviço</th>
+              <h3 className="text-md font-semibold text-text">Colunas e serviços do orçamento</h3>
+              <div className="overflow-x-auto rounded border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className={CABECALHO}>
+                      <th className="px-2 py-1.5">Coluna na planilha</th>
+                      <th className="w-24 px-2 py-1.5">Unidade</th>
+                      <th className="w-[360px] px-2 py-1.5">Serviço</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -770,21 +810,20 @@ export function ImportarQuantidadesDialog({
                       const unidadeDifere =
                         a && c.unidade && normalizarTexto(a.unidade) !== normalizarTexto(c.unidade)
                       return (
-                        <tr key={c.chave} className="border-b border-border">
+                        <tr key={c.chave} className="border-b border-border last:border-b-0">
                           <td className="px-2 py-1">
                             <span className="text-text">{c.titulo}</span>
                             {c.abas.length > 1 ? (
-                              <span className="text-2xs text-text-dim ml-1">
-                                ({c.abas.length} abas)
+                              <span className="ml-1 text-xs text-text-muted">
+                                em {c.abas.length} abas
                               </span>
                             ) : null}
                           </td>
-                          <td className="px-2 py-1 text-text-muted font-mono">
-                            {c.unidade ?? '—'}
-                          </td>
+                          <td className="px-2 py-1 text-text-muted">{c.unidade ?? '—'}</td>
                           <td className="px-2 py-1">
                             <Select
                               value={id === undefined ? '' : (id ?? 'nao')}
+                              aria-label={`Serviço para a coluna ${c.titulo}`}
                               className={id === undefined ? 'border-warn' : undefined}
                               onChange={(e) =>
                                 setDestCols((s) => ({
@@ -794,7 +833,7 @@ export function ImportarQuantidadesDialog({
                               }
                             >
                               <option value="" disabled>
-                                — escolher —
+                                Selecione…
                               </option>
                               {agrupadores.map((g) => (
                                 <option key={g.id} value={g.id}>
@@ -803,9 +842,15 @@ export function ImportarQuantidadesDialog({
                               ))}
                               <option value="nao">Não importar</option>
                             </Select>
+                            {id === undefined ? (
+                              <div className="mt-0.5 text-xs text-text-muted">
+                                Sem serviço escolhido: a coluna não é importada.
+                              </div>
+                            ) : null}
                             {unidadeDifere ? (
-                              <div className="text-2xs text-warn mt-0.5">
-                                Unidade da planilha ({c.unidade}) difere do serviço ({a!.unidade}).
+                              <div className="mt-0.5 text-xs font-medium text-text">
+                                Atenção: a unidade da planilha ({c.unidade}) é diferente da do
+                                serviço ({a!.unidade}).
                               </div>
                             ) : null}
                           </td>
@@ -815,9 +860,10 @@ export function ImportarQuantidadesDialog({
                   </tbody>
                 </table>
               </div>
-              <div className="text-2xs text-text-dim">
-                O mapeamento fica salvo na obra e é reaproveitado na próxima importação.
-              </div>
+              <p className="text-sm text-text-muted">
+                Essa ligação entre colunas e serviços fica salva na obra e é reaproveitada na
+                próxima importação.
+              </p>
             </section>
           </div>
         ) : null}
@@ -825,37 +871,50 @@ export function ImportarQuantidadesDialog({
         {passo === 3 ? (
           <div className="space-y-3">
             {ativos.length === 0 ? (
-              <div className="text-xs text-text-dim italic">
-                Nada a importar com o mapeamento atual.
-              </div>
-            ) : null}
+              <p className="text-sm text-text-muted">
+                Nada para importar com essa escolha. Volte e importe ao menos um local, com ao menos
+                uma coluna ligada a um serviço.
+              </p>
+            ) : (
+              <p className="text-sm text-text" role="status">
+                <span className="font-semibold">
+                  {contar(ativos.length, 'local', 'locais')} para importar
+                </span>
+                {bloqueios.length > 0
+                  ? `, ${contar(bloqueios.length, 'problema', 'problemas')} para resolver antes`
+                  : '. Cada local ganha uma nova versão das quantidades.'}
+              </p>
+            )}
             {ativos.map((p) => (
               <section key={p.local.chave} className="rounded border border-border">
-                <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-bg/40 text-xs flex-wrap">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border bg-bg-elevated px-3 py-1.5 text-sm">
                   <span className="font-medium text-text">{p.local.nome}</span>
-                  <Badge variant="outline">{p.local.tipo === 'eixo' ? 'eixo' : 'área'}</Badge>
+                  <Badge variant="outline">{p.local.tipo === 'eixo' ? 'Eixo' : 'Área'}</Badge>
                   <span className="text-text-muted">
-                    →{' '}
+                    vai para{' '}
                     {p.destino.modo === 'criar'
                       ? p.local.tipo === 'eixo'
-                        ? `criar eixo (${p.novo ? `${UNIDADES.find((u) => u.v === p.novo!.unidade)?.t ?? p.novo.unidade}, ${formatNumber(p.novo.comprimento_m, 0)} m` : ''})`
-                        : 'criar área'
+                        ? `um novo eixo${p.novo ? ` (${UNIDADES.find((u) => u.v === p.novo!.unidade)?.t ?? p.novo.unidade}, ${formatNumber(p.novo.comprimento_m, 0)} m)` : ''}`
+                        : 'uma nova área'
                       : `${p.trecho?.nome ?? '?'}${p.trecho?.tipo === 'eixo' ? ` (${formatNumber(comprimentoEfetivo(p.trecho), 0)} m)` : ''}`}
                   </span>
-                  <span className="text-text-dim font-mono ml-auto">{p.faixaTexto}</span>
+                  <span className="tabular ml-auto text-text-muted">{p.faixaTexto}</span>
                 </div>
                 {p.precisaEstender ? (
-                  <label className="flex items-center gap-2 px-3 py-1.5 text-xs text-warn border-b border-border bg-warn/5">
+                  <label className="flex cursor-pointer items-start gap-2 border-b border-border bg-warn/10 px-3 py-1.5 text-sm text-text">
                     <input
                       type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
                       checked={!!estender[p.local.chave]}
                       onChange={(e) =>
                         setEstender((s) => ({ ...s, [p.local.chave]: e.target.checked }))
                       }
                     />
-                    A planilha vai até {formatNumber(p.precisaEstender, 0)} m e o eixo tem{' '}
-                    {formatNumber(comprimentoEfetivo(p.trecho!), 0)} m — estender o eixo até{' '}
-                    {formatNumber(p.precisaEstender, 0)} m ao gravar
+                    <span>
+                      A planilha vai até {formatNumber(p.precisaEstender, 0)} m e o eixo tem{' '}
+                      {formatNumber(comprimentoEfetivo(p.trecho!), 0)} m. Aumentar o eixo até{' '}
+                      {formatNumber(p.precisaEstender, 0)} m ao importar.
+                    </span>
                   </label>
                 ) : null}
                 {p.erros.length ? (
@@ -863,66 +922,79 @@ export function ImportarQuantidadesDialog({
                     <ListaErros erros={p.erros} />
                   </div>
                 ) : null}
-                <table className="w-full text-xs">
-                  <thead className="text-2xs font-mono uppercase text-text-dim">
-                    <tr className="border-b border-border">
-                      <th className="text-left px-3 py-1">Serviço</th>
-                      <th className="text-right px-2 py-1">Importado</th>
-                      <th className="text-right px-2 py-1">Atual no local</th>
-                      <th className="text-right px-2 py-1">Outros locais</th>
-                      <th className="text-right px-2 py-1">Orçamento</th>
-                      <th className="text-left px-2 py-1">Situação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="font-mono tabular-nums">
-                    {p.linhas.map((ln) => (
-                      <tr key={ln.itemId} className="border-b border-border">
-                        <td className="px-3 py-1 font-sans">
-                          <span className="font-mono text-text-dim mr-1">{ln.codigo}</span>
-                          {ln.descricao}
-                          <span className="text-text-dim ml-1">({ln.unidade})</span>
-                        </td>
-                        <td className="px-2 py-1 text-right text-text">
-                          {formatNumber(ln.importado, 3)}
-                        </td>
-                        <td className="px-2 py-1 text-right text-text-muted">
-                          {formatNumber(ln.atual, 3)}
-                        </td>
-                        <td className="px-2 py-1 text-right text-text-muted">
-                          {formatNumber(ln.outros, 3)}
-                        </td>
-                        <td className="px-2 py-1 text-right text-text-muted">
-                          {formatNumber(ln.orcamento, 3)}
-                        </td>
-                        <td className="px-2 py-1">
-                          {ln.excede ? (
-                            <Badge variant="danger">acima do orçamento</Badge>
-                          ) : Math.abs(ln.importado - ln.atual) < 0.0005 ? (
-                            <Badge variant="outline">igual</Badge>
-                          ) : ln.atual > 0 ? (
-                            <Badge variant="warn">substitui</Badge>
-                          ) : (
-                            <Badge variant="success">novo</Badge>
-                          )}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className={CABECALHO}>
+                        <th className="px-3 py-1.5">Serviço</th>
+                        <th className="px-2 py-1.5 text-right">Importado</th>
+                        <th className="px-2 py-1.5 text-right">Atual no local</th>
+                        <th className="px-2 py-1.5 text-right">Outros locais</th>
+                        <th className="px-2 py-1.5 text-right">Orçado</th>
+                        <th className="px-2 py-1.5">Situação</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="tabular">
+                      {p.linhas.map((ln) => (
+                        <tr key={ln.itemId} className="border-b border-border last:border-b-0">
+                          <td className="px-3 py-1">
+                            <span className="mr-1 text-text-muted">{ln.codigo}</span>
+                            {ln.descricao}
+                            <span className="ml-1 text-text-muted">({ln.unidade})</span>
+                          </td>
+                          <td className="px-2 py-1 text-right text-text">
+                            {formatNumber(ln.importado, 3)}
+                          </td>
+                          <td className="px-2 py-1 text-right text-text-muted">
+                            {formatNumber(ln.atual, 3)}
+                          </td>
+                          <td className="px-2 py-1 text-right text-text-muted">
+                            {formatNumber(ln.outros, 3)}
+                          </td>
+                          <td className="px-2 py-1 text-right text-text-muted">
+                            {formatNumber(ln.orcamento, 3)}
+                          </td>
+                          <td className="px-2 py-1">
+                            {ln.excede ? (
+                              <Badge variant="danger">Acima do orçado</Badge>
+                            ) : Math.abs(ln.importado - ln.atual) < 0.0005 ? (
+                              <Badge variant="outline">Igual</Badge>
+                            ) : ln.atual > 0 ? (
+                              <Badge variant="warn">Substitui</Badge>
+                            ) : (
+                              <Badge variant="success">Novo</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </section>
             ))}
             {bloqueios.length ? (
-              <div className="rounded border border-danger/40 bg-danger/10 px-3 py-2 text-2xs text-danger space-y-0.5">
-                {bloqueios.map((b) => (
-                  <div key={b}>• {b}</div>
-                ))}
+              <div
+                role="alert"
+                className="rounded border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+              >
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {bloqueios.map((b) => (
+                    <li key={b}>{b}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
           </div>
         ) : null}
+
+        {motivoNaoAvanca && (passo === 2 || (passo === 1 && leitura)) ? (
+          <p role="alert" className="text-sm font-medium text-danger">
+            {motivoNaoAvanca}
+          </p>
+        ) : null}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={() => fechar(false)} disabled={gravando}>
+        <Button variant="secondary" onClick={() => fechar(false)} disabled={gravando}>
           Cancelar
         </Button>
         {passo > 1 ? (
@@ -938,6 +1010,7 @@ export function ImportarQuantidadesDialog({
           <Button
             onClick={() => setPasso((p) => (p === 1 ? 2 : 3))}
             disabled={(passo === 1 && !podeAvancar1) || (passo === 2 && !podeAvancar2)}
+            title={motivoNaoAvanca ?? undefined}
           >
             Continuar <ArrowRight size={12} />
           </Button>
@@ -945,11 +1018,10 @@ export function ImportarQuantidadesDialog({
           <Button
             onClick={() => void gravar()}
             disabled={gravando || !!trava || bloqueios.length > 0 || ativos.length === 0}
+            title={motivoNaoImporta ?? undefined}
           >
             <Save size={12} />{' '}
-            {gravando
-              ? 'Gravando…'
-              : `Gravar em ${ativos.length} ${ativos.length === 1 ? 'local' : 'locais'}`}
+            {gravando ? 'Importando…' : `Importar para ${contar(ativos.length, 'local', 'locais')}`}
           </Button>
         )}
       </DialogFooter>
@@ -959,17 +1031,24 @@ export function ImportarQuantidadesDialog({
 
 function ListaErros({ erros }: { erros: ErroBoq[] }): ReactNode {
   return (
-    <div className="rounded border border-danger/40 bg-danger/10 px-3 py-2 text-2xs text-danger space-y-0.5 max-h-40 overflow-auto">
-      {erros.slice(0, 40).map((e, i) => (
-        <div key={i}>
-          <span className="font-mono">
-            {e.aba}
-            {e.celula ? `!${e.celula}` : ''}
-          </span>{' '}
-          — {e.mensagem}
-        </div>
-      ))}
-      {erros.length > 40 ? <div>… e mais {erros.length - 40}.</div> : null}
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label="Erros da planilha"
+      className="max-h-40 overflow-auto rounded border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+    >
+      <ul className="space-y-0.5">
+        {erros.slice(0, 40).map((e, i) => (
+          <li key={i}>
+            <span className="font-medium">
+              Aba {e.aba}
+              {e.celula ? `, célula ${e.celula}` : ''}:
+            </span>{' '}
+            {e.mensagem}
+          </li>
+        ))}
+        {erros.length > 40 ? <li>E mais {contar(erros.length - 40, 'erro', 'erros')}.</li> : null}
+      </ul>
     </div>
   )
 }

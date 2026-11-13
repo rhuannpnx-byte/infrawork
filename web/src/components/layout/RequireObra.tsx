@@ -35,10 +35,10 @@ export function RequireObra({
           <EmptyState
             icon="building-2"
             title="Selecione uma empresa para começar"
-            description="Como God, você precisa escolher uma empresa antes de operar em qualquer módulo."
+            description="Como administrador geral, escolha a empresa antes de abrir qualquer módulo."
             action={
-              <Button variant="default" size="sm" onClick={() => openModal('projectSwitcher')}>
-                <Building2 size={12} /> Selecionar empresa
+              <Button onClick={() => openModal('projectSwitcher')}>
+                <Building2 size={14} /> Selecionar empresa
               </Button>
             }
           />
@@ -55,10 +55,10 @@ export function RequireObra({
           <EmptyState
             icon="folder-open"
             title="Selecione uma obra para continuar"
-            description="Este módulo opera dentro do escopo de uma obra: todos os dados aqui são herméticos por obra. Escolha uma para liberar a tela."
+            description="Esta tela mostra os dados de uma obra. Escolha a obra para continuar."
             action={
-              <Button variant="default" size="sm" onClick={() => openModal('projectSwitcher')}>
-                <FolderOpen size={12} /> Selecionar obra
+              <Button onClick={() => openModal('projectSwitcher')}>
+                <FolderOpen size={14} /> Selecionar obra
               </Button>
             }
           />

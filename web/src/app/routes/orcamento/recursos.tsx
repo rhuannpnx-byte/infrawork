@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { IconButton } from '@/components/ui/IconButton'
+import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
@@ -45,7 +47,7 @@ function RecursosInner(): ReactNode {
   const scope = useCurrentScope()
   const role = useAuthStore((s) => s.profile?.role)
   const obraId = scope.obraId!
-  const { data: recursos = [], isLoading, error } = useRecursos(obraId)
+  const { data: recursos = [], isLoading, error, refetch } = useRecursos(obraId)
   const toggleAtivo = useToggleAtivoRecurso()
   const confirm = useConfirm()
   const qc = useQueryClient()
@@ -65,7 +67,9 @@ function RecursosInner(): ReactNode {
     try {
       preview = await previewCascadeRecursos(rows.map((r) => r.id))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao avaliar dependências')
+      toast.error(
+        `Não foi possível conferir onde os recursos são usados. ${err instanceof Error ? err.message : ''}`.trim()
+      )
       return
     }
 
@@ -73,42 +77,35 @@ function RecursosInner(): ReactNode {
       title: `Excluir ${contar(rows.length, 'recurso', 'recursos')}?`,
       description: (
         <div className="space-y-2">
-          <p>O histórico de preços vai junto (cascade).</p>
+          <p>O histórico de preços é excluído junto. Não dá para desfazer.</p>
           {preview.cpuItensAfetados > 0 ? (
             <p>
-              <span className="text-warn">
-                {contar(preview.cpuItensAfetados, 'linha', 'linhas')} de CPU
-              </span>{' '}
+              <strong className="font-semibold text-text">
+                {contar(preview.cpuItensAfetados, 'linha', 'linhas')} de composição
+              </strong>{' '}
               {preview.cpuItensAfetados === 1
-                ? 'depende desses recursos e será'
-                : 'dependem desses recursos e serão'}{' '}
-              <strong>
-                {preview.cpuItensAfetados === 1 ? 'excluída' : 'excluídas'} em cascata
-              </strong>
-              , afetando{' '}
-              <span className="text-warn">
+                ? 'usa esses recursos e também será excluída'
+                : 'usam esses recursos e também serão excluídas'}
+              , em{' '}
+              <strong className="font-semibold text-text">
                 {contar(preview.cpusAfetadas, 'composição', 'composições')}
-              </span>
-              . As composições continuam existindo mas perdem esses insumos — custo unitário será
+              </strong>
+              . As composições continuam existindo, sem esses insumos, e o custo unitário é
               recalculado.
             </p>
           ) : null}
           {preview.itensOrcamentoComCpuOrigem > 0 ? (
             <p>
-              <span className="text-text-dim">
-                {contar(preview.itensOrcamentoComCpuOrigem, 'serviço', 'serviços')} do orçamento
-              </span>{' '}
-              {preview.itensOrcamentoComCpuOrigem === 1 ? 'usa' : 'usam'} essas composições — o
-              custo {preview.itensOrcamentoComCpuOrigem === 1 ? 'dele' : 'deles'} é recalculado na
-              hora sem esses recursos.
+              {contar(preview.itensOrcamentoComCpuOrigem, 'serviço', 'serviços')} do orçamento{' '}
+              {preview.itensOrcamentoComCpuOrigem === 1 ? 'usa' : 'usam'} essas composições: o custo{' '}
+              {preview.itensOrcamentoComCpuOrigem === 1 ? 'dele' : 'deles'} é recalculado na hora,
+              sem esses recursos.
             </p>
           ) : null}
-          {preview.cpuItensAfetados === 0 ? (
-            <p className="text-text-dim">Nenhuma CPU usa esses recursos — exclusão direta.</p>
-          ) : null}
+          {preview.cpuItensAfetados === 0 ? <p>Nenhuma composição usa esses recursos.</p> : null}
         </div>
       ),
-      confirmLabel: 'Excluir',
+      confirmLabel: rows.length === 1 ? 'Excluir recurso' : 'Excluir recursos',
       variant: 'danger'
     })
     if (!ok) return
@@ -116,7 +113,6 @@ function RecursosInner(): ReactNode {
     // Limpa a seleção e fecha o painel imediatamente — UX responsiva.
     clear()
     setBulkDeleting(true)
-    const t0 = performance.now()
 
     try {
       // Step 1: apagar cpu_items dependentes em uma única query (libera RESTRICT).
@@ -126,7 +122,7 @@ function RecursosInner(): ReactNode {
           .delete()
           .in('id', preview.cpuItemIdsParaApagar)
         if (errCi) {
-          toast.error(`Falha ao remover linhas de CPU: ${errCi.message}`)
+          toast.error(`Não foi possível remover os recursos das composições. ${errCi.message}`)
           return
         }
       }
@@ -137,12 +133,11 @@ function RecursosInner(): ReactNode {
       const { error: errRec } = await supabase.from('recurso').delete().in('id', ids)
       if (errRec) {
         console.error('[recurso bulk delete]', errRec)
-        toast.error(`Falha ao excluir recursos: ${errRec.message}`)
+        toast.error(`Não foi possível excluir os recursos. ${errRec.message}`)
         return
       }
 
-      const ms = Math.round(performance.now() - t0)
-      toast.success(`${contar(rows.length, 'recurso excluído', 'recursos excluídos')} em ${ms}ms.`)
+      toast.success(`${contar(rows.length, 'recurso excluído', 'recursos excluídos')}.`)
     } finally {
       // Invalida caches uma única vez no final.
       void qc.invalidateQueries({ queryKey: ['orcamento', 'recursos'] })
@@ -168,12 +163,12 @@ function RecursosInner(): ReactNode {
         accessorKey: 'codigo',
         header: 'Código',
         cell: (info) => (
-          <span className="font-mono text-2xs text-text-dim">
+          <span className="text-text-dim whitespace-nowrap">
             {(info.getValue() as string) ?? '—'}
           </span>
         ),
         meta: { label: 'Código' },
-        size: 110
+        size: 140
       },
       {
         accessorKey: 'nome',
@@ -184,9 +179,7 @@ function RecursosInner(): ReactNode {
       {
         accessorKey: 'unidade',
         header: 'Un.',
-        cell: (info) => (
-          <span className="text-text-muted font-mono">{String(info.getValue())}</span>
-        ),
+        cell: (info) => <span className="text-text-muted">{String(info.getValue())}</span>,
         meta: { label: 'Unidade' },
         size: 70
       },
@@ -196,119 +189,118 @@ function RecursosInner(): ReactNode {
         cell: (info) => {
           const v = info.getValue() as number | null | undefined
           return (
-            <span className="font-mono text-text">
-              {v !== null && v !== undefined ? fmtBRL4(v) : '—'}
-            </span>
+            <span className="text-text">{v !== null && v !== undefined ? fmtBRL4(v) : '—'}</span>
           )
         },
-        meta: { label: 'Preço vigente' },
-        size: 130
+        meta: { label: 'Preço vigente', align: 'right' },
+        size: 160
       },
       {
         accessorKey: 'ativo',
-        header: 'Status',
+        header: 'Situação',
         cell: (info) =>
           (info.getValue() as boolean) ? (
-            <Badge variant="success">ativo</Badge>
+            <Badge variant="success">Ativo</Badge>
           ) : (
-            <Badge>inativo</Badge>
+            <Badge>Inativo</Badge>
           ),
-        meta: { label: 'Status' },
+        meta: { label: 'Situação' },
         size: 90
       },
       {
         id: 'acoes',
         header: '',
         size: 110,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1 justify-end">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setPrecosOpen({ id: row.original.id, nome: row.original.nome })
-              }}
-              className="w-6 h-6 inline-flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-hover"
-              title="Histórico de preços"
-            >
-              <History size={12} />
-            </button>
-            {podeEditar ? (
-              <button
-                type="button"
+        enableSorting: false,
+        cell: ({ row }) => {
+          const nome = row.original.nome
+          return (
+            <div className="flex items-center gap-1 justify-end">
+              <IconButton
+                size="sm"
+                variant="accent"
                 onClick={(e) => {
                   e.stopPropagation()
-                  setEditando(row.original)
+                  setPrecosOpen({ id: row.original.id, nome })
                 }}
-                className="w-6 h-6 inline-flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-hover"
-                title="Editar"
+                aria-label={`Histórico de preços de ${nome}`}
+                title="Histórico de preços"
               >
-                <Pencil size={12} />
-              </button>
-            ) : null}
-            {podeEditar ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleAtivo.mutate({ id: row.original.id, ativo: !row.original.ativo })
-                }}
-                className="w-6 h-6 inline-flex items-center justify-center rounded text-text-dim hover:text-warn hover:bg-bg-hover"
-                title={row.original.ativo ? 'Desativar' : 'Reativar'}
-              >
-                <Power size={12} />
-              </button>
-            ) : null}
-          </div>
-        ),
-        meta: { label: '' }
+                <History size={12} aria-hidden />
+              </IconButton>
+              {podeEditar ? (
+                <IconButton
+                  size="sm"
+                  variant="accent"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditando(row.original)
+                  }}
+                  aria-label={`Editar ${nome}`}
+                  title="Editar"
+                >
+                  <Pencil size={12} aria-hidden />
+                </IconButton>
+              ) : null}
+              {podeEditar ? (
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  disabled={toggleAtivo.isPending}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleAtivo.mutate({ id: row.original.id, ativo: !row.original.ativo })
+                  }}
+                  aria-label={`${row.original.ativo ? 'Desativar' : 'Reativar'} ${nome}`}
+                  title={row.original.ativo ? 'Desativar' : 'Reativar'}
+                >
+                  <Power size={12} aria-hidden />
+                </IconButton>
+              ) : null}
+            </div>
+          )
+        },
+        meta: { label: 'Ações' }
       }
     ],
     [toggleAtivo, podeEditar]
   )
 
+  const botoesNovo = podeEditar ? (
+    <div className="flex items-center gap-2">
+      <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
+        <FileUp size={12} aria-hidden /> Importar planilha
+      </Button>
+      <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
+        <Plus size={12} aria-hidden /> Novo recurso
+      </Button>
+    </div>
+  ) : null
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Recursos"
-        subtitle="Catálogo de insumos: mão de obra, equipamentos, combustíveis, materiais."
-        actions={
-          podeEditar ? (
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                <FileUp size={12} /> Importar
-              </Button>
-              <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={12} /> Novo recurso
-              </Button>
-            </div>
-          ) : null
-        }
+        subtitle="Insumos da obra: mão de obra, equipamentos, combustíveis e materiais"
+        actions={botoesNovo}
       />
       <CadeiaTravaBanner obraId={obraId} />
       {error ? (
-        <div className="mx-3 my-2 text-2xs font-mono text-danger bg-danger/10 border border-danger/30 rounded px-2 py-1.5">
-          {error.message}
+        <div className="px-5 pt-3">
+          <ErroConsulta erro={error} oQue="os recursos" aoTentar={() => void refetch()} compacto />
         </div>
       ) : null}
-      {recursos.length === 0 && !isLoading ? (
+      {error && recursos.length === 0 ? null : recursos.length === 0 && !isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="package"
-            title="Nenhum recurso"
-            description="Cadastre os insumos (mão de obra, equipamentos, combustíveis, materiais) ou importe todos de uma vez com o modelo padrão."
-            action={
-              podeEditar ? (
-                <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                    <FileUp size={12} /> Importar modelo
-                  </Button>
-                  <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                    <Plus size={12} /> Novo recurso
-                  </Button>
-                </div>
-              ) : null
+            title="Nenhum recurso cadastrado"
+            description={
+              podeEditar
+                ? 'Cadastre os insumos (mão de obra, equipamentos, combustíveis e materiais) um a um ou importe todos de uma vez pela planilha modelo.'
+                : 'Esta obra ainda não tem insumos cadastrados.'
             }
+            action={botoesNovo}
           />
         </div>
       ) : (
@@ -319,18 +311,21 @@ function RecursosInner(): ReactNode {
           loading={isLoading}
           globalSearchPlaceholder="Buscar recurso…"
           emptyMessage="Nenhum recurso encontrado"
+          emptyDescription="Confira a busca ou cadastre um novo recurso."
           enableRowSelection={podeEditar}
           selectionActions={
             podeEditar
               ? (rows, clear) => (
                   <Button
-                    variant="ghost"
+                    variant="danger"
                     size="sm"
                     onClick={() => void handleBulkDelete(rows, clear)}
-                    className="text-danger hover:bg-danger/10"
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
+                    <Trash2 size={12} aria-hidden />{' '}
+                    {bulkDeleting
+                      ? 'Excluindo…'
+                      : `Excluir ${contar(rows.length, 'recurso', 'recursos')}`}
                   </Button>
                 )
               : undefined

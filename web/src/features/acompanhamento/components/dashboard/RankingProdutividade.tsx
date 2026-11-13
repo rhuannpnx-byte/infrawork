@@ -54,7 +54,12 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
           <Info size={12} /> aderência à composição
         </span>
       </div>
-      <div className="flex-1 overflow-auto px-4 pb-3 space-y-2">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Produtividade das equipes"
+        className="flex-1 overflow-auto px-4 pb-3 space-y-2"
+      >
         {data.map((d) => {
           const pctNum = d.pct_aderencia_meta == null ? null : Number(d.pct_aderencia_meta)
           const pctLabel = pctNum == null ? null : `${Math.round(pctNum * 100)}%`
