@@ -12,13 +12,70 @@
 // https://server.arcgisonline.com/arcgis/rest/services/Reference
 
 const ESRI_IMAGERY =
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+  'https://{s}.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
 const ESRI_BOUNDARIES_PLACES =
-  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+  'https://{s}.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
 
 const ESRI_TRANSPORTATION =
-  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'
+  'https://{s}.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'
+
+/**
+ * Ladrilhos carregados além da borda da tela, em cada lado. Com 3, uma tela de 1440×900 busca uma área de
+ * cerca de 12×10 ladrilhos em vez de 6×4: o arraste rápido já encontra o entorno pronto. O Leaflet ordena a
+ * fila pela distância ao centro, então o que está na tela chega primeiro.
+ */
+const BORDA_LADRILHOS = 3
+
+/**
+ * Opções comuns: carrega durante o arraste e guarda os ladrilhos já baixados ao redor da vista. A Esri
+ * serve os mesmos ladrilhos em dois endereços, por HTTP/1.1 (o navegador abre só 6 conexões por endereço):
+ * repartir entre os dois dobra o que baixa em paralelo. O endereço de cada ladrilho é fixo, então o cache
+ * do navegador continua valendo.
+ */
+const OPCOES_LADRILHOS = {
+  subdomains: ['server', 'services'],
+  maxZoom: 18,
+  maxNativeZoom: 18,
+  updateWhenIdle: false,
+  updateWhenZooming: false,
+  updateInterval: 100,
+  keepBuffer: BORDA_LADRILHOS + 6
+}
+
+type ConstrutorCamada = new (
+  url: string,
+  opcoes: import('leaflet').TileLayerOptions
+) => import('leaflet').TileLayer
+
+const camadaComBorda = new WeakMap<typeof import('leaflet'), ConstrutorCamada>()
+
+/**
+ * TileLayer que pede ao Leaflet uma área maior que a tela (o mesmo recurso do plugin Leaflet.EdgeBuffer):
+ * amplia os limites em pixels que a camada usa para decidir quais ladrilhos buscar.
+ */
+function construtorComBorda(L: typeof import('leaflet')): ConstrutorCamada {
+  const pronto = camadaComBorda.get(L)
+  if (pronto) return pronto
+  type Interno = {
+    _getTiledPixelBounds: (centro: import('leaflet').LatLng) => import('leaflet').Bounds
+  }
+  const original = (L.TileLayer.prototype as unknown as Interno)._getTiledPixelBounds
+  const Classe = (L.TileLayer as unknown as { extend: (props: object) => ConstrutorCamada }).extend(
+    {
+      _getTiledPixelBounds(
+        this: import('leaflet').TileLayer,
+        centro: import('leaflet').LatLng
+      ): import('leaflet').Bounds {
+        const limites = original.call(this, centro)
+        const borda = this.getTileSize().multiplyBy(BORDA_LADRILHOS)
+        return L.bounds(limites.min!.subtract(borda), limites.max!.add(borda))
+      }
+    }
+  )
+  camadaComBorda.set(L, Classe)
+  return Classe
+}
 
 export interface BaseMapLayers {
   satelite: import('leaflet').TileLayer
@@ -48,17 +105,15 @@ export function addBaseMapEsri(
   map: import('leaflet').Map,
   L: typeof import('leaflet')
 ): BaseMapLayers {
-  const satelite = L.tileLayer(ESRI_IMAGERY, { maxZoom: 18, maxNativeZoom: 18 }).addTo(map)
-  const fronteiras = L.tileLayer(ESRI_BOUNDARIES_PLACES, {
-    maxZoom: 18,
-    maxNativeZoom: 18,
+  const Camada = construtorComBorda(L)
+  const satelite = new Camada(ESRI_IMAGERY, OPCOES_LADRILHOS).addTo(map)
+  const fronteiras = new Camada(ESRI_BOUNDARIES_PLACES, {
+    ...OPCOES_LADRILHOS,
     opacity: 0.95
   }).addTo(map)
-  const rodovias = L.tileLayer(ESRI_TRANSPORTATION, {
-    maxZoom: 18,
-    maxNativeZoom: 18,
-    opacity: 0.95
-  }).addTo(map)
+  const rodovias = new Camada(ESRI_TRANSPORTATION, { ...OPCOES_LADRILHOS, opacity: 0.95 }).addTo(
+    map
+  )
   return { satelite, fronteiras, rodovias }
 }
 
