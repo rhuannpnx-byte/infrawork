@@ -148,7 +148,7 @@ export function EquipesEncarregados(): ReactNode {
                                   disabled={idx === 0 || reorder.isPending}
                                   onClick={() => void mover(idx, -1)}
                                   aria-label={`Subir a equipe ${e.nome} na ordem`}
-                                  title="Subir na ordem"
+                                  title={idx === 0 ? 'Já é a primeira da ordem' : 'Subir na ordem'}
                                 >
                                   <ArrowUp size={14} />
                                 </IconButton>
@@ -157,7 +157,7 @@ export function EquipesEncarregados(): ReactNode {
                                   disabled={idx === equipes.length - 1 || reorder.isPending}
                                   onClick={() => void mover(idx, 1)}
                                   aria-label={`Descer a equipe ${e.nome} na ordem`}
-                                  title="Descer na ordem"
+                                  title={idx === equipes.length - 1 ? 'Já é a última da ordem' : 'Descer na ordem'}
                                 >
                                   <ArrowDown size={14} />
                                 </IconButton>

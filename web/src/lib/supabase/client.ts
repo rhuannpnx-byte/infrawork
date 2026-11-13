@@ -22,6 +22,9 @@ const semConfiguracao = new Proxy(
 export const supabase: SupabaseClient =
   url && anonKey
     ? createClient(url, anonKey, {
+        // Uma camada só de nova tentativa: a das consultas (query-client.ts). Com as duas, uma falha de rede
+        // levava 15 s para virar erro na tela.
+        db: { retry: false },
         auth: {
           persistSession: true,
           autoRefreshToken: true,

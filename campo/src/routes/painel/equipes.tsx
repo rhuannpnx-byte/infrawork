@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { formatBR } from '@/lib/datas'
@@ -113,13 +113,14 @@ function CartaoEquipe({
             'h-2 w-2 flex-shrink-0 rounded-full',
             e.lancou_hoje ? 'bg-ok' : e.ativa_semana ? 'bg-warn' : 'bg-on-surface-muted',
           )}
-          aria-label={e.lancou_hoje ? 'Lançou hoje' : 'Sem lançamento hoje'}
+          aria-hidden
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-on-surface">{e.nome}</p>
           <p className="text-xs text-on-surface-dim">
             {e.lancou_hoje ? 'lançou hoje' : `último ${e.ultimo ? formatBR(e.ultimo) : '—'}`} ·{' '}
-            {e.registros_7d} lanç. em 7 d · {contar(Number(e.dias_30d ?? 0), 'dia', 'dias')} em 30 d
+            {contar(Number(e.registros_7d ?? 0), 'lançamento', 'lançamentos')} em 7 dias ·{' '}
+            {contar(Number(e.dias_30d ?? 0), 'dia', 'dias')} em 30 dias
           </p>
         </div>
         <ChevronDown
@@ -139,8 +140,8 @@ function CartaoEquipe({
                 <tr className="rotulo text-left">
                   <th className="pb-1 font-medium">Serviço</th>
                   <th className="pb-1 text-right font-medium">Hoje</th>
-                  <th className="pb-1 text-right font-medium">7 d</th>
-                  <th className="pb-1 text-right font-medium">30 d</th>
+                  <th className="pb-1 text-right font-medium">7 dias</th>
+                  <th className="pb-1 text-right font-medium">30 dias</th>
                   {comAderencia && (
                     <th
                       className="pb-1 text-right font-medium"
@@ -151,40 +152,47 @@ function CartaoEquipe({
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {servicos.map((s) => {
+              <tbody>
+                {servicos.map((s, i) => {
                   const ad = s.aderencia == null ? null : Number(s.aderencia)
+                  // o nome ocupa a largura toda numa linha própria; os números ficam na linha de baixo
                   return (
-                    <tr key={s.id}>
-                      <td className="max-w-0 py-1.5 pr-2">
-                        <span className="line-clamp-2 text-on-surface">
-                          <span className="text-on-surface-dim tabular">{s.codigo}</span>{' '}
-                          {s.descricao}
-                        </span>
-                        <span className="text-2xs text-on-surface-muted">
-                          {s.unidade} · {contar(Number(s.dias ?? 0), 'dia', 'dias')}
-                        </span>
-                      </td>
-                      <td className="py-1.5 text-right font-mono tabular">{qtd(s.hoje)}</td>
-                      <td className="py-1.5 text-right font-mono tabular">{qtd(s.d7)}</td>
-                      <td className="py-1.5 text-right font-mono tabular">{qtd(s.d30)}</td>
-                      {comAderencia && (
-                        <td
-                          className={cn(
-                            'py-1.5 text-right font-mono tabular',
-                            ad == null
-                              ? 'text-on-surface-muted'
-                              : ad >= 0.9 && ad <= 1.1
-                                ? 'text-ok'
-                                : ad >= 0.7 && ad <= 1.3
-                                  ? 'text-warn'
-                                  : 'text-bad',
-                          )}
+                    <Fragment key={s.id}>
+                      <tr className={i > 0 ? 'border-t border-border' : undefined}>
+                        <th
+                          scope="row"
+                          colSpan={comAderencia ? 5 : 4}
+                          className="pt-1.5 text-left font-normal text-on-surface"
                         >
-                          {ad == null ? '—' : pct(ad, 0)}
+                          <span className="tabular text-on-surface-dim">{s.codigo}</span>{' '}
+                          {s.descricao}
+                        </th>
+                      </tr>
+                      <tr>
+                        <td className="pb-1.5 pr-2 text-2xs text-on-surface-muted">
+                          {s.unidade} · {contar(Number(s.dias ?? 0), 'dia', 'dias')}
                         </td>
-                      )}
-                    </tr>
+                        <td className="tabular pb-1.5 text-right">{qtd(s.hoje)}</td>
+                        <td className="tabular pb-1.5 text-right">{qtd(s.d7)}</td>
+                        <td className="tabular pb-1.5 text-right">{qtd(s.d30)}</td>
+                        {comAderencia && (
+                          <td
+                            className={cn(
+                              'tabular pb-1.5 text-right',
+                              ad == null
+                                ? 'text-on-surface-muted'
+                                : ad >= 0.9 && ad <= 1.1
+                                  ? 'text-ok'
+                                  : ad >= 0.7 && ad <= 1.3
+                                    ? 'text-warn'
+                                    : 'text-bad',
+                            )}
+                          >
+                            {ad == null ? '—' : pct(ad, 0)}
+                          </td>
+                        )}
+                      </tr>
+                    </Fragment>
                   )
                 })}
               </tbody>

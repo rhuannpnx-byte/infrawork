@@ -40,11 +40,15 @@ import { rotuloReajusteStatus } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import type { ItemTreeNode } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 const ROTULO_COLUNA = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 const TH = `px-2 py-1.5 ${ROTULO_COLUNA}`
 
-const mensagem = (err: unknown): string => (err instanceof Error ? err.message : '')
+const mensagem = (err: unknown): string => detalheDoErro(err) ?? ''
+
+/** Só algarismos, ponto e vírgula: o que o `parseBR` entende como número. */
+const NUMERO = /^\d[\d.,]*$/
 
 export function AditivosPage(): ReactNode {
   return (
@@ -441,7 +445,12 @@ function AditivoEditor({
         ) : null}
       </div>
 
-      <div className="rounded border border-border bg-bg-panel overflow-x-auto">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Tabela de itens do aditivo"
+        className="rounded border border-border bg-bg-panel overflow-x-auto"
+      >
         <table className="w-full text-sm tabular">
           <thead className="bg-bg-elevated border-b border-border-strong">
             <tr>
@@ -550,8 +559,17 @@ function AditivoEditor({
                             it.quantidade_nova != null ? fmtQtd(it.quantidade_nova) : ''
                           }
                           onBlur={(e) => {
-                            const v = parseBR(e.target.value).toNumber()
-                            if (!Number.isFinite(v) || v === it.quantidade_nova) return
+                            const texto = e.target.value.trim()
+                            const v = parseBR(texto).toNumber()
+                            if (!NUMERO.test(texto) || !Number.isFinite(v)) {
+                              toast.error(
+                                `Digite a quantidade nova de ${it.codigo} como um número, por exemplo 1.250,5.`
+                              )
+                              e.target.value =
+                                it.quantidade_nova != null ? fmtQtd(it.quantidade_nova) : ''
+                              return
+                            }
+                            if (v === it.quantidade_nova) return
                             salvar.mutate({ ...it, quantidade_nova: v })
                           }}
                         />
@@ -698,7 +716,7 @@ function ReceitaPicker({
       </DialogHeader>
       <DialogBody className="space-y-2">
         <Input
-          autoFocus
+          data-foco-inicial=""
           aria-label="Buscar receita por código ou descrição"
           placeholder="Buscar por código ou descrição"
           value={busca}
@@ -777,15 +795,22 @@ function ItemNovoDialog({
   const [incluindo, setIncluindo] = useState(false)
   const etapa = !unidade.trim() && !qtd.trim()
   const codigoOk = /^[0-9]+(\.[0-9]+)*$/.test(codigo.trim())
+  const numeroOk = (texto: string): boolean =>
+    NUMERO.test(texto.trim()) && Number.isFinite(parseBR(texto).toNumber())
   const valido =
-    codigoOk && descricao.trim() && (etapa || (unidade.trim() && qtd.trim() && preco.trim()))
+    codigoOk && descricao.trim() && (etapa || (unidade.trim() && numeroOk(qtd) && numeroOk(preco)))
   const existente = servicos.find((s) => s.nome.toLowerCase() === servico.trim().toLowerCase())
 
   const erro = (falta: boolean, msg: string): string | null => (tentou && falta ? msg : null)
 
   const incluir = async (): Promise<void> => {
     setTentou(true)
-    if (!valido) return
+    if (!valido) {
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>('[role="dialog"] [aria-invalid="true"]')?.focus()
+      )
+      return
+    }
     setIncluindo(true)
     try {
       await onSalvar({
@@ -838,19 +863,28 @@ function ItemNovoDialog({
           <Campo rotulo="Unidade" erro={erro(!etapa && !unidade.trim(), 'Informe a unidade.')}>
             <Input value={unidade} onChange={(e) => setUnidade(e.target.value)} placeholder="m³" />
           </Campo>
-          <Campo rotulo="Quantidade" erro={erro(!etapa && !qtd.trim(), 'Informe a quantidade.')}>
+          <Campo
+            rotulo="Quantidade"
+            erro={
+              erro(!etapa && !qtd.trim(), 'Informe a quantidade.') ??
+              erro(!etapa && !numeroOk(qtd), 'Digite um número, como 1.250,5.')
+            }
+          >
             <Input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" />
           </Campo>
           <Campo
             rotulo="Preço unitário"
-            erro={erro(!etapa && !preco.trim(), 'Informe o preço unitário.')}
+            erro={
+              erro(!etapa && !preco.trim(), 'Informe o preço unitário.') ??
+              erro(!etapa && !numeroOk(preco), 'Digite um número, como 38,50.')
+            }
           >
             <Input value={preco} onChange={(e) => setPreco(e.target.value)} inputMode="decimal" />
           </Campo>
         </div>
         <p className="text-sm text-text-muted">
-          Sem unidade e sem quantidade, o item entra como etapa (título). O item pai é definido pelo
-          prefixo do código.
+          Sem unidade e sem quantidade, o item entra como índice (título). O item pai é definido
+          pelo prefixo do código.
         </p>
         {!etapa ? (
           <div className="rounded border border-border p-3 space-y-2">

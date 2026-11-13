@@ -14,9 +14,11 @@ import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
+import { parseNumero } from '@/lib/format'
 import type { ObraComEmpresa } from '@/types/gerencial'
 import { VinculoFleetHub } from '../components/VinculoFleetHub'
 import { STATUS_OBRA } from '../lib/status-obra'
+import { falhaDoServidor } from '../lib/falha-servidor'
 
 const STATUS = STATUS_OBRA
 
@@ -48,14 +50,14 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
     (v: string): void =>
       setF((x) => ({ ...x, [k]: v }))
 
-  const ext = f.extensao_km.trim()
-    ? Number(f.extensao_km.replace(/\./g, '').replace(',', '.'))
-    : null
+  // aceita vírgula ou ponto decimal ("12,5", "12.5", "1.234,56")
+  const ext = parseNumero(f.extensao_km)
 
   const erros: Partial<Record<Chave, string>> = {}
   if (!f.codigo.trim()) erros.codigo = 'Informe o código da obra.'
   if (f.nome.trim().length < 3) erros.nome = 'Informe o nome da obra, com pelo menos 3 letras.'
-  if (ext !== null && !(ext >= 0)) erros.extensao_km = 'Digite a extensão em km, como 12,5.'
+  if (f.extensao_km.trim() && (ext === null || ext < 0))
+    erros.extensao_km = 'Digite a extensão em km, como 12,5.'
   if (
     f.data_inicio_planejada &&
     f.data_fim_planejada &&
@@ -84,7 +86,7 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
         throw new Error(
           /duplicate|unique/.test(error.message)
             ? 'Já existe uma obra com esse código. Use outro código.'
-            : `Não foi possível salvar os dados da obra. ${error.message}`
+            : `Não foi possível salvar os dados da obra. ${falhaDoServidor(new Error(error.message))}`
         )
     },
     onSuccess: () => {
@@ -111,7 +113,7 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
   const campo = (
     k: Chave,
     rotulo: string,
-    extra: Partial<Parameters<typeof Input>[0]> = {},
+    extra: Partial<Parameters<typeof Input>[0]> & { 'data-foco-inicial'?: string } = {},
     opcoes: { obrigatorio?: boolean; dica?: string; className?: string } = {}
   ): ReactNode => (
     <Campo
@@ -134,12 +136,12 @@ export function EditObraDialog({ open, onOpenChange, obra }: Props): ReactNode {
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={erroServidor} />
           <div className="grid grid-cols-3 gap-3">
-            {campo('codigo', 'Código', { autoFocus: true }, { obrigatorio: true })}
+            {campo('codigo', 'Código', { 'data-foco-inicial': '' }, { obrigatorio: true })}
             {campo('nome', 'Nome', {}, { obrigatorio: true, className: 'col-span-2' })}
           </div>
           <div className="grid grid-cols-3 gap-3">
             {campo('rodovia', 'Rodovia', { placeholder: 'Ex.: GO-010' })}
-            {campo('trecho', 'Trecho', { placeholder: 'Ex.: Entr. GO-437 / Entr. GO-010' })}
+            {campo('trecho', 'Trecho', { placeholder: 'Ex.: Entr. GO-437' })}
             {campo('extensao_km', 'Extensão (km)', {
               inputMode: 'decimal',
               placeholder: 'Ex.: 12,5',

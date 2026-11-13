@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { X } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
+import { focarPrimeiroInvalido, useFolha } from '@/features/common/useFolha'
 import { parseNum } from '@/lib/numero'
 import {
   estacaFinalTexto,
@@ -23,6 +25,10 @@ interface Props {
   onDismiss: () => void
 }
 
+type Erros = Partial<Record<'qtd' | 'material' | 'local' | 'estIni' | 'estFim', string>>
+
+const maiuscula = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
+
 /**
  * Lançamento de um serviço. Os campos seguem a parametrização do serviço (Planejamento › Parametrização do
  * InfraWork Web): quantidade sempre; material (fixo, só a quantidade) quando o serviço controla material; local e
@@ -39,20 +45,31 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
   const [estFim, setEstFim] = useState(base.estacaFinal)
   const [obs, setObs] = useState(base.obs ?? '')
   const [picker, setPicker] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
+  // erro de cada campo, mostrado embaixo dele depois de tentar salvar; some quando o campo muda
+  const [erros, setErros] = useState<Erros>({})
+  const limpar = (campo: keyof Erros) =>
+    setErros((e) => (e[campo] ? { ...e, [campo]: undefined } : e))
+  const folhaRef = useFolha<HTMLFormElement>(true, onDismiss)
+  const tituloId = useId()
   const local = locais.find((l) => l.id === localId) ?? null
   const mat = servico.controla_material ? servico.material : null
 
   function salvar() {
-    setErro(null)
     const q = parseNum(qtd)
-    if (q == null || q < 0) return setErro('Informe a quantidade executada.')
     const m = parseNum(materialQtd)
-    if (mat && servico.material_obrigatorio && m == null)
-      return setErro(`Informe a quantidade de ${mat.nome}.`)
-    if (servico.exige_local && !local) return setErro('Este serviço exige o local do lançamento.')
     const r = resolverLocal(local, estIni, estFim)
-    if (!r.ok) return setErro(r.erro)
+    const novos: Erros = {}
+    if (q == null || q < 0) novos.qtd = 'Informe a quantidade executada.'
+    if (mat && servico.material_obrigatorio && m == null)
+      novos.material = `Informe a quantidade de ${mat.nome}.`
+    if (servico.exige_local && !local) novos.local = 'Escolha o local: este serviço exige.'
+    if (!r.ok) {
+      novos.estIni = r.campos.inicial
+      novos.estFim = r.campos.final
+    }
+    flushSync(() => setErros(novos))
+    if (q == null || q < 0 || novos.material || novos.local || !r.ok)
+      return focarPrimeiroInvalido(folhaRef.current)
     onSave({
       ...base,
       servico,
@@ -75,8 +92,19 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
       className="fixed inset-0 z-50 flex items-end bg-veu sm:items-center sm:justify-center"
       onClick={onDismiss}
     >
-      <div
-        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl sm:max-w-md sm:rounded-lg"
+      {/* formulário: o Enter (ou o "Ir" do teclado do celular) num campo grava */}
+      <form
+        ref={folhaRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        tabIndex={-1}
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          salvar()
+        }}
+        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl focus-visible:ring-0 sm:max-w-md sm:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-center pb-1 pt-3 sm:hidden">
@@ -85,20 +113,22 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
         <div className="flex items-start justify-between border-b border-border px-4 pb-3 pt-4">
           <div className="min-w-0 flex-1 pr-2">
             <p className="rotulo">Serviço · {servico.codigo}</p>
-            <h2 className="mt-1 truncate text-lg font-semibold text-on-surface">
+            <h2 id={tituloId} className="mt-1 text-lg font-semibold text-on-surface">
               {servico.descricao}
             </h2>
             <p className="mt-0.5 text-xs text-on-surface-dim">
-              {[
-                mat ? `material: ${mat.nome}` : null,
-                servico.exige_local ? 'local obrigatório' : null,
-                servico.habilita_obs ? null : 'sem observação',
-              ]
-                .filter(Boolean)
-                .join(' · ') || 'quantidade do dia'}
+              {maiuscula(
+                [
+                  mat ? `material: ${mat.nome}` : null,
+                  servico.exige_local ? 'local obrigatório' : null,
+                  servico.habilita_obs ? null : 'sem observação',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'quantidade do dia',
+              )}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onDismiss} aria-label="Fechar">
+          <Button type="button" variant="ghost" size="icon" onClick={onDismiss} aria-label="Fechar">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -107,7 +137,11 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
           <NumericField
             label={`Quantidade executada (${servico.unidade ?? '—'}) *`}
             value={qtd}
-            onChange={setQtd}
+            onChange={(v) => {
+              setQtd(v)
+              limpar('qtd')
+            }}
+            erro={erros.qtd}
           />
           {mat && (
             <>
@@ -118,7 +152,11 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
               <NumericField
                 label={`Quantidade de material${mat.unidade ? ` (${mat.unidade})` : ''}${servico.material_obrigatorio ? ' *' : ''}`}
                 value={materialQtd}
-                onChange={setMaterialQtd}
+                onChange={(v) => {
+                  setMaterialQtd(v)
+                  limpar('material')
+                }}
+                erro={erros.material}
               />
             </>
           )}
@@ -127,6 +165,7 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
             value={local ? rotuloLocal(local) : servico.exige_local ? 'Selecionar…' : 'Sem local'}
             onClick={() => setPicker(true)}
             empty={servico.exige_local && !local}
+            erro={erros.local}
             hint={
               locais.length === 0
                 ? 'A obra não tem locais cadastrados'
@@ -140,35 +179,38 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
               <LabeledInput
                 label={`${nomePosicao(local)} inicial *`}
                 value={estIni}
-                onChange={setEstIni}
+                onChange={(v) => {
+                  setEstIni(v)
+                  limpar('estIni')
+                }}
                 placeholder={estacaInicialTexto(local)}
                 inputMode={tecladoPosicao(local)}
+                erro={erros.estIni}
               />
               <LabeledInput
                 label={`${nomePosicao(local)} final *`}
                 value={estFim}
-                onChange={setEstFim}
+                onChange={(v) => {
+                  setEstFim(v)
+                  limpar('estFim')
+                }}
                 placeholder={estacaFinalTexto(local)}
                 inputMode={tecladoPosicao(local)}
+                erro={erros.estFim}
               />
             </div>
           )}
           {servico.habilita_obs && (
             <LabeledInput label="Observação" value={obs} onChange={setObs} placeholder="Opcional" />
           )}
-          {erro && (
-            <p role="alert" className="text-sm text-bad">
-              {erro}
-            </p>
-          )}
         </div>
 
         <div className="border-t border-border p-4 pb-safe-plus-4">
-          <Button variant="primary" size="lg" onClick={salvar} className="w-full">
+          <Button type="submit" variant="primary" size="lg" className="w-full">
             {initial ? 'Atualizar lançamento' : 'Adicionar lançamento'}
           </Button>
         </div>
-      </div>
+      </form>
 
       {picker && (
         <PickerSheet
@@ -176,13 +218,14 @@ export function ServicoFormSheet({ servico, locais, initial, onSave, onDismiss }
           title="Local"
           items={itensPicker}
           label={(l) => (l ? rotuloLocal(l) : 'Sem local')}
-          sublabel={(l) => (l ? (l.tipo === 'area' ? 'área' : 'eixo') : null)}
+          sublabel={(l) => (l ? (l.tipo === 'area' ? 'Área' : 'Eixo') : null)}
           onPick={(l) => {
             setLocalId(l?.id ?? null)
             if (!l || l.tipo === 'area') {
               setEstIni('')
               setEstFim('')
             }
+            setErros((e) => ({ ...e, local: undefined, estIni: undefined, estFim: undefined }))
             setPicker(false)
           }}
           onDismiss={() => setPicker(false)}

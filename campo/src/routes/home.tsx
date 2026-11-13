@@ -78,17 +78,14 @@ export function HomeRoute() {
   const temObra = obraAtual != null
   const pronto = temObra && !!catalogo
   const nViagens = servicosPorModo(catalogo, 'viagens').length
+  const motivo = !temObra ? 'Escolha a obra primeiro' : 'Os dados da obra ainda não foram baixados'
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
+        <h1 className="sr-only">InfraWork Campo</h1>
         <div className="flex items-center gap-3 py-2 pl-4 pr-2">
-          <img
-            src="/icon-288.webp"
-            alt="InfraWork"
-            className="h-10 w-10 flex-shrink-0"
-            decoding="async"
-          />
+          <img src="/icon-288.webp" alt="" className="h-10 w-10 flex-shrink-0" decoding="async" />
           {session?.userNome && (
             <p className="min-w-0 flex-1 truncate border-l border-border pl-3 text-sm text-on-surface-dim">
               {session.userNome}
@@ -144,7 +141,14 @@ export function HomeRoute() {
               {outbox.recusados > 0 && (
                 <span className="text-bad">
                   {outbox.total > 0 ? ' · ' : ''}
-                  {contar(outbox.recusados, 'recusado', 'recusados')}: abra e corrija
+                  {contar(outbox.recusados, 'recusado', 'recusados')} em{' '}
+                  {[
+                    outbox.recusadosProducao > 0 ? 'Produção' : null,
+                    outbox.recusadosFichas > 0 ? 'Viagens' : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' e ')}
+                  : abra e corrija
                 </span>
               )}
             </span>
@@ -167,6 +171,7 @@ export function HomeRoute() {
               subtitle="Avanço, serviços e equipes da obra"
               badge={0}
               enabled={temObra}
+              motivo={motivo}
               onClick={() => navigate('/painel')}
               testId="card-visao-estrategica"
             />
@@ -176,7 +181,9 @@ export function HomeRoute() {
             title="Produção"
             subtitle="Lançamento dos serviços executados no dia"
             badge={outbox?.producao ?? 0}
+            recusados={outbox?.recusadosProducao ?? 0}
             enabled={pronto}
+            motivo={motivo}
             onClick={() => navigate('/producao')}
           />
           <ModuleCard
@@ -188,7 +195,9 @@ export function HomeRoute() {
                 : 'Ficha do caminhão com as viagens de carga e descarga'
             }
             badge={outbox?.fichas ?? 0}
+            recusados={outbox?.recusadosFichas ?? 0}
             enabled={pronto && nViagens > 0}
+            motivo={pronto ? 'Nenhum serviço da obra é lançado por viagens' : motivo}
             onClick={() => navigate('/carreteiro')}
           />
           <ModuleCard
@@ -197,6 +206,7 @@ export function HomeRoute() {
             subtitle="Captura georreferenciada com marca d'água"
             badge={outbox?.fotos ?? 0}
             enabled={pronto}
+            motivo={motivo}
             onClick={() => navigate('/fotos')}
           />
         </div>
@@ -205,7 +215,7 @@ export function HomeRoute() {
       </div>
 
       <footer className="sticky bottom-0 border-t border-border bg-bg-panel pb-safe pl-safe pr-safe">
-        <div className="mx-auto flex h-9 w-full max-w-2xl items-center justify-between px-4 text-2xs text-on-surface-muted tabular">
+        <div className="tabular mx-auto flex h-9 w-full max-w-2xl items-center justify-between px-4 text-2xs text-on-surface-muted">
           <span className="flex items-center gap-1.5">
             <span
               className={cn(
@@ -277,7 +287,7 @@ function ObraAtualCard({
           <p className="rotulo">Obra atual</p>
           <p
             className={cn(
-              'mt-1 truncate text-xl font-semibold tabular',
+              'tabular mt-1 truncate text-xl font-semibold',
               temObra ? 'text-on-surface' : 'text-on-surface-muted',
             )}
           >

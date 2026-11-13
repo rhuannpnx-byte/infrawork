@@ -22,9 +22,19 @@ export const TOM_ENVIO: Record<TomEnvio, { selo: string; texto: string; ponto: s
 }
 
 /** Estado da fila inteira (indicador do cabeçalho), com as mesmas palavras dos selos. */
-export function rotuloFila(s: { online: boolean; syncing: boolean; outboxPending: number }): string {
+export function rotuloFila(s: {
+  online: boolean
+  syncing: boolean
+  outboxPending: number
+  recusados?: number
+}): string {
   const n = s.outboxPending
+  const r = s.recusados ?? 0
   if (s.syncing) return ROTULO_ENVIO.SYNCING.rotulo
-  if (n > 0) return `${n} ${ROTULO_ENVIO.PENDING.rotulo.toLowerCase()}`
+  const partes = [
+    n > 0 ? `${n} ${ROTULO_ENVIO.PENDING.rotulo.toLowerCase()}` : null,
+    r > 0 ? `${r} ${r === 1 ? 'recusado' : 'recusados'}` : null,
+  ].filter(Boolean)
+  if (partes.length) return partes.join(', ')
   return s.online ? 'Tudo enviado' : 'Sem rede'
 }

@@ -102,13 +102,13 @@ function chaveEntidade(
   if (dim === 'equipe') {
     return {
       key: p.equipe_id ?? '∅',
-      nome: p.equipe_display_nome ?? 'Equipe —',
+      nome: (p.equipe_id && p.equipe_display_nome) || 'Sem equipe',
       cor: p.equipe_display_cor ?? ''
     }
   }
   return {
     key: p.encarregado_id ?? '∅',
-    nome: p.encarregado_display_nome ?? 'Encarregado —',
+    nome: p.encarregado_display_nome ?? 'Sem encarregado',
     cor: ''
   }
 }

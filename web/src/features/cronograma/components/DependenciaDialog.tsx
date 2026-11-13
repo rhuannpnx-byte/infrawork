@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import {
@@ -32,7 +33,7 @@ import {
 } from '../hooks/edicao'
 import type { TipoDependencia } from '../motor/tipos'
 import { NOME_TIPO } from '../visoes/dependencias'
-import { Caixa, Campo } from './campos'
+import { Caixa, Campo, enterEnvia, useErroForm } from './campos'
 
 export interface DependenciaAlvo {
   id: string | null
@@ -114,7 +115,8 @@ function Conteudo({
   const [temMax, setTemMax] = useState(existente ? existente.atraso_max !== null : ultimos.max)
   const [max, setMax] = useState(String(existente ? (existente.atraso_max ?? 0) : ultimos.maxDias))
   const [uteis, setUteis] = useState(existente ? existente.dias_uteis : ultimos.uteis)
-  const [erro, setErro] = useState<string | null>(null)
+  const erro = useErroForm()
+  const confirmarAcao = useConfirm()
   const comando = useComandoVisao()
   const salvar = useSalvarDependencia()
   const excluir = useExcluirDependencias()
@@ -149,14 +151,17 @@ function Conteudo({
   }
 
   const confirmar = async (): Promise<void> => {
-    setErro(null)
-    if (!pred || !succ) return setErro('Escolha as duas tarefas.')
-    if (pred === succ) return setErro('A dependência precisa ligar duas tarefas diferentes.')
+    erro.limpar()
+    if (!pred) return erro.falhar('Escolha a tarefa predecessora.', 'pred')
+    if (!succ) return erro.falhar('Escolha a tarefa sucessora.', 'succ')
+    if (pred === succ)
+      return erro.falhar('A dependência precisa ligar duas tarefas diferentes.', 'succ')
     if (modoRegra) {
-      const atraso = Math.round(Number(min.replace(',', '.')))
-      if (!Number.isFinite(atraso)) return setErro('Atraso inválido.')
+      const atraso = min.trim() ? Math.round(Number(min.replace(',', '.'))) : NaN
+      if (!Number.isFinite(atraso))
+        return erro.falhar('Informe o atraso em dias (número inteiro).', 'min')
       if (!sp || !ss || sp === ss)
-        return setErro('A regra precisa de duas tarefas de serviços diferentes.')
+        return erro.falhar('A regra precisa de duas tarefas de serviços diferentes.')
       try {
         await salvarRegra.mutateAsync({
           planejamentoId: e.plano.id,
@@ -166,18 +171,24 @@ function Conteudo({
         })
         onFechar()
       } catch (x) {
-        setErro(traduzirErro(x instanceof Error ? x.message : String(x)))
+        erro.falhar(traduzirErro(x instanceof Error ? x.message : String(x)))
       }
       return
     }
-    const a = temMin ? Math.round(Number(min.replace(',', '.'))) : null
-    const b = temMax ? Math.round(Number(max.replace(',', '.'))) : null
-    if (temMin && !Number.isFinite(a!)) return setErro('Atraso mínimo inválido.')
-    if (temMax && (!Number.isFinite(b!) || b! < 0)) return setErro('Atraso máximo inválido.')
+    const dias = (v: string): number => (v.trim() ? Math.round(Number(v.replace(',', '.'))) : NaN)
+    const a = temMin ? dias(min) : null
+    const b = temMax ? dias(max) : null
+    if (temMin && !Number.isFinite(a!))
+      return erro.falhar('Informe o atraso mínimo em dias (número inteiro).', 'min')
+    if (temMax && (!Number.isFinite(b!) || b! < 0))
+      return erro.falhar('Informe o atraso máximo em dias (número inteiro, a partir de zero).', 'max')
     if (a !== null && b !== null && a > b)
-      return setErro('O atraso mínimo não pode passar do máximo.')
+      return erro.falhar('O atraso máximo não pode ser menor que o mínimo.', 'max')
     if (tipo === 'EST' && !cruzam(pred, succ))
-      return setErro('Dependência por estacas exige tarefas que dividem estacas no mesmo trecho.')
+      return erro.falhar(
+        'Dependência por estacas exige tarefas que dividem estacas no mesmo trecho.',
+        'tipo'
+      )
     try {
       if (existente) {
         await salvar.mutateAsync({
@@ -189,7 +200,7 @@ function Conteudo({
         })
       } else {
         if (e.dependencias.some((d) => d.predecessora_id === pred && d.sucessora_id === succ))
-          return setErro('Já existe uma dependência entre essas tarefas.')
+          return erro.falhar('Já existe uma dependência entre essas tarefas.')
         await comando.mutateAsync({
           planejamentoId: e.plano.id,
           sig: calc.sig,
@@ -207,7 +218,7 @@ function Conteudo({
       }
       onFechar()
     } catch (x) {
-      setErro(traduzirErro(x instanceof Error ? x.message : String(x)))
+      erro.falhar(traduzirErro(x instanceof Error ? x.message : String(x)))
     }
   }
 
@@ -215,14 +226,23 @@ function Conteudo({
     valor: string,
     mudar: (v: string) => void,
     outro: string,
-    travado: boolean
+    travado: boolean,
+    msg: string | null
   ): ReactNode =>
     travado ? (
-      <div className="flex h-7 items-center truncate rounded border border-border bg-bg px-2 text-xs text-text">
-        {nome(valor)}
+      <div
+        className="flex h-8 items-center rounded border border-border bg-bg px-2 text-sm text-text"
+        title={nome(valor)}
+      >
+        <span className="truncate">{nome(valor)}</span>
       </div>
     ) : (
-      <Select value={valor} onChange={(x) => mudar(x.target.value)} disabled={ro}>
+      <Select
+        value={valor}
+        onChange={(x) => mudar(x.target.value)}
+        disabled={ro}
+        aria-invalid={msg ? true : undefined}
+      >
         <option value="">Escolha a tarefa…</option>
         {tarefas
           .filter((t) => t.id !== outro)
@@ -250,17 +270,34 @@ function Conteudo({
             : 'A sucessora espera a predecessora conforme o tipo e os atrasos.'}
         </DialogDescription>
       </DialogHeader>
-      <DialogBody className="space-y-4">
-        <DialogErrorBanner message={erro} />
-        <div className="grid grid-cols-2 gap-3">
-          <Campo rotulo="Predecessora">
-            {seletor(pred, setPred, succ, !!existente || derivada || !!alvo.pred)}
+      <DialogBody>
+        <div
+          ref={erro.caixa}
+          className="space-y-4"
+          onKeyDown={ro ? undefined : enterEnvia(() => void confirmar())}
+        >
+        <DialogErrorBanner message={erro.geral} />
+        <div className="grid grid-cols-2 items-start gap-3">
+          <Campo rotulo="Predecessora" erro={erro.de('pred')}>
+            {seletor(
+              pred,
+              setPred,
+              succ,
+              !!existente || derivada || !!alvo.pred,
+              erro.de('pred')
+            )}
           </Campo>
-          <Campo rotulo="Sucessora">
-            {seletor(succ, setSucc, pred, !!existente || derivada || !!alvo.succ)}
+          <Campo rotulo="Sucessora" erro={erro.de('succ')}>
+            {seletor(
+              succ,
+              setSucc,
+              pred,
+              !!existente || derivada || !!alvo.succ,
+              erro.de('succ')
+            )}
           </Campo>
         </div>
-        <Campo rotulo="Tipo">
+        <Campo rotulo="Tipo" erro={erro.de('tipo')}>
           <Select
             value={tipo}
             onChange={(x) => setTipo(x.target.value as TipoDependencia)}
@@ -283,7 +320,7 @@ function Conteudo({
         ) : null}
         {modoRegra ? (
           <div className="space-y-1.5">
-            <span className="text-xs text-text">Atraso em cada estaca</span>
+            <span className="text-sm font-medium text-text">Atraso em cada estaca</span>
             <div className="flex items-center gap-2">
               <Input
                 value={min}
@@ -291,10 +328,16 @@ function Conteudo({
                 disabled={ro}
                 inputMode="numeric"
                 aria-label="Atraso em dias"
+                aria-invalid={erro.de('min') ? true : undefined}
                 className="w-24 text-right"
               />
               <span className="text-xs text-text-muted">dias</span>
             </div>
+            {erro.de('min') ? (
+              <p role="alert" className="text-xs font-medium text-danger">
+                {erro.de('min')}
+              </p>
+            ) : null}
             <p className="text-xs text-text-muted">
               Vale para todos os planos da obra. Numa tarefa, a regra pode ser desligada em
               Propriedades › Geral.
@@ -318,10 +361,17 @@ function Conteudo({
                     onChange={(x) => setMin(x.target.value)}
                     disabled={ro || !temMin}
                     inputMode="numeric"
+                    aria-label="Atraso mínimo em dias"
+                    aria-invalid={erro.de('min') ? true : undefined}
                     className="w-24 text-right"
                   />
-                  <span className="text-xs text-text-dim">dias</span>
+                  <span className="text-xs text-text-muted">dias</span>
                 </div>
+                {erro.de('min') ? (
+                  <p role="alert" className="text-xs font-medium text-danger">
+                    {erro.de('min')}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <Caixa
@@ -338,13 +388,24 @@ function Conteudo({
                     onChange={(x) => setMax(x.target.value)}
                     disabled={ro || !temMax}
                     inputMode="numeric"
+                    aria-label="Atraso máximo em dias"
+                    aria-invalid={erro.de('max') ? true : undefined}
                     className="w-24 text-right"
                   />
-                  <span className="text-xs text-text-dim">dias</span>
+                  <span className="text-xs text-text-muted">dias</span>
                 </div>
+                {erro.de('max') ? (
+                  <p role="alert" className="text-xs font-medium text-danger">
+                    {erro.de('max')}
+                  </p>
+                ) : null}
               </div>
             </div>
-            <div className="flex gap-6 text-xs text-text">
+            <div
+              role="radiogroup"
+              aria-label="Contagem dos dias de atraso"
+              className="flex gap-6 text-sm text-text"
+            >
               <label className="flex items-center gap-2">
                 <input
                   type="radio"
@@ -368,6 +429,7 @@ function Conteudo({
             </div>
           </>
         )}
+        </div>
       </DialogBody>
       <DialogFooter>
         {derivada && !ro && sp && ss ? (
@@ -375,12 +437,19 @@ function Conteudo({
             variant="danger"
             className="mr-auto"
             disabled={ocupado}
-            onClick={() =>
+            onClick={async () => {
+              const ok = await confirmarAcao({
+                title: 'Remover a regra entre os serviços?',
+                description: `As tarefas de ${nomeServ(ss)} deixam de seguir as de ${nomeServ(sp)} por estacas, em todos os planos da obra.`,
+                confirmLabel: 'Remover regra',
+                variant: 'danger'
+              })
+              if (!ok) return
               excluirRegra.mutate(
                 { planejamentoId: e.plano.id, predecessor_id: sp, sucessor_id: ss },
-                { onSuccess: onFechar, onError: (x) => setErro(traduzirErro(x.message)) }
+                { onSuccess: onFechar, onError: (x) => erro.falhar(traduzirErro(x.message)) }
               )
-            }
+            }}
           >
             Remover regra
           </Button>
@@ -393,11 +462,11 @@ function Conteudo({
             onClick={() =>
               excluir.mutate(
                 { planejamentoId: e.plano.id, ids: [existente.id] },
-                { onSuccess: onFechar, onError: (x) => setErro(traduzirErro(x.message)) }
+                { onSuccess: onFechar, onError: (x) => erro.falhar(traduzirErro(x.message)) }
               )
             }
           >
-            Remover
+            Remover dependência
           </Button>
         ) : null}
         <Button variant="ghost" onClick={onFechar} disabled={ocupado}>

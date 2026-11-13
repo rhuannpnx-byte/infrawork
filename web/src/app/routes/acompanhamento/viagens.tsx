@@ -130,30 +130,78 @@ function Inner(): ReactNode {
     return [...m.entries()]
   }, [linhas])
 
+  // textos curtos não quebram; os longos cortam com reticências (a tabela rola de lado quando não cabe)
+  const curto = (txt: string): ReactNode => <span className="whitespace-nowrap">{txt}</span>
+  const longo = (txt: string, largura: string): ReactNode => (
+    <span className={`block truncate ${largura}`} title={txt}>
+      {txt}
+    </span>
+  )
+  const titulo = (txt: string): (() => ReactNode) => {
+    const Titulo = (): ReactNode => <span className="whitespace-nowrap">{txt}</span>
+    return Titulo
+  }
   const columns: ColumnDef<LinhaTabela>[] = [
     {
       header: 'Data',
       accessorFn: (r) => r.ficha.data,
-      cell: ({ row }) => fmtBR(row.original.ficha.data)
+      cell: ({ row }) => curto(fmtBR(row.original.ficha.data))
     },
-    { header: 'Veículo', accessorKey: 'veiculo' },
-    { header: 'Motorista', accessorFn: (r) => r.ficha.motorista ?? '' },
+    {
+      header: 'Veículo',
+      accessorKey: 'veiculo',
+      meta: { label: 'Veículo' },
+      cell: ({ row }) => curto(row.original.veiculo)
+    },
+    {
+      header: 'Motorista',
+      accessorFn: (r) => r.ficha.motorista ?? '',
+      cell: ({ row }) => longo(row.original.ficha.motorista ?? '', 'max-w-[150px]')
+    },
     { header: 'Nº', accessorFn: (r) => r.n },
-    { header: 'Serviço', accessorKey: 'servico' },
-    { header: 'Origem', accessorKey: 'origem' },
-    { header: 'Estaca de carga', accessorKey: 'estacaCarga' },
-    { header: 'Destino', accessorKey: 'destino' },
-    { header: 'Estaca de descarga', accessorKey: 'estacaDescarga' },
+    {
+      header: 'Serviço',
+      accessorKey: 'servico',
+      meta: { label: 'Serviço' },
+      cell: ({ row }) => longo(row.original.servico, 'max-w-[220px]')
+    },
+    {
+      header: 'Origem',
+      accessorKey: 'origem',
+      meta: { label: 'Origem' },
+      cell: ({ row }) => longo(row.original.origem, 'max-w-[170px]')
+    },
+    {
+      header: 'Estaca de carga',
+      accessorKey: 'estacaCarga',
+      size: 104,
+      meta: { label: 'Estaca de carga' },
+      cell: ({ row }) => curto(row.original.estacaCarga)
+    },
+    {
+      header: 'Destino',
+      accessorKey: 'destino',
+      meta: { label: 'Destino' },
+      cell: ({ row }) => longo(row.original.destino, 'max-w-[170px]')
+    },
+    {
+      header: 'Estaca de descarga',
+      accessorKey: 'estacaDescarga',
+      size: 104,
+      meta: { label: 'Estaca de descarga' },
+      cell: ({ row }) => curto(row.original.estacaDescarga)
+    },
     {
       header: 'Horário',
       accessorFn: (r) =>
-        [r.v.hora_carga?.slice(0, 5), r.v.hora_descarga?.slice(0, 5)].filter(Boolean).join(' → ')
+        [r.v.hora_carga?.slice(0, 5), r.v.hora_descarga?.slice(0, 5)].filter(Boolean).join(' → '),
+      cell: ({ getValue }) => curto(String(getValue() ?? ''))
     },
     {
       header: 'Qtd',
       accessorFn: (r) => r.v.quantidade,
       cell: ({ row }) => (
-        <span className="tabular">
+        <span className="tabular whitespace-nowrap">
           {formatNumber(row.original.v.quantidade, 2)} {row.original.unidade}
         </span>
       )
@@ -166,7 +214,7 @@ function Inner(): ReactNode {
         if (v.dmt_km === null) return ''
         return (
           <span
-            className="tabular"
+            className="tabular whitespace-nowrap"
             title={
               v.dmt_manual && v.dmt_calculada_km !== null
                 ? `Ajustada à mão. Calculada: ${formatNumber(v.dmt_calculada_km, 3)} km`
@@ -181,10 +229,19 @@ function Inner(): ReactNode {
         )
       }
     },
-    { header: 'Nota ou ticket', accessorFn: (r) => r.v.nf_ticket ?? '' },
     {
-      header: 'Lançada por',
-      accessorFn: (r) => ORIGEM_REGISTRO[r.ficha.origem] ?? r.ficha.origem
+      id: 'ticket',
+      header: titulo('Nota ou ticket'),
+      accessorFn: (r) => r.v.nf_ticket ?? '',
+      meta: { label: 'Nota ou ticket' },
+      cell: ({ row }) => longo(row.original.v.nf_ticket ?? '', 'max-w-[160px]')
+    },
+    {
+      id: 'lancadaPor',
+      header: titulo('Lançada por'),
+      accessorFn: (r) => ORIGEM_REGISTRO[r.ficha.origem] ?? r.ficha.origem,
+      meta: { label: 'Lançada por' },
+      cell: ({ getValue }) => curto(String(getValue() ?? ''))
     }
   ]
 

@@ -53,7 +53,8 @@ export function CurvaS({
 }) {
   const W = 320
   const H = altura
-  const pad = { l: 34, r: 8, t: 8, b: 20 }
+  // rótulos com 13 unidades num desenho de 320 de largura: 12 px ou mais numa tela de 360
+  const pad = { l: 40, r: 8, t: 10, b: 22 }
   if (pontos.length < 2) {
     return (
       <p className="py-6 text-center text-xs text-on-surface-dim">
@@ -75,7 +76,7 @@ export function CurvaS({
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="h-auto w-full"
+      className="mx-auto h-auto w-full max-w-md"
       role="img"
       aria-label="Curva S: previsto e realizado acumulados"
     >
@@ -89,15 +90,21 @@ export function CurvaS({
             stroke="var(--chart-grade)"
             strokeWidth={1}
           />
-          <text x={pad.l - 4} y={y(g * maxY) + 3} textAnchor="end" fontSize={10} fill="var(--text-dim)">
+          <text
+            x={pad.l - 4}
+            y={y(g * maxY) + 4}
+            textAnchor="end"
+            fontSize={13}
+            fill="var(--text-dim)"
+          >
             {Math.round(g * maxY * 100)}%
           </text>
         </g>
       ))}
-      <text x={pad.l} y={H - 4} fontSize={10} fill="var(--text-dim)">
+      <text x={pad.l} y={H - 4} fontSize={13} fill="var(--text-dim)">
         {mes(pontos[0]!.s)}
       </text>
-      <text x={W - pad.r} y={H - 4} fontSize={10} fill="var(--text-dim)" textAnchor="end">
+      <text x={W - pad.r} y={H - 4} fontSize={13} fill="var(--text-dim)" textAnchor="end">
         {mes(pontos[pontos.length - 1]!.s)}
       </text>
       {idxHoje >= 0 && (
@@ -112,8 +119,8 @@ export function CurvaS({
           />
           <text
             x={x(idxHoje) + 3}
-            y={pad.t + 9}
-            fontSize={10}
+            y={pad.t + 11}
+            fontSize={13}
             fill="var(--text-muted)"
             textAnchor={idxHoje > pontos.length * 0.8 ? 'end' : 'start'}
             dx={idxHoje > pontos.length * 0.8 ? -6 : 0}
@@ -131,7 +138,12 @@ export function CurvaS({
       />
       <polyline points={linha('r')} fill="none" stroke="var(--chart-real)" strokeWidth={2} />
       {ultimoReal && (
-        <circle cx={x(pontos.indexOf(ultimoReal))} cy={y(ultimoReal.r!)} r={3} fill="var(--chart-real)" />
+        <circle
+          cx={x(pontos.indexOf(ultimoReal))}
+          cy={y(ultimoReal.r!)}
+          r={3}
+          fill="var(--chart-real)"
+        />
       )}
     </svg>
   )
@@ -147,8 +159,8 @@ export function Barras14({ valores, unidade }: { valores: number[]; unidade?: st
   const bw = (W - gap * (vs.length - 1)) / Math.max(vs.length, 1)
   return (
     <svg
-      viewBox={`0 0 ${W} ${H + 14}`}
-      className="h-auto w-full"
+      viewBox={`0 0 ${W} ${H + 17}`}
+      className="mx-auto h-auto w-full max-w-md"
       role="img"
       aria-label={`Produção dos últimos ${vs.length} dias${unidade ? ` em ${unidade}` : ''}`}
     >
@@ -166,14 +178,22 @@ export function Barras14({ valores, unidade }: { valores: number[]; unidade?: st
               fill="var(--chart-real)"
               fillOpacity={hoje ? 1 : 0.5}
             />
-            {v === 0 && <rect x={i * (bw + gap)} y={H - 1} width={bw} height={1} fill="var(--border-strong)" />}
+            {v === 0 && (
+              <rect
+                x={i * (bw + gap)}
+                y={H - 1}
+                width={bw}
+                height={1}
+                fill="var(--border-strong)"
+              />
+            )}
           </g>
         )
       })}
-      <text x={0} y={H + 11} fontSize={10} fill="var(--text-dim)">
+      <text x={0} y={H + 14} fontSize={12} fill="var(--text-dim)">
         {vs.length} dias atrás
       </text>
-      <text x={W} y={H + 11} fontSize={10} fill="var(--text-muted)" textAnchor="end">
+      <text x={W} y={H + 14} fontSize={12} fill="var(--text-muted)" textAnchor="end">
         hoje
       </text>
     </svg>
@@ -203,13 +223,14 @@ export function MapaCalor({
 }) {
   const vazias = dias.length ? diaDaSemana(dias[0]!) : 0
   return (
-    <div>
-      <div className="mb-1 grid grid-cols-7 gap-0.5 text-center text-2xs text-on-surface-muted">
+    // avança 12 px sobre o respiro do bloco: numa tela de 360 cada dia fica com 44 px de toque
+    <div className="-mx-3">
+      <div className="mb-1 grid grid-cols-7 gap-px text-center text-2xs text-on-surface-muted">
         {SEMANA.map((l, i) => (
           <div key={i}>{l}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-0.5" data-testid="mapa-calor">
+      <div className="grid grid-cols-7 gap-px" data-testid="mapa-calor">
         {Array.from({ length: vazias }, (_, i) => (
           <div key={`v${i}`} className="aspect-square" />
         ))}
@@ -235,7 +256,7 @@ export function MapaCalor({
             >
               <span
                 className={cn(
-                  'absolute left-1 top-0.5 text-[10px] leading-none tabular',
+                  'tabular absolute left-1 top-0.5 text-2xs leading-none',
                   forte ? 'text-on-status' : n === 0 ? 'text-on-surface-muted' : 'text-on-surface',
                 )}
               >
@@ -244,7 +265,7 @@ export function MapaCalor({
               {q > 0 && (
                 <span
                   className={cn(
-                    'mt-2 text-2xs font-semibold leading-none tabular',
+                    'tabular mt-2 text-2xs font-semibold leading-none',
                     forte ? 'text-on-status' : 'text-on-surface',
                   )}
                 >

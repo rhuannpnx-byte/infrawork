@@ -155,8 +155,10 @@ export function MapaFotosSatelite({
           : (f.equipe_display_cor ?? '#67e8f9')
       const label =
         corPor === 'servico'
-          ? (f.servico_display_nome ?? f.servico_nome ?? '—')
-          : (f.equipe_display_nome ?? '—')
+          ? (f.servico_display_nome ?? f.servico_nome ?? 'Serviço não informado')
+          : f.equipe_display_nome && f.equipe_display_nome !== '—'
+            ? f.equipe_display_nome
+            : 'Sem equipe'
       const k = `${cor}|${label}`
       const e = m.get(k) ?? { label, cor, count: 0 }
       e.count++

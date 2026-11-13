@@ -1,7 +1,8 @@
 // Hooks do módulo Gerencial.
 //
 // - Leitura: consulta direta via supabase-js. RLS filtra por papel/empresa.
-// - Escrita: via Edge Functions (adminApi) que aplicam defesa em profundidade.
+// - Escrita: via Edge Functions (adminApi) que aplicam defesa em profundidade. Cada tela mostra a falha no
+//   próprio lugar (faixa do diálogo ou aviso), por isso as mutações calam o aviso global (`semAvisoGlobal`).
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -14,6 +15,8 @@ import type {
   UsuarioComEmpresa,
   UsuarioRow
 } from '@/types/gerencial'
+
+const semAvisoGlobal = (): void => undefined
 
 // ─── Empresas ────────────────────────────────────────────────────────────
 
@@ -41,6 +44,7 @@ export function useCreateEmpresa(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.createEmpresa(body),
+    onError: semAvisoGlobal,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'empresas'] })
     }
@@ -129,6 +133,7 @@ export function useCreateUsuario(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.createUsuario(body),
+    onError: semAvisoGlobal,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
       void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })
@@ -148,6 +153,7 @@ export function useUpdateUsuario(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.updateUsuario(body),
+    onError: semAvisoGlobal,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
       void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })
@@ -163,6 +169,7 @@ export function useDeleteUsuario(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.deleteUsuario(body),
+    onError: semAvisoGlobal,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'usuarios'] })
       void qc.invalidateQueries({ queryKey: ['gerencial', 'engenheiros'] })
@@ -218,6 +225,7 @@ export function useCreateObra(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.createObra(body),
+    onError: semAvisoGlobal,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obras'] })
       // A obra nova entra na lista selecionável (vem do /me).
@@ -237,6 +245,7 @@ export function useSetObraAtiva(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.setObraAtiva(body),
+    onError: semAvisoGlobal,
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obras'] })
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obra', vars.obra_id] })
@@ -257,6 +266,7 @@ export function useDeleteObra(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.deleteObra(body),
+    onError: semAvisoGlobal,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obras'] })
       void useAuthStore.getState().refreshMe()
@@ -296,6 +306,7 @@ export function useGrantPermissao(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.grantObraPermissao(body),
+    onError: semAvisoGlobal,
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obra-permissoes', vars.obra_id] })
     }
@@ -308,6 +319,7 @@ export function useRevokePermissao(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => adminApi.revokeObraPermissao(body),
+    onError: semAvisoGlobal,
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['gerencial', 'obra-permissoes', vars.obra_id] })
     }

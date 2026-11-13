@@ -30,7 +30,7 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000,
       refetchOnWindowFocus: false,
-      retry: 1
+      retry: 2
     }
   },
   // Gravação que falha e que a tela não tratou não some em silêncio: vira aviso. Quando a tela avisa por conta

@@ -13,6 +13,7 @@ import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useCreateEmpresa } from '../hooks'
+import { falhaDoServidor } from '../lib/falha-servidor'
 
 interface Props {
   open: boolean
@@ -39,11 +40,16 @@ export function NewEmpresaDialog({ open, onOpenChange }: Props): ReactNode {
   }
 
   const erroNome = nome.trim().length < 2 ? 'Informe a razão social da empresa.' : undefined
+  // 14 posições, com ou sem pontuação; desde 2026 as 12 primeiras podem ter letras
+  const erroCnpj =
+    cnpj.trim() && !/^[0-9A-Z]{12}\d{2}$/i.test(cnpj.replace(/[.\-/\s]/g, ''))
+      ? 'Digite o CNPJ completo, com 14 caracteres, como 00.000.000/0000-00.'
+      : undefined
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setError(null)
-    if (erroNome) {
+    if (erroNome || erroCnpj) {
       setTentou(true)
       const form = e.currentTarget
       requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
@@ -58,9 +64,10 @@ export function NewEmpresaDialog({ open, onOpenChange }: Props): ReactNode {
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível criar a empresa. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      const repetido = /cnpj/i.test(err instanceof Error ? err.message : '')
+        ? 'Já existe uma empresa com esse CNPJ.'
+        : 'Já existe uma empresa com essa razão social.'
+      setError(`Não foi possível criar a empresa. ${falhaDoServidor(err, repetido)}`)
     }
   }
 
@@ -80,15 +87,14 @@ export function NewEmpresaDialog({ open, onOpenChange }: Props): ReactNode {
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial
             />
           </Campo>
-          <Campo rotulo="CNPJ" dica="Opcional.">
+          <Campo rotulo="CNPJ" dica="Opcional." erro={tentou ? erroCnpj : undefined}>
             <Input
               value={cnpj}
               onChange={(e) => setCnpj(e.target.value)}
               placeholder="00.000.000/0000-00"
-              inputMode="numeric"
               autoComplete="off"
             />
           </Campo>

@@ -129,7 +129,7 @@ export function EditEquipeDialog({ open, onOpenChange, equipe }: Props): ReactNo
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial
             />
           </Campo>
 

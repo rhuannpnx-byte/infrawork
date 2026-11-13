@@ -140,6 +140,8 @@ export function useCreateEncarregado(): ReturnType<
       if (error) throw error
       return data as Encarregado
     },
+    // quem chama mostra o erro no próprio diálogo (sem o aviso global repetido)
+    onError: () => undefined,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['acompanhamento', 'encarregados'] })
   })
 }
@@ -158,6 +160,8 @@ export function useUpdateEncarregado(): ReturnType<
       const { error } = await supabase.from('encarregado').update(body).eq('id', id)
       if (error) throw error
     },
+    // quem chama mostra o erro no próprio diálogo (sem o aviso global repetido)
+    onError: () => undefined,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'encarregados'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento', 'producao'] })

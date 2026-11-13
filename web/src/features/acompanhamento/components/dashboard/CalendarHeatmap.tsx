@@ -1,5 +1,6 @@
 import { type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 
 interface Props {
   data: Array<{ data: string; qtd: number }>
@@ -70,16 +71,18 @@ export function CalendarHeatmap({ data, altura = 200 }: Props): ReactNode {
             <div
               key={idx}
               className={cn('rounded-sm min-h-0', d ? cor(d.qtd, d.isFuture) : 'bg-transparent')}
-              title={d ? `${d.data} — ${d.qtd} foto${d.qtd !== 1 ? 's' : ''}` : ''}
+              title={
+                d
+                  ? `${d.data.split('-').reverse().join('/')}: ${contar(d.qtd, 'foto', 'fotos')}`
+                  : undefined
+              }
             />
           ))}
         </div>
         <div className="pt-2 text-xs text-text-muted flex items-center justify-between shrink-0">
+          <span>{contar(totalFotos, 'foto', 'fotos')} no mês</span>
           <span>
-            {totalFotos} {totalFotos === 1 ? 'foto' : 'fotos'} no mês
-          </span>
-          <span>
-            {diasComFoto}/{diasUteisAteHoje} dias
+            {diasComFoto} de {contar(diasUteisAteHoje, 'dia', 'dias')} com foto
           </span>
         </div>
       </div>

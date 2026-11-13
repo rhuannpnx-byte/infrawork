@@ -5,3 +5,9 @@ export const contar = (n: number, singular: string, plural: string): string =>
 /** Só a palavra, sem o número: `plural(n, 'salva', 'salvas')`. */
 export const plural = (n: number, singular: string, variosTexto: string): string =>
   n === 1 ? singular : variosTexto
+
+/** "a", "a e b", "a, b e c". */
+export const listar = (itens: string[]): string =>
+  itens.length <= 1
+    ? (itens[0] ?? '')
+    : `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`

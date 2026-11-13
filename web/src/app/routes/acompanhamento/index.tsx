@@ -139,6 +139,11 @@ function DashboardAcompanhamento(): ReactNode {
   const curvaFiltrada = (resumo?.curva_s ?? []).filter(
     (p) => !servicoItemId || p.item_orcamentario_id === servicoItemId
   )
+  // o resumo falhou e não há dado anterior: os blocos que dependem dele saem, em vez de dizer "nenhum"
+  const semResumo = !!consultaResumo.error && !resumo
+  // enquanto o resumo carrega, o bloco mostra o esqueleto e não o texto de vazio
+  const comResumo = (altura: number, bloco: ReactNode): ReactNode =>
+    loadingResumo ? <PulseBlock h={altura} /> : semResumo ? null : bloco
 
   return (
     <div className="flex flex-col h-full">
@@ -193,82 +198,90 @@ function DashboardAcompanhamento(): ReactNode {
             />
           ) : null}
 
-          <FaixaIndicadores rotulo="Indicadores do período">
-            <Indicador
-              rotulo="Avanço físico"
-              carregando={loadingResumo}
-              valor={
-                r?.avanco_pct != null ? `${formatNumber(Number(r.avanco_pct) * 100, 1)}%` : '—'
-              }
-            >
-              {r?.avanco_pct != null ? <BarraAvanco valor={Number(r.avanco_pct)} /> : null}
-              <span>
-                {r?.avanco_pct == null ? 'sem linha de base vigente' : 'ponderado pela receita'}
-              </span>
-            </Indicador>
-            {servicoSelecionado ? (
-              <>
-                <Indicador
-                  rotulo="Produção no período"
-                  carregando={loadingResumo}
-                  valor={formatNumber(ritmo.total, 0)}
-                  unidade={servicoSelecionado.unidade ?? undefined}
-                >
-                  <span>{contar(ritmo.dias, 'dia trabalhado', 'dias trabalhados')}</span>
-                </Indicador>
-                <Indicador
-                  rotulo="Ritmo"
-                  carregando={loadingResumo}
-                  valor={formatNumber(ritmo.porDia, 0)}
-                  unidade={`${servicoSelecionado.unidade ?? ''}/dia`}
-                >
-                  <span>
-                    {ritmo.dias > 0 ? 'média por dia trabalhado' : 'sem produção no período'}
-                  </span>
-                </Indicador>
-              </>
-            ) : (
+          {semResumo ? null : (
+            <FaixaIndicadores rotulo="Indicadores do período">
               <Indicador
-                rotulo="Dias com produção"
+                rotulo="Avanço físico"
                 carregando={loadingResumo}
-                valor={formatNumber(ritmo.dias, 0)}
-                unidade={`de ${janela.dias}`}
+                valor={
+                  r?.avanco_pct != null ? `${formatNumber(Number(r.avanco_pct) * 100, 1)}%` : '—'
+                }
               >
-                <span>escolha um serviço para ver a produção e o ritmo</span>
+                {r?.avanco_pct != null ? <BarraAvanco valor={Number(r.avanco_pct)} /> : null}
+                <span>
+                  {r?.avanco_pct == null ? 'sem linha de base vigente' : 'ponderado pela receita'}
+                </span>
               </Indicador>
-            )}
-            <Indicador
-              rotulo="Equipes hoje"
-              carregando={loadingResumo}
-              valor={formatNumber(r?.equipes_ativas_hoje ?? 0, 0)}
-            >
-              <span>{r?.equipes_ativas_semana ?? 0} nesta semana</span>
-            </Indicador>
-            <Indicador
-              rotulo="Cobertura de fotos"
-              carregando={loadingResumo}
-              valor={
-                r?.cobertura_fotografica_pct != null
-                  ? `${formatNumber(Number(r.cobertura_fotografica_pct) * 100, 0)}%`
-                  : '—'
-              }
-            >
-              <span>{contar(r?.fotos_com_geo ?? 0, 'foto com GPS', 'fotos com GPS')}</span>
-            </Indicador>
-            <Indicador
-              rotulo="Alertas críticos"
-              carregando={loadingResumo}
-              tom={criticos > 0 ? 'danger' : 'neutro'}
-              valor={formatNumber(criticos, 0)}
-            >
-              <span>
-                {contar(r?.alertas_abertos_total ?? 0, 'alerta aberto', 'alertas abertos')}
-              </span>
-            </Indicador>
-          </FaixaIndicadores>
+              {servicoSelecionado ? (
+                <>
+                  <Indicador
+                    rotulo="Produção no período"
+                    carregando={loadingResumo}
+                    valor={formatNumber(ritmo.total, 0)}
+                    unidade={servicoSelecionado.unidade ?? undefined}
+                  >
+                    <span>{contar(ritmo.dias, 'dia trabalhado', 'dias trabalhados')}</span>
+                  </Indicador>
+                  <Indicador
+                    rotulo="Ritmo"
+                    carregando={loadingResumo}
+                    valor={formatNumber(ritmo.porDia, 0)}
+                    unidade={`${servicoSelecionado.unidade ?? ''}/dia`}
+                  >
+                    <span>
+                      {ritmo.dias > 0 ? 'média por dia trabalhado' : 'sem produção no período'}
+                    </span>
+                  </Indicador>
+                </>
+              ) : (
+                <Indicador
+                  rotulo="Dias com produção"
+                  carregando={loadingResumo}
+                  valor={formatNumber(ritmo.dias, 0)}
+                  unidade={`de ${janela.dias}`}
+                >
+                  <span>escolha um serviço para ver a produção e o ritmo</span>
+                </Indicador>
+              )}
+              <Indicador
+                rotulo="Equipes hoje"
+                carregando={loadingResumo}
+                valor={formatNumber(r?.equipes_ativas_hoje ?? 0, 0)}
+              >
+                <span>{r?.equipes_ativas_semana ?? 0} nesta semana</span>
+              </Indicador>
+              <Indicador
+                rotulo="Cobertura de fotos"
+                carregando={loadingResumo}
+                valor={
+                  r?.cobertura_fotografica_pct != null
+                    ? `${formatNumber(Number(r.cobertura_fotografica_pct) * 100, 0)}%`
+                    : '—'
+                }
+              >
+                <span>{contar(r?.fotos_com_geo ?? 0, 'foto com GPS', 'fotos com GPS')}</span>
+              </Indicador>
+              <Indicador
+                rotulo="Alertas críticos"
+                carregando={loadingResumo}
+                tom={criticos > 0 ? 'danger' : 'neutro'}
+                valor={formatNumber(criticos, 0)}
+              >
+                <span>
+                  {contar(r?.alertas_abertos_total ?? 0, 'alerta aberto', 'alertas abertos')}
+                </span>
+              </Indicador>
+            </FaixaIndicadores>
+          )}
 
           <Grupo titulo="Prazo e avanço">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-3">
+            <div
+              className={
+                semResumo
+                  ? 'grid grid-cols-1 gap-3'
+                  : 'grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-3'
+              }
+            >
               <Secao
                 titulo="Curva S"
                 nota={
@@ -301,57 +314,77 @@ function DashboardAcompanhamento(): ReactNode {
                   </EstadoConsulta>
                 )}
               </Secao>
-              <AlertasLateral
-                alertas={resumo?.alertas_criticos ?? []}
-                obraId={obraId}
-                altura={352}
-              />
+              {comResumo(
+                352,
+                <AlertasLateral
+                  alertas={resumo?.alertas_criticos ?? []}
+                  obraId={obraId}
+                  altura={352}
+                />
+              )}
             </div>
             <FaixaObra producao={producaoObra} trechos={trechosObra} previsto={faixasPrevistas} />
           </Grupo>
 
-          <Grupo titulo="Serviços">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              <PrevistoRealizadoPainel
-                curvaS={resumo?.curva_s ?? []}
-                prevReal={resumo?.previsto_realizado ?? []}
-                filtroItemId={servicoItemId}
-                periodoDias={janela.dias}
-                dataDeCustom={periodo === 'custom' ? dataDe : null}
-                dataAteCustom={periodo === 'custom' ? dataAte : null}
-                valor={curvaValor.pontos}
-                altura={220}
-              />
-              <AderenciaServicos
-                itens={resumo?.previsto_realizado ?? []}
-                curvaS={resumo?.curva_s ?? []}
-                dataAte={janela.ate}
-                selectedId={servicoItemId}
-                onPick={setServicoItem}
-                altura={220}
-              />
-              <TopServicosBar
-                itens={resumo?.previsto_realizado ?? []}
-                limit={6}
-                selectedId={servicoItemId}
-                onPick={setServicoItem}
-                altura={220}
-              />
-            </div>
-          </Grupo>
+          {semResumo ? null : (
+            <Grupo titulo="Serviços">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {comResumo(
+                  220,
+                  <PrevistoRealizadoPainel
+                    curvaS={resumo?.curva_s ?? []}
+                    prevReal={resumo?.previsto_realizado ?? []}
+                    filtroItemId={servicoItemId}
+                    periodoDias={janela.dias}
+                    dataDeCustom={periodo === 'custom' ? dataDe : null}
+                    dataAteCustom={periodo === 'custom' ? dataAte : null}
+                    valor={curvaValor.pontos}
+                    altura={220}
+                  />
+                )}
+                {comResumo(
+                  220,
+                  <AderenciaServicos
+                    itens={resumo?.previsto_realizado ?? []}
+                    curvaS={resumo?.curva_s ?? []}
+                    dataAte={janela.ate}
+                    selectedId={servicoItemId}
+                    onPick={setServicoItem}
+                    altura={220}
+                  />
+                )}
+                {comResumo(
+                  220,
+                  <TopServicosBar
+                    itens={resumo?.previsto_realizado ?? []}
+                    limit={6}
+                    selectedId={servicoItemId}
+                    onPick={setServicoItem}
+                    altura={220}
+                  />
+                )}
+              </div>
+            </Grupo>
+          )}
 
           <Grupo titulo="Equipes e frentes">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              <RankingProdutividade itens={resumo?.produtividade_equipes ?? []} altura={240} />
+              {comResumo(
+                240,
+                <RankingProdutividade itens={resumo?.produtividade_equipes ?? []} altura={240} />
+              )}
               <PorEncarregado producoes={prodsDash} filtroItemId={servicoItemId} altura={240} />
-              <FrentesAtivasLista frentes={resumo?.frentes ?? []} altura={240} />
+              {comResumo(240, <FrentesAtivasLista frentes={resumo?.frentes ?? []} altura={240} />)}
             </div>
           </Grupo>
 
           <Grupo titulo="Registros de campo">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <TimelineApontamentos itens={resumo?.ultimos_apontamentos ?? []} altura={240} />
-              <CalendarHeatmap data={resumo?.cobertura_mes ?? []} altura={240} />
+              {comResumo(
+                240,
+                <TimelineApontamentos itens={resumo?.ultimos_apontamentos ?? []} altura={240} />
+              )}
+              {comResumo(240, <CalendarHeatmap data={resumo?.cobertura_mes ?? []} altura={240} />)}
             </div>
             <MapaFotosDashboard
               fotos={fotosGeo}

@@ -15,13 +15,14 @@ import { Button } from '@/components/ui/button'
 import { Segmentado } from '@/components/ui/segmentado'
 import { parseBR } from '@/lib/money'
 import { useUpsertItem } from '../hooks/plan-orc'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   obraId: string
   parentId: string | null
-  /** Pré-seleciona o tipo (etapa/receita). Não cria servico_grupo aqui — use o modal "Agrupar como serviço". */
+  /** Pré-seleciona o tipo (etapa/receita). Não cria servico_grupo aqui — use "Agrupar em um serviço". */
   tipoInicial?: 'etapa' | 'receita'
 }
 
@@ -112,9 +113,7 @@ export function NewItemOrcamentarioDialog({
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível criar o item. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível criar o item. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -148,8 +147,8 @@ export function NewItemOrcamentarioDialog({
               {tipo === 'receita'
                 ? 'Linha cobrada do cliente: tem unidade, quantidade e venda unitária.'
                 : 'Linha que só organiza a planilha: agrupa os itens abaixo dela, sem valor próprio.'}{' '}
-              Para ter composição e custo, selecione as receitas na planilha e use &ldquo;Agrupar
-              como serviço&rdquo;.
+              Para ter composição e custo, selecione as receitas na planilha e use &ldquo;Agrupar em
+              um serviço&rdquo;.
             </p>
           </div>
 
@@ -158,7 +157,7 @@ export function NewItemOrcamentarioDialog({
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial=""
               placeholder={tipo === 'etapa' ? 'Ex.: PAVIMENTAÇÃO' : 'Ex.: Aplicação de CBUQ'}
             />
           </Campo>

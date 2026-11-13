@@ -22,7 +22,12 @@ export function FrentesAtivasLista({ frentes, altura = 200 }: Props): ReactNode 
         <h4 className="text-md font-semibold text-text flex items-center gap-1.5">
           Frentes ativas
         </h4>
-        <span className="text-xs text-text-muted">últimos 7 dias</span>
+        <span
+          className="text-xs text-text-muted"
+          title="Frentes com lançamento nos últimos 7 dias. A barra compara os lançamentos da semana; dias e lançamentos são o total da frente."
+        >
+          com lançamento em 7 dias
+        </span>
       </div>
       <div
         tabIndex={0}
@@ -41,10 +46,11 @@ export function FrentesAtivasLista({ frentes, altura = 200 }: Props): ReactNode 
             <div key={f.frente} className="space-y-0.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text truncate" title={f.frente}>
-                  {f.frente}
+                  {f.frente === '(sem frente)' ? 'Sem frente' : f.frente}
                 </span>
                 <span className="text-text-muted tabular-nums shrink-0 ml-2">
-                  {contar(Number(f.dias_ativos ?? 0), 'dia', 'dias')}
+                  {contar(Number(f.registros_ultima_semana ?? 0), 'lançamento', 'lançamentos')} na
+                  semana
                 </span>
               </div>
               <div className="h-1.5 bg-bg-elevated overflow-hidden">
@@ -55,6 +61,7 @@ export function FrentesAtivasLista({ frentes, altura = 200 }: Props): ReactNode 
                   {(f.equipes ?? []).join(', ')}
                 </span>
                 <span className="tabular-nums shrink-0 ml-2">
+                  no total: {contar(Number(f.dias_ativos ?? 0), 'dia', 'dias')},{' '}
                   {contar(Number(f.registros ?? 0), 'lançamento', 'lançamentos')}
                 </span>
               </div>

@@ -28,7 +28,10 @@ const frase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1).toLo
  * Menu único do app: Início e, abaixo, um grupo por módulo com as suas páginas. O grupo do módulo em uso abre
  * sozinho; os outros abrem e fecham no cabeçalho, e a escolha fica guardada.
  */
-export function Sidebar({ aoNavegar }: { aoNavegar?: () => void } = {}): ReactNode {
+export function Sidebar({
+  aoNavegar,
+  gaveta
+}: { aoNavegar?: () => void; gaveta?: boolean } = {}): ReactNode {
   const pathname = useActiveLocation().split('?')[0]
   const openModal = useUIStore((s) => s.openModal)
   const role = useAuthStore((s) => s.profile?.role ?? null)
@@ -66,8 +69,11 @@ export function Sidebar({ aoNavegar }: { aoNavegar?: () => void } = {}): ReactNo
   return (
     <nav
       aria-label="Menu"
-      style={{ gridArea: 'sidebar' }}
-      className="bg-bg-menu border-r border-border flex flex-col min-h-0 overflow-hidden"
+      style={gaveta ? undefined : { gridArea: 'sidebar' }}
+      className={cn(
+        'bg-bg-menu border-r border-border flex flex-col min-h-0 overflow-hidden',
+        gaveta && 'w-full'
+      )}
     >
       <ScrollArea className="flex-1 px-2 py-3">
         <ItemMenu
@@ -130,12 +136,18 @@ export function Sidebar({ aoNavegar }: { aoNavegar?: () => void } = {}): ReactNo
         <ItemMenu
           rotulo="Atalhos de teclado"
           icone={<HelpCircle size={14} strokeWidth={1.8} />}
-          onClick={() => openModal('shortcuts')}
+          onClick={() => {
+            aoNavegar?.()
+            openModal('shortcuts')
+          }}
         />
         <ItemMenu
           rotulo="Configurações"
           icone={<Settings size={14} strokeWidth={1.8} />}
-          onClick={() => openModal('settings')}
+          onClick={() => {
+            aoNavegar?.()
+            openModal('settings')
+          }}
         />
       </div>
     </nav>

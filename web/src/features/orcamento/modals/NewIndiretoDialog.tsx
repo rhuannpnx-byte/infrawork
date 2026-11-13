@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
 import { useUpsertIndireto } from '../hooks/indireto'
 import { INDIRETO_TIPO_LABEL, type IndiretoTipo } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
@@ -90,9 +91,7 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível criar o custo indireto. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível criar o custo indireto. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -111,7 +110,7 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
                 onChange={(e) => setCodigo(e.target.value)}
                 placeholder="Ex.: IND.01"
                 autoComplete="off"
-                autoFocus
+                data-foco-inicial=""
               />
             </Campo>
             <Campo rotulo="Tipo" obrigatorio>

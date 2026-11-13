@@ -127,8 +127,8 @@ export function VisualizarMapaTrechoDialog({
             value={`${marcadores.length.toLocaleString('pt-BR')}, ${unidadeLabel}`}
           />
           <Stat
-            label="Sentido"
-            value={trecho.geometry_sentido === 'natural' ? 'Natural' : 'Invertido'}
+            label="Numeração"
+            value={trecho.geometry_sentido === 'invertido' ? 'Decrescente' : 'Crescente'}
           />
           <Stat
             label="Cor"

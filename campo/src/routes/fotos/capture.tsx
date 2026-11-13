@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { lerOrigemArquivo, type OrigemArquivo } from '@/lib/exifArquivo'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -240,7 +240,7 @@ export function FotosCaptureRoute() {
   if (mode === 'live' && isNativeCamera) {
     return (
       <main className="grid h-svh grid-rows-[auto_1fr_auto] overflow-hidden bg-bg-base">
-        <header className="flex items-center justify-between border-b border-border px-safe-4 pb-2 pt-safe-plus-2">
+        <header className="flex items-center justify-between border-b border-border pb-2 pt-safe-plus-2 px-safe-4">
           <Button
             variant="ghost"
             size="icon"
@@ -270,7 +270,7 @@ export function FotosCaptureRoute() {
           <GpsGateMessage geo={geo} position={position} semGps={semGps} />
         </div>
 
-        <div className="border-t border-border px-safe-4 pb-safe-plus-3 pt-3">
+        <div className="border-t border-border pt-3 pb-safe-plus-3 px-safe-4">
           <Button
             variant="primary"
             size="lg"
@@ -294,7 +294,7 @@ export function FotosCaptureRoute() {
       // era `min-h-svh flex flex-col` com header absolute — em viewports curtas
       // o footer com shutter saía pra fora e o operador precisava scrollar.
       <main className="grid h-svh grid-rows-[auto_1fr_auto] overflow-hidden bg-black">
-        <header className="relative z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-safe-4 pb-3 pt-safe-plus-3">
+        <header className="relative z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pb-3 pt-safe-plus-3 px-safe-4">
           <Button
             variant="ghost"
             size="icon"
@@ -304,6 +304,7 @@ export function FotosCaptureRoute() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
+          <h1 className="sr-only">Tirar foto</h1>
           <GeoBadge geo={geo} />
         </header>
 
@@ -327,7 +328,7 @@ export function FotosCaptureRoute() {
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-2 bg-black/90 px-safe-4 pb-safe-plus-3 pt-3">
+        <div className="flex flex-col items-center gap-2 bg-black/90 pt-3 pb-safe-plus-3 px-safe-4">
           {/* GATE: shutter só libera com GPS abaixo de N metros de precisão.
               Operador vê motivo claro pra espera + accuracy em tempo real. */}
           <GpsGateMessage geo={geo} position={position} semGps={semGps} sobreCamera />
@@ -478,7 +479,13 @@ function FormMode({
       } catch (e) {
         if (seq !== renderSeqRef.current) return
         console.error('[FormMode] watermark falhou:', e)
-        setError(e instanceof Error ? e.message : 'Falha ao renderizar preview')
+        const msg = e instanceof Error ? e.message : ''
+        // o código da marca d'água não veio (app aberto pela primeira vez sem rede): frase que o operador entende
+        setError(
+          /dynamically imported module|importing a module script|module script failed/i.test(msg)
+            ? 'Esta parte do app ainda não foi baixada. Conecte-se à internet uma vez e tente de novo.'
+            : msg || 'Não foi possível preparar a imagem. Tente de novo.',
+        )
       } finally {
         if (seq === renderSeqRef.current) setRendering(false)
       }
@@ -525,7 +532,9 @@ function FormMode({
       onSaved()
     } catch (e) {
       setErroAoSalvar(true)
-      setError(e instanceof Error ? e.message : 'Falha ao salvar')
+      setError(
+        e instanceof Error ? e.message : 'A foto não foi gravada no aparelho. Tente de novo.',
+      )
     } finally {
       setSaving(false)
     }
@@ -533,7 +542,7 @@ function FormMode({
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button variant="ghost" size="icon" onClick={onRetake} aria-label="Refazer">
             <ArrowLeft className="h-5 w-5" />
@@ -551,16 +560,18 @@ function FormMode({
               alt="Foto com marca d'água"
               className="h-full w-full object-contain"
             />
+          ) : error && !rendering ? (
+            <p className="px-6 text-center text-sm text-white">Foto sem marca d'água</p>
           ) : (
             <div className="flex flex-col items-center gap-2 text-sm text-white">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
               <span>Aplicando marca d'água…</span>
             </div>
           )}
           {rendering && stampedUrl && (
             <div className="absolute right-2 top-2 flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-xs text-white">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              atualizando
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              Atualizando…
             </div>
           )}
         </div>
@@ -571,9 +582,9 @@ function FormMode({
               <p className="font-semibold text-bad">
                 {erroAoSalvar
                   ? 'Não foi possível salvar a foto'
-                  : 'Não foi possível aplicar a marca d\'água'}
+                  : "Não foi possível aplicar a marca d'água"}
               </p>
-              <p className="mt-1 text-xs text-on-surface">{error}</p>
+              <p className="mt-1 break-words text-xs text-on-surface">{error}</p>
               <Button variant="outline" size="sm" onClick={onRetake} className="mt-2">
                 <RotateCcw className="mr-1 h-4 w-4" />
                 Refazer foto
@@ -631,7 +642,7 @@ function FormMode({
           </div>
 
           {position ? (
-            <p className="text-xs text-on-surface-dim tabular">
+            <p className="tabular text-xs text-on-surface-dim">
               GPS: {position.lat.toFixed(5)}, {position.lng.toFixed(5)} · ±
               {Math.round(position.accuracy)} m
             </p>
@@ -641,7 +652,7 @@ function FormMode({
         </div>
       </div>
 
-      <div className="sticky bottom-0 flex gap-3 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+      <div className="sticky bottom-0 flex gap-3 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button variant="outline" size="lg" onClick={onRetake} className="flex-1">
           Refazer
         </Button>
@@ -747,7 +758,7 @@ function GeoBadge({ geo }: { geo: GeoResult }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded px-3 py-1 text-xs font-semibold tabular ${tone}`}
+      className={`tabular inline-flex items-center rounded px-3 py-1 text-xs font-semibold ${tone}`}
     >
       {label}
     </span>
@@ -822,14 +833,19 @@ function PickerField({
   required?: boolean
   disabled?: boolean
 }) {
+  const id = useId()
   return (
     <div>
-      <label className="rotulo block">{label}</label>
+      <p id={`${id}-rotulo`} className="rotulo">
+        {label}
+      </p>
       <div className="mt-1 flex items-stretch gap-2">
         <button
           type="button"
           onClick={disabled ? undefined : onClick}
           disabled={disabled}
+          aria-labelledby={`${id}-rotulo ${id}-valor`}
+          aria-haspopup="dialog"
           className={cn(
             'min-w-0 flex-1 rounded-md border bg-bg-panel px-3 text-left text-base',
             'flex min-h-touch items-center justify-between gap-2 transition-colors',
@@ -840,12 +856,16 @@ function PickerField({
                 : 'border-border-strong hover:border-accent',
           )}
         >
-          <span className="truncate text-on-surface">{value}</span>
-          {!disabled && <ChevronRight className="h-4 w-4 flex-shrink-0 text-on-surface-dim" />}
+          <span id={`${id}-valor`} className="truncate text-on-surface">
+            {value}
+          </span>
+          {!disabled && (
+            <ChevronRight className="h-4 w-4 flex-shrink-0 text-on-surface-dim" aria-hidden />
+          )}
         </button>
         {onClear && !disabled && (
-          <Button variant="ghost" size="icon" onClick={onClear} aria-label="Limpar">
-            <X className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={onClear} aria-label={`Limpar ${label}`}>
+            <X className="h-5 w-5" aria-hidden />
           </Button>
         )}
       </div>

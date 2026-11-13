@@ -108,11 +108,13 @@ export function EixoDialog({
     if (unidade === 'custom' && !(divisorCustom && divisorCustom > 0))
       erros.divisor = 'Informe quantos metros vale uma unidade.'
     if (vIni === null) erros.estIni = `Digite a estaca inicial como número, em ${rot}.`
+    else if (vIni < 0) erros.estIni = 'A estaca inicial não pode ser negativa.'
     if (!comMapa) {
       if (vFim === null)
         erros.estFim = estFim.trim()
           ? `Digite a estaca final como número, em ${rot}.`
           : 'Informe a estaca final.'
+      else if (vFim < 0) erros.estFim = 'A estaca final não pode ser negativa.'
       else if (vIni !== null && (!derivado || derivado.comprimento_m <= 0))
         erros.estFim = 'A estaca final precisa ser diferente da inicial.'
     }
@@ -210,7 +212,7 @@ export function EixoDialog({
           ) : null}
           <Campo rotulo="Nome" obrigatorio erro={erroDe('nome')}>
             <Input
-              autoFocus
+              data-foco-inicial
               autoComplete="off"
               value={nome}
               onChange={(e) => setNome(e.target.value)}

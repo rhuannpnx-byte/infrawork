@@ -46,10 +46,12 @@ export function ObrasPage(): ReactNode {
         meta: { label: 'Empresa' }
       },
       {
-        accessorKey: 'status',
+        // o valor da coluna é o rótulo, para a busca e a exportação não mostrarem o código do banco
+        id: 'status',
         header: 'Status',
-        cell: (info) => {
-          const v = String(info.getValue())
+        accessorFn: (row) => rotuloStatusObra(row.status),
+        cell: ({ row }) => {
+          const v = row.original.status
           const variant =
             v === 'concluido'
               ? 'success'

@@ -458,6 +458,8 @@ export function useSalvarLocalTransporte(): ReturnType<
             : r.error.message
         )
     },
+    // a tela mostra o erro no campo ou em aviso próprio (sem o aviso global repetido)
+    onError: () => undefined,
     onSettled: () => void qc.invalidateQueries({ queryKey: ['transporte'] })
   })
 }
@@ -575,6 +577,8 @@ export function useSalvarFicha(): ReturnType<typeof useMutation<void, Error, Fic
       const { error } = await supabase.rpc('campo_sync_ficha', { _ficha: { ...f, origem: 'web' } })
       if (error) throw new Error(error.message)
     },
+    // a tela mostra o erro no próprio diálogo (sem o aviso global repetido)
+    onError: () => undefined,
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['viagens'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento'] })
@@ -589,6 +593,8 @@ export function useExcluirFicha(): ReturnType<typeof useMutation<void, Error, st
       const { error } = await supabase.from('viagem_ficha').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
+    // a tela mostra o erro no próprio diálogo (sem o aviso global repetido)
+    onError: () => undefined,
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['viagens'] })
       void qc.invalidateQueries({ queryKey: ['acompanhamento'] })

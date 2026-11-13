@@ -16,17 +16,8 @@ import { RedefinirSenhaDialog } from '@/features/gerencial/modals/RedefinirSenha
 import { ObrasDoUsuarioDialog } from '@/features/gerencial/modals/ObrasDoUsuarioDialog'
 import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
 import { rotuloPapel } from '@/lib/rotulos'
-import type { Role } from '@/types/auth'
+import { VARIANTE_PAPEL } from '@/features/gerencial/lib/papel'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
-
-const ROLE_VARIANT: Record<Role, 'accent' | 'success' | 'warn' | 'default'> = {
-  god: 'accent',
-  adm: 'warn',
-  engenheiro: 'success',
-  apoio: 'default',
-  cliente: 'default',
-  apontador: 'default'
-}
 
 /** "Online agora" = visto nos últimos 2,5 min (heartbeat roda a cada 60s). */
 const ONLINE_THRESHOLD_MS = 150_000
@@ -75,16 +66,23 @@ export function UsuariosPage(): ReactNode {
       {
         accessorKey: 'nome',
         header: 'Nome',
-        cell: (info) => <span className="text-text font-medium">{String(info.getValue())}</span>,
+        cell: (info) => (
+          <span className="text-text font-medium" title={info.row.original.email}>
+            {String(info.getValue())}
+          </span>
+        ),
         meta: { label: 'Nome' }
       },
       {
-        accessorKey: 'role',
+        // o valor da coluna é o rótulo, para a busca e a exportação não mostrarem o código do banco
+        id: 'role',
         header: 'Papel',
-        cell: (info) => {
-          const r = info.getValue() as Role
-          return <Badge variant={ROLE_VARIANT[r]}>{rotuloPapel(r)}</Badge>
-        },
+        accessorFn: (row) => rotuloPapel(row.role),
+        cell: ({ row }) => (
+          <Badge variant={VARIANTE_PAPEL[row.original.role]}>
+            {rotuloPapel(row.original.role)}
+          </Badge>
+        ),
         meta: { label: 'Papel' },
         size: 150
       },
@@ -110,14 +108,11 @@ export function UsuariosPage(): ReactNode {
         meta: { label: 'Engenheiro responsável' }
       },
       {
-        accessorKey: 'ativo',
+        id: 'ativo',
         header: 'Situação',
-        cell: (info) =>
-          (info.getValue() as boolean) ? (
-            <Badge variant="success">Ativo</Badge>
-          ) : (
-            <Badge>Inativo</Badge>
-          ),
+        accessorFn: (row) => (row.ativo ? 'Ativo' : 'Inativo'),
+        cell: ({ row }) =>
+          row.original.ativo ? <Badge variant="success">Ativo</Badge> : <Badge>Inativo</Badge>,
         meta: { label: 'Situação' },
         size: 90
       },
@@ -187,9 +182,10 @@ export function UsuariosPage(): ReactNode {
         ? ([
             {
               id: 'acoes',
-              header: () => <span className="sr-only">Ações</span>,
+              header: 'Ações',
               size: 150,
               enableSorting: false,
+              enableHiding: false,
               cell: ({ row }) => {
                 const u = row.original
                 return (
@@ -254,7 +250,7 @@ export function UsuariosPage(): ReactNode {
                   </div>
                 )
               },
-              meta: { label: 'Ações' }
+              meta: { label: 'Ações', align: 'right' }
             }
           ] as ColumnDef<UsuarioComEmpresa, unknown>[])
         : [])

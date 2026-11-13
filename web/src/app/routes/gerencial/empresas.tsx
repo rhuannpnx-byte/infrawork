@@ -36,14 +36,12 @@ export function EmpresasPage(): ReactNode {
         size: 180
       },
       {
-        accessorKey: 'ativo',
+        // o valor da coluna é o rótulo, para a busca e a exportação
+        id: 'ativo',
         header: 'Situação',
-        cell: (info) =>
-          (info.getValue() as boolean) ? (
-            <Badge variant="success">Ativa</Badge>
-          ) : (
-            <Badge>Inativa</Badge>
-          ),
+        accessorFn: (row) => (row.ativo ? 'Ativa' : 'Inativa'),
+        cell: ({ row }) =>
+          row.original.ativo ? <Badge variant="success">Ativa</Badge> : <Badge>Inativa</Badge>,
         meta: { label: 'Situação' },
         size: 100
       },

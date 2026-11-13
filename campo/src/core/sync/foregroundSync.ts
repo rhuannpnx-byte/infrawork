@@ -6,6 +6,7 @@ import { refreshAllCatalogs } from './catalogSync'
 import { refreshPainelDaObraAtual } from './painelSync'
 import { isBackendReachable } from '@/core/network/onlineProbe'
 import { sessionStore } from '@/core/auth/SessionStore'
+import { contar, listar } from '@/lib/texto'
 
 /**
  * Motor de envio em primeiro plano. Dispara em:
@@ -51,6 +52,9 @@ export async function triggerForegroundSync(reason: string, opts: TriggerOpts = 
   // o servidor recusou a sessão: espera o operador entrar de novo
   if (sessionStore.serverRejectedToken()) return
   if (!(await isBackendReachable())) return
+  // outro gatilho (voltar a rede dispara dois) começou o ciclo enquanto este conferia a rede: sem isto rodavam dois
+  // ciclos juntos e o aviso de enviado/recusado aparecia em dobro
+  if (runningPromise) return runningPromise
   lastRunAt = now
   window.dispatchEvent(new CustomEvent('monitor:sync:start', { detail: { reason } }))
   runningPromise = doSync(reason).finally(() => {
@@ -73,18 +77,21 @@ async function doSync(reason: string): Promise<void> {
     return null
   })
   const [fichas, fotos] = await Promise.allSettled([pushFichaOutbox(), pushFotoOutbox()])
+  const nFichas = fichas.status === 'fulfilled' ? fichas.value.accepted : 0
+  const nFotos = fotos.status === 'fulfilled' ? fotos.value.accepted : 0
   const aceitos = [
-    prod?.accepted ? `${prod.accepted} produção` : null,
-    fichas.status === 'fulfilled' && fichas.value.accepted
-      ? `${fichas.value.accepted} ficha(s)`
-      : null,
-    fotos.status === 'fulfilled' && fotos.value.accepted ? `${fotos.value.accepted} foto(s)` : null,
-  ].filter(Boolean)
-  if (aceitos.length) dispatchToast('ok', `${aceitos.join(' + ')} enviado(s) ✓`)
+    prod?.accepted ? contar(prod.accepted, 'lançamento', 'lançamentos') : null,
+    nFichas ? contar(nFichas, 'ficha', 'fichas') : null,
+    nFotos ? contar(nFotos, 'foto', 'fotos') : null,
+  ].filter((x): x is string => x != null)
+  if (aceitos.length) dispatchToast('ok', `Enviado: ${listar(aceitos)}.`)
   const recusados =
     (prod?.rejected ?? 0) + (fichas.status === 'fulfilled' ? fichas.value.rejected : 0)
   if (recusados > 0)
-    dispatchToast('bad', `${recusados} lançamento(s) recusado(s) — veja o motivo e corrija`)
+    dispatchToast(
+      'bad',
+      `${contar(recusados, 'envio recusado', 'envios recusados')}. Abra, veja o motivo e corrija.`,
+    )
   const forcar = reason === 'mount' || reason === 'online' || reason.startsWith('manual')
   refreshAllCatalogs({ seMaisAntigoQueMs: forcar ? 0 : 10 * 60_000 }).catch((e) =>
     console.warn('[fgSync] catálogos falharam:', e),

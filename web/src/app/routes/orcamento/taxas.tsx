@@ -16,7 +16,7 @@ import { usePlanOrc } from '@/features/orcamento/hooks/plan-orc'
 import { useTaxas, useToggleAtivoTaxa, useTaxaVigente } from '@/features/orcamento/hooks/taxas'
 import { NewTaxaRegimeDialog } from '@/features/orcamento/modals/NewTaxaRegimeDialog'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
-import { formatDate } from '@/lib/format'
+import { dataBR } from '@/lib/format/local-date'
 import type { TaxaRegime } from '@/types/orcamento'
 
 export function TaxasPage(): ReactNode {
@@ -45,7 +45,7 @@ function TaxasInner(): ReactNode {
   const { data: taxas = [], isLoading, error, refetch } = useTaxas(obraId)
   const { data: taxaVigente } = useTaxaVigente(obraId)
   const { data: plan } = usePlanOrc(obraId)
-  const toggleAtivo = useToggleAtivoTaxa()
+  const { mutate: alternarAtivo, isPending: alternandoAtivo } = useToggleAtivoTaxa()
   const [openNew, setOpenNew] = useState(false)
 
   const podeEditar = role === 'god' || role === 'adm' || role === 'engenheiro'
@@ -87,7 +87,7 @@ function TaxasInner(): ReactNode {
         header: 'Vigência',
         cell: (info) => {
           const v = info.getValue() as string | null
-          return <span className="text-text-muted">{v ? formatDate(v) : '—'}</span>
+          return <span className="text-text-muted">{dataBR(v)}</span>
         },
         meta: { label: 'Vigência' },
         size: 110
@@ -115,9 +115,9 @@ function TaxasInner(): ReactNode {
               <IconButton
                 size="sm"
                 variant="ghost"
-                disabled={toggleAtivo.isPending}
+                disabled={alternandoAtivo}
                 onClick={() =>
-                  toggleAtivo.mutate({
+                  alternarAtivo({
                     id: row.original.id,
                     ativo: !row.original.ativo,
                     obra_id: obraId
@@ -133,7 +133,7 @@ function TaxasInner(): ReactNode {
         meta: { label: 'Ações' }
       }
     ],
-    [toggleAtivo, podeEditar, obraId]
+    [alternarAtivo, alternandoAtivo, podeEditar, obraId]
   )
 
   const botaoNovo = podeEditar ? (

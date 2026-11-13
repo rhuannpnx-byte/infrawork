@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { contar } from '@/lib/rotulos'
 import {
   useFleetObras,
   useFrota,
@@ -23,6 +24,7 @@ export function VinculoFleetHub({
   const [todas, setTodas] = useState(false)
   // marcação otimista: muda no clique, o servidor confirma depois (erro desfaz)
   const [desejado, setDesejado] = useState<Record<string, boolean>>({})
+  const idTitulo = useId()
 
   const qtd = useMemo(() => {
     const m = new Map<string, number>()
@@ -36,22 +38,24 @@ export function VinculoFleetHub({
     .sort((a, b) => (qtd.get(b.id) ?? 0) - (qtd.get(a.id) ?? 0) || a.nome.localeCompare(b.nome))
 
   return (
-    <div data-testid="vinculo-fleethub">
-      <div className="flex items-center justify-between">
-        <Label>Obras na FleetHub</Label>
-        <button
-          type="button"
-          className="text-2xs text-text-muted hover:text-accent"
-          onClick={() => setTodas((x) => !x)}
-        >
-          {todas ? 'Só com veículos' : `Mostrar todas (${fleetObras.length})`}
-        </button>
+    <div role="group" aria-labelledby={idTitulo} data-testid="vinculo-fleethub">
+      <div className="flex items-center justify-between gap-2">
+        <span id={idTitulo} className="text-sm font-medium text-text">
+          Obras na FleetHub
+        </span>
+        <Button type="button" variant="link" size="sm" onClick={() => setTodas((x) => !x)}>
+          {todas ? 'Mostrar só as que têm veículo' : `Mostrar todas (${fleetObras.length})`}
+        </Button>
       </div>
-      <div className="mt-1 grid max-h-40 grid-cols-3 gap-x-3 gap-y-1 overflow-auto rounded border border-border p-2">
+      <div className="mt-1 grid max-h-40 grid-cols-2 gap-x-3 gap-y-1 overflow-auto rounded border border-border p-2 sm:grid-cols-3">
         {lista.map((o) => {
           const marcada = desejado[o.id] ?? vinculadas.includes(o.id)
           return (
-            <label key={o.id} className="flex items-center gap-1.5 text-xs">
+            <label
+              key={o.id}
+              className="flex min-w-0 items-center gap-1.5 text-sm text-text"
+              title={`${o.nome}: ${contar(qtd.get(o.id) ?? 0, 'veículo ativo', 'veículos ativos')}`}
+            >
               <input
                 type="checkbox"
                 checked={marcada}
@@ -63,22 +67,26 @@ export function VinculoFleetHub({
                     {
                       onError: (err) => {
                         setDesejado((d) => ({ ...d, [o.id]: !v }))
-                        toast.error(err.message)
+                        toast.error(
+                          `Não foi possível ${v ? 'vincular' : 'desvincular'} ${o.nome}. ${err.message}`
+                        )
                       }
                     }
                   )
                 }}
-                className="h-3.5 w-3.5 accent-[var(--accent)]"
+                className="h-4 w-4 shrink-0 accent-[var(--accent)]"
               />
               <span className="truncate">{o.nome}</span>
-              <span className="font-mono text-2xs text-text-dim">{qtd.get(o.id) ?? 0}</span>
+              <span className="tabular text-xs text-text-muted">{qtd.get(o.id) ?? 0}</span>
             </label>
           )
         })}
       </div>
-      <p className="mt-1 text-2xs text-text-dim">
+      <p className="mt-1 text-xs text-text-muted">
+        O número é a quantidade de veículos ativos. O vínculo é gravado na hora, sem precisar
+        salvar.{' '}
         {vinculadas.length
-          ? 'As viagens desta obra mostram os veículos dessas obras e os cadastrados no InfraWork.'
+          ? 'As viagens desta obra mostram os veículos das obras marcadas e os cadastrados no InfraWork.'
           : 'Sem vínculo, as viagens mostram toda a frota da empresa.'}
       </p>
     </div>

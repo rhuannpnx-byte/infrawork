@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
@@ -17,8 +17,19 @@ export function LoginRoute() {
   const session = useSession()
   const navigate = useNavigate()
   const { login, loading, error } = useAuth()
-  const [email, setEmail] = useState('')
+  // entrar de novo (sessão expirada): o e-mail de quem estava no aparelho já vem preenchido
+  const [email, setEmail] = useState(() => session?.userEmail ?? '')
   const [senha, setSenha] = useState('')
+  // erro de cada campo, depois da primeira tentativa de entrar
+  const [erros, setErros] = useState<{ email?: string; senha?: string }>({})
+  const emailRef = useRef<HTMLInputElement>(null)
+  const senhaRef = useRef<HTMLInputElement>(null)
+
+  // o servidor recusou (senha errada, sem rede): o foco volta para a senha, que é o que se redigita
+  const tentou = useRef(false)
+  useEffect(() => {
+    if (!loading && error && tentou.current) senhaRef.current?.focus()
+  }, [loading, error])
 
   // Sessão + token válido → nada a fazer aqui. Sessão com token vencido fica:
   // é o modo "entrar de novo" (os dados locais continuam no aparelho).
@@ -27,7 +38,17 @@ export function LoginRoute() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    void login(email.trim(), senha)
+    const novos: { email?: string; senha?: string } = {}
+    const endereco = email.trim()
+    if (!endereco) novos.email = 'Informe o e-mail.'
+    else if (!/^\S+@\S+\.\S+$/.test(endereco))
+      novos.email = 'E-mail incompleto: confira o endereço.'
+    if (!senha) novos.senha = 'Informe a senha.'
+    setErros(novos)
+    if (novos.email) return emailRef.current?.focus()
+    if (novos.senha) return senhaRef.current?.focus()
+    tentou.current = true
+    void login(endereco, senha)
   }
 
   return (
@@ -44,6 +65,7 @@ export function LoginRoute() {
         <div className="w-full max-w-sm">
           <form
             onSubmit={handleSubmit}
+            noValidate
             className="space-y-5 rounded-md border border-border bg-bg-panel p-5"
           >
             {reauth && (
@@ -59,6 +81,7 @@ export function LoginRoute() {
                 E-mail
               </label>
               <Input
+                ref={emailRef}
                 id="email"
                 type="email"
                 inputMode="email"
@@ -67,11 +90,21 @@ export function LoginRoute() {
                 autoCorrect="off"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (erros.email) setErros((x) => ({ ...x, email: undefined }))
+                }}
+                readOnly={loading}
                 placeholder="voce@empresa.com.br"
-                className="h-12"
+                aria-invalid={erros.email ? true : undefined}
+                aria-describedby={erros.email ? 'email-erro' : undefined}
+                className={erros.email ? 'h-12 border-bad focus-visible:border-bad' : 'h-12'}
               />
+              {erros.email && (
+                <p id="email-erro" role="alert" className="text-xs text-bad">
+                  {erros.email}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -79,15 +112,26 @@ export function LoginRoute() {
                 Senha
               </label>
               <Input
+                ref={senhaRef}
                 id="senha"
                 type="password"
                 autoComplete="current-password"
                 required
                 value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                disabled={loading}
-                className="h-12"
+                onChange={(e) => {
+                  setSenha(e.target.value)
+                  if (erros.senha) setErros((x) => ({ ...x, senha: undefined }))
+                }}
+                readOnly={loading}
+                aria-invalid={erros.senha ? true : undefined}
+                aria-describedby={erros.senha ? 'senha-erro' : undefined}
+                className={erros.senha ? 'h-12 border-bad focus-visible:border-bad' : 'h-12'}
               />
+              {erros.senha && (
+                <p id="senha-erro" role="alert" className="text-xs text-bad">
+                  {erros.senha}
+                </p>
+              )}
             </div>
 
             {error && (
@@ -103,12 +147,15 @@ export function LoginRoute() {
               type="submit"
               size="lg"
               variant="primary"
-              disabled={loading || !email || !senha}
+              disabled={loading}
               className="group w-full"
             >
               <span>{loading ? 'Entrando…' : 'Entrar'}</span>
               {!loading && (
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight
+                  className="h-5 w-5 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
               )}
             </Button>
             {reauth && (

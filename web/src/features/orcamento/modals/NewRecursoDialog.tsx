@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
 import { useCreateRecurso } from '../hooks/recursos'
 import { RECURSO_GRUPO_LABEL, type RecursoGrupo } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
@@ -88,9 +89,7 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível criar o recurso. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível criar o recurso. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -107,7 +106,7 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial=""
               placeholder="Ex.: Diesel S10, Servente, Caminhão basculante 14 m³"
             />
           </Campo>

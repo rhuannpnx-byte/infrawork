@@ -148,7 +148,11 @@ export function semanaIso(t: number): { semana: number; ano: number } {
 
 function fmt(o: Intl.DateTimeFormatOptions): (t: number) => string {
   const f = new Intl.DateTimeFormat('pt-BR', { ...o, timeZone: 'UTC' })
-  return (t) => f.format(utc(t)).replace('.', '')
+  // só a primeira letra em maiúscula ("Out de 2026", "Seg"): `capitalize` no CSS subiria também o "de"
+  return (t) => {
+    const r = f.format(utc(t)).replace('.', '')
+    return r.charAt(0).toUpperCase() + r.slice(1)
+  }
 }
 
 /**

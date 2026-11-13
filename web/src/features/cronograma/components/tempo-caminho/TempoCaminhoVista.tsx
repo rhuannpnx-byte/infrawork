@@ -26,6 +26,7 @@ import { Calendar } from '@apex/calendar'
 import type { TimingBands } from '@apex/engine'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import type { CalculoCronograma } from '../../hooks/calculo'
 import { useCronogramaUi } from '../../store'
@@ -176,16 +177,6 @@ export function TempoCaminhoVista({
   const [cursor, setCursor] = useState('')
   const [dica, setDica] = useState<{ x: number; y: number; conteudo: ConteudoDica } | null>(null)
   const [hoje] = useState(() => Date.now() / 1000 - new Date().getTimezoneOffset() * 60)
-
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const medir = (): void => setArea({ w: el.clientWidth, h: el.clientHeight })
-    medir()
-    const ro = new ResizeObserver(medir)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   // ── locais e eixo das estacas: eixos lado a lado e, à direita, as áreas como colunas estreitas (0…1) ──
   const trechos = useMemo(() => {
@@ -855,13 +846,28 @@ export function TempoCaminhoVista({
     return () => window.removeEventListener('keydown', tecla)
   }, [sel, somenteLeitura, menus])
 
+  // a área só existe depois do primeiro cálculo (antes disso a vista não desenha nada): mede quando ela aparece
+  const desenhada = !!e && trechos.length > 0 && !!eixoT
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const medir = (): void => setArea({ w: el.clientWidth, h: el.clientHeight })
+    medir()
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [desenhada])
+
   if (!e) return null
   const painelFora =
     foraDaVista.length > 0 ? (
       <div className="pointer-events-none absolute bottom-3 right-4 z-40 flex flex-col items-end gap-1">
         {verFora ? (
-          <div className="pointer-events-auto max-h-64 w-[380px] overflow-auto rounded-md border border-border-strong bg-bg-elevated p-2 text-xs shadow-xl">
-            <div className="mb-1 text-2xs font-mono uppercase tracking-wider text-text-dim">
+          <div
+            id="tc-fora-da-visao"
+            className="pointer-events-auto max-h-64 w-[380px] max-w-[calc(100vw-2rem)] overflow-auto rounded border border-border-strong bg-[color:var(--popover)] p-2 text-xs shadow-[var(--sombra-flutuante)]"
+          >
+            <div className="mb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
               Fora da visão
             </div>
             {foraDaVista.map(({ t, motivo, ocultos }) => (
@@ -871,7 +877,9 @@ export function TempoCaminhoVista({
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-text">{t.nome}</div>
-                  <div className="truncate text-2xs text-text-dim">{motivo}</div>
+                  <div className="truncate text-xs text-text-muted" title={motivo}>
+                    {motivo}
+                  </div>
                 </div>
                 {ocultos.length ? (
                   <Button
@@ -894,11 +902,13 @@ export function TempoCaminhoVista({
         ) : null}
         <button
           type="button"
-          className="pointer-events-auto rounded-full border border-warn/40 bg-warn/10 px-2.5 py-0.5 text-2xs font-mono text-warn shadow hover:bg-warn/20"
+          className="pointer-events-auto inline-flex h-6 items-center rounded border border-warn/50 bg-warn/10 px-2.5 text-xs tabular text-warn shadow-[var(--sombra-flutuante)] hover:border-warn"
           onClick={() => setVerFora((v) => !v)}
+          aria-expanded={verFora}
+          aria-controls="tc-fora-da-visao"
           title="Tarefas sem local ou com locais fora dos trechos escolhidos"
         >
-          {foraDaVista.length} {foraDaVista.length === 1 ? 'tarefa' : 'tarefas'} fora da visão
+          {contar(foraDaVista.length, 'tarefa', 'tarefas')} fora da visão
         </button>
       </div>
     ) : null
@@ -923,7 +933,10 @@ export function TempoCaminhoVista({
     <div data-density="compact" className="relative h-full w-full">
       <div
         ref={ref}
-        className="relative h-full w-full overflow-auto bg-bg"
+        tabIndex={0}
+        role="region"
+        aria-label="Diagrama tempo-caminho"
+        className="relative h-full w-full overflow-auto bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         onScroll={(ev) =>
           setVista({
             top: (ev.currentTarget as HTMLDivElement).scrollTop,
@@ -1050,7 +1063,7 @@ export function TempoCaminhoVista({
                       <text
                         x={6}
                         y={Math.min(b - 4, a + 13)}
-                        className="fill-[var(--text-muted)] text-[11px] font-medium capitalize"
+                        className="fill-[var(--text-muted)] text-[11px] font-medium"
                       >
                         {c.rotulo.replace(' de ', ' ')}
                       </text>
@@ -1074,7 +1087,7 @@ export function TempoCaminhoVista({
                     <text
                       x={ESQ - COL_FINA + 5}
                       y={(c.x0 + c.x1) / 2 + 3.5}
-                      className="fill-[var(--text-dim)] font-mono text-[10px] capitalize"
+                      className="fill-[var(--text-dim)] font-mono text-[10px]"
                     >
                       {c.rotulo}
                     </text>

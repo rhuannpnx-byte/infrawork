@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): ReactNode {
-  const del = useDeleteIndireto()
+  const { mutate: excluir, isPending: excluindo } = useDeleteIndireto()
   const confirm = useConfirm()
 
   const columns = useMemo<ColumnDef<Indireto, unknown>[]>(
@@ -85,7 +85,7 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
                     variant="danger"
                     aria-label={`Excluir ${row.original.descricao}`}
                     title={`Excluir ${row.original.descricao}`}
-                    disabled={del.isPending}
+                    disabled={excluindo}
                     onClick={async () => {
                       const ok = await confirm({
                         title: `Excluir "${row.original.descricao}"?`,
@@ -94,7 +94,7 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
                         confirmLabel: 'Excluir',
                         variant: 'danger'
                       })
-                      if (ok) del.mutate({ id: row.original.id, obra_id: obraId })
+                      if (ok) excluir({ id: row.original.id, obra_id: obraId })
                     }}
                   >
                     <Trash2 size={12} aria-hidden />
@@ -106,7 +106,7 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
           ]
         : [])
     ],
-    [confirm, del, obraId, podeEditar]
+    [confirm, excluir, excluindo, obraId, podeEditar]
   )
 
   return (

@@ -46,7 +46,7 @@ function PlanilhaOrcamentaria(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
   const obraId = scope.obraId!
 
-  const { data: plan, isLoading, error } = usePlanOrc(obraId)
+  const { data: plan, isLoading, error, refetch } = usePlanOrc(obraId)
   const confirm = useConfirm()
   const qc = useQueryClient()
   const [bulkDeleting, setBulkDeleting] = useState(false)
@@ -58,28 +58,40 @@ function PlanilhaOrcamentaria(): ReactNode {
   const [newTipoInicial, setNewTipoInicial] = useState<'etapa' | 'receita'>('receita')
   const [filtroAloc, setFiltroAloc] = useState<Set<AlocStatus>>(new Set())
   const [destacadoId, setDestacadoId] = useState<string | null>(null)
-  const [painelServicos, setPainelServicos] = useState(true)
+  // em tela estreita o painel começa recolhido, para a planilha ter onde aparecer
+  const [painelServicos, setPainelServicos] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches
+  )
   const [ratearNode, setRatearNode] = useState<ItemTreeNode | null>(null)
   const removerAloc = useRemoverAlocacoes()
   const [importOpen, setImportOpen] = useState(false)
   const [moverItem, setMoverItem] = useState<ItemTreeNode | null>(null)
   /** IDs de receitas selecionadas (para agrupar). */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-  const [hidratado, setHidratado] = useState(false)
+  // A planilha vem toda expandida; guarda-se o que foi recolhido, para o índice novo já nascer aberto.
+  const [recolhidos, setRecolhidos] = useState<Set<string>>(new Set())
+  const expandedIds = useMemo(
+    () =>
+      new Set(
+        (plan?.flat ?? [])
+          .filter((n) => n.tipo === 'etapa' && !recolhidos.has(n.id))
+          .map((n) => n.id)
+      ),
+    [plan, recolhidos]
+  )
+  const setExpandedIds = (abertos: Set<string>): void =>
+    setRecolhidos(
+      new Set(
+        (plan?.flat ?? []).filter((n) => n.tipo === 'etapa' && !abertos.has(n.id)).map((n) => n.id)
+      )
+    )
 
-  // Planilha vem TOTALMENTE expandida por default (todos os níveis, não só as raízes).
-  if (!hidratado && plan?.flat && plan.flat.length > 0) {
-    setHidratado(true)
-    setExpandedIds(new Set(plan.flat.map((n) => n.id)))
-  }
-
-  const { data: cadeiaTrava } = useCadeiaTrava(obraId)
+  const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
   const podeRole = role === 'god' || role === 'adm' || role === 'engenheiro'
   const { data: aditivos = [] } = useAditivos(obraId)
   const temAditivo = aditivos.some((a) => a.status === 'aplicado')
   // cadeia editável (sem vigente e com plano em edição, ou antes de qualquer LB)
-  const podeEditar = podeRole && !cadeiaTrava
+  const podeEditar = podeRole && !travaCarregando && !cadeiaTrava
   // planilha de venda (receitas/etapas): só antes do 1º aditivo
   const podePlanilha = podeEditar && !temAditivo
   // agrupar/ratear: com a cadeia travada, só receitas nascidas de aditivo (saldo)
@@ -87,6 +99,14 @@ function PlanilhaOrcamentaria(): ReactNode {
     podeRole && n.tipo === 'receita' && (podeEditar || !!n.aditivo_id)
   const temReceitaAditivo = (plan?.flat ?? []).some((n) => !!n.aditivo_id)
   const podeServicos = podeRole && (podeEditar || temReceitaAditivo)
+
+  const motivoSomenteLeitura = !podeRole
+    ? 'Seu perfil não permite editar a planilha orçamentária.'
+    : cadeiaTrava
+      ? `Somente leitura: ${cadeiaTrava.replace(/\s+[—–]\s+/g, ', ').replace(/\.$/, '')}.`
+      : temAditivo
+        ? 'A planilha de venda só muda pela tela de Aditivos.'
+        : undefined
 
   const { data: taxaVigente } = useTaxaVigente(obraId)
 
@@ -147,7 +167,10 @@ function PlanilhaOrcamentaria(): ReactNode {
       await removerAloc.mutateAsync({ obra_id: obraId, ids })
       toast.success(`Alocação de ${node.codigo} removida.`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao remover alocação')
+      const detalhe = (err as { message?: string } | null)?.message
+      toast.error(
+        `Não foi possível remover a alocação de ${node.codigo}. ${detalhe ?? 'Tente de novo.'}`
+      )
     }
   }
 
@@ -164,13 +187,14 @@ function PlanilhaOrcamentaria(): ReactNode {
 
   const handleBulkDelete = async (): Promise<void> => {
     if (itensSelecionados.length === 0) return
-    const tiposCount = itensSelecionados.reduce<Record<string, number>>((acc, n) => {
-      acc[n.tipo] = (acc[n.tipo] ?? 0) + 1
-      return acc
-    }, {})
-    const breakdown = Object.entries(tiposCount)
-      .map(([t, n]) => `${n} ${t}${n > 1 ? 's' : ''}`)
-      .join(', ')
+    const nIndices = itensSelecionados.filter((n) => n.tipo === 'etapa').length
+    const nReceitas = itensSelecionados.filter((n) => n.tipo === 'receita').length
+    const breakdown = [
+      nIndices > 0 ? contar(nIndices, 'índice', 'índices') : null,
+      nReceitas > 0 ? contar(nReceitas, 'receita', 'receitas') : null
+    ]
+      .filter(Boolean)
+      .join(' e ')
 
     const alocadas = new Set((plan?.alocacoes ?? []).map((a) => a.receita_id))
     const idsSel = new Set(itensSelecionados.map((n) => n.id))
@@ -189,7 +213,7 @@ function PlanilhaOrcamentaria(): ReactNode {
         `${contar(bloqueadas.length, 'receita está alocada', 'receitas estão alocadas')} em serviços (${bloqueadas
           .slice(0, 4)
           .map((n) => n.codigo)
-          .join(', ')}${bloqueadas.length > 4 ? '…' : ''}) — remova a alocação antes de excluir.`
+          .join(', ')}${bloqueadas.length > 4 ? '…' : ''}). Remova a alocação antes de excluir.`
       )
       return
     }
@@ -201,7 +225,10 @@ function PlanilhaOrcamentaria(): ReactNode {
         plan?.flat ?? []
       )
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao avaliar dependências')
+      const detalhe = (err as { message?: string } | null)?.message
+      toast.error(
+        `Não foi possível conferir o que depende dos itens. ${detalhe ?? 'Tente de novo.'}`
+      )
       return
     }
 
@@ -217,8 +244,8 @@ function PlanilhaOrcamentaria(): ReactNode {
               <span className="text-warn">
                 {contar(preview.descendentesEmCascata, 'descendente', 'descendentes')}
               </span>{' '}
-              {preview.descendentesEmCascata === 1 ? 'será apagado' : 'serão apagados'} em cascata
-              (índices com filhos arrastam tudo).
+              {preview.descendentesEmCascata === 1 ? 'será apagado' : 'serão apagados'} junto: o que
+              está dentro de um índice vai com ele.
             </p>
           ) : null}
           {preview.tarefasQueFicarOrfas > 0 ? (
@@ -227,11 +254,10 @@ function PlanilhaOrcamentaria(): ReactNode {
                 {contar(preview.tarefasQueFicarOrfas, 'tarefa', 'tarefas')} de planejamento
               </span>{' '}
               {preview.tarefasQueFicarOrfas === 1
-                ? 'ficará órfã (perde o vínculo'
-                : 'ficarão órfãs (perdem o vínculo'}{' '}
-              com o item, inclusive em linha de base). As tarefas <strong>não</strong> serão
-              apagadas — só desvinculadas. Você pode re-vinculá-las ou apagá-las depois pelo módulo
-              de Planejamento.
+                ? 'perde o vínculo com o item'
+                : 'perdem o vínculo com o item'}
+              , inclusive em linha de base. As tarefas <strong>não</strong> são apagadas: ficam sem
+              item, e você pode vinculá-las de novo ou apagá-las depois no Planejamento.
             </p>
           ) : null}
           <p className="text-text-dim">
@@ -247,7 +273,6 @@ function PlanilhaOrcamentaria(): ReactNode {
     // Limpa seleção imediatamente — UX responsiva.
     setSelectedIds(new Set())
     setBulkDeleting(true)
-    const t0 = performance.now()
 
     try {
       // Agrupa por nível pra apagar folhas-primeiro (FK parent_id é RESTRICT).
@@ -269,14 +294,13 @@ function PlanilhaOrcamentaria(): ReactNode {
         if (err) {
           console.error('[plan-orc bulk delete] nivel', nv, err)
           toast.error(
-            `Falha no nível ${nv}: ${err.message}. Apagados antes: ${total}/${preview.idsOrdenadosParaDelete.length}.`
+            `Não foi possível excluir todos os itens (${total} de ${preview.idsOrdenadosParaDelete.length} excluídos). ${err.message}`
           )
           return
         }
         total += ids.length
       }
-      const ms = Math.round(performance.now() - t0)
-      toast.success(`${contar(total, 'item excluído', 'itens excluídos')} em ${ms}ms.`)
+      toast.success(`${contar(total, 'item excluído', 'itens excluídos')}.`)
     } finally {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'plan-orc', obraId] })
       void qc.invalidateQueries({ queryKey: ['orcamento', 'lucratividade', obraId] })
@@ -324,7 +348,12 @@ function PlanilhaOrcamentaria(): ReactNode {
         </div>
       ) : null}
       {error ? (
-        <ErroConsulta erro={error} oQue="a planilha orçamentária" className="mx-5 mt-3" />
+        <ErroConsulta
+          erro={error}
+          oQue="a planilha orçamentária"
+          aoTentar={() => void refetch()}
+          className="mx-5 mt-3"
+        />
       ) : null}
 
       {/* Uma faixa só: com seleção, as ações da seleção; sem seleção, quanto da venda já está agrupado em serviços. */}
@@ -386,7 +415,9 @@ function PlanilhaOrcamentaria(): ReactNode {
           <PlanOrcTree
             obraId={obraId}
             flat={plan?.flat ?? []}
+            estado={isLoading ? 'carregando' : error && !plan ? 'erro' : 'pronto'}
             podeEditar={podePlanilha}
+            motivoSomenteLeitura={motivoSomenteLeitura}
             podeAlocar={podeAlocar}
             selectedIds={selectedIds}
             setSelectedIds={setSelectedIds}
@@ -409,6 +440,7 @@ function PlanilhaOrcamentaria(): ReactNode {
             obraId={obraId}
             servicos={plan?.servicos ?? []}
             alocacoes={plan?.alocacoes ?? []}
+            carregando={isLoading}
             podeEditar={podeServicos}
             destacadoId={destacadoId}
             onDestacar={setDestacadoId}
@@ -436,8 +468,7 @@ function PlanilhaOrcamentaria(): ReactNode {
       {/* Totais: o lucro desconta os impostos da taxa vigente */}
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-5 py-2 border-t border-border bg-bg-panel text-xs text-text-muted">
         <div>
-          {contar(plan?.flat.length ?? 0, 'item', 'itens')}
-          {isLoading ? ' · carregando…' : ''}
+          {isLoading ? 'Carregando…' : contar(plan?.flat.length ?? 0, 'item', 'itens')}
           {' · '}
           {taxaVigente ? (
             <span>
@@ -496,6 +527,7 @@ function PlanilhaOrcamentaria(): ReactNode {
         itemId={selectedId}
         obraId={obraId}
         podeEditar={plan?.servicos.some((s) => s.id === selectedId) ? podeServicos : podePlanilha}
+        motivoSomenteLeitura={motivoSomenteLeitura}
       />
       <NewItemOrcamentarioDialog
         open={newOpen}

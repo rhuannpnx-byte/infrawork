@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
@@ -6,6 +7,7 @@ import { useIsAuthenticated } from '@/core/auth/SessionStore'
 import { useCatalogo } from '@/core/db/daos'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, PickerField } from '@/features/common/fields'
+import { focarPrimeiroInvalido } from '@/features/common/useFolha'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import {
   lembrarCabecalho,
@@ -33,13 +35,17 @@ export function CarreteiroStep0Route() {
       : null,
   )
   const [tocou, setTocou] = useState(false)
+  const [faltaCaminhao, setFaltaCaminhao] = useState(false)
+  const corpoRef = useRef<HTMLDivElement>(null)
 
   if (!authed) return <Navigate to="/login" replace />
   if (!ficha) return <Navigate to="/carreteiro" replace />
 
   const veiculos = (catalogo?.veiculos ?? []).filter((v) => !ehMaquinaDeCarga(v))
   const sugerindo = lembrado != null && !tocou && !ficha.veiculoId && !ficha.motorista
-  const veiculoSugerido = sugerindo ? (veiculos.find((v) => v.id === lembrado.veiculoId) ?? null) : null
+  const veiculoSugerido = sugerindo
+    ? (veiculos.find((v) => v.id === lembrado.veiculoId) ?? null)
+    : null
   const sugestao = sugerindo
     ? {
         ...(veiculoSugerido
@@ -53,7 +59,10 @@ export function CarreteiroStep0Route() {
   const motorista = ficha.motorista ?? (sugerindo ? lembrado.motorista : null) ?? ''
 
   function continuar() {
-    if (!veiculoId) return
+    if (!veiculoId) {
+      flushSync(() => setFaltaCaminhao(true))
+      return focarPrimeiroInvalido(corpoRef.current)
+    }
     if (sugerindo) setCab(sugestao)
     lembrarCabecalho(ficha!.obraId, { veiculoId, motorista: motorista || null })
     navigate('/carreteiro/step1')
@@ -61,7 +70,7 @@ export function CarreteiroStep0Route() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
@@ -73,13 +82,13 @@ export function CarreteiroStep0Route() {
           </Button>
           <div>
             <h1 className="text-lg font-semibold text-on-surface">Ficha de viagens</h1>
-            <p className="text-xs text-on-surface-dim">{ficha.obraCodigo} · cabeçalho</p>
+            <p className="text-xs text-on-surface-dim">{ficha.obraCodigo} · caminhão e data</p>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 p-4">
-        <div>
+      <div ref={corpoRef} className="mx-auto w-full max-w-2xl flex-1 space-y-3 p-4">
+        <div role="group" aria-label="Data">
           <p className="rotulo">Data</p>
           <div className="mt-1 grid grid-cols-2 gap-2">
             {[
@@ -99,7 +108,7 @@ export function CarreteiroStep0Route() {
                 )}
               >
                 <span className="block text-sm font-semibold">{o.r}</span>
-                <span className="block text-xs tabular">{formatBR(o.dt)}</span>
+                <span className="tabular block text-xs">{formatBR(o.dt)}</span>
               </button>
             ))}
           </div>
@@ -109,6 +118,7 @@ export function CarreteiroStep0Route() {
           value={veiculoNome ?? 'Selecionar…'}
           onClick={() => setPicker('veiculo')}
           empty={!veiculoId}
+          erro={faltaCaminhao && !veiculoId ? 'Escolha o caminhão para continuar.' : null}
           hint={
             veiculos.length === 0
               ? 'Nenhum veículo cadastrado na frota da empresa'
@@ -131,25 +141,21 @@ export function CarreteiroStep0Route() {
         <div className="grid grid-cols-2 gap-3">
           <PickerField
             label="Encarregado"
-            value={ficha.encarregadoNome ?? '—'}
+            value={ficha.encarregadoNome ?? 'Opcional'}
+            opcional={!ficha.encarregadoNome}
             onClick={() => setPicker('encarregado')}
           />
           <PickerField
             label="Equipe"
-            value={ficha.equipeNome ?? '—'}
+            value={ficha.equipeNome ?? 'Opcional'}
+            opcional={!ficha.equipeNome}
             onClick={() => setPicker('equipe')}
           />
         </div>
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
-        <Button
-          variant="primary"
-          size="lg"
-          disabled={!veiculoId}
-          onClick={continuar}
-          className="w-full"
-        >
+      <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
+        <Button variant="primary" size="lg" onClick={continuar} className="w-full">
           Continuar para as viagens
         </Button>
       </div>
@@ -177,9 +183,7 @@ export function CarreteiroStep0Route() {
             setCab({
               veiculoId: v.id,
               veiculoNome: rotuloVeiculo(v),
-              motorista: acompanha
-                ? motoristaDoVeiculo(ficha.obraId, v.id)
-                : motorista || null,
+              motorista: acompanha ? motoristaDoVeiculo(ficha.obraId, v.id) : motorista || null,
             })
             setPicker(null)
           }}

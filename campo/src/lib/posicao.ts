@@ -216,7 +216,10 @@ export function formatMarcadorCompacto(
   if (!Number.isFinite(marcador) || marcador < 0) return ''
   const n = Number.isInteger(marcador)
     ? String(marcador)
-    : marcador.toFixed(2).replace(/\.?0+$/, '')
+    : marcador
+        .toFixed(2)
+        .replace(/\.?0+$/, '')
+        .replace('.', ',')
   switch (trecho.unidade_espaco_padrao) {
     case 'km':
       return `km ${n}`

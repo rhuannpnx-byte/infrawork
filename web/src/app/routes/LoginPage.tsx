@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useEffect,
   useRef,
   useState,
   type FormEvent,
@@ -232,8 +233,14 @@ function Cartao({
   rodape?: ReactNode
   children: ReactNode
 }): ReactNode {
+  const form = useRef<HTMLFormElement>(null)
+  // validação recusada: o foco vai ao primeiro campo com erro
+  useEffect(() => {
+    if (tremer) form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+  }, [tremer])
   return (
     <form
+      ref={form}
       onSubmit={onSubmit}
       noValidate
       onAnimationEnd={onTremido}

@@ -500,6 +500,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
       excluidas: (m.excluidas as string[]) ?? []
     })),
     limites: (limites as Record<string, unknown>[]).map((l): LimiteRecurso => ({
+      id: l.id as string,
       recurso_id: l.recurso_id as string,
       grupo_id: (l.grupo_id as string | null) ?? null,
       maximo: n(l.maximo)

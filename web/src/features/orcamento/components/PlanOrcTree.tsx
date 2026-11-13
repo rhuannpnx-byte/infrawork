@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner'
 import { Dropdown, DropdownItem } from '@/components/ui/dropdown'
 import { Popover } from '@/components/ui/popover'
+import { Carregando } from '@/components/ui/estado'
 import { fmtBRL, fmtPct2, parseBR } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { useDeleteItem, useReorderItem, useUpsertItem } from '../hooks/plan-orc'
@@ -46,8 +47,12 @@ import { useConfirm } from '@/components/modals/ConfirmDialog'
 interface Props {
   obraId: string
   flat: ItemTreeNode[]
+  /** Estado da consulta da planilha: sem itens, a árvore diz se ainda carrega ou se não carregou. */
+  estado?: 'carregando' | 'erro' | 'pronto'
   /** Editar a planilha de venda (quantidade, preço, itens). */
   podeEditar: boolean
+  /** Por que a planilha não pode ser editada (dica dos campos desabilitados). */
+  motivoSomenteLeitura?: string
   /** Agrupar/ratear esta receita (com a cadeia travada: só receitas de aditivo). */
   podeAlocar: (node: ItemTreeNode) => boolean
   selectedIds: Set<string>
@@ -74,12 +79,16 @@ interface Props {
 }
 
 const ROW_HEIGHT = 28
+/** Só algarismos, ponto e vírgula: o que o `parseBR` entende como número. */
+const NUMERO = /^\d[\d.,]*$/
 const FILTROS: AlocStatus[] = ['sem', 'saldo', 'rateado', 'unico']
 
 export function PlanOrcTree({
   obraId,
   flat,
+  estado = 'pronto',
   podeEditar,
+  motivoSomenteLeitura,
   podeAlocar,
   selectedIds,
   setSelectedIds,
@@ -191,123 +200,131 @@ export function PlanOrcTree({
   }
 
   return (
-    <div data-density="compact" className="flex flex-col h-full">
-      <div className="flex items-center text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim bg-bg-elevated border-b border-border-strong sticky top-0 z-10">
-        <div
-          className="px-2 py-1.5 flex items-center justify-center"
-          style={{ width: 32 }}
-          title={
-            podeEditar
-              ? headerSelectState === 'all'
-                ? 'Desmarcar todos visíveis'
-                : 'Selecionar todos visíveis'
-              : undefined
-          }
-        >
-          {podeEditar ? (
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={
-                headerSelectState === 'all' ? true : headerSelectState === 'some' ? 'mixed' : false
-              }
-              aria-label="Selecionar todos os itens visíveis"
-              onClick={onToggleSelectAll}
-              disabled={visibleIds.length === 0}
-              className={cn(
-                'w-4 h-4 inline-flex items-center justify-center rounded-sm border',
-                headerSelectState === 'all'
-                  ? 'border-accent bg-accent text-[color:var(--on-accent)]'
-                  : headerSelectState === 'some'
-                    ? 'border-accent bg-accent/40 text-[color:var(--on-accent)]'
-                    : 'border-border-strong bg-bg-panel hover:border-accent'
-              )}
-            >
-              {headerSelectState === 'all' ? (
-                <Check size={12} strokeWidth={3} />
-              ) : headerSelectState === 'some' ? (
-                <Minus size={12} strokeWidth={3} />
-              ) : null}
-            </button>
-          ) : null}
-        </div>
-        {/* Alocação: filtro */}
-        <div className="flex items-center justify-center" style={{ width: 26 }}>
-          <Popover
-            open={filtroAberto}
-            onOpenChange={setFiltroAberto}
-            trigger={
-              <button
-                type="button"
-                onClick={() => setFiltroAberto((o) => !o)}
-                aria-label="Filtrar por situação de agrupamento"
-                aria-expanded={filtroAberto}
-                title="Filtrar por situação de agrupamento"
-                className={cn(
-                  'w-5 h-5 grid place-items-center rounded hover:bg-bg-hover',
-                  filtroAloc.size > 0 ? 'text-accent' : 'text-text-dim'
-                )}
-              >
-                <Filter size={12} className={filtroAloc.size > 0 ? 'fill-current' : ''} />
-              </button>
+    <div data-density="compact" ref={parentRef} className="h-full overflow-auto">
+      <div className="min-w-[860px]">
+        <div className="flex items-center text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim bg-bg-elevated border-b border-border-strong sticky top-0 z-10">
+          <div
+            className="shrink-0 flex items-center justify-center"
+            style={{ width: 32 }}
+            title={
+              podeEditar
+                ? headerSelectState === 'all'
+                  ? 'Desmarcar todos visíveis'
+                  : 'Selecionar todos visíveis'
+                : undefined
             }
-            className="w-[220px] p-1 normal-case tracking-normal font-sans"
           >
-            <div className="px-2 py-1 text-xs text-text-muted">Mostrar só as receitas</div>
-            {FILTROS.map((st) => (
-              <label
-                key={st}
-                className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-text hover:bg-bg-hover cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={filtroAloc.has(st)}
-                  onChange={() => toggleFiltro(st)}
-                  className="accent-[var(--accent)]"
-                />
-                <AlocacaoGlyph info={exemplo(st)} />
-                {ALOC_STATUS_LABEL[st]}
-              </label>
-            ))}
-            {filtroAloc.size > 0 ? (
+            {podeEditar ? (
               <button
                 type="button"
-                onClick={() => setFiltroAloc(new Set())}
-                className="w-full text-left px-2 py-1.5 text-sm font-semibold text-accent hover:underline"
+                role="checkbox"
+                aria-checked={
+                  headerSelectState === 'all'
+                    ? true
+                    : headerSelectState === 'some'
+                      ? 'mixed'
+                      : false
+                }
+                aria-label="Selecionar todos os itens visíveis"
+                onClick={onToggleSelectAll}
+                disabled={visibleIds.length === 0}
+                className="group/caixa w-6 h-6 grid place-items-center rounded"
               >
-                Limpar filtro
+                <span
+                  className={cn(
+                    'w-4 h-4 inline-flex items-center justify-center rounded-sm border',
+                    headerSelectState === 'all'
+                      ? 'border-accent bg-accent text-[color:var(--on-accent)]'
+                      : headerSelectState === 'some'
+                        ? 'border-accent bg-accent/40 text-[color:var(--on-accent)]'
+                        : 'border-border-strong bg-bg-panel group-hover/caixa:border-accent'
+                  )}
+                >
+                  {headerSelectState === 'all' ? (
+                    <Check size={12} strokeWidth={3} />
+                  ) : headerSelectState === 'some' ? (
+                    <Minus size={12} strokeWidth={3} />
+                  ) : null}
+                </span>
               </button>
             ) : null}
-          </Popover>
+          </div>
+          {/* Alocação: filtro */}
+          <div className="shrink-0 flex items-center justify-center" style={{ width: 26 }}>
+            <Popover
+              open={filtroAberto}
+              onOpenChange={setFiltroAberto}
+              trigger={
+                <button
+                  type="button"
+                  onClick={() => setFiltroAberto((o) => !o)}
+                  aria-label="Filtrar por situação de agrupamento"
+                  aria-expanded={filtroAberto}
+                  title="Filtrar por situação de agrupamento"
+                  className={cn(
+                    'w-6 h-6 grid place-items-center rounded hover:bg-bg-hover',
+                    filtroAloc.size > 0 ? 'text-accent' : 'text-text-dim'
+                  )}
+                >
+                  <Filter size={12} className={filtroAloc.size > 0 ? 'fill-current' : ''} />
+                </button>
+              }
+              className="w-[220px] p-1 normal-case tracking-normal font-sans"
+            >
+              <div className="px-2 py-1 text-xs text-text-muted">Mostrar só as receitas</div>
+              {FILTROS.map((st) => (
+                <label
+                  key={st}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-text hover:bg-bg-hover cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filtroAloc.has(st)}
+                    onChange={() => toggleFiltro(st)}
+                    className="accent-[var(--accent)]"
+                  />
+                  <AlocacaoGlyph info={exemplo(st)} />
+                  {ALOC_STATUS_LABEL[st]}
+                </label>
+              ))}
+              {filtroAloc.size > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setFiltroAloc(new Set())}
+                  className="w-full text-left px-2 py-1.5 text-sm font-semibold text-accent hover:underline"
+                >
+                  Limpar filtro
+                </button>
+              ) : null}
+            </Popover>
+          </div>
+          <div className="px-2 py-1.5" style={{ width: 410 }}>
+            Item
+          </div>
+          <div className="px-2 py-1.5 text-center" style={{ width: 60 }}>
+            Un.
+          </div>
+          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 126 }}>
+            Qtd
+          </div>
+          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
+            Venda unit.
+          </div>
+          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
+            Venda total
+          </div>
+          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
+            Custo total
+          </div>
+          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 80 }}>
+            Lucro %
+          </div>
+          <div className="px-2 py-1.5 text-center flex-1" style={{ minWidth: 80 }}>
+            Ações
+          </div>
         </div>
-        <div className="px-2 py-1.5" style={{ width: 410 }}>
-          Item
-        </div>
-        <div className="px-2 py-1.5 text-center" style={{ width: 60 }}>
-          Un.
-        </div>
-        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 126 }}>
-          Qtd
-        </div>
-        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
-          Venda unit.
-        </div>
-        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
-          Venda total
-        </div>
-        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
-          Custo total
-        </div>
-        <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 80 }}>
-          Lucro %
-        </div>
-        <div className="px-2 py-1.5 text-center flex-1" style={{ minWidth: 80 }}>
-          Ações
-        </div>
-      </div>
 
-      {/* Lista virtualizada */}
-      <div ref={parentRef} className="flex-1 overflow-auto">
+        {/* Lista virtualizada: o cabeçalho rola junto e as linhas de folga cobrem a altura dele */}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
           {virtualizer.getVirtualItems().map((vi) => {
             const node = visible[vi.index]
@@ -327,6 +344,7 @@ export function PlanOrcTree({
                   node={node}
                   obraId={obraId}
                   podeEditar={podeEditar}
+                  motivoSomenteLeitura={motivoSomenteLeitura}
                   podeAlocar={podeAlocar(node)}
                   isSelected={selectedIds.has(node.id)}
                   isExpanded={expandedIds.has(node.id)}
@@ -346,14 +364,21 @@ export function PlanOrcTree({
             )
           })}
         </div>
-        {visible.length === 0 ? (
-          <div className="p-8 text-center text-xs text-text-muted font-mono">
-            {filtroAloc.size > 0
-              ? 'Nenhuma receita nessa situação.'
-              : 'Nenhum item ainda. Crie o primeiro índice ou receita raiz.'}
-          </div>
-        ) : null}
       </div>
+      {visible.length > 0 || estado === 'erro' ? null : estado === 'carregando' ? (
+        <Carregando
+          texto="Carregando a planilha orçamentária…"
+          className="sticky left-0 justify-center"
+        />
+      ) : (
+        <div className="sticky left-0 p-8 text-center text-sm text-text-muted">
+          {filtroAloc.size > 0
+            ? 'Nenhuma receita nessa situação.'
+            : podeEditar
+              ? 'A planilha ainda não tem itens. Use "Novo item" ou "Importar planilha".'
+              : 'A planilha ainda não tem itens.'}
+        </div>
+      )}
     </div>
   )
 }
@@ -376,6 +401,7 @@ interface RowProps {
   node: ItemTreeNode
   obraId: string
   podeEditar: boolean
+  motivoSomenteLeitura?: string
   podeAlocar: boolean
   isSelected: boolean
   isExpanded: boolean
@@ -398,6 +424,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
   node,
   obraId,
   podeEditar,
+  motivoSomenteLeitura,
   podeAlocar,
   isSelected,
   isExpanded,
@@ -421,12 +448,31 @@ const PlanOrcRow = memo(function PlanOrcRow({
   const isReceita = node.tipo === 'receita'
   const alocada = isReceita && (info?.destinos.length ?? 0) > 0
 
+  const nomeCampo = (field: 'quantidade' | 'venda_unitaria'): string =>
+    `${field === 'quantidade' ? 'a quantidade' : 'a venda unitária'} de ${node.codigo}`
+
+  // a receita não fica sem quantidade nem sem venda unitária, e texto que não é número não vira zero
+  const validarReceita =
+    (field: 'quantidade' | 'venda_unitaria') =>
+    (texto: string): string | null => {
+      if (texto === '') return `Informe ${nomeCampo(field)}.`
+      if (!NUMERO.test(texto) || !Number.isFinite(parseBR(texto).toNumber()))
+        return `Digite ${nomeCampo(field)} como um número, por exemplo ${field === 'quantidade' ? '1.250,5' : '38,50'}.`
+      return null
+    }
+
   const onChangeReceita =
     (field: 'quantidade' | 'venda_unitaria') =>
     async (val: string): Promise<void> => {
-      const num = val.trim() === '' ? null : parseBR(val).toNumber()
-      if (val.trim() !== '' && (num === null || isNaN(num))) throw new Error('inválido')
-      await upsert.mutateAsync({ id: node.id, obra_id: obraId, tipo: node.tipo, [field]: num })
+      const num = parseBR(val).toNumber()
+      try {
+        await upsert.mutateAsync({ id: node.id, obra_id: obraId, tipo: node.tipo, [field]: num })
+      } catch (err) {
+        const detalhe = (err as { message?: string } | null)?.message
+        throw new Error(
+          `Não foi possível salvar ${nomeCampo(field)}.${detalhe ? ` ${detalhe}` : ' Tente de novo.'}`
+        )
+      }
     }
 
   return (
@@ -444,7 +490,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
       )}
     >
       {/* Seleção */}
-      <div className="px-2 flex items-center justify-center" style={{ width: 32 }}>
+      <div className="shrink-0 flex items-center justify-center" style={{ width: 32 }}>
         {podeEditar || podeAlocar ? (
           <button
             type="button"
@@ -456,19 +502,23 @@ const PlanOrcRow = memo(function PlanOrcRow({
             aria-checked={isSelected}
             aria-label={`Selecionar ${node.codigo}`}
             title={isReceita ? 'Selecionar para agrupar ou excluir' : 'Selecionar para excluir'}
-            className={cn(
-              'w-4 h-4 inline-flex items-center justify-center rounded-sm border',
-              isSelected
-                ? 'border-accent bg-accent text-[color:var(--on-accent)]'
-                : 'border-border-strong bg-bg-panel hover:border-accent'
-            )}
+            className="group/caixa w-6 h-6 grid place-items-center rounded"
           >
-            {isSelected ? <Check size={12} strokeWidth={3} /> : null}
+            <span
+              className={cn(
+                'w-4 h-4 inline-flex items-center justify-center rounded-sm border',
+                isSelected
+                  ? 'border-accent bg-accent text-[color:var(--on-accent)]'
+                  : 'border-border-strong bg-bg-panel group-hover/caixa:border-accent'
+              )}
+            >
+              {isSelected ? <Check size={12} strokeWidth={3} /> : null}
+            </span>
           </button>
         ) : null}
       </div>
       {/* Alocação */}
-      <div className="flex items-center justify-center" style={{ width: 26 }}>
+      <div className="shrink-0 flex items-center justify-center" style={{ width: 26 }}>
         <AlocacaoGlyph info={info} />
       </div>
       {/* Código + descrição (com indentação) */}
@@ -482,7 +532,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
             onClick={onToggle}
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} ${node.codigo}`}
-            className="w-4 h-4 shrink-0 flex items-center justify-center text-text-muted hover:text-text"
+            className="w-6 h-6 -mx-1 shrink-0 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-hover"
           >
             {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           </button>
@@ -504,7 +554,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
             }
           }}
           className={cn(
-            'flex-1 text-left truncate text-xs',
+            'flex-1 h-6 text-left truncate text-xs',
             isEtapa ? 'font-semibold text-text uppercase tracking-wide' : 'text-text'
           )}
           title={`${node.codigo} ${node.descricao}`}
@@ -538,10 +588,12 @@ const PlanOrcRow = memo(function PlanOrcRow({
           <PlanOrcInlineCell
             value={node.quantidade !== null ? String(node.quantidade) : ''}
             onCommit={onChangeReceita('quantidade')}
+            validar={validarReceita('quantidade')}
             rotulo={`Quantidade de ${node.codigo}`}
             qtd
             align="right"
             disabled={!podeEditar}
+            motivoDesabilitado={motivoSomenteLeitura}
           />
         ) : (
           <span className="text-text-dim text-xs pl-1">—</span>
@@ -554,10 +606,12 @@ const PlanOrcRow = memo(function PlanOrcRow({
           <PlanOrcInlineCell
             value={node.venda_unitaria !== null ? String(node.venda_unitaria) : ''}
             onCommit={onChangeReceita('venda_unitaria')}
+            validar={validarReceita('venda_unitaria')}
             rotulo={`Venda unitária de ${node.codigo}`}
             money
             align="right"
             disabled={!podeEditar}
+            motivoDesabilitado={motivoSomenteLeitura}
           />
         ) : (
           <span className="text-text-dim text-xs pl-1">—</span>
@@ -602,7 +656,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
                 onClick={onNewChild}
                 aria-label={`Novo item dentro de ${node.codigo}`}
                 title={`Novo item dentro de ${node.codigo}`}
-                className="w-5 h-5 flex items-center justify-center rounded text-text-muted hover:text-accent hover:bg-bg-elevated"
+                className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-accent hover:bg-bg-elevated"
               >
                 <Plus size={12} />
               </button>
@@ -614,7 +668,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
                   type="button"
                   aria-label={`Mais ações de ${node.codigo}`}
                   title="Mais ações"
-                  className="w-5 h-5 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-elevated"
+                  className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-elevated"
                 >
                   <MoreVertical size={12} />
                 </button>
@@ -681,7 +735,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
                 type="button"
                 aria-label={`Mais ações de ${node.codigo}`}
                 title="Mais ações"
-                className="w-5 h-5 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-elevated"
+                className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-bg-elevated"
               >
                 <MoreVertical size={12} />
               </button>

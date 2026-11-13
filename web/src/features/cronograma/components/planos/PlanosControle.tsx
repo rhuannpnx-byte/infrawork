@@ -113,7 +113,7 @@ export function SeletorPlano({
           const lb = lbs.find((x) => x.vigente) ?? lbs[0]
           if (lb) onEscolher(lb.id)
         },
-        onError: (e) => void toast.error(e.message)
+        onError: (e) => void toast.error(`Não foi possível excluir o plano. ${e.message}`)
       }
     )
   }
@@ -128,7 +128,9 @@ export function SeletorPlano({
         trigger={
           <button
             type="button"
-            aria-label="Plano"
+            aria-label={`Plano: ${plano.nome} ${plano.is_baseline ? (plano.vigente ? 'linha de base vigente' : 'linha de base') : 'em edição'}`}
+            aria-expanded={aberto}
+            title="Escolher o plano aberto"
             data-testid="seletor-plano"
             onClick={() => setAberto((o) => !o)}
             className={cn(
@@ -143,7 +145,11 @@ export function SeletorPlano({
             )}
             <span className="truncate">{plano.nome}</span>
             <span className="shrink-0 text-xs text-text-muted">
-              {plano.is_baseline ? (plano.vigente ? 'LB vigente' : 'LB') : 'em edição'}
+              {plano.is_baseline
+                ? plano.vigente
+                  ? 'linha de base vigente'
+                  : 'linha de base'
+                : 'em edição'}
             </span>
             <ChevronDown size={12} className="shrink-0 text-text-dim" />
           </button>
@@ -208,7 +214,7 @@ export function SeletorPlano({
           <div className="mt-1 border-t border-border px-3 pt-2 pb-1">
             <div
               className={cn(
-                'flex items-start gap-1.5 text-2xs',
+                'flex items-start gap-1.5 text-xs',
                 trava ? 'text-warn' : 'text-success'
               )}
             >
@@ -227,7 +233,7 @@ export function SeletorPlano({
               <button
                 type="button"
                 onClick={() => void navigate({ to: '/planejamento/comparar' })}
-                className="mt-1.5 flex items-center gap-1.5 text-2xs text-text-muted hover:text-accent"
+                className="mt-1.5 flex h-6 items-center gap-1.5 text-xs text-text-muted hover:text-accent"
               >
                 <GitCompare size={12} /> Comparar planos
               </button>
@@ -347,7 +353,9 @@ export function FaixaLinhaBase({
   const mudou = !!diff?.mudou
   const provisoria = referenciaProvisoria(lbs) === plano.id
   const falha = (e: unknown): void =>
-    void toast.error(e instanceof Error ? e.message : 'Falha na operação')
+    void toast.error(
+      `Não foi possível concluir a operação na linha de base.${e instanceof Error ? ` ${e.message}` : ''}`
+    )
 
   const tornarVigente = async (): Promise<void> => {
     const ok = await confirm({
@@ -435,9 +443,10 @@ export function FaixaLinhaBase({
         <button
           type="button"
           onClick={() => setVerDiff(true)}
-          className="flex items-center gap-1 text-warn hover:underline"
+          className="flex h-6 items-center gap-1 text-warn hover:underline"
+          title="Ver o que mudou no orçamento e no calendário desde a trava"
         >
-          <AlertTriangle size={12} /> premissas mudaram
+          <AlertTriangle size={12} /> Premissas mudaram
         </button>
       ) : null}
 
@@ -484,6 +493,7 @@ export function FaixaLinhaBase({
                 onClick={() => void remover()}
                 className="hover:text-danger"
                 aria-label="Excluir linha de base"
+                title="Excluir linha de base"
               >
                 <Trash2 size={12} />
               </Button>
@@ -532,16 +542,24 @@ function NomeDialog({
 }): ReactNode {
   const [nome, setNome] = useState(padrao)
   const [erro, setErro] = useState<string | null>(null)
+  const [semNome, setSemNome] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const enviar = async (): Promise<void> => {
-    if (!nome.trim()) return
+    if (!nome.trim()) {
+      setSemNome(true)
+      document.getElementById('nome-plano')?.focus()
+      return
+    }
+    setSemNome(false)
     setErro(null)
     setEnviando(true)
     try {
       await onConfirmar(nome.trim())
       onClose()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Falha na operação')
+      setErro(
+        `Não foi possível criar o plano.${e instanceof Error ? ` ${e.message}` : ''}`
+      )
     } finally {
       setEnviando(false)
     }
@@ -559,18 +577,25 @@ function NomeDialog({
           <Input
             id="nome-plano"
             value={nome}
-            autoFocus
+            data-foco-inicial
+            aria-invalid={semNome ? true : undefined}
+            aria-describedby={semNome ? 'nome-plano-erro' : undefined}
             onChange={(e) => setNome(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void enviar()}
           />
+          {semNome ? (
+            <span id="nome-plano-erro" role="alert" className="text-xs font-medium text-danger">
+              Informe o nome do plano.
+            </span>
+          ) : null}
         </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={enviando}>
           Cancelar
         </Button>
-        <Button onClick={() => void enviar()} disabled={enviando || !nome.trim()}>
-          {enviando ? 'Aguarde…' : rotulo}
+        <Button onClick={() => void enviar()} disabled={enviando}>
+          {enviando ? 'Criando…' : rotulo}
         </Button>
       </DialogFooter>
     </Dialog>
@@ -611,9 +636,14 @@ function PremissasDialog({
           </div>
         ) : null}
         {diff.itens.length > 0 ? (
-          <div className="max-h-[50vh] overflow-auto rounded border border-border">
-            <table className="w-full font-mono text-2xs">
-              <thead className="sticky top-0 bg-bg text-text-dim">
+          <div
+            className="max-h-[50vh] overflow-auto rounded border border-border"
+            tabIndex={0}
+            role="region"
+            aria-label="Serviços com premissa alterada"
+          >
+            <table className="w-full text-xs tabular">
+              <thead className="sticky top-0 bg-bg-elevated text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                 <tr className="border-b border-border">
                   <th className="px-2 py-1 text-left">Serviço</th>
                   <th className="px-2 py-1 text-right">Quantidade</th>

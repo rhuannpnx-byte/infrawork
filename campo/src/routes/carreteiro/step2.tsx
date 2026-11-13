@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
@@ -16,9 +16,11 @@ export function CarreteiroStep2Route() {
   const fechar = useCarreteiroStore((s) => s.fechar)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  // depois de gravar a ficha sai do rascunho: sem isto, o desvio abaixo levava à lista e a tela final não aparecia
+  const gravou = useRef(false)
 
   if (!authed) return <Navigate to="/login" replace />
-  if (!ficha) return <Navigate to="/carreteiro" replace />
+  if (!ficha) return gravou.current ? null : <Navigate to="/carreteiro" replace />
 
   const porServico = new Map<
     string,
@@ -43,6 +45,7 @@ export function CarreteiroStep2Route() {
     setErro(null)
     try {
       const { pushResult } = await salvarFicha(ficha!)
+      gravou.current = true
       fechar()
       navigate('/carreteiro/success', {
         replace: true,
@@ -57,7 +60,7 @@ export function CarreteiroStep2Route() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
@@ -95,7 +98,7 @@ export function CarreteiroStep2Route() {
           {[...porServico.entries()].map(([id, t]) => (
             <li key={id} className="card-surface px-4 py-3">
               <p className="font-medium text-on-surface">{t.nome}</p>
-              <p className="text-lg font-semibold text-accent tabular">
+              <p className="tabular text-lg font-semibold text-accent">
                 {formatNumero(t.qtd, 2)} {t.un ?? ''}
                 <span className="text-xs font-normal text-on-surface-dim">
                   {' '}
@@ -117,7 +120,7 @@ export function CarreteiroStep2Route() {
         )}
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button
           variant="primary"
           size="lg"

@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { rotuloPapel } from '@/lib/rotulos'
 import { useClientes, useEngenheiros, useGrantPermissao } from '../hooks'
+import { falhaDoServidor } from '../lib/falha-servidor'
 
 interface Props {
   open: boolean
@@ -68,9 +69,7 @@ export function GrantPermissaoDialog({
       toast.success(`Acesso concedido na obra ${obraCodigo}.`)
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível conceder o acesso. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível conceder o acesso. ${falhaDoServidor(err)}`)
     }
   }
 
@@ -95,7 +94,7 @@ export function GrantPermissaoDialog({
               dica="Engenheiro, cliente ou apontador da empresa. O apoio herda o acesso do seu engenheiro."
               erro={tentou ? erroUsuario : undefined}
             >
-              <Select value={userId} onChange={(e) => setUserId(e.target.value)} autoFocus>
+              <Select value={userId} onChange={(e) => setUserId(e.target.value)} data-foco-inicial>
                 <option value="">Selecione…</option>
                 {disponiveis.map((e) => (
                   <option key={e.id} value={e.id}>

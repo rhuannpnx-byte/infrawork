@@ -27,7 +27,7 @@ export function CadeiaTravaBanner({ obraId }: { obraId: string }): ReactNode {
       </span>
       <button
         type="button"
-        className="shrink-0 rounded font-semibold text-accent underline underline-offset-2 hover:text-accent-hover hover:no-underline"
+        className="inline-flex min-h-6 shrink-0 items-center rounded font-semibold text-accent underline underline-offset-2 hover:text-accent-hover hover:no-underline"
         onClick={() => navigate({ to: '/planejamento/cronograma' })}
       >
         Ver linhas de base no cronograma

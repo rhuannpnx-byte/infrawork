@@ -33,10 +33,11 @@ export function MapaFotosDashboard({
       <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3 shrink-0">
         <h4 className="text-md font-semibold text-text flex items-center gap-1.5">Mapa de fotos</h4>
         <button
+          type="button"
           onClick={() => navigate({ to: '/acompanhamento/fotos' })}
-          className="text-sm font-semibold text-accent hover:underline inline-flex items-center gap-1"
+          className="inline-flex min-h-6 items-center gap-1 rounded text-sm font-semibold text-accent hover:underline"
         >
-          Abrir fotos e mapa <ArrowUpRight size={12} />
+          Abrir fotos e mapa <ArrowUpRight size={12} aria-hidden />
         </button>
       </div>
       <div className="relative flex-1">

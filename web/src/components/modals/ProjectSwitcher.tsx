@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, Building2, Folder, Search, Check } from 'lucide-react'
 import { Dialog, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,8 @@ export function ProjectSwitcher(): ReactNode {
   const initialStep: Step = scope.isGod && !scope.empresaId ? 'empresa' : 'obra'
   const [step, setStep] = useState<Step>(initialStep)
   const [query, setQuery] = useState('')
+  const busca = useRef<HTMLInputElement>(null)
+  const lista = useRef<HTMLDivElement>(null)
 
   // Sempre que o modal abre, reposiciona no passo inicial
   useEffect(() => {
@@ -98,45 +100,71 @@ export function ProjectSwitcher(): ReactNode {
             placeholder={
               step === 'empresa' ? 'Buscar empresa' : 'Buscar obra pelo código ou pelo nome'
             }
+            ref={busca}
             aria-label={step === 'empresa' ? 'Buscar empresa' : 'Buscar obra'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              const itens = lista.current?.querySelectorAll<HTMLElement>('button') ?? []
+              if (e.key === 'ArrowDown' && itens.length) {
+                e.preventDefault()
+                itens[0].focus()
+              } else if (e.key === 'Enter' && itens.length === 1) {
+                e.preventDefault()
+                itens[0].click()
+              }
+            }}
             className="pl-7"
             autoFocus
           />
         </div>
 
-        {step === 'empresa' ? (
-          <EmpresasList
-            empresaIds={empresas}
-            currentId={scope.empresaId}
-            obras={obras}
-            query={query}
-            nomeById={empresaNomeById}
-            onSelect={(id) => {
-              setEmpresaId(id)
-              setStep('obra')
-              setQuery('')
-            }}
-          />
-        ) : (
-          <ObrasList
-            obras={filteredObras}
-            currentId={scope.obraId}
-            disabled={!scope.empresaId}
-            onSelect={(id) => {
-              setObraId(id)
-              close()
-            }}
-            emptyVariant={
-              scope.isGod && !scope.empresaId
-                ? 'no-empresa'
-                : profile?.role === 'engenheiro' || profile?.role === 'apoio'
-                  ? 'no-access'
-                  : 'no-obras'
-            }
-          />
-        )}
+        <div
+          ref={lista}
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+            const itens = [...(lista.current?.querySelectorAll<HTMLElement>('button') ?? [])]
+            const i = itens.indexOf(document.activeElement as HTMLElement)
+            if (i < 0) return
+            e.preventDefault()
+            const alvo = itens[i + (e.key === 'ArrowDown' ? 1 : -1)]
+            if (alvo) alvo.focus()
+            else if (e.key === 'ArrowUp') busca.current?.focus()
+          }}
+        >
+          {step === 'empresa' ? (
+            <EmpresasList
+              empresaIds={empresas}
+              currentId={scope.empresaId}
+              obras={obras}
+              query={query}
+              nomeById={empresaNomeById}
+              onSelect={(id) => {
+                setEmpresaId(id)
+                setStep('obra')
+                setQuery('')
+              }}
+            />
+          ) : (
+            <ObrasList
+              obras={filteredObras}
+              currentId={scope.obraId}
+              disabled={!scope.empresaId}
+              buscando={!!query.trim()}
+              onSelect={(id) => {
+                setObraId(id)
+                close()
+              }}
+              emptyVariant={
+                scope.isGod && !scope.empresaId
+                  ? 'no-empresa'
+                  : profile?.role === 'engenheiro' || profile?.role === 'apoio'
+                    ? 'no-access'
+                    : 'no-obras'
+              }
+            />
+          )}
+        </div>
       </DialogBody>
 
       <DialogFooter>
@@ -178,7 +206,13 @@ function EmpresasList({
   }, [empresaIds, obras, query, nomeById])
 
   if (items.length === 0) {
-    return (
+    return query.trim() ? (
+      <EmptyState
+        icon="building-2"
+        title="Nenhuma empresa com esse nome"
+        description="Confira a grafia ou apague a busca para ver todas."
+      />
+    ) : (
       <EmptyState
         icon="building-2"
         title="Nenhuma empresa visível"
@@ -225,6 +259,8 @@ interface ObrasListProps {
   obras: Array<{ id: string; codigo: string; nome: string; status: string }>
   currentId: string | null
   disabled: boolean
+  /** Há texto na busca: o vazio é da busca, não do cadastro. */
+  buscando: boolean
   emptyVariant: 'no-empresa' | 'no-obras' | 'no-access'
   onSelect: (id: string) => void
 }
@@ -233,6 +269,7 @@ function ObrasList({
   obras,
   currentId,
   disabled,
+  buscando,
   emptyVariant,
   onSelect
 }: ObrasListProps): ReactNode {
@@ -242,6 +279,15 @@ function ObrasList({
         icon="building-2"
         title="Escolha a empresa primeiro"
         description="A lista mostra as obras da empresa escolhida."
+      />
+    )
+  }
+  if (obras.length === 0 && buscando) {
+    return (
+      <EmptyState
+        icon="folder-open"
+        title="Nenhuma obra com esse código ou nome"
+        description="Confira a grafia ou apague a busca para ver todas."
       />
     )
   }

@@ -8,7 +8,8 @@ import { SeloEnvio, SyncStatusIndicator } from '@/features/common/SyncStatusIndi
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { excluirRascunho } from '@/features/carreteiro/draftCarreteiroRepo'
 import { excluirFicha } from '@/features/carreteiro/carreteiroRepo'
-import { formatBR, formatNumero } from '@/lib/datas'
+import { totalDasViagens } from '@/features/carreteiro/totalViagens'
+import { formatBR } from '@/lib/datas'
 import { contar } from '@/lib/texto'
 
 /**
@@ -39,7 +40,7 @@ export function CarreteiroIndexRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Voltar">
             <ArrowLeft className="h-5 w-5" />
@@ -47,7 +48,7 @@ export function CarreteiroIndexRoute() {
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold text-on-surface">Viagens</h1>
             <p className="truncate text-xs text-on-surface-dim">
-              {obra?.codigo ?? '—'} · {drafts.length} em andamento
+              {contar(drafts.length, 'ficha', 'fichas')} em andamento · {obra?.codigo ?? '—'}
             </p>
           </div>
           <SyncStatusIndicator />
@@ -104,7 +105,7 @@ export function CarreteiroIndexRoute() {
         </section>
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button variant="primary" size="lg" onClick={nova} className="w-full gap-2">
           <Plus className="h-5 w-5" />
           Nova ficha
@@ -127,22 +128,25 @@ function FichaCard({
   onClick: () => void
   onExcluir: () => void
 }) {
-  const total = f.viagens.reduce((s, v) => s + v.quantidade, 0)
-  const un = f.viagens[0]?.unidade ?? ''
+  const total = totalDasViagens(f.viagens)
   return (
     <div className="card-surface flex items-stretch overflow-hidden">
-      <button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center text-left">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center text-left"
+      >
         <div className="min-w-0 flex-1 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium text-on-surface tabular">{formatBR(f.dt)}</p>
+            <p className="tabular font-medium text-on-surface">{formatBR(f.dt)}</p>
             {status && <SeloEnvio status={status} />}
           </div>
           <p className="mt-1 truncate text-sm text-on-surface-dim">
             {[f.veiculoNome ?? 'sem veículo', f.motorista].filter(Boolean).join(' · ')}
           </p>
-          <p className="mt-1 text-sm text-on-surface tabular">
+          <p className="tabular mt-1 text-sm text-on-surface">
             {contar(f.viagens.length, 'viagem', 'viagens')}
-            {total > 0 && ` · ${formatNumero(total, 2)} ${un}`}
+            {total && ` · ${total}`}
           </p>
           {motivo && (
             <p className="mt-1 text-xs text-bad">

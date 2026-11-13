@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { TabPill } from '@/components/ui/TabPill'
 import { Carregando, ErroConsulta } from '@/components/ui/estado'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { formatNumber, formatDateTimeShort } from '@/lib/format'
 import { contar } from '@/lib/rotulos'
 import { useAuthStore } from '@/stores/auth-store'
@@ -86,9 +87,7 @@ function Panel({
       toast.success('Lançamento excluído.')
       onOpenChange(false)
     } catch (e) {
-      toast.error(
-        `Não foi possível excluir o lançamento.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
-      )
+      toast.error(`Não foi possível excluir o lançamento.${motivoDoErro(e)}`)
     }
   }
 

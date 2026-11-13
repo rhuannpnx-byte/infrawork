@@ -28,7 +28,7 @@ export function PorEncarregado({ producoes, filtroItemId, altura = 200 }: Props)
       : producoes
     const map = new Map<string, Agg & { dataSet: Set<string>; servicoSet: Set<string> }>()
     for (const p of filt) {
-      const nome = (p.encarregado_display_nome ?? '—').trim() || '—'
+      const nome = (p.encarregado_display_nome ?? '').trim() || 'Sem encarregado'
       const cur = map.get(nome) ?? {
         nome,
         registros: 0,

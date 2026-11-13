@@ -99,7 +99,7 @@ export function NewEquipeDialog({ open, onOpenChange, obraId }: Props): ReactNod
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial
               placeholder="Ex.: Pavimentação 01"
             />
           </Campo>

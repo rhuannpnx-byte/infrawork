@@ -168,6 +168,9 @@ export function ImportOrcamentoDialog({ open, onOpenChange, obraId }: Props): Re
           </Campo>
         )
       }}
+      acaoEfetiva={(acao, opt) =>
+        acao === 'atualizar' && opt.existentes === 'pular' ? 'pular' : acao
+      }
       aplicar={(rows, opt) =>
         importar.mutateAsync({
           obra_id: obraId,

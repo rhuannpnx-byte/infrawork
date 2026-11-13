@@ -34,6 +34,7 @@ import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { nomeDaCpu } from '../lib/nomeDaCpu'
 import type { Servico, ServicoCpuOperacao } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 /** Aplica operação ao custo da CPU usando o fator. */
 function aplicarOp(custo: number, fator: number, op: ServicoCpuOperacao): number {
@@ -46,8 +47,7 @@ const ERRO_FATOR = 'O fator deve ser um número diferente de zero.'
 const BOTAO_LINHA =
   'inline-flex h-7 w-7 items-center justify-center rounded text-text-dim hover:bg-bg-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-30'
 
-const mensagem = (err: unknown): string | undefined =>
-  err instanceof Error ? err.message : undefined
+const mensagem = (err: unknown): string | undefined => detalheDoErro(err) ?? undefined
 
 interface Props {
   open: boolean

@@ -39,9 +39,9 @@ function CustomTooltip(props: {
   if (!active || !payload?.length) return null
   const p = (payload[0]?.payload ?? {}) as DataRow
   return (
-    <div className="rounded border border-border-strong bg-bg-elevated px-2 py-1.5 shadow-lg text-sm">
+    <div className="rounded border border-border-strong bg-[color:var(--popover)] px-2 py-1.5 text-sm shadow-[var(--sombra-flutuante)]">
       <div className="text-text font-semibold">
-        {p.label} — {p.descricao}
+        {p.label} · {p.descricao}
       </div>
       <div className="mt-0.5 flex items-center gap-1.5">
         <span className="size-2 rounded-sm" style={{ background: p.cor }} />
@@ -78,7 +78,7 @@ export function TopServicosBar({
   if (data.length === 0) {
     return (
       <div
-        className="rounded border border-border bg-bg-panel p-4 text-text-dim text-2xs font-mono flex items-center justify-center"
+        className="rounded border border-border bg-bg-panel p-4 text-sm text-text-muted flex items-center justify-center text-center"
         style={{ height: altura }}
       >
         Nenhum serviço na linha de base.
@@ -88,7 +88,7 @@ export function TopServicosBar({
 
   return (
     <div className="rounded border border-border bg-bg-panel" style={{ height: altura }}>
-      <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+      <div className="px-4 pt-3 pb-1 flex items-baseline justify-between gap-3">
         <h4 className="text-md font-semibold text-text">Serviços mais avançados</h4>
         <span className="text-xs text-text-muted">sobre a linha de base</span>
       </div>

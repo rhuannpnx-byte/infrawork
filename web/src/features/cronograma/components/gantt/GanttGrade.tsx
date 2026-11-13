@@ -74,6 +74,9 @@ export function GanttGrade(p: Props): ReactNode {
     aplicado.current = el.scrollTop
   }, [p.scrollTop])
 
+  // a célula só entra em edição no clique numa linha que já estava selecionada (o primeiro clique só seleciona)
+  const jaSelecionada = useRef<string | null>(null)
+
   const total = p.colunas.reduce((s, c) => s + c.largura, 0)
   const i0 = Math.max(0, Math.floor(p.scrollTop / ALTURA_LINHA) - 4)
   const i1 = Math.min(
@@ -160,6 +163,8 @@ export function GanttGrade(p: Props): ReactNode {
                   )}
                   onPointerDown={(e) => {
                     if (e.button !== 0 || (e.target as HTMLElement).closest('[data-editor]')) return
+                    jaSelecionada.current =
+                      sel && !e.ctrlKey && !e.metaKey && !e.shiftKey ? l.chave : null
                     p.onSelecionar(l, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })
                   }}
                   onDoubleClick={(e) => {
@@ -185,10 +190,11 @@ export function GanttGrade(p: Props): ReactNode {
                           {p.comFilhas.has(l.chave) ? (
                             <button
                               type="button"
-                              className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-text-dim hover:bg-bg-hover hover:text-text"
+                              className="-mx-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-text-dim hover:bg-bg-hover hover:text-text"
                               onPointerDown={(e) => e.stopPropagation()}
                               onClick={() => p.onAlternar(l)}
-                              aria-label={p.recolhidas.has(l.chave) ? 'Expandir' : 'Recolher'}
+                              aria-expanded={!p.recolhidas.has(l.chave)}
+                              aria-label={`${p.recolhidas.has(l.chave) ? 'Expandir' : 'Recolher'} ${l.texto}`}
                             >
                               {p.recolhidas.has(l.chave) ? (
                                 <ChevronRight size={12} />
@@ -202,6 +208,7 @@ export function GanttGrade(p: Props): ReactNode {
                           <Icone l={l} cor={p.cores(l)} />
                           {emEdicao ? (
                             <Editor
+                              rotulo={`Nome de ${l.texto}`}
                               valor={editando.valor}
                               onMudar={(v) => setEditando({ ...editando, valor: v })}
                               onGravar={gravar}
@@ -215,7 +222,7 @@ export function GanttGrade(p: Props): ReactNode {
                                 l.tipo === 'tarefa' && 'text-text'
                               )}
                               onClick={() =>
-                                sel &&
+                                jaSelecionada.current === l.chave &&
                                 editavel &&
                                 c.editar &&
                                 setEditando({ chave: l.chave, col: c.id, valor: c.editar.valor(l) })
@@ -245,7 +252,7 @@ export function GanttGrade(p: Props): ReactNode {
                         )}
                         title={txt}
                         onClick={() =>
-                          sel &&
+                          jaSelecionada.current === l.chave &&
                           editavel &&
                           c.editar &&
                           setEditando({ chave: l.chave, col: c.id, valor: c.editar.valor(l) })
@@ -253,6 +260,7 @@ export function GanttGrade(p: Props): ReactNode {
                       >
                         {emEdicao && c.editar?.tipo === 'opcoes' ? (
                           <EditorOpcoes
+                            rotulo={`${c.titulo} de ${l.texto}`}
                             valor={editando.valor}
                             opcoes={c.editar.opcoes?.(l) ?? []}
                             onEscolher={(v) => {
@@ -263,6 +271,7 @@ export function GanttGrade(p: Props): ReactNode {
                           />
                         ) : emEdicao ? (
                           <Editor
+                            rotulo={`${c.titulo} de ${l.texto}`}
                             valor={editando.valor}
                             direita={c.direita}
                             onMudar={(v) => setEditando({ ...editando, valor: v })}
@@ -294,11 +303,13 @@ function Icone({ l, cor }: { l: LinhaGantt; cor: string }): ReactNode {
 }
 
 function EditorOpcoes({
+  rotulo,
   valor,
   opcoes,
   onEscolher,
   onCancelar
 }: {
+  rotulo: string
   valor: string
   opcoes: { valor: string; rotulo: string }[]
   onEscolher: (v: string) => void
@@ -312,6 +323,7 @@ function EditorOpcoes({
     <select
       ref={ref}
       data-editor
+      aria-label={rotulo}
       defaultValue={valor}
       onChange={(e) => onEscolher(e.target.value)}
       onBlur={onCancelar}
@@ -331,12 +343,14 @@ function EditorOpcoes({
 }
 
 function Editor({
+  rotulo,
   valor,
   direita,
   onMudar,
   onGravar,
   onCancelar
 }: {
+  rotulo: string
   valor: string
   direita?: boolean
   onMudar: (v: string) => void
@@ -352,6 +366,7 @@ function Editor({
     <input
       ref={ref}
       data-editor
+      aria-label={rotulo}
       value={valor}
       onChange={(e) => onMudar(e.target.value)}
       onBlur={onGravar}

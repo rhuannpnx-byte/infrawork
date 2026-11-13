@@ -3,15 +3,19 @@ import { toast } from 'sonner'
 import { ChevronsRight, Link2Off, Plus, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { contar } from '@/lib/rotulos'
+import { Carregando } from '@/components/ui/estado'
 import { fmtBRL, fmtQtd } from '@/lib/money'
 import type { ItemAlocacao, ItemOrcamentario } from '@/types/orcamento'
 import { useAlocarReceitas, useCriarServico } from '../hooks/alocacao'
 import { DRAG_RECEITAS, avisarAlocacao } from '../lib/alocacao-ui'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   obraId: string
   servicos: ItemOrcamentario[]
   alocacoes: ItemAlocacao[]
+  /** A planilha ainda está carregando: não dizer "nenhum serviço". */
+  carregando?: boolean
   podeEditar: boolean
   /** Serviço destacado na planilha (clique alterna). */
   destacadoId: string | null
@@ -29,6 +33,7 @@ export function ServicosPanel({
   obraId,
   servicos,
   alocacoes,
+  carregando,
   podeEditar,
   destacadoId,
   onDestacar,
@@ -65,7 +70,7 @@ export function ServicosPanel({
       const r = await alocar.mutateAsync({ obra_id: obraId, grupo_id: grupoId, receita_ids: ids })
       avisarAlocacao(r.alocadas, r.avisos)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Não foi possível agrupar as receitas.')
+      toast.error(`Não foi possível agrupar as receitas. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -77,7 +82,7 @@ export function ServicosPanel({
       setNovo('')
       toast.success(`Serviço ${r.codigo} criado.`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Não foi possível criar o serviço.')
+      toast.error(`Não foi possível criar o serviço. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -110,7 +115,7 @@ export function ServicosPanel({
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar serviço"
               aria-label="Buscar serviço"
-              className="flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-dim"
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-dim"
             />
           </div>
         </div>
@@ -159,9 +164,13 @@ export function ServicosPanel({
               </div>
               <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
                 <span className="tabular-nums">
-                  {fmtQtd(qtd)} {s.unidade_referencia ?? ''}
+                  {qtd > 0 ? `${fmtQtd(qtd)} ${s.unidade_referencia ?? ''}` : 'Sem quantidade'}
                 </span>
-                {unit !== null ? <span className="tabular-nums">· {fmtBRL(unit)}/un</span> : null}
+                {unit !== null ? (
+                  <span className="tabular-nums">
+                    · {fmtBRL(unit)}/{s.unidade_referencia?.trim() || 'un'}
+                  </span>
+                ) : null}
                 <span className="ml-auto">
                   {contar(nReceitas.get(s.id) ?? 0, 'receita', 'receitas')}
                 </span>
@@ -188,10 +197,12 @@ export function ServicosPanel({
             </div>
           )
         })}
-        {servicos.length === 0 ? (
+        {carregando ? (
+          <Carregando className="px-4" />
+        ) : servicos.length === 0 ? (
           <div className="p-4 text-sm text-text-muted">
-            Nenhum serviço ainda. Selecione receitas na planilha e use &quot;Agrupar em um serviço&quot;, ou
-            crie um serviço abaixo e arraste as receitas para ele.
+            Nenhum serviço ainda. Selecione receitas na planilha e use &quot;Agrupar em um
+            serviço&quot;, ou crie um serviço abaixo e arraste as receitas para ele.
           </div>
         ) : null}
       </div>
@@ -211,7 +222,7 @@ export function ServicosPanel({
               onChange={(e) => setNovo(e.target.value)}
               placeholder="Novo serviço (Enter para criar)"
               aria-label="Nome do novo serviço"
-              className="flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-dim"
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-dim"
               disabled={criar.isPending}
             />
           </form>

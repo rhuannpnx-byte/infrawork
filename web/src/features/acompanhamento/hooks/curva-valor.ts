@@ -21,6 +21,8 @@ export interface CurvaSValor {
   semLinhaBase: boolean
   isLoading: boolean
   error: unknown
+  /** Refaz só as consultas que falharam. */
+  refetch: () => void
 }
 
 /**
@@ -72,7 +74,10 @@ export function useCurvaSValor(obraId: string | null | undefined): CurvaSValor {
         dias.isLoading ||
         eap.isLoading ||
         precos.isLoading,
-      error: linhaBase.error ?? tarefas.error ?? dias.error ?? eap.error ?? precos.error ?? null
+      error: linhaBase.error ?? tarefas.error ?? dias.error ?? eap.error ?? precos.error ?? null,
+      refetch: () => {
+        for (const c of [linhaBase, tarefas, dias, eap, precos]) if (c.error) void c.refetch()
+      }
     }
   }, [curva, linhaBase, tarefas, dias, eap, precos])
 }

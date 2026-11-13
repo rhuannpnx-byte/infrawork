@@ -40,7 +40,10 @@ import {
 import { GrantPermissaoDialog } from '@/features/gerencial/modals/GrantPermissaoDialog'
 import { EditObraDialog } from '@/features/gerencial/modals/EditObraDialog'
 import { rotuloStatusObra } from '@/features/gerencial/lib/status-obra'
+import { falhaDoServidor } from '@/features/gerencial/lib/falha-servidor'
+import { variantePapel } from '@/features/gerencial/lib/papel'
 import { formatDate } from '@/lib/format'
+import { dataBR } from '@/lib/format/local-date'
 import { contar, rotuloPapel } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 
@@ -77,7 +80,6 @@ export function ObraDetailPage(): ReactNode {
 
   const podeAcessar =
     role === 'god' || (role === 'adm' && obra && callerEmpresaId === obra.empresa_id)
-  const podeGerirPerms = podeAcessar
 
   // Apoios que herdam acesso via cada engenheiro da lista
   const apoiosPorEngenheiro = useMemo(() => {
@@ -99,7 +101,9 @@ export function ObraDetailPage(): ReactNode {
       </div>
     )
   }
-  if (erroObra) {
+  // a consulta de uma obra só acusa "nenhuma linha" quando ela não existe ou o usuário não a enxerga
+  const naoEncontrada = (erroObra as { code?: string } | null)?.code === 'PGRST116'
+  if (erroObra && !naoEncontrada) {
     return (
       <div className="flex h-full flex-col">
         <PageHeader title="Obra" />
@@ -162,11 +166,7 @@ export function ObraDetailPage(): ReactNode {
         setOpenDelete(false)
         navigate({ to: '/gerencial/obras' })
       })
-      .catch((err) =>
-        setErroExcluir(
-          `Não foi possível excluir a obra. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-        )
-      )
+      .catch((err) => setErroExcluir(`Não foi possível excluir a obra. ${falhaDoServidor(err)}`))
   }
 
   return (
@@ -204,7 +204,7 @@ export function ObraDetailPage(): ReactNode {
                       obra.ativa
                         ? 'Não foi possível desabilitar a obra.'
                         : 'Não foi possível reabilitar a obra.',
-                      { description: e instanceof Error ? e.message : undefined }
+                      { description: falhaDoServidor(e) }
                     )
                   )
               }}
@@ -222,12 +222,7 @@ export function ObraDetailPage(): ReactNode {
             <Button variant="secondary" size="sm" onClick={() => setOpenEdit(true)}>
               <Pencil size={12} /> Editar dados
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setOpenGrant(true)}
-              disabled={!podeGerirPerms}
-            >
+            <Button variant="default" size="sm" onClick={() => setOpenGrant(true)}>
               <Plus size={12} /> Conceder acesso
             </Button>
           </>
@@ -267,14 +262,14 @@ export function ObraDetailPage(): ReactNode {
             }
             numero
           />
-          <Block
-            label="Data-base"
-            value={obra.data_base_orcamento ? formatDate(obra.data_base_orcamento) : '—'}
-            numero
-          />
+          <Block label="Data-base" value={dataBR(obra.data_base_orcamento)} numero />
           <Block
             label="Início e término"
-            value={`${obra.data_inicio_planejada ? formatDate(obra.data_inicio_planejada) : '—'} a ${obra.data_fim_planejada ? formatDate(obra.data_fim_planejada) : '—'}`}
+            value={
+              obra.data_inicio_planejada || obra.data_fim_planejada
+                ? `${dataBR(obra.data_inicio_planejada)} a ${dataBR(obra.data_fim_planejada)}`
+                : '—'
+            }
             numero
           />
         </dl>
@@ -338,9 +333,11 @@ export function ObraDetailPage(): ReactNode {
                       >
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            <Badge variant={p.usuario?.role === 'cliente' ? 'default' : 'success'}>
-                              {rotuloPapel(p.usuario?.role)}
-                            </Badge>
+                            <span className="w-28 shrink-0">
+                              <Badge variant={variantePapel(p.usuario?.role)}>
+                                {rotuloPapel(p.usuario?.role)}
+                              </Badge>
+                            </span>
                             <div className="min-w-0">
                               <div className="text-text font-medium">{p.usuario?.nome ?? '—'}</div>
                               <div className="text-xs text-text-muted">
@@ -355,7 +352,7 @@ export function ObraDetailPage(): ReactNode {
                           ) : (
                             <div className="flex flex-wrap gap-1 max-w-[260px]">
                               {apoios.slice(0, 3).map((a) => (
-                                <Badge key={a.id}>
+                                <Badge key={a.id} className="normal-case tracking-normal">
                                   <Users size={12} aria-hidden /> {a.nome}
                                 </Badge>
                               ))}
@@ -400,7 +397,7 @@ export function ObraDetailPage(): ReactNode {
                                 toast.success('Acesso revogado.')
                               } catch (e) {
                                 toast.error('Não foi possível revogar o acesso.', {
-                                  description: e instanceof Error ? e.message : undefined
+                                  description: falhaDoServidor(e)
                                 })
                               }
                             }}
@@ -483,7 +480,7 @@ export function ObraDetailPage(): ReactNode {
               erro={tentouExcluir ? erroCodigo : undefined}
             >
               <Input
-                autoFocus
+                data-foco-inicial
                 value={confirmCodigo}
                 onChange={(e) => setConfirmCodigo(e.target.value)}
                 autoComplete="off"

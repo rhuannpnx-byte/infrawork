@@ -37,6 +37,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { TabPill } from '@/components/ui/TabPill'
 import { Button } from '@/components/ui/button'
+import { ErroConsulta } from '@/components/ui/estado'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dropdown, DropdownItem, DropdownSeparator } from '@/components/ui/dropdown'
@@ -123,6 +124,12 @@ const MES_CURTO = [
 ]
 const fmtMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'UTC' })
 
+/** Aviso de gravação que falhou: diz o que não deu certo e repete a mensagem do servidor. */
+const falha =
+  (oQue: string) =>
+  (e: Error): void =>
+    void toast.error(`Não foi possível ${oQue}. ${e.message}`)
+
 const semanaDe = (c: CalendarioRow): DiaSemana[] =>
   c.semana.map((d) => ({ inicio: d.inicio, horas: Number(d.horas) }))
 const horasSemana = (s: { horas: number | string }[]): number =>
@@ -144,7 +151,7 @@ export function CalendariosPagina({ obraId }: { obraId: string }): ReactNode {
   const fatores = q.data?.fatores ?? []
   const sel = cals.find((c) => c.id === selId) ?? cals.find((c) => c.padrao) ?? cals[0] ?? null
   const salvar = useSalvarCalendario(obraId)
-  const erro = (e: Error): void => void toast.error(e.message)
+  const erro = falha('criar o calendário')
 
   const novo = (copiar: CalendarioRow | null): void => {
     const base = copiar ?? cals.find((c) => c.padrao) ?? null
@@ -153,7 +160,13 @@ export function CalendariosPagina({ obraId }: { obraId: string }): ReactNode {
       nome = `${copiar ? `${copiar.nome} (cópia` : 'Novo calendário ('}${i})`
     salvar.mutate(
       { id: null, nome, semana: base?.semana ?? PADROES[0]!.semana, copiarDe: copiar?.id ?? null },
-      { onSuccess: (id) => setSelId(id), onError: erro }
+      {
+        onSuccess: (id) => {
+          setSelId(id)
+          toast.success(`Calendário "${nome}" criado. Para mudar o nome, use Ações › Renomear.`)
+        },
+        onError: erro
+      }
     )
   }
 
@@ -175,6 +188,13 @@ export function CalendariosPagina({ obraId }: { obraId: string }): ReactNode {
           <PulseBlock h={480} className="w-[440px] shrink-0" />
           <PulseBlock h={480} className="flex-1" />
         </div>
+      ) : q.error && !q.data ? (
+        <ErroConsulta
+          className="m-5"
+          erro={q.error}
+          oQue="os calendários"
+          aoTentar={() => void q.refetch()}
+        />
       ) : sel ? (
         <EditorCalendario
           key={sel.id}
@@ -187,7 +207,10 @@ export function CalendariosPagina({ obraId }: { obraId: string }): ReactNode {
           onDuplicar={novo}
         />
       ) : (
-        <p className="p-5 text-xs text-text-muted">Nenhum calendário nesta obra.</p>
+        <p className="p-5 text-sm text-text-muted">
+          Esta obra ainda não tem calendário.
+          {ro ? '' : ' Use “Novo calendário” para definir o expediente e os feriados.'}
+        </p>
       )}
     </div>
   )
@@ -214,7 +237,7 @@ function SeletorCalendario({
   const confirmar = useConfirm()
   const [renomeando, setRenomeando] = useState(false)
   const [nome, setNome] = useState(c.nome)
-  const erro = (e: Error): void => void toast.error(e.message)
+  const erro = falha('salvar o calendário')
   const concluir = (): void => {
     setRenomeando(false)
     if (nome.trim() && nome.trim() !== c.nome)
@@ -256,7 +279,10 @@ function SeletorCalendario({
         </div>
       )}
       {c.padrao ? (
-        <span className="flex shrink-0 items-center gap-1 text-2xs text-warn">
+        <span
+          className="flex shrink-0 items-center gap-1 text-xs text-warn"
+          title="Calendário padrão da obra: vale para os planos e tarefas que não escolhem outro"
+        >
           <Star size={12} className="fill-[var(--warn)]" /> padrão
         </span>
       ) : null}
@@ -264,7 +290,13 @@ function SeletorCalendario({
         <Dropdown
           align="end"
           trigger={
-            <Button variant="ghost" size="icon" aria-label="Ações do calendário">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Ações do calendário"
+              title="Ações do calendário"
+              aria-haspopup="menu"
+            >
               <MoreHorizontal size={14} />
             </Button>
           }
@@ -274,6 +306,7 @@ function SeletorCalendario({
           </DropdownItem>
           <DropdownItem
             disabled={c.padrao}
+            title={c.padrao ? 'Este já é o calendário padrão da obra' : undefined}
             onClick={() => salvar.mutate({ id: c.id, padrao: true }, { onError: erro })}
           >
             <Star size={12} /> Tornar padrão da obra
@@ -285,6 +318,11 @@ function SeletorCalendario({
           <DropdownItem
             variant="danger"
             disabled={c.padrao}
+            title={
+              c.padrao
+                ? 'O calendário padrão não pode ser removido: torne outro o padrão antes'
+                : undefined
+            }
             onClick={async () => {
               const ok = await confirmar({
                 title: `Remover o calendário "${c.nome}"?`,
@@ -292,7 +330,11 @@ function SeletorCalendario({
                 confirmLabel: 'Remover',
                 variant: 'danger'
               })
-              if (ok) excluir.mutate(c.id, { onError: erro })
+              if (ok)
+                excluir.mutate(c.id, {
+                  onSuccess: () => toast.success(`Calendário "${c.nome}" removido.`),
+                  onError: falha('remover o calendário')
+                })
             }}
           >
             <Trash2 size={12} /> Remover
@@ -333,7 +375,8 @@ function EditorCalendario({
   const [def, setDef] = useState<AlvoDefinicao | null>(null)
   const [aba, setAba] = useState<'excecoes' | 'fatores'>('excecoes')
   const [selecao, setSelecao] = useState<Selecao | null>(null)
-  const erro = (e: Error): void => void toast.error(e.message)
+  const confirmar = useConfirm()
+  const erro = falha('salvar o calendário')
   const total = horasSemana(semana)
   const mudouSemana = JSON.stringify(semana) !== JSON.stringify(semanaDe(c))
   // a prévia acompanha a semana em edição (ainda não gravada)
@@ -421,7 +464,7 @@ function EditorCalendario({
                       gravarSemana(p.semana)
                     }
                   }}
-                  className="h-6 text-2xs"
+                  className="h-7 text-xs"
                 >
                   <option value="">Aplicar modelo…</option>
                   {PADROES.map((p) => (
@@ -488,7 +531,7 @@ function EditorCalendario({
             ))}
           </div>
           <div className="flex h-10 items-center gap-2 px-3">
-            <span className="font-mono text-2xs tabular-nums text-text-muted">
+            <span className="text-xs tabular text-text-muted">
               {fmtNum(total, 'auto')} h/semana · dia cheio{' '}
               {fmtNum(jornadaReferencia({ semana }), 'auto')} h
             </span>
@@ -498,7 +541,7 @@ function EditorCalendario({
                   Descartar
                 </Button>
                 <Button size="sm" onClick={() => gravarSemana(semana)} disabled={salvar.isPending}>
-                  Salvar semana
+                  {salvar.isPending ? 'Salvando…' : 'Salvar semana'}
                 </Button>
               </div>
             ) : null}
@@ -571,7 +614,16 @@ function EditorCalendario({
                       d={d}
                       ro={ro}
                       onEditar={() => setDef({ calendario: c, tipo: d.tipo, def: d })}
-                      onRemover={() => excluirDef.mutate(d.id, { onError: erro })}
+                      onRemover={async () => {
+                        const ok = await confirmar({
+                          title: `Remover "${d.nome || ROTULO_TIPO[d.tipo]}" do calendário?`,
+                          description:
+                            'Os dias voltam a seguir a semana padrão e o cronograma é recalculado.',
+                          confirmLabel: 'Remover',
+                          variant: 'danger'
+                        })
+                        if (ok) excluirDef.mutate(d.id, { onError: falha('remover a exceção') })
+                      }}
                     />
                   ))}
                 </ul>
@@ -630,7 +682,7 @@ function LinhaDefinicao({
   d: DefinicaoRow
   ro: boolean
   onEditar: () => void
-  onRemover: () => void
+  onRemover: () => void | Promise<void>
 }): ReactNode {
   const desc = descricaoDefinicao(d)
   return (
@@ -651,7 +703,8 @@ function LinhaDefinicao({
             size="icon"
             className="h-6 w-6"
             onClick={onEditar}
-            aria-label={`Editar ${d.nome}`}
+            aria-label={`Editar ${d.nome || ROTULO_TIPO[d.tipo]}`}
+            title="Editar"
           >
             <Pencil size={12} />
           </Button>
@@ -659,8 +712,9 @@ function LinhaDefinicao({
             variant="ghost"
             size="icon"
             className="h-6 w-6"
-            onClick={onRemover}
-            aria-label={`Remover ${d.nome}`}
+            onClick={() => void onRemover()}
+            aria-label={`Remover ${d.nome || ROTULO_TIPO[d.tipo]}`}
+            title="Remover"
           >
             <Trash2 size={12} />
           </Button>
@@ -686,12 +740,17 @@ function useTamanho<T extends HTMLElement>(): [RefObject<T | null>, { w: number;
   return [ref, t]
 }
 
-const GAP_X = 20
+const GAP_X = 16
 const GAP_Y = 14
 const CAB_MES = 38 // nome do mês + letras dos dias
 const MAX_CELULA = 40
+const MIN_CELULA = 16 // abaixo disto o número do dia (11 px) não cabe: a prévia passa a rolar
+const CELULA_ROLANDO = 20
 
-/** Colunas de meses (2, 3, 4, 6) que dão a maior célula sem rolagem na área disponível. */
+/**
+ * Colunas de meses (2, 3, 4, 6) que dão a maior célula sem rolagem na área disponível. Em área estreita, quando
+ * nem assim o dia fica legível, usa o máximo de colunas com célula de 20 px e a prévia rola na vertical.
+ */
 function grade(w: number, h: number): { cols: number; cel: number } {
   let melhor = { cols: 4, cel: 0 }
   for (const cols of [2, 3, 4, 6]) {
@@ -701,7 +760,12 @@ function grade(w: number, h: number): { cols: number; cel: number } {
     const cel = Math.floor(Math.min(porLargura, porAltura, MAX_CELULA))
     if (cel > melhor.cel) melhor = { cols, cel }
   }
-  return { cols: melhor.cols, cel: Math.max(14, melhor.cel) }
+  if (melhor.cel >= MIN_CELULA) return melhor
+  for (const cols of [4, 3, 2]) {
+    const cel = Math.floor((w - (cols - 1) * GAP_X) / cols / 7)
+    if (cel >= CELULA_ROLANDO) return { cols, cel: Math.min(cel, 28) }
+  }
+  return { cols: 1, cel: Math.max(MIN_CELULA, Math.min(Math.floor(w / 7), 28)) }
 }
 
 /** Horas de trabalho do dia (segundos UTC do início do dia) pelo calendário do motor. */
@@ -776,7 +840,7 @@ function PreviaAno({
   const totalAno = meses.reduce((s, x) => s + x.horas, 0)
   const uteisAno = meses.reduce((s, x) => s + x.uteis, 0)
   const { cols, cel } = grade(tam.w, tam.h)
-  const fonte = Math.max(10, Math.min(13, Math.round(cel * 0.4)))
+  const fonte = Math.max(11, Math.min(13, Math.round(cel * 0.4)))
   const marcado = arrasto
     ? { a: Math.min(arrasto.a, arrasto.b), b: Math.max(arrasto.a, arrasto.b) }
     : selecao
@@ -792,6 +856,7 @@ function PreviaAno({
             className="h-6 w-6"
             onClick={() => setAno(ano - 1)}
             aria-label="Ano anterior"
+            title="Ano anterior"
           >
             <ChevronLeft size={14} />
           </Button>
@@ -804,30 +869,43 @@ function PreviaAno({
             className="h-6 w-6"
             onClick={() => setAno(ano + 1)}
             aria-label="Próximo ano"
+            title="Próximo ano"
           >
             <ChevronRight size={14} />
           </Button>
         </div>
-        <span className="whitespace-nowrap font-mono text-2xs tabular-nums text-text-muted">
+        <span
+          className="min-w-0 truncate text-xs tabular text-text-muted"
+          title={`${fmtNum(totalAno, 0)} h · ${uteisAno} dias com trabalho`}
+        >
           {fmtNum(totalAno, 0)} h · {uteisAno} dias com trabalho
         </span>
         {rascunho ? (
           <span
-            className="rounded-sm px-1.5 py-0.5 text-2xs text-warn"
+            className="shrink-0 rounded-sm px-1.5 py-0.5 text-xs text-warn"
             style={{ background: 'color-mix(in oklch, var(--warn) 12%, transparent)' }}
           >
             semana não salva
           </span>
         ) : null}
         {onSelecionar ? (
-          <span className="ml-auto min-w-0 truncate text-xs text-text-muted">
+          <span className="ml-auto hidden min-w-0 truncate text-xs text-text-muted xl:inline">
             Clique ou arraste nos dias para editar
           </span>
         ) : null}
       </header>
-      <div ref={ref} className="min-h-0 flex-1 overflow-auto p-4">
+      <div
+        ref={ref}
+        role="region"
+        aria-label={`Prévia de ${ano}`}
+        tabIndex={onSelecionar ? undefined : 0}
+        className="min-h-0 flex-1 overflow-auto px-3 py-4"
+      >
         {!cal ? (
-          <p className="text-xs text-danger">Calendário sem horas de trabalho.</p>
+          <p className="text-sm text-danger">
+            Este calendário não tem horas de trabalho: informe as horas de ao menos um dia na
+            semana padrão.
+          </p>
         ) : tam.w > 0 ? (
           <div
             className="grid select-none justify-center"
@@ -872,7 +950,7 @@ function PreviaAno({
                     const naSelecao = !!marcado && d >= marcado.a && d <= marcado.b
                     const rotulo = `${String(n).padStart(2, '0')}/${String(mes.m + 1).padStart(2, '0')}: ${fmtNum(h, 'auto')} h${motivo ? `; ${motivo}` : ''}`
                     return (
-                      <span key={n} className="p-px">
+                      <span key={n}>
                         <button
                           type="button"
                           title={rotulo}
@@ -900,7 +978,7 @@ function PreviaAno({
                             }
                           }}
                           className={cn(
-                            'grid h-full w-full place-items-center rounded-[3px] tabular-nums outline-none',
+                            'grid h-full w-full place-items-center rounded-[3px] border border-transparent bg-clip-padding tabular-nums outline-none',
                             onSelecionar &&
                               'cursor-pointer hover:ring-1 hover:ring-inset hover:ring-text-muted',
                             'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
@@ -909,7 +987,7 @@ function PreviaAno({
                             naSelecao && 'ring-2 ring-inset ring-accent-hover'
                           )}
                           style={{
-                            background:
+                            backgroundColor:
                               h > 0
                                 ? `color-mix(in oklch, var(--accent) ${Math.round(14 + 26 * frac)}%, transparent)`
                                 : perdido
@@ -944,7 +1022,7 @@ function Legenda(): ReactNode {
     </span>
   )
   return (
-    <footer className="flex h-8 shrink-0 items-center gap-4 whitespace-nowrap border-t border-border px-4 text-2xs text-text-muted">
+    <footer className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap border-t border-border px-4 py-1.5 text-xs text-text-muted">
       {item('color-mix(in oklch, var(--accent) 40%, transparent)', 'dia cheio')}
       {item('color-mix(in oklch, var(--accent) 22%, transparent)', 'jornada reduzida')}
       {item('color-mix(in oklch, var(--danger) 18%, transparent)', 'dia de trabalho perdido')}
@@ -1009,6 +1087,14 @@ function Flutuante({
 }): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  // o foco entra no painel ao abrir e volta ao dia de onde saiu ao fechar
+  useEffect(() => {
+    const anterior = document.activeElement as HTMLElement | null
+    ref.current?.querySelector<HTMLElement>('input')?.focus({ preventScroll: true })
+    return () => {
+      if (anterior && document.contains(anterior)) anterior.focus({ preventScroll: true })
+    }
+  }, [])
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
@@ -1039,7 +1125,7 @@ function Flutuante({
       ref={ref}
       role="dialog"
       aria-label="Editar dias do calendário"
-      className="fixed z-50 w-[320px] rounded-md border border-border-strong bg-bg-menu shadow-xl"
+      className="fixed z-50 w-[320px] rounded border border-border-strong bg-[color:var(--popover)] shadow-[var(--sombra-flutuante)]"
       style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
     >
       {children}
@@ -1096,7 +1182,7 @@ function EditorDias({
   const [inicio, setInicio] = useState(padrao?.inicio ?? '07:00')
   const [horasDia, setHorasDia] = useState(String(Number(padrao?.horas) || 8).replace('.', ','))
   const [fator, setFator] = useState(fatorMes ? String(fatorMes.fator).replace('.', ',') : '1')
-  const erro = (e: Error): void => void toast.error(e.message)
+  const erro = falha('salvar a alteração do calendário')
   const ocupado = salvarDefs.isPending || salvarFator.isPending
 
   const nova = (x: Pick<DefinicaoInput, 'tipo' | 'nome' | 'todo_ano' | 'semana'>): void =>
@@ -1125,7 +1211,7 @@ function EditorDias({
       <header className="flex items-start gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-text">{titulo}</div>
-          <div className="font-mono text-2xs tabular-nums text-text-muted">
+          <div className="text-xs tabular text-text-muted">
             {nDias > 1 ? `${nDias} dias · ` : ''}
             {fmtNum(horas, 'auto')} h de trabalho
           </div>
@@ -1159,7 +1245,8 @@ function EditorDias({
                 size="icon"
                 className="h-6 w-6"
                 onClick={() => onEditarDef(d)}
-                aria-label={`Editar ${d.nome}`}
+                aria-label={`Editar ${d.nome || ROTULO_TIPO[d.tipo]}`}
+                title="Editar"
               >
                 <Pencil size={12} />
               </Button>
@@ -1167,8 +1254,17 @@ function EditorDias({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => excluirDef.mutate(d.id, { onSuccess: onFechar, onError: erro })}
-                aria-label={`Remover ${d.nome}`}
+                onClick={() =>
+                  excluirDef.mutate(d.id, {
+                    onSuccess: () => {
+                      toast.success(`"${d.nome || ROTULO_TIPO[d.tipo]}" removido do calendário.`)
+                      onFechar()
+                    },
+                    onError: falha('remover a exceção')
+                  })
+                }
+                aria-label={`Remover ${d.nome || ROTULO_TIPO[d.tipo]}`}
+                title="Remover"
               >
                 <Trash2 size={12} />
               </Button>
@@ -1201,7 +1297,7 @@ function EditorDias({
             Sem trabalho
           </Button>
           <Caixa marcado={todoAno} onMudar={setTodoAno}>
-            repetir todo ano
+            Repetir todo ano
           </Caixa>
         </div>
         <div className="flex items-center gap-1.5">
@@ -1210,14 +1306,14 @@ function EditorDias({
             value={inicio}
             onChange={(e) => setInicio(e.target.value || '07:00')}
             aria-label="Início"
-            className="h-6 w-[64px] px-1 text-center font-mono text-2xs [&::-webkit-calendar-picker-indicator]:hidden"
+            className="h-7 w-[64px] px-1 text-center text-xs tabular [&::-webkit-calendar-picker-indicator]:hidden"
           />
           <Input
             value={horasDia}
             onChange={(e) => setHorasDia(e.target.value)}
             inputMode="decimal"
             aria-label="Horas por dia"
-            className="h-6 w-12 px-1 text-right font-mono tabular-nums"
+            className="h-7 w-12 px-1 text-right tabular"
           />
           <span className="text-xs text-text-muted">h/dia</span>
           <Button
@@ -1252,7 +1348,7 @@ function EditorDias({
             onChange={(e) => setFator(e.target.value)}
             inputMode="decimal"
             aria-label="Fator do mês"
-            className="h-6 w-14 px-1 text-right font-mono tabular-nums"
+            className="h-7 w-14 px-1 text-right tabular"
           />
           <Button
             variant="secondary"
@@ -1291,7 +1387,8 @@ function Fatores({
   const [mes, setMes] = useState('')
   const [fator, setFator] = useState('0,8')
   const [motivo, setMotivo] = useState('')
-  const erro = (e: Error): void => void toast.error(e.message)
+  const confirmar = useConfirm()
+  const erro = falha('salvar o fator do mês')
   const incluir = (): void => {
     const v = lerNumero(fator)
     if (v === null || v <= 0 || v > 2) return void toast.error('O fator vai de 0,01 a 2.')
@@ -1326,7 +1423,7 @@ function Fatores({
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && mes && incluir()}
-            placeholder="motivo"
+            placeholder="Motivo (opcional)"
             aria-label="Motivo"
             className="h-7 min-w-0 flex-1"
           />
@@ -1336,6 +1433,7 @@ function Fatores({
             disabled={!mes || salvar.isPending}
             onClick={incluir}
             aria-label="Incluir fator"
+            title={mes ? 'Incluir fator' : 'Escolha o mês para incluir o fator'}
           >
             <Plus size={13} />
           </Button>
@@ -1360,8 +1458,22 @@ function Fatores({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-                  onClick={() => excluir.mutate(f.ano_mes.slice(0, 10), { onError: erro })}
-                  aria-label="Remover fator"
+                  onClick={async () => {
+                    const rotulo = `${MES_CURTO[Number(f.ano_mes.slice(5, 7)) - 1]}/${f.ano_mes.slice(0, 4)}`
+                    const ok = await confirmar({
+                      title: `Remover o fator de ${rotulo}?`,
+                      description:
+                        'O mês volta à produtividade normal em todos os calendários e o cronograma é recalculado.',
+                      confirmLabel: 'Remover',
+                      variant: 'danger'
+                    })
+                    if (ok)
+                      excluir.mutate(f.ano_mes.slice(0, 10), {
+                        onError: falha('remover o fator do mês')
+                      })
+                  }}
+                  aria-label={`Remover o fator de ${MES_CURTO[Number(f.ano_mes.slice(5, 7)) - 1]}/${f.ano_mes.slice(0, 4)}`}
+                  title="Remover o fator"
                 >
                   <Trash2 size={12} />
                 </Button>

@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/select'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ErroConsulta } from '@/components/ui/estado'
+import { contar } from '@/lib/rotulos'
 import { DataTable } from '@/components/data-table/DataTable'
 import type { TableExportConfig } from '@/components/data-table/export-types'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
@@ -29,10 +31,10 @@ export function AcompanhamentoProducaoPage(): ReactNode {
 }
 
 const ORIGEM_LABEL: Record<ProducaoOrigem, string> = {
-  app: 'web',
-  campo: 'campo',
-  viagens: 'viagens',
-  importacao: 'importação'
+  app: 'Site',
+  campo: 'App de campo',
+  viagens: 'Viagens',
+  importacao: 'Importação'
 }
 
 function ProducaoInner(): ReactNode {
@@ -42,7 +44,8 @@ function ProducaoInner(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const podeLancar = role === 'god' || role === 'adm' || role === 'engenheiro' || role === 'apoio'
   const [filtros, setFiltros] = useState<ProducaoFiltros>({})
-  const { data: rows = [], isLoading } = useProducao(obraId, filtros)
+  const consulta = useProducao(obraId, filtros)
+  const { data: rows = [], isLoading } = consulta
   const [selecionada, setSelecionada] = useState<ProducaoEnriquecida | null>(null)
 
   const columns = useMemo<ColumnDef<ProducaoEnriquecida, unknown>[]>(
@@ -50,21 +53,23 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Data',
         accessorKey: 'data',
+        meta: { label: 'Data' },
         cell: ({ row }) => (
-          <span className="font-mono text-2xs">{formatDate(row.original.data)}</span>
+          <span className="tabular text-xs whitespace-nowrap">{formatDate(row.original.data)}</span>
         ),
         sortingFn: (a, b) => (a.original.data ?? '').localeCompare(b.original.data ?? '')
       },
       {
         header: 'Serviço',
         accessorKey: 'servico_display_nome',
+        meta: { label: 'Serviço' },
         cell: ({ row }) => {
           const r = row.original
           const nome = r.servico_display_nome ?? r.servico_nome ?? '—'
           return (
             <div className="flex items-center gap-2 min-w-0">
               {r.servico_grupo_codigo ? (
-                <span className="font-mono text-2xs text-text-dim shrink-0">
+                <span className="tabular text-xs text-text-muted shrink-0">
                   {r.servico_grupo_codigo}
                 </span>
               ) : null}
@@ -75,9 +80,9 @@ function ProducaoInner(): ReactNode {
                 <Badge
                   variant="warn"
                   className="text-2xs shrink-0"
-                  title="Item do orçamento removido"
+                  title="O item do orçamento deste lançamento foi removido"
                 >
-                  sem item
+                  Sem item
                 </Badge>
               )}
             </div>
@@ -87,15 +92,20 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Equipe',
         accessorKey: 'equipe_display_nome',
+        meta: { label: 'Equipe' },
         cell: ({ row }) => {
           const r = row.original
           const cor = r.equipe_display_cor ?? 'var(--text-dim)'
-          const nome = r.equipe_display_nome ?? '—'
+          const nome = (r.equipe_id && r.equipe_display_nome) || 'Sem equipe'
           return (
             <div className="flex items-center gap-2 min-w-0">
-              <span className="size-2 rounded-sm shrink-0" style={{ background: cor }} />
               <span
-                className={cn('truncate text-xs', !r.equipe_id && 'text-text-dim')}
+                aria-hidden
+                className="size-2 rounded-sm shrink-0"
+                style={{ background: cor }}
+              />
+              <span
+                className={cn('truncate text-xs', !r.equipe_id && 'text-text-muted')}
                 title={nome}
               >
                 {nome}
@@ -107,6 +117,7 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Encarregado',
         accessorKey: 'encarregado_display_nome',
+        meta: { label: 'Encarregado' },
         cell: ({ row }) => (
           <span
             className="text-xs text-text-muted truncate"
@@ -119,18 +130,19 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Qtd',
         accessorKey: 'qtd_convertida',
+        meta: { label: 'Quantidade', align: 'right' },
         cell: ({ row }) => {
           const r = row.original
           const converteu = Number(r.fator_conversao ?? 1) !== 1
           const valor = converteu ? Number(r.qtd_convertida ?? 0) : Number(r.qtd ?? 0)
           const unidade = converteu ? r.unidade_plano : (r.unidade ?? r.unidade_plano)
           return (
-            <span className="font-mono tabular-nums text-xs">
+            <span className="tabular text-xs whitespace-nowrap">
               {formatNumber(valor, 2)}
-              {unidade ? <span className="text-text-dim ml-1">{unidade}</span> : null}
+              {unidade ? <span className="text-text-muted ml-1">{unidade}</span> : null}
               {converteu ? (
                 <span
-                  className="text-2xs text-text-dim ml-1 font-mono"
+                  className="text-xs text-text-muted ml-1 tabular"
                   title={`Lançado: ${formatNumber(Number(r.qtd ?? 0))} ${r.unidade ?? ''} × ${r.fator_conversao}`}
                 >
                   ×{r.fator_conversao}
@@ -146,6 +158,7 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Frente',
         accessorKey: 'frente',
+        meta: { label: 'Frente' },
         cell: ({ row }) => (
           <span className="text-xs text-text-muted truncate" title={row.original.frente ?? ''}>
             {row.original.frente ?? '—'}
@@ -153,20 +166,22 @@ function ProducaoInner(): ReactNode {
         )
       },
       {
-        header: 'Local / estaca',
+        header: 'Local e estacas',
         accessorKey: 'estaca_inicial',
+        meta: { label: 'Local e estacas' },
         cell: ({ row }) => {
           const txt = rotuloLocalProducao(row.original) || '—'
           return (
-            <span className="font-mono text-2xs text-text-muted truncate" title={txt}>
+            <span className="tabular text-xs text-text-muted whitespace-nowrap" title={txt}>
               {txt}
             </span>
           )
         }
       },
       {
-        header: 'Obs',
+        header: 'Observação',
         accessorKey: 'obs',
+        meta: { label: 'Observação' },
         cell: ({ row }) => (
           <span
             className="text-xs text-text-muted truncate block max-w-[220px]"
@@ -179,9 +194,10 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Material',
         accessorKey: 'material_resumo',
+        meta: { label: 'Material' },
         cell: ({ row }) => (
           <span
-            className="font-mono text-2xs text-text-muted truncate block max-w-[200px]"
+            className="tabular text-xs text-text-muted truncate block max-w-[200px]"
             title={row.original.material_resumo ?? ''}
           >
             {row.original.material_resumo ?? ''}
@@ -191,9 +207,10 @@ function ProducaoInner(): ReactNode {
       {
         header: 'Origem',
         accessorKey: 'origem',
+        meta: { label: 'Origem' },
         cell: ({ row }) => (
           <span
-            className="text-2xs font-mono text-text-dim"
+            className="text-xs text-text-muted whitespace-nowrap"
             title={row.original.criado_por_nome ? `por ${row.original.criado_por_nome}` : undefined}
           >
             {ORIGEM_LABEL[row.original.origem] ?? row.original.origem}
@@ -202,17 +219,21 @@ function ProducaoInner(): ReactNode {
       },
       {
         header: () => (
-          <span className="inline-flex items-center gap-1">
-            <Camera size={12} />
+          <span role="img" aria-label="Fotos" title="Fotos" className="inline-flex items-center">
+            <Camera size={12} aria-hidden />
           </span>
         ),
         accessorKey: 'fotos_count',
+        meta: { label: 'Fotos', align: 'right' },
         cell: ({ row }) => {
           const n = Number(row.original.fotos_count ?? 0)
-          if (n === 0) return <span className="text-text-dim text-2xs">—</span>
+          if (n === 0) return <span className="text-text-muted text-xs">—</span>
           return (
-            <span className="inline-flex items-center gap-1 text-2xs font-mono text-accent">
-              <ImageIcon size={12} /> {n}
+            <span
+              className="inline-flex items-center gap-1 text-xs tabular text-accent"
+              title={contar(n, 'foto', 'fotos')}
+            >
+              <ImageIcon size={12} aria-hidden /> {n}
             </span>
           )
         }
@@ -240,7 +261,7 @@ function ProducaoInner(): ReactNode {
       if (r.item_orcamentario_id) {
         m.set(
           r.item_orcamentario_id,
-          `${r.servico_grupo_codigo ? r.servico_grupo_codigo + ' — ' : ''}${r.servico_display_nome ?? r.servico_nome}`
+          `${r.servico_grupo_codigo ? r.servico_grupo_codigo + ' · ' : ''}${r.servico_display_nome ?? r.servico_nome}`
         )
       }
     }
@@ -315,7 +336,13 @@ function ProducaoInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Produção"
-        subtitle={`${rows.length} ${rows.length === 1 ? 'lançamento' : 'lançamentos'}`}
+        subtitle={
+          isLoading
+            ? 'Carregando os lançamentos…'
+            : consulta.error
+              ? undefined
+              : contar(rows.length, 'lançamento', 'lançamentos')
+        }
         actions={
           podeLancar ? (
             <div className="flex items-center gap-1.5">
@@ -388,20 +415,29 @@ function ProducaoInner(): ReactNode {
       </BarraFiltros>
 
       <div className="flex-1 overflow-hidden">
-        <DataTable
-          data={rows}
-          columns={columns}
-          loading={isLoading}
-          globalSearchPlaceholder="Buscar em obs, frente, encarregado…"
-          onRowClick={(r) => setSelecionada(r)}
-          emptyMessage="Sem produção no período"
-          emptyDescription={
-            podeLancar
-              ? 'Ajuste os filtros ou registre o primeiro lançamento.'
-              : 'Ajuste os filtros.'
-          }
-          getExportConfig={getExportConfig}
-        />
+        {consulta.error ? (
+          <ErroConsulta
+            erro={consulta.error}
+            oQue="a produção"
+            aoTentar={() => void consulta.refetch()}
+            className="m-5"
+          />
+        ) : (
+          <DataTable
+            data={rows}
+            columns={columns}
+            loading={isLoading}
+            globalSearchPlaceholder="Buscar em obs, frente, encarregado…"
+            onRowClick={(r) => setSelecionada(r)}
+            emptyMessage="Sem produção no período"
+            emptyDescription={
+              podeLancar
+                ? 'Ajuste os filtros ou registre o primeiro lançamento.'
+                : 'Ajuste os filtros.'
+            }
+            getExportConfig={getExportConfig}
+          />
+        )}
       </div>
 
       <ProducaoDetailPanel

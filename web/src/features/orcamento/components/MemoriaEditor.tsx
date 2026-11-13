@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Campo } from '@/components/ui/campo'
 import { Carregando, ErroConsulta, Vazio } from '@/components/ui/estado'
 import { useMemoriaDoItem, useUpsertMemoria } from '../hooks/memoria'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   itemId: string
@@ -42,7 +43,7 @@ export function MemoriaEditor({ itemId, podeEditar }: Props): ReactNode {
       setEditing(false)
     } catch (err) {
       toast.error(
-        `Não foi possível salvar a memória de cálculo. ${err instanceof Error ? err.message : ''}`.trim()
+        `Não foi possível salvar a memória de cálculo. ${detalheDoErro(err) ?? ''}`.trim()
       )
     }
   }

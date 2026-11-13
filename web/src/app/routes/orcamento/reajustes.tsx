@@ -35,11 +35,12 @@ import {
 import { fmtBRL, fmtPct2, fmtQtd, parseBR } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 const ROTULO_COLUNA = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 const TH = `px-2 py-1.5 ${ROTULO_COLUNA}`
 
-const mensagem = (err: unknown): string => (err instanceof Error ? err.message : '')
+const mensagem = (err: unknown): string => detalheDoErro(err) ?? ''
 
 export function ReajustesPage(): ReactNode {
   return (
@@ -545,7 +546,12 @@ function ReajusteEditor({
                 </Button>
               ) : null}
             </div>
-            <div className="rounded border border-border bg-bg-panel overflow-x-auto">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Tabela dos grupos de índices"
+              className="rounded border border-border bg-bg-panel overflow-x-auto"
+            >
               <table className="w-full text-sm tabular">
                 <thead className="bg-bg-elevated border-b border-border-strong">
                   <tr>
@@ -607,8 +613,16 @@ function ReajusteEditor({
                             defaultValue={String(g[campo]).replace('.', ',')}
                             disabled={!editavel}
                             onBlur={(e) => {
-                              const v = parseBR(e.target.value).toNumber()
-                              if (!(v > 0) || v === g[campo]) return
+                              const texto = e.target.value.trim()
+                              const v = parseBR(texto).toNumber()
+                              if (!/^\d[\d.,]*$/.test(texto) || !(v > 0)) {
+                                toast.error(
+                                  `Digite o índice do grupo ${g.nome} como um número maior que zero, por exemplo 1.234,56.`
+                                )
+                                e.target.value = String(g[campo]).replace('.', ',')
+                                return
+                              }
+                              if (v === g[campo]) return
                               salvarGrupo.mutate(
                                 { id: g.id, reajuste_id: reajuste.id, [campo]: v },
                                 {
@@ -713,7 +727,12 @@ function ReajusteEditor({
               vazio={(plan?.flat ?? []).length === 0}
               textoVazio="A planilha orçamentária ainda não tem itens. Monte a planilha para classificar as receitas."
             >
-              <div className="rounded border border-border bg-bg-panel overflow-x-auto">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Tabela de classificação das receitas"
+                className="rounded border border-border bg-bg-panel overflow-x-auto"
+              >
                 <table className="w-full text-sm tabular">
                   <thead className="bg-bg-elevated border-b border-border-strong">
                     <tr>

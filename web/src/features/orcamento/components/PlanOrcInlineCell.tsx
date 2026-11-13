@@ -1,7 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { fmtBRL, fmtQtd, parseBR } from '@/lib/money'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   value: string
@@ -20,6 +22,10 @@ interface Props {
   align?: 'left' | 'right'
   /** Nome do campo para leitor de tela (a célula não tem rótulo visível). */
   rotulo?: string
+  /** Confere o texto digitado antes de gravar; devolve a frase do erro ou null. */
+  validar?: (texto: string) => string | null
+  /** Motivo de o campo estar desabilitado. */
+  motivoDesabilitado?: string
 }
 
 /**
@@ -37,7 +43,9 @@ export function PlanOrcInlineCell({
   disabled,
   debounceMs = 600,
   align = 'left',
-  rotulo
+  rotulo,
+  validar,
+  motivoDesabilitado
 }: Props): ReactNode {
   const isNum = numeric || money || qtd
   // `lastUpstream` rastreia o último valor recebido por props. Quando muda
@@ -46,14 +54,9 @@ export function PlanOrcInlineCell({
   const [local, setLocal] = useState(value)
   const [lastUpstream, setLastUpstream] = useState(value)
   const [saving, setSaving] = useState(false)
-  const [errored, setErrored] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
   const [focused, setFocused] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  if (value !== lastUpstream && !saving) {
-    setLastUpstream(value)
-    setLocal(value)
-  }
 
   // Em campos numéricos, aceita "1.234,56" (BR) ou "1234.56" (raw) e
   // emite sempre raw com ponto decimal pro parent (o parent tipicamente
@@ -76,16 +79,41 @@ export function PlanOrcInlineCell({
     return trimmed
   }
 
-  const commit = async (next: string): Promise<void> => {
+  // Texto para editar: vírgula decimal e sem separador de milhar.
+  const textoEdicao = (s: string): string => {
+    if (!isNum || s.trim() === '') return s
+    const n = Number(normalizeNumericInput(s))
+    return isNaN(n) ? s : String(n).replace('.', ',')
+  }
+
+  if (value !== lastUpstream && !saving) {
+    setLastUpstream(value)
+    setLocal(focused ? textoEdicao(value) : value)
+  }
+
+  const falhar = (mensagem: string): void => {
+    setErro(mensagem)
+    setLocal(focused ? textoEdicao(value) : value) // rollback
+    toast.error(mensagem)
+  }
+
+  /** `aoSair`: o campo perdeu o foco. Enquanto se digita, texto inválido só espera. */
+  const commit = async (next: string, aoSair: boolean): Promise<void> => {
     const outbound = isNum ? normalizeNumericInput(next) : next
     if (outbound === value) return
+    if (isNum && outbound !== '' && value !== '' && Number(outbound) === Number(value)) return
+    const invalido = validar?.(next.trim()) ?? null
+    if (invalido) {
+      if (aoSair) falhar(invalido)
+      return
+    }
     setSaving(true)
-    setErrored(false)
+    setErro(null)
     try {
       await onCommit(outbound)
-    } catch {
-      setErrored(true)
-      setLocal(value) // rollback
+    } catch (err) {
+      const detalhe = detalheDoErro(err) ?? ''
+      falhar(detalhe || `Não foi possível salvar${rotulo ? ` (${rotulo})` : ''}. Tente de novo.`)
     } finally {
       setSaving(false)
     }
@@ -93,10 +121,11 @@ export function PlanOrcInlineCell({
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setLocal(e.target.value)
+    setErro(null)
     if (timer.current) clearTimeout(timer.current)
     const next = e.target.value
     timer.current = setTimeout(() => {
-      void commit(next)
+      void commit(next, false)
     }, debounceMs)
   }
 
@@ -106,10 +135,10 @@ export function PlanOrcInlineCell({
       timer.current = null
     }
     setFocused(false)
-    await commit(local)
+    await commit(local, true)
   }
 
-  // Display formatado quando desfocado; raw quando focado (facilita edição).
+  // Display formatado quando desfocado; texto de edição quando focado.
   // Usa normalizeNumericInput para aceitar tanto "1725622.35" (DB raw) quanto
   // "1.725.622,35" (BR) — parseBR puro tratava todos os pontos como milhar e
   // inflava o valor por 100/1000 quando vinha do banco.
@@ -132,9 +161,14 @@ export function PlanOrcInlineCell({
         placeholder={placeholder}
         aria-label={rotulo}
         aria-busy={saving || undefined}
-        aria-invalid={errored || undefined}
-        disabled={disabled || saving}
-        onFocus={() => setFocused(true)}
+        aria-invalid={erro ? true : undefined}
+        title={erro ?? (disabled ? motivoDesabilitado : undefined)}
+        disabled={disabled}
+        readOnly={saving}
+        onFocus={() => {
+          setFocused(true)
+          setLocal((l) => textoEdicao(l))
+        }}
         onChange={onChange}
         onBlur={onBlur}
         className={cn(
@@ -142,7 +176,7 @@ export function PlanOrcInlineCell({
           'hover:border-border focus:border-accent focus:bg-bg-elevated focus:outline-none',
           'disabled:text-text-muted tabular-nums',
           align === 'right' && 'text-right',
-          errored && 'border-danger',
+          erro && 'border-danger',
           className
         )}
       />

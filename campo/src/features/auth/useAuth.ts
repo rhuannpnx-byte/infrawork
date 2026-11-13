@@ -7,6 +7,7 @@ import { contarNaoEnviados } from '@/core/db/daos'
 import { deleteDatabase } from '@/core/db/dexie'
 import { CHAVE_RASCUNHO_PRODUCAO, useProducaoStore } from '@/features/producao/producaoStore'
 import { refreshAllCatalogs } from '@/core/sync/catalogSync'
+import { contar, plural } from '@/lib/texto'
 
 async function limparDadosLocais() {
   // caches do SW + banco inteiro: não vazar dados do usuário A para o usuário B
@@ -60,8 +61,9 @@ export function useAuth(): UseAuthResult {
           if (pendentes > 0) {
             await authEndpoints.logout()
             setError(
-              `Este aparelho tem ${pendentes} lançamento(s) de ${anterior.userNome} ainda não enviados. ` +
-                'Entre com esse usuário para enviar, ou use Sair para descartá-los.',
+              `Este aparelho tem ${contar(pendentes, 'item', 'itens')} de ${anterior.userNome} ` +
+                `ainda não ${plural(pendentes, 'enviado', 'enviados')}. ` +
+                'Entre com esse usuário para enviar, ou use Sair, na tela inicial, para descartar.',
             )
             return
           }
@@ -96,7 +98,8 @@ export function useAuth(): UseAuthResult {
     const offline = typeof navigator !== 'undefined' && navigator.onLine === false
     if (pendentes > 0) {
       const ok = window.confirm(
-        `Há ${pendentes} lançamento(s)/foto(s) que ainda NÃO foram enviados ao servidor.\n\n` +
+        `${contar(pendentes, 'item (lançamento, ficha ou foto)', 'itens (lançamentos, fichas ou fotos)')} ` +
+          `ainda NÃO ${plural(pendentes, 'foi enviado', 'foram enviados')} ao servidor.\n\n` +
           'Sair agora APAGA esses dados deste aparelho.\n\nDeseja sair mesmo assim?',
       )
       if (!ok) return

@@ -239,8 +239,8 @@ export function DataTable<T>({
     // overflow fica contido aqui → tabela rola internamente, footer fixo.
     <div className="flex flex-col h-full min-h-0">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-bg-panel">
-        <div className="relative">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-border bg-bg-panel">
+        <div className="relative max-w-full">
           <Search
             size={12}
             className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim pointer-events-none"
@@ -249,7 +249,7 @@ export function DataTable<T>({
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={globalSearchPlaceholder}
-            className="pl-7 w-[240px]"
+            className="pl-7 w-[240px] max-w-full"
           />
         </div>
 

@@ -9,6 +9,7 @@ import { formatNumber } from '@/lib/format'
 import { hojeLocalISO, dataBR as fmtBR } from '@/lib/format/local-date'
 import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { parametroDe, useParametrosServicos } from '@/features/planejamento/hooks/parametros'
@@ -90,6 +91,34 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
 
   const setLinha = (id: string, patch: Partial<Linha>): void =>
     setLinhas((prev) => ({ ...prev, [id]: { ...LINHA_VAZIA, ...prev[id], ...patch } }))
+
+  // Enter e setas andam pela coluna de quantidade, como numa planilha
+  const irParaQuantidade = (de: HTMLInputElement, passo: number): void => {
+    const todas = [
+      ...(tabelaRef.current?.querySelectorAll<HTMLInputElement>('input[data-qtd]') ?? [])
+    ]
+    const alvo = todas[todas.indexOf(de) + passo]
+    if (!alvo) return
+    alvo.focus()
+    alvo.select()
+  }
+  // coluna copiada de uma planilha: cada linha colada vai para um serviço, a partir do atual
+  const colarQuantidades = (texto: string, inicioId: string): boolean => {
+    const valores = texto.split(/\r?\n/).map((t) => (t.split('\t')[0] ?? '').trim())
+    while (valores.length && !valores[valores.length - 1]) valores.pop()
+    if (valores.length < 2) return false
+    const inicio = filtrados.findIndex((x) => x.id === inicioId)
+    if (inicio < 0) return false
+    setLinhas((prev) => {
+      const prox = { ...prev }
+      valores.forEach((v, k) => {
+        const alvo = filtrados[inicio + k]
+        if (alvo && v) prox[alvo.id] = { ...LINHA_VAZIA, ...prox[alvo.id], qtd: v }
+      })
+      return prox
+    })
+    return true
+  }
 
   const trechoDe = (l: Linha | undefined): (typeof trechos)[number] | null =>
     trechos.find((t) => t.id === (l?.trechoId || localPadrao)) ?? null
@@ -181,9 +210,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
       setLinhas({})
       setTentou(false)
     } catch (e) {
-      toast.error(
-        `Não foi possível registrar os lançamentos.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
-      )
+      toast.error(`Não foi possível registrar os lançamentos.${motivoDoErro(e)}`)
     }
   }
 
@@ -261,7 +288,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
       </div>
 
       <div className="flex-1 overflow-auto" ref={tabelaRef}>
-        <table className="w-full min-w-[1180px] table-fixed text-sm">
+        <table className="w-full min-w-[1228px] table-fixed text-sm">
           <colgroup>
             <col className="w-[84px]" />
             <col />
@@ -271,7 +298,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
             <col className="w-[124px]" />
             <col className="w-[104px]" />
             <col className="w-[124px]" />
-            <col className="w-[168px]" />
+            <col className="w-[216px]" />
           </colgroup>
           <thead className="sticky top-0 bg-bg-elevated z-10">
             <tr className="border-b border-border">
@@ -361,6 +388,21 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                         inputMode="decimal"
                         value={l?.qtd ?? ''}
                         onChange={(e) => setLinha(i.id, { qtd: e.target.value })}
+                        onKeyDown={(e) => {
+                          const passo =
+                            e.key === 'ArrowDown' || (e.key === 'Enter' && !e.shiftKey)
+                              ? 1
+                              : e.key === 'ArrowUp' || e.key === 'Enter'
+                                ? -1
+                                : 0
+                          if (!passo) return
+                          e.preventDefault()
+                          irParaQuantidade(e.currentTarget, passo)
+                        }}
+                        onPaste={(e) => {
+                          if (colarQuantidades(e.clipboardData.getData('text'), i.id))
+                            e.preventDefault()
+                        }}
                         className={cn(campo, 'tabular pr-9')}
                         placeholder="0,00"
                         aria-label={`Quantidade${un ? ` em ${un}` : ''}, ${nome}`}
@@ -393,10 +435,9 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                     ) : null}
                   </td>
                   <td className="px-2 py-1.5">
-                    <select
+                    <Select
                       value={l?.equipeId ?? ''}
                       onChange={(e) => setLinha(i.id, { equipeId: e.target.value })}
-                      className={campo}
                       aria-label={`Equipe, ${nome}`}
                     >
                       <option value="">{equipePadrao ? 'A padrão' : '—'}</option>
@@ -405,13 +446,12 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                           {eq.nome}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </td>
                   <td className="px-2 py-1.5">
-                    <select
+                    <Select
                       value={l?.encarregadoId ?? ''}
                       onChange={(e) => setLinha(i.id, { encarregadoId: e.target.value })}
-                      className={campo}
                       aria-label={`Encarregado, ${nome}`}
                     >
                       <option value="">{encPadrao ? 'O padrão' : '—'}</option>
@@ -420,7 +460,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                           {en.nome}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </td>
                   <td className="px-2 py-1.5">
                     <input
@@ -433,10 +473,9 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                     />
                   </td>
                   <td className="px-2 py-1.5">
-                    <select
+                    <Select
                       value={l?.trechoId ?? ''}
                       onChange={(e) => setLinha(i.id, { trechoId: e.target.value })}
-                      className={campo}
                       aria-label={`Local, ${nome}`}
                       aria-invalid={faltaLocal || undefined}
                     >
@@ -446,7 +485,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                           {t.tipo === 'area' ? `Área ${t.nome}` : t.nome}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     {faltaLocal ? <p className={msgErro}>Este serviço exige o local.</p> : null}
                   </td>
                   <td className="pl-2 pr-5 py-1.5">
@@ -532,4 +571,3 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
     </div>
   )
 }
-

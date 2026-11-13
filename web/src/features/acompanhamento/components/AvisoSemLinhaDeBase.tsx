@@ -11,9 +11,10 @@ import { useAuthStore } from '@/stores/auth-store'
  */
 export function AvisoSemLinhaDeBase({ obraId }: { obraId: string }): ReactNode {
   const navigate = useNavigate()
-  const { data: lb, isLoading } = useBaseline(obraId)
+  const { data: lb, isLoading, error } = useBaseline(obraId)
   const podePlanejar = useAuthStore((s) => !!s.profile && s.profile.role !== 'cliente')
-  if (isLoading || (lb && !lb.provisoria)) return null
+  // o cliente não lê os planos: para ele a consulta vem vazia mesmo com linha de base vigente
+  if (!podePlanejar || isLoading || error || (lb && !lb.provisoria)) return null
   return (
     <div
       role="status"

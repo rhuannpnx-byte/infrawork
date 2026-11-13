@@ -7,6 +7,7 @@ import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { Segmentado } from '@/components/ui/segmentado'
 import { ErroConsulta } from '@/components/ui/estado'
 import { contar } from '@/lib/rotulos'
+import { cn } from '@/lib/utils'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useFotosInfinite } from '@/features/acompanhamento/hooks/fotos'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
@@ -178,18 +179,21 @@ function Inner(): ReactNode {
       </BarraFiltros>
 
       <div
-        className="flex-1 grid overflow-hidden"
-        style={{
-          gridTemplateColumns:
-            filtros.view_mode === 'split'
-              ? '320px 1fr'
-              : filtros.view_mode === 'grid'
-                ? '1fr'
-                : '1fr'
-        }}
+        className={cn(
+          'flex-1 grid min-h-0 overflow-hidden',
+          // dividido: lado a lado na tela larga; na estreita, as fotos em cima e o mapa embaixo
+          filtros.view_mode === 'split'
+            ? 'grid-cols-1 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] md:grid-cols-[320px_minmax(0,1fr)] md:grid-rows-1'
+            : 'grid-cols-1'
+        )}
       >
         {filtros.view_mode !== 'mapa' && (
-          <div className="border-r border-border h-full overflow-hidden flex flex-col bg-bg-panel">
+          <div
+            className={cn(
+              'h-full min-h-0 overflow-hidden flex flex-col bg-bg-panel',
+              filtros.view_mode === 'split' && 'border-b border-border md:border-b-0 md:border-r'
+            )}
+          >
             {error && fotos.length === 0 ? (
               <ErroConsulta
                 erro={error}

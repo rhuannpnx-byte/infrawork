@@ -153,11 +153,12 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         titulo="Mapa de calor"
         acao={
           <div className="flex items-center gap-1">
-            <span className="mr-1 text-2xs text-on-surface-muted tabular">
+            <span className="tabular mr-1 text-2xs text-on-surface-muted">
               {janela.length ? `${fmtDia(janela[0]!)} – ${fmtDia(janela[janela.length - 1]!)}` : ''}
             </span>
             <BotaoJanela
               rotulo="30 dias anteriores"
+              motivo="Não há produção antes deste período"
               disabled={offset >= totalJanelas - 1}
               onClick={() => setOffset((o) => o + 1)}
             >
@@ -165,6 +166,7 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
             </BotaoJanela>
             <BotaoJanela
               rotulo="30 dias seguintes"
+              motivo="Este já é o período mais recente"
               disabled={offset === 0}
               onClick={() => setOffset((o) => Math.max(0, o - 1))}
             >
@@ -188,13 +190,13 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
           ) : (
             <>
               <p className="text-on-surface">
-                {fmtDia(diaSel)}: <span className="font-semibold tabular">{qtd(qDia, un)}</span>
+                {fmtDia(diaSel)}: <span className="tabular font-semibold">{qtd(qDia, un)}</span>
               </p>
               <ul className="mt-1.5 space-y-1">
                 {detalhe.map((o) => (
                   <li key={o.id} className="flex justify-between gap-2">
                     <span className="truncate text-on-surface-dim">{o.nome}</span>
-                    <span className="flex-shrink-0 text-on-surface tabular">
+                    <span className="tabular flex-shrink-0 text-on-surface">
                       {qtd(o.total, un)}
                     </span>
                   </li>
@@ -251,11 +253,14 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
 
 function BotaoJanela({
   rotulo,
+  motivo,
   disabled,
   onClick,
   children,
 }: {
   rotulo: string
+  /** por que está desabilitado */
+  motivo: string
   disabled: boolean
   onClick: () => void
   children: ReactNode
@@ -266,6 +271,7 @@ function BotaoJanela({
       onClick={onClick}
       disabled={disabled}
       aria-label={rotulo}
+      title={disabled ? motivo : rotulo}
       className={cn(
         'flex h-11 w-11 items-center justify-center rounded border border-border-strong',
         disabled ? 'opacity-40' : 'text-on-surface hover:border-accent',

@@ -49,7 +49,7 @@ export function Secao({
               <button
                 type="button"
                 onClick={() => navigateActiveTab(verMais.rota)}
-                className="inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline rounded"
+                className="inline-flex min-h-6 items-center gap-1 text-sm font-semibold text-accent hover:underline rounded"
               >
                 {verMais.rotulo} <ArrowRight size={13} />
               </button>

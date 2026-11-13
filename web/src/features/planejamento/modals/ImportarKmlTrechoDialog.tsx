@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { parseNumero } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { parseKmzOrKml, type ParsedKmlResult } from '@/lib/kml/parse'
 import { formatMarcadorCompacto, type TrechoCtx } from '@/lib/format/posicao'
@@ -508,6 +509,7 @@ function UnidadeStep({
   setCustomDivisor: (n: number) => void
   mostrarErros: boolean
 }): ReactNode {
+  const [divisorTexto, setDivisorTexto] = useState(() => numTexto(customDivisor))
   const opcoes: Array<{ value: Unidade; titulo: string; desc: string }> = [
     {
       value: 'km',
@@ -585,12 +587,12 @@ function UnidadeStep({
             }
           >
             <Input
-              type="number"
               inputMode="decimal"
-              min="0.1"
-              step="0.1"
-              value={customDivisor}
-              onChange={(e) => setCustomDivisor(Number(e.target.value))}
+              value={divisorTexto}
+              onChange={(e) => {
+                setDivisorTexto(e.target.value)
+                setCustomDivisor(parseNumero(e.target.value) ?? NaN)
+              }}
               placeholder="Ex.: 25"
               className="tabular text-right"
             />
@@ -600,6 +602,9 @@ function UnidadeStep({
     </div>
   )
 }
+
+/** Número como o usuário digita: vírgula decimal; vazio quando não é número. */
+const numTexto = (v: number): string => (Number.isFinite(v) ? String(v).replace('.', ',') : '')
 
 // ─── Step 4: Valor inicial + cor ─────────────────────────────────────────
 function ValorInicialCorStep({
@@ -623,11 +628,13 @@ function ValorInicialCorStep({
   setNumeracao: (n: 'crescente' | 'decrescente') => void
   mostrarErros: boolean
 }): ReactNode {
+  // texto digitado (aceita vírgula ou ponto); o número segue para o pai
+  const [texto, setTexto] = useState(() => numTexto(valorInicial))
+  const valido = Number.isFinite(valorInicial)
   // Preview dos 4 primeiros marcadores. 'decrescente' baixa a partir do inicial.
   const preview = [0, 1, 2, 3].map((i) => {
     const valor = numeracao === 'decrescente' ? valorInicial - i : valorInicial + i
-    const fmt = Number.isInteger(valor) ? String(valor) : valor.toFixed(2).replace('.', ',')
-    return `${labelUnidade} ${fmt}`
+    return `${labelUnidade} ${numTexto(Math.round(valor * 100) / 100)}`
   })
 
   return (
@@ -638,18 +645,22 @@ function ValorInicialCorStep({
         className="max-w-sm"
         dica={`Se o eixo começa no ${labelUnidade} 5, digite 5. Os marcadores seguintes saem a cada ${divisorM.toLocaleString('pt-BR')} m, que é uma unidade.`}
         erro={
-          mostrarErros && !(Number.isFinite(valorInicial) && valorInicial >= 0)
-            ? 'O valor inicial não pode ser negativo.'
-            : undefined
+          !mostrarErros
+            ? undefined
+            : !valido
+              ? `Digite o valor inicial como número, em ${labelUnidade}.`
+              : valorInicial < 0
+                ? 'O valor inicial não pode ser negativo.'
+                : undefined
         }
       >
         <Input
-          type="number"
           inputMode="decimal"
-          step="0.01"
-          min="0"
-          value={valorInicial}
-          onChange={(e) => setValorInicial(Number(e.target.value))}
+          value={texto}
+          onChange={(e) => {
+            setTexto(e.target.value)
+            setValorInicial(parseNumero(e.target.value) ?? NaN)
+          }}
           className="tabular text-right"
         />
       </Campo>
@@ -675,8 +686,8 @@ function ValorInicialCorStep({
               </div>
               <div className="tabular mt-0.5 text-sm text-text-muted">
                 {opt === 'crescente'
-                  ? `Aumenta a partir de ${labelUnidade} ${valorInicial}`
-                  : `Diminui a partir de ${labelUnidade} ${valorInicial}`}
+                  ? `Aumenta a partir de ${labelUnidade} ${numTexto(valorInicial)}`
+                  : `Diminui a partir de ${labelUnidade} ${numTexto(valorInicial)}`}
               </div>
             </button>
           ))}
@@ -690,7 +701,7 @@ function ValorInicialCorStep({
       <div>
         <Label>Primeiros marcadores</Label>
         <div className="tabular mt-1 rounded border border-border bg-bg-panel px-3 py-2 text-sm text-text">
-          {preview.join(' · ')} · …
+          {valido ? `${preview.join(' · ')} · …` : '—'}
         </div>
       </div>
 

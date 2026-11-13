@@ -12,7 +12,8 @@ import { usePrevistoXRealizado, useCurvaS } from '@/features/acompanhamento/hook
 import { CurvaSComProjecoes } from '@/features/acompanhamento/components/comparativo/CurvaSComProjecoes'
 import { CurvaS, reaisCurto } from '@/components/charts/CurvaS'
 import { Secao } from '@/components/ui/secao'
-import { EstadoConsulta, Vazio } from '@/components/ui/estado'
+import { EstadoConsulta, Vazio, ErroConsulta } from '@/components/ui/estado'
+import { contar } from '@/lib/rotulos'
 import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
 import { Button } from '@/components/ui/button'
 import { ProgressBarPrevReal } from '@/features/acompanhamento/components/comparativo/ProgressBarPrevReal'
@@ -41,7 +42,8 @@ function Inner(): ReactNode {
   // Cliente: visão pura planejado × realizado — sem projeções de adiantamento/
   // atraso (Δ dias, fim projetado, status, linhas de tendência da curva).
   const isCliente = useAuthStore((s) => s.profile?.role === 'cliente')
-  const { data: itens = [], isLoading } = usePrevistoXRealizado(obraId)
+  const consultaItens = usePrevistoXRealizado(obraId)
+  const { data: itens = [], isLoading } = consultaItens
   const { data: curva = [] } = useCurvaS(obraId, null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const curvaValor = useCurvaSValor(isCliente ? null : obraId)
@@ -129,8 +131,8 @@ function Inner(): ReactNode {
               { header: 'Código' },
               { header: 'Descrição' },
               { header: 'Unidade' },
-              { header: 'Qtd planejada', numFmt: '#,##0.0' },
-              { header: 'Qtd planejada período', numFmt: '#,##0.0' },
+              { header: 'Qtd prevista', numFmt: '#,##0.0' },
+              { header: 'Prevista até hoje', numFmt: '#,##0.0' },
               { header: 'Qtd realizada', numFmt: '#,##0.0' },
               { header: 'Avanço', numFmt: '0.0"%"' }
             ],
@@ -176,15 +178,15 @@ function Inner(): ReactNode {
             { header: 'Código' },
             { header: 'Descrição' },
             { header: 'Unidade' },
-            { header: 'Qtd planejada', numFmt: '#,##0.0' },
-            { header: 'Qtd planejada período', numFmt: '#,##0.0' },
+            { header: 'Qtd prevista', numFmt: '#,##0.0' },
+            { header: 'Prevista até hoje', numFmt: '#,##0.0' },
             { header: 'Qtd realizada', numFmt: '#,##0.0' },
             { header: 'Avanço', numFmt: '0.0"%"' },
-            { header: 'Dias plan' },
-            { header: 'Dias real' },
-            { header: 'Δ dias' },
+            { header: 'Dias previstos' },
+            { header: 'Dias realizados' },
+            { header: 'Desvio (dias)' },
             { header: 'Fim projetado' },
-            { header: 'Status' }
+            { header: 'Situação' }
           ],
           linhas,
           // PDF/abas usam TODOS os serviços do baseline (ignora filtro da tabela).
@@ -205,6 +207,7 @@ function Inner(): ReactNode {
       {
         header: 'Código',
         accessorKey: 'codigo',
+        meta: { label: 'Código' },
         cell: ({ row }) => (
           <span
             className={cn(
@@ -219,6 +222,7 @@ function Inner(): ReactNode {
       {
         header: 'Descrição',
         accessorKey: 'descricao',
+        meta: { label: 'Descrição' },
         cell: ({ row }) => (
           <span className="text-xs truncate block max-w-[280px]" title={row.original.descricao}>
             {row.original.descricao}
@@ -226,8 +230,9 @@ function Inner(): ReactNode {
         )
       },
       {
-        header: 'Qtd planejada',
+        header: 'Qtd prevista',
         accessorKey: 'qtd_plan',
+        meta: { label: 'Quantidade prevista' },
         cell: ({ row }) => (
           <span className="font-mono tabular-nums text-xs">
             {row.original.qtd_plan != null ? formatNumber(Number(row.original.qtd_plan), 1) : '—'}
@@ -238,8 +243,9 @@ function Inner(): ReactNode {
         )
       },
       {
-        header: 'Qtd planejada período',
+        header: 'Prevista até hoje',
         accessorKey: 'qtd_plan_periodo',
+        meta: { label: 'Prevista até hoje' },
         cell: ({ row }) => (
           <span
             className="font-mono tabular-nums text-xs"
@@ -257,15 +263,20 @@ function Inner(): ReactNode {
       {
         header: 'Qtd realizada',
         accessorKey: 'qtd_real',
+        meta: { label: 'Quantidade realizada' },
         cell: ({ row }) => (
           <span className="font-mono tabular-nums text-xs">
             {formatNumber(Number(row.original.qtd_real ?? 0), 1)}
+            {row.original.unidade ? (
+              <span className="text-text-dim ml-1">{row.original.unidade}</span>
+            ) : null}
           </span>
         )
       },
       {
         header: 'Avanço',
         accessorKey: 'pct_avanco',
+        meta: { label: 'Avanço' },
         cell: ({ row }) => (
           <ProgressBarPrevReal
             pct={row.original.pct_avanco}
@@ -276,15 +287,17 @@ function Inner(): ReactNode {
         )
       },
       {
-        header: 'Dias plan',
+        header: 'Dias previstos',
         accessorKey: 'dias_plan',
+        meta: { label: 'Dias previstos' },
         cell: ({ row }) => (
           <span className="font-mono tabular-nums text-xs">{row.original.dias_plan ?? '—'}</span>
         )
       },
       {
-        header: 'Dias real',
+        header: 'Dias realizados',
         accessorKey: 'dias_real',
+        meta: { label: 'Dias realizados' },
         cell: ({ row }) => (
           <span className="font-mono tabular-nums text-xs">{row.original.dias_real ?? '—'}</span>
         )
@@ -294,8 +307,9 @@ function Inner(): ReactNode {
         ? []
         : ([
             {
-              header: 'Δ dias',
+              header: 'Desvio (dias)',
               accessorKey: 'desvio_dias_estimado',
+              meta: { label: 'Desvio (dias)' },
               cell: ({ row }) => {
                 const proj = projByItem.get(row.original.item_orcamentario_id)
                 const d = proj?.desvioDias
@@ -315,8 +329,9 @@ function Inner(): ReactNode {
               }
             },
             {
-              header: 'Status',
+              header: 'Situação',
               accessorKey: 'status',
+              meta: { label: 'Situação' },
               cell: ({ row }) => <StatusComparativoChip status={row.original.status} />
             }
           ] as ColumnDef<PrevistoRealizadoItem, unknown>[]))
@@ -328,7 +343,13 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Previsto e realizado"
-        subtitle={`${itens.length} ${itens.length === 1 ? 'serviço' : 'serviços'} na linha de base${itemSelecionado ? ` · mostrando ${itemSelecionado.codigo}` : ''}`}
+        subtitle={
+          isLoading
+            ? 'Carregando os serviços…'
+            : consultaItens.error
+              ? undefined
+              : `${contar(itens.length, 'serviço', 'serviços')} na linha de base${itemSelecionado ? `, mostrando ${itemSelecionado.codigo}` : ''}`
+        }
         actions={
           selectedId && (
             <Button variant="secondary" size="sm" onClick={() => setSelectedId(null)}>
@@ -379,19 +400,27 @@ function Inner(): ReactNode {
           </Secao>
         )}
 
-        <DataTable
-          data={itens}
-          columns={columns}
-          loading={isLoading}
-          emptyMessage="Sem comparativo disponível"
-          emptyDescription="Trave um plano como linha de base no Planejamento e lance a produção dos serviços programados."
-          onRowClick={(row) =>
-            setSelectedId((cur) =>
-              cur === row.item_orcamentario_id ? null : row.item_orcamentario_id
-            )
-          }
-          getExportConfig={getExportConfig}
-        />
+        {consultaItens.error ? (
+          <ErroConsulta
+            erro={consultaItens.error}
+            oQue="os serviços da linha de base"
+            aoTentar={() => void consultaItens.refetch()}
+          />
+        ) : (
+          <DataTable
+            data={itens}
+            columns={columns}
+            loading={isLoading}
+            emptyMessage="Sem comparativo disponível"
+            emptyDescription="Trave um plano como linha de base no Planejamento e lance a produção dos serviços programados."
+            onRowClick={(row) =>
+              setSelectedId((cur) =>
+                cur === row.item_orcamentario_id ? null : row.item_orcamentario_id
+              )
+            }
+            getExportConfig={getExportConfig}
+          />
+        )}
       </div>
     </div>
   )

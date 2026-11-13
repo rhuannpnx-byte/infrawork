@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Bot, Copy, KeyRound, RefreshCw, Server, ShieldCheck } from 'lucide-react'
 import {
@@ -25,6 +25,7 @@ import {
   validade,
   type Estado
 } from '../hooks/mcp'
+import { falhaDoServidor } from '../lib/falha-servidor'
 
 const dataBR = (s: string | null): string => (s ? new Date(s).toLocaleDateString('pt-BR') : '—')
 
@@ -210,6 +211,26 @@ export function TokensIADialog({
 
   const erroNome = nome.trim() ? undefined : 'Dê um nome ao token, para reconhecer depois.'
 
+  // abas: as setas, Home e End trocam de aplicativo e levam o foco junto
+  const aoTeclarAba = (e: KeyboardEvent<HTMLDivElement>): void => {
+    const i = CLIENTES.findIndex((c) => c.id === cliente)
+    const n = CLIENTES.length
+    const alvo =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? (i + 1) % n
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? (i - 1 + n) % n
+          : e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? n - 1
+              : -1
+    if (alvo < 0) return
+    e.preventDefault()
+    setCliente(CLIENTES[alvo].id)
+    e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')[alvo]?.focus()
+  }
+
   const onSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
     setErro(null)
@@ -227,7 +248,7 @@ export function TokensIADialog({
           setNome('')
           setTentou(false)
         },
-        onError: (e) => setErro(`Não foi possível gerar o token. ${e.message}`)
+        onError: (e) => setErro(`Não foi possível gerar o token. ${falhaDoServidor(e)}`)
       }
     )
   }
@@ -259,7 +280,10 @@ export function TokensIADialog({
       icone: <KeyRound size={12} />,
       titulo: 'Seus tokens',
       estado: status.ativos.length > 0 ? 'ok' : 'off',
-      texto: `${contar(status.ativos.length, 'ativo', 'ativos')}, último uso em ${dataBR(status.ultimoUso)}`
+      texto:
+        status.ativos.length === 0
+          ? 'Nenhum ativo'
+          : `${contar(status.ativos.length, 'ativo', 'ativos')}, ${status.ultimoUso ? `último uso em ${dataBR(status.ultimoUso)}` : 'ainda sem uso'}`
     }
   ]
 
@@ -312,13 +336,21 @@ export function TokensIADialog({
 
         <div className="space-y-2">
           <h3 className="text-md font-semibold text-text">Como conectar</h3>
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Aplicativo de IA">
+          <div
+            className="flex flex-wrap gap-1"
+            role="tablist"
+            aria-label="Aplicativo de IA"
+            onKeyDown={aoTeclarAba}
+          >
             {CLIENTES.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 role="tab"
+                id={`ia-aba-${c.id}`}
                 aria-selected={cliente === c.id}
+                aria-controls="ia-instrucoes"
+                tabIndex={cliente === c.id ? 0 : -1}
                 onClick={() => setCliente(c.id)}
                 className={cn(
                   'h-7 rounded border px-2.5 text-xs',
@@ -334,19 +366,24 @@ export function TokensIADialog({
               </button>
             ))}
           </div>
-          <div className="rounded border border-border bg-bg-elevated p-3">
+          <div
+            id="ia-instrucoes"
+            role="tabpanel"
+            aria-labelledby={`ia-aba-${cliente}`}
+            className="rounded border border-border bg-bg-elevated p-3"
+          >
             <Instrucoes cliente={cliente} token={novo} oauth={status.oauth} />
           </div>
         </div>
 
         <div className="space-y-2">
           <h3 className="text-md font-semibold text-text">Tokens pessoais</h3>
-          <form onSubmit={onSubmit} noValidate className="flex items-start gap-2">
+          <form onSubmit={onSubmit} noValidate className="flex flex-wrap items-start gap-2">
             <Campo
               rotulo="Nome do novo token"
               obrigatorio
               erro={tentou ? erroNome : undefined}
-              className="flex-1"
+              className="min-w-[12rem] flex-1 basis-full sm:basis-0"
             >
               <Input
                 value={nome}
@@ -364,9 +401,14 @@ export function TokensIADialog({
                 <option value="sem">Sem validade</option>
               </Select>
             </Campo>
-            <Button type="submit" className="mt-6" disabled={criar.isPending}>
-              {criar.isPending ? 'Gerando…' : 'Gerar token'}
-            </Button>
+            <div className="flex flex-col gap-1">
+              <span aria-hidden className="invisible text-sm font-medium">
+                .
+              </span>
+              <Button type="submit" disabled={criar.isPending}>
+                {criar.isPending ? 'Gerando…' : 'Gerar token'}
+              </Button>
+            </div>
           </form>
           <DialogErrorBanner message={erro} />
           {novo ? (
@@ -388,8 +430,8 @@ export function TokensIADialog({
             <thead>
               <tr className="border-b border-border text-left text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                 <th className="py-1.5 pr-2">Nome</th>
-                <th className="py-1.5 pr-2">Começa com</th>
-                <th className="py-1.5 pr-2">Criado em</th>
+                <th className="hidden py-1.5 pr-2 sm:table-cell">Começa com</th>
+                <th className="hidden py-1.5 pr-2 sm:table-cell">Criado em</th>
                 <th className="py-1.5 pr-2">Expira em</th>
                 <th className="py-1.5 pr-2">Último uso</th>
                 <th className="py-1.5 text-right">Ações</th>
@@ -406,7 +448,7 @@ export function TokensIADialog({
               ) : (
                 status.ativos.map((t) => (
                   <tr key={t.id}>
-                    <td className="py-1.5 text-text">
+                    <td className="py-1.5 pr-2 text-text">
                       {t.nome}
                       {t.tipo === 'oauth' ? (
                         <span className="ml-1.5 rounded bg-accent/15 px-1 text-xs text-text">
@@ -414,10 +456,16 @@ export function TokensIADialog({
                         </span>
                       ) : null}
                     </td>
-                    <td className="py-1.5 font-mono text-text-muted">{t.prefixo}…</td>
-                    <td className="tabular py-1.5 text-text-muted">{dataBR(t.criado_em)}</td>
-                    <td className="tabular py-1.5 text-text-muted">{dataBR(validade(t))}</td>
-                    <td className="tabular py-1.5 text-text-muted">{dataBR(t.ultimo_uso_em)}</td>
+                    <td className="hidden py-1.5 pr-2 text-text-muted sm:table-cell">
+                      {t.prefixo}…
+                    </td>
+                    <td className="tabular hidden py-1.5 pr-2 text-text-muted sm:table-cell">
+                      {dataBR(t.criado_em)}
+                    </td>
+                    <td className="tabular py-1.5 pr-2 text-text-muted">{dataBR(validade(t))}</td>
+                    <td className="tabular py-1.5 pr-2 text-text-muted">
+                      {dataBR(t.ultimo_uso_em)}
+                    </td>
                     <td className="py-1.5 text-right">
                       <Button
                         type="button"
@@ -437,7 +485,7 @@ export function TokensIADialog({
                             onSuccess: () => toast.success('Token revogado.'),
                             onError: (e) =>
                               toast.error('Não foi possível revogar o token.', {
-                                description: e.message
+                                description: falhaDoServidor(e)
                               })
                           })
                         }}

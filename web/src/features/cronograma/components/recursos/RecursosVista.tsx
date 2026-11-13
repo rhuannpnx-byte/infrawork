@@ -79,7 +79,8 @@ export function RecursosVista({
     const ro = new ResizeObserver(medir)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+    // a área só é desenhada depois do primeiro cálculo: mede quando ela aparece
+  }, [!!e && !!r]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const spec = r ? r.calendarios[r.calendarioPadraoId] : undefined
   const global = useMemo(() => (spec ? new Calendar(spec) : null), [spec])
@@ -213,7 +214,8 @@ export function RecursosVista({
   const gravarLimite = (x: RecursoInfo, texto: string): void => {
     const v = lerNumero(texto)
     const atual = e.limites.find((l) => l.recurso_id === x.id && l.grupo_id === null)
-    const erro = (er: Error): void => void toast.error(er.message)
+    const erro = (er: Error): void =>
+      void toast.error(`Não foi possível salvar o limite de ${x.nome}. ${er.message}`)
     if (v === null || v <= 0) {
       if (atual?.id)
         excluirLimite.mutate({ planejamentoId: e.plano.id, id: atual.id }, { onError: erro })
@@ -242,22 +244,36 @@ export function RecursosVista({
           <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
             Recursos ({recursos.length})
           </span>
-          <div className="flex gap-2 text-2xs">
+          <div className="flex gap-1 text-xs">
             <button
               type="button"
-              className="text-accent hover:underline"
+              className="h-6 rounded px-1.5 text-accent hover:bg-bg-hover"
               onClick={() => onMostrar(recursos.map((x) => x.id))}
+              title="Mostrar todos os recursos no gráfico"
             >
-              todos
+              Todos
             </button>
             <button
               type="button"
-              className="text-text-dim hover:text-text"
+              className="h-6 rounded px-1.5 text-text-muted hover:bg-bg-hover hover:text-text"
               onClick={() => onMostrar([])}
+              title="Tirar todos os recursos do gráfico"
             >
-              nenhum
+              Nenhum
             </button>
           </div>
+        </div>
+        <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+          <span className="min-w-0 flex-1">Recurso</span>
+          <span className="w-12 shrink-0 text-right" title="Pico de unidades em uso ao mesmo tempo">
+            Pico
+          </span>
+          <span
+            className="w-14 shrink-0 text-right"
+            title="Máximo de unidades ao mesmo tempo; o cálculo atrasa tarefas para respeitar"
+          >
+            Limite
+          </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {recursos.map((x, k) => {
@@ -281,6 +297,7 @@ export function RecursosVista({
                     type="checkbox"
                     className="accent-[var(--accent)]"
                     checked={on}
+                    aria-label={`Mostrar ${x.nome} no gráfico`}
                     onChange={(ev) =>
                       onMostrar(
                         ev.target.checked
@@ -307,22 +324,44 @@ export function RecursosVista({
                     defaultValue={x.limite ? fmtNum(x.limite.maximo, 'auto') : ''}
                     placeholder="—"
                     disabled={somenteLeitura}
-                    title="Limite: no máximo tantas unidades ao mesmo tempo (o motor nivela as tarefas)"
+                    inputMode="decimal"
+                    aria-label={`Limite de ${x.nome}`}
+                    title={
+                      somenteLeitura
+                        ? 'Plano somente leitura: o limite não pode ser alterado'
+                        : 'Limite: no máximo tantas unidades ao mesmo tempo (o cálculo nivela as tarefas). Vazio = sem limite'
+                    }
                     onBlur={(ev) => {
                       const v = ev.target.value.trim()
                       const atual = x.limite ? fmtNum(x.limite.maximo, 'auto') : ''
-                      if (v !== atual) gravarLimite(x, v)
+                      if (v === atual) return
+                      const n = lerNumero(v)
+                      if (v && (n === null || n <= 0)) {
+                        toast.error(
+                          `O limite de ${x.nome} é um número maior que zero. Deixe vazio para tirar o limite.`
+                        )
+                        ev.target.value = atual
+                        return
+                      }
+                      gravarLimite(x, v)
                     }}
-                    onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
-                    className="h-5 w-12 shrink-0 rounded-sm border border-transparent bg-transparent px-1 text-right text-xs tabular-nums text-text-muted hover:border-border focus:border-accent focus:bg-bg-elevated focus:outline-none disabled:opacity-60"
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur()
+                      else if (ev.key === 'Escape') {
+                        const el = ev.target as HTMLInputElement
+                        el.value = x.limite ? fmtNum(x.limite.maximo, 'auto') : ''
+                        el.blur()
+                      }
+                    }}
+                    className="h-6 w-14 shrink-0 rounded-sm border border-border-strong bg-bg-panel px-1 text-right text-xs tabular-nums text-text placeholder:text-text-dim focus-visible:border-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
               </div>
             )
           })}
         </div>
-        <div className="border-t border-border px-3 py-1.5 text-2xs text-text-dim">
-          Pico · limite (máx. simultâneo)
+        <div className="border-t border-border px-3 py-1.5 text-xs text-text-muted">
+          Pico e limite em unidades ao mesmo tempo. Limite vazio: sem limite.
         </div>
       </div>
 
@@ -402,7 +441,7 @@ export function RecursosVista({
                       x={(a + z) / 2}
                       y={cab.temFino ? 15 : 27}
                       textAnchor="middle"
-                      className="fill-[var(--text-muted)] text-[11px] font-medium capitalize"
+                      className="fill-[var(--text-muted)] text-[11px] font-medium"
                     >
                       {c.rotulo}
                     </text>
@@ -421,7 +460,7 @@ export function RecursosVista({
                     x={(c.x0 + c.x1) / 2}
                     y={CAB / 2 + 15}
                     textAnchor="middle"
-                    className="fill-[var(--text-dim)] font-mono text-[10px] capitalize"
+                    className="fill-[var(--text-dim)] font-mono text-[10px]"
                   >
                     {c.rotulo}
                   </text>

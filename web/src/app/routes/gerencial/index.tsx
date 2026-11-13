@@ -2,9 +2,10 @@ import { type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
+import { ErroConsulta } from '@/components/ui/estado'
 import { useAuthStore } from '@/stores/auth-store'
 import { useEmpresas, useObras, useUsuarios } from '@/features/gerencial/hooks'
-import { contar } from '@/lib/rotulos'
+import { contar, rotuloPapel } from '@/lib/rotulos'
 
 export function GerencialIndex(): ReactNode {
   const navigate = useNavigate()
@@ -14,9 +15,17 @@ export function GerencialIndex(): ReactNode {
   const isGod = profile?.role === 'god'
   const canSeeObras = profile?.role === 'god' || profile?.role === 'adm'
 
-  const { data: empresas = [] } = useEmpresas()
-  const { data: usuarios = [] } = useUsuarios()
-  const { data: obras = [] } = useObras()
+  const consultaEmpresas = useEmpresas()
+  const consultaUsuarios = useUsuarios()
+  const consultaObras = useObras()
+  const empresas = consultaEmpresas.data ?? []
+  const usuarios = consultaUsuarios.data ?? []
+  const obras = consultaObras.data ?? []
+  const falhas = [
+    { consulta: consultaEmpresas, oQue: 'as empresas', mostra: isGod },
+    { consulta: consultaUsuarios, oQue: 'os usuários', mostra: true },
+    { consulta: consultaObras, oQue: 'as obras', mostra: canSeeObras }
+  ].filter((f) => f.mostra && f.consulta.error)
 
   return (
     <div className="flex flex-col h-full">
@@ -31,43 +40,64 @@ export function GerencialIndex(): ReactNode {
         }
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
+        {falhas.map((f) => (
+          <ErroConsulta
+            key={f.oQue}
+            erro={f.consulta.error}
+            oQue={f.oQue}
+            aoTentar={() => void f.consulta.refetch()}
+          />
+        ))}
         <FaixaIndicadores rotulo="Cadastros">
           {isGod ? (
             <Indicador
               rotulo="Empresas"
-              valor={empresas.length.toLocaleString('pt-BR')}
+              valor={consultaEmpresas.error ? '—' : empresas.length.toLocaleString('pt-BR')}
+              carregando={consultaEmpresas.isLoading}
               aoClicar={() => void navigate({ to: '/gerencial/empresas' })}
             >
-              <span>cadastradas</span>
+              <span>{consultaEmpresas.error ? 'não carregadas' : 'cadastradas'}</span>
             </Indicador>
           ) : null}
           <Indicador
             rotulo="Usuários"
-            valor={usuarios.length.toLocaleString('pt-BR')}
+            valor={consultaUsuarios.error ? '—' : usuarios.length.toLocaleString('pt-BR')}
+            carregando={consultaUsuarios.isLoading}
             aoClicar={() => void navigate({ to: '/gerencial/usuarios' })}
           >
-            <span>
-              {contar(
-                usuarios.filter((u) => u.role === 'adm').length,
-                'administrador',
-                'administradores'
-              )}{' '}
-              ·{' '}
-              {contar(
-                usuarios.filter((u) => u.role === 'engenheiro').length,
-                'engenheiro',
-                'engenheiros'
-              )}{' '}
-              · {usuarios.filter((u) => u.role === 'apoio').length} de apoio
-            </span>
+            {consultaUsuarios.error ? (
+              <span>não carregados</span>
+            ) : (
+              <span>
+                {contar(
+                  usuarios.filter((u) => u.role === 'adm').length,
+                  'administrador',
+                  'administradores'
+                )}{' '}
+                ·{' '}
+                {contar(
+                  usuarios.filter((u) => u.role === 'engenheiro').length,
+                  'engenheiro',
+                  'engenheiros'
+                )}{' '}
+                · {usuarios.filter((u) => u.role === 'apoio').length} de apoio
+              </span>
+            )}
           </Indicador>
           {canSeeObras ? (
             <Indicador
               rotulo="Obras"
-              valor={obras.length.toLocaleString('pt-BR')}
+              valor={consultaObras.error ? '—' : obras.length.toLocaleString('pt-BR')}
+              carregando={consultaObras.isLoading}
               aoClicar={() => void navigate({ to: '/gerencial/obras' })}
             >
-              <span>{isGod ? 'em todas as empresas' : 'na sua empresa'}</span>
+              <span>
+                {consultaObras.error
+                  ? 'não carregadas'
+                  : isGod
+                    ? 'em todas as empresas'
+                    : 'na sua empresa'}
+              </span>
             </Indicador>
           ) : null}
         </FaixaIndicadores>
@@ -94,7 +124,7 @@ function labelRole(r: string | undefined): string {
     case 'apoio':
       return 'Apoio'
     default:
-      return '—'
+      return rotuloPapel(r)
   }
 }
 
@@ -103,9 +133,9 @@ function descricaoRole(r: string | undefined): string {
     case 'god':
       return 'Você pode criar empresas, usuários de qualquer papel e obras em qualquer empresa, e conceder ou revogar o acesso a qualquer obra.'
     case 'adm':
-      return 'Você pode criar usuários (administrador, engenheiro e apoio) e obras na sua empresa, e conceder ou revogar o acesso dos engenheiros às obras.'
+      return 'Você pode criar usuários de qualquer papel da empresa (administrador, engenheiro, apoio, cliente e apontador) e obras, e conceder ou revogar o acesso de cada um às obras.'
     case 'engenheiro':
-      return 'Você pode criar usuários de apoio vinculados a você. O acesso às obras é concedido pelo administrador da sua empresa.'
+      return 'Você pode cadastrar apoios, vinculados a você, e apontadores do app de campo, e liberar as suas obras aos apontadores. O seu acesso às obras é concedido pelo administrador da empresa.'
     case 'apoio':
       return 'Você vê as obras do engenheiro a quem está vinculado. Este papel não tem ações administrativas.'
     default:

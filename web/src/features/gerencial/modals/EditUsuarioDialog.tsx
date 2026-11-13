@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUpdateUsuario, useEmpresas, useEngenheiros } from '../hooks'
+import { falhaDoServidor } from '../lib/falha-servidor'
 import { maskWhatsappBR } from '@/lib/format'
 import { ROTULO_PAPEL } from '@/lib/rotulos'
 import type { Role } from '@/types/auth'
@@ -123,9 +124,7 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
       toast.success(`Usuário ${res.email} atualizado.`)
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível salvar o usuário. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível salvar o usuário. ${falhaDoServidor(err)}`)
     }
   }
 
@@ -148,7 +147,7 @@ export function EditUsuarioDialog({ open, onOpenChange, usuario }: Props): React
                 autoComplete="off"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                autoFocus
+                data-foco-inicial
               />
             </Campo>
             <Campo rotulo="WhatsApp" dica="Opcional. Com DDI e DDD.">

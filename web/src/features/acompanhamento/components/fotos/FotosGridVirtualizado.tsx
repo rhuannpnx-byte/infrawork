@@ -225,10 +225,14 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
                     style={{ background: fotoHover.equipe_display_cor }}
                   />
                 )}
-                <span className="truncate">{fotoHover.equipe_display_nome ?? '—'}</span>
+                <span className="truncate">
+                  {fotoHover.equipe_display_nome && fotoHover.equipe_display_nome !== '—'
+                    ? fotoHover.equipe_display_nome
+                    : 'Sem equipe'}
+                </span>
               </div>
               <div className="text-xs text-text-muted">
-                {fotoHover.encarregado_display_nome ?? '—'} ·{' '}
+                {fotoHover.encarregado_display_nome ?? 'Sem encarregado'} ·{' '}
                 <span className="tabular">{dataBR(fotoHover.captured_date) || '—'}</span>
               </div>
               {fotoHover.lat != null && fotoHover.lng != null && (

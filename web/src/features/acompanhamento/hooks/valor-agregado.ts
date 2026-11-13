@@ -250,18 +250,27 @@ export interface ValorAgregadoResultado {
   referenciaProvisoria: boolean
   isLoading: boolean
   semBaseline: boolean
+  /** Primeira consulta que falhou (sem ela os números da tela não valem). */
+  error: unknown
+  /** Refaz só as consultas que falharam. */
+  refetch: () => void
 }
 
 export function useValorAgregado(
   obraId: string | null | undefined,
   filtros: ValorAgregadoFiltrosArg
 ): ValorAgregadoResultado {
-  const { data: baseline, isLoading: loadingBaseline } = useBaseline(obraId)
-  const { data: tarefas = [], isLoading: loadingTarefas } = useTarefas(baseline?.id)
-  const { data: curvaSRows = [], isLoading: loadingCurva } = useCurvaSDia(obraId)
-  const { data: grupos = [], isLoading: loadingEap } = useEapGrupos(obraId)
-  const { data: hist = new Map() as HistoricoPrecos, isLoading: loadingHist } =
-    useHistoricoPrecos(obraId)
+  const cBaseline = useBaseline(obraId)
+  const { data: baseline, isLoading: loadingBaseline } = cBaseline
+  const cTarefas = useTarefas(baseline?.id)
+  const { data: tarefas = [], isLoading: loadingTarefas } = cTarefas
+  const cCurva = useCurvaSDia(obraId)
+  const { data: curvaSRows = [], isLoading: loadingCurva } = cCurva
+  const cEap = useEapGrupos(obraId)
+  const { data: grupos = [], isLoading: loadingEap } = cEap
+  const cHist = useHistoricoPrecos(obraId)
+  const { data: hist = new Map() as HistoricoPrecos, isLoading: loadingHist } = cHist
+  const consultas = [cBaseline, cTarefas, cCurva, cEap, cHist]
   const valorizacao = useMemo(
     () => criarValorizacao(grupos, hist, baseline?.travada_em?.slice(0, 10) ?? null),
     [grupos, hist, baseline?.travada_em]
@@ -317,7 +326,7 @@ export function useValorAgregado(
   const listaServicos = useMemo(
     () =>
       grupos
-        .map((g) => ({ id: g.id, label: `${g.codigo} — ${g.descricao}` }))
+        .map((g) => ({ id: g.id, label: `${g.codigo} · ${g.descricao}` }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [grupos]
   )
@@ -345,6 +354,10 @@ export function useValorAgregado(
     prateleira,
     referenciaProvisoria: !!baseline?.provisoria,
     isLoading: loadingBaseline || loadingTarefas || loadingCurva || loadingEap || loadingHist,
-    semBaseline: !loadingBaseline && !baseline
+    semBaseline: !loadingBaseline && !cBaseline.error && !baseline,
+    error: consultas.find((c) => c.error)?.error ?? null,
+    refetch: () => {
+      for (const c of consultas) if (c.error) void c.refetch()
+    }
   }
 }

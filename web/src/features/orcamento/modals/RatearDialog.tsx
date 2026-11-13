@@ -23,6 +23,7 @@ import type {
   ItemTreeNode
 } from '@/types/orcamento'
 import { useCriarServico, useSalvarRateio } from '../hooks/alocacao'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Linha {
   grupo_id: string
@@ -154,7 +155,7 @@ function RatearConteudo({
       })
     } catch (err) {
       toast.error('Não foi possível criar o serviço.', {
-        description: err instanceof Error ? err.message : undefined
+        description: detalheDoErro(err) ?? undefined
       })
     }
   }
@@ -201,9 +202,7 @@ function RatearConteudo({
       toast.success(validas.length === 0 ? 'Alocações removidas.' : 'Rateio salvo.')
       onOpenChange(false)
     } catch (err) {
-      setErro(
-        `Não foi possível salvar o rateio. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setErro(`Não foi possível salvar o rateio. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -270,7 +269,7 @@ function RatearConteudo({
                     onChange={(e) => set(i, { grupo_id: e.target.value })}
                     aria-label={`Serviço da linha ${i + 1}`}
                     aria-invalid={tentou && repetidos.has(l.grupo_id) ? true : undefined}
-                    autoFocus={i === 0 && !l.grupo_id}
+                    data-foco-inicial={i === 0 && !l.grupo_id ? '' : undefined}
                   >
                     <option value="">Selecione…</option>
                     {servicos.map((s) => (

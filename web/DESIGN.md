@@ -129,8 +129,9 @@ Com o servidor de desenvolvimento no ar e as variáveis `E2E_EMAIL`, `E2E_PASSWO
 | `node scripts/fumaca-telas.mjs`                   | as 45 rotas abrem sem erro de página, de console ou de rede             |
 | `node scripts/capturas-telas.mjs`                 | fotografa as rotas num tema (`E2E_TEMA`, `E2E_LARGURA`, `E2E_ALTURA`)   |
 | `node scripts/comparar-capturas.mjs antes depois` | diferença por pixel entre duas pastas de capturas                       |
-| `node scripts/acessibilidade-telas.mjs`           | axe (WCAG 2 A e AA) em cada rota; sai com erro se houver violação grave |
+| `node scripts/acessibilidade-telas.mjs`           | axe (WCAG 2 A e AA) em cada rota (`E2E_LARGURA=390` para celular)       |
 | `node scripts/acessibilidade-dialogos.mjs`        | abre os diálogos pelos botões, roda o axe e confere foco e Esc          |
+| `node scripts/layout-telas.mjs [rota…]`           | em 1440, 1024 e 390 px: rolagem lateral, controle cortado, texto cru    |
 | `node scripts/conferir-csp.mjs [../campo]`        | serve o build com a CSP do `vercel.json` e acusa o que for bloqueado    |
 
 Sem servidor, no `npm test`: `theme.test.ts` (toda variável usada existe), `contraste.test.ts` (texto com 4,5:1 e

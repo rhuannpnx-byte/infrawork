@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useSession, useIsAuthenticated } from '@/core/auth/SessionStore'
 import { PickerSheet } from '@/features/common/PickerSheet'
+import { focarPrimeiroInvalido } from '@/features/common/useFolha'
 import { useCatalogo, useObra, useSessoesDaObra } from '@/core/db/daos'
 import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
@@ -33,6 +35,8 @@ export function ProducaoSetupRoute() {
 
   const [picker, setPicker] = useState<'encarregado' | 'equipe' | null>(null)
   const [abrindo, setAbrindo] = useState(false)
+  const [faltaEncarregado, setFaltaEncarregado] = useState(false)
+  const corpoRef = useRef<HTMLDivElement>(null)
 
   if (!authed) return <Navigate to="/login" replace />
   if (!session?.obraAtualId) return <Navigate to="/" replace />
@@ -87,7 +91,7 @@ export function ProducaoSetupRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
@@ -101,9 +105,9 @@ export function ProducaoSetupRoute() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 p-4">
+      <div ref={corpoRef} className="mx-auto w-full max-w-2xl flex-1 space-y-3 p-4">
         <InfoRow label="Obra" value={obra ? `${obra.codigo} · ${obra.nome}` : '—'} />
-        <div>
+        <div role="group" aria-label="Data">
           <p className="rotulo">Data</p>
           <div className="mt-1 grid grid-cols-2 gap-2">
             {[
@@ -123,7 +127,7 @@ export function ProducaoSetupRoute() {
                 )}
               >
                 <span className="block text-sm font-semibold">{o.r}</span>
-                <span className="block text-xs tabular">{formatBR(o.dt)}</span>
+                <span className="tabular block text-xs">{formatBR(o.dt)}</span>
               </button>
             ))}
           </div>
@@ -133,6 +137,7 @@ export function ProducaoSetupRoute() {
           value={store.encarregadoNome ?? 'Selecionar…'}
           onClick={() => setPicker('encarregado')}
           hint={encarregados.length === 0 ? 'Sem encarregados cadastrados na obra' : undefined}
+          erro={faltaEncarregado && semEncarregado ? 'Escolha o encarregado para continuar.' : null}
         />
         <PickerField
           label="Equipe"
@@ -162,8 +167,7 @@ export function ProducaoSetupRoute() {
               <p className="text-sm text-on-surface">
                 Já existe sessão deste dia com este encarregado e equipe (
                 <strong>{contar(existente.total, 'lançamento', 'lançamentos')}</strong>). Continuar
-                abaixo cria uma sessão
-                separada.
+                abaixo cria uma sessão separada.
               </p>
               <Button
                 variant="primary"
@@ -179,12 +183,23 @@ export function ProducaoSetupRoute() {
         )}
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button
           variant="primary"
           size="lg"
-          disabled={store.obraId == null || !catalogo || semEncarregado}
-          onClick={() => navigate('/producao/session')}
+          disabled={store.obraId == null || !catalogo}
+          title={
+            store.obraId == null || !catalogo
+              ? 'Os dados da obra ainda não foram baixados'
+              : undefined
+          }
+          onClick={() => {
+            if (semEncarregado) {
+              flushSync(() => setFaltaEncarregado(true))
+              return focarPrimeiroInvalido(corpoRef.current)
+            }
+            navigate('/producao/session')
+          }}
           className="w-full"
         >
           Continuar
@@ -233,30 +248,51 @@ function PickerField({
   onClick,
   disabled,
   hint,
+  erro,
 }: {
   label: string
   value: string
   onClick: () => void
   disabled?: boolean
   hint?: string
+  erro?: string | null
 }) {
   return (
     <button
       type="button"
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      aria-haspopup="dialog"
+      data-invalido={erro ? 'true' : undefined}
       className={cn(
-        'w-full rounded-md border border-border-strong bg-bg-panel px-4 py-3 text-left',
+        'w-full rounded-md border bg-bg-panel px-4 py-3 text-left',
         'flex min-h-touch items-center gap-3',
-        disabled ? 'cursor-not-allowed opacity-50' : 'transition-colors hover:border-accent',
+        erro ? 'border-bad' : 'border-border-strong',
+        // desabilitado: fundo de bloco e tinta de apoio (sem opacidade, que derrubaria o contraste da dica)
+        disabled ? 'cursor-not-allowed bg-bg-elevated' : 'transition-colors hover:border-accent',
       )}
     >
       <div className="min-w-0 flex-1">
         <p className="rotulo">{label}</p>
-        <p className="mt-0.5 truncate text-base text-on-surface">{value}</p>
-        {hint && <p className="mt-0.5 text-xs text-on-surface-dim">{hint}</p>}
+        <p
+          className={cn(
+            'mt-0.5 truncate text-base',
+            disabled ? 'text-on-surface-dim' : 'text-on-surface',
+          )}
+        >
+          {value}
+        </p>
+        {erro ? (
+          <p role="alert" className="mt-0.5 text-xs text-bad">
+            {erro}
+          </p>
+        ) : (
+          hint && <p className="mt-0.5 text-xs text-on-surface-dim">{hint}</p>
+        )}
       </div>
-      {!disabled && <ChevronRight className="h-5 w-5 flex-shrink-0 text-on-surface-dim" />}
+      {!disabled && (
+        <ChevronRight className="h-5 w-5 flex-shrink-0 text-on-surface-dim" aria-hidden />
+      )}
     </button>
   )
 }

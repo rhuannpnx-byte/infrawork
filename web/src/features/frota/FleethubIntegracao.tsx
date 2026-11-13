@@ -27,6 +27,7 @@ const dataHora = (iso: string): string =>
   new Date(iso).toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   })
@@ -112,7 +113,9 @@ export function FleethubIntegracao({
           <p className="mt-0.5 max-w-[75ch] text-sm text-text-muted">
             {cfg
               ? `Conta ${cfg.email}, conectada em ${dataHora(cfg.conectado_em)}.`
-              : 'Se a empresa usa a FleetHub, conecte a conta para trazer caminhões e máquinas automaticamente. Sem ela, cadastre os veículos no cadastro manual, no fim da página.'}
+              : podeGerenciar
+                ? 'Se a empresa usa a FleetHub, conecte a conta para trazer caminhões e máquinas automaticamente. Sem ela, cadastre os veículos no cadastro manual, no fim da página.'
+                : 'A conta da FleetHub é conectada pelo administrador da empresa. Sem ela, cadastre os veículos no cadastro manual, no fim da página.'}
           </p>
           {cfg && ultima ? (
             <p
@@ -161,6 +164,8 @@ export function FleethubIntegracao({
               <Link2 size={12} /> Conectar FleetHub
             </Button>
           )
+        ) : cfg ? (
+          <p className="text-sm text-text-muted">Quem sincroniza é o administrador da empresa.</p>
         ) : null}
       </div>
       {conectar ? (
@@ -195,10 +200,13 @@ function ConectarDialog({
       : 'Este e-mail não parece válido.'
   const erroSenha = senha ? null : 'Informe a senha da conta da FleetHub.'
 
-  const enviar = (e: FormEvent): void => {
+  const enviar = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
     setTentou(true)
-    if (erroEmail || erroSenha) return
+    if (erroEmail || erroSenha) {
+      e.currentTarget.querySelector<HTMLElement>(erroEmail ? '#fh-email' : '#fh-senha')?.focus()
+      return
+    }
     setErro(null)
     fleet.mutate(
       { acao: 'conectar', empresa_id: empresaId, email, senha },
@@ -216,7 +224,9 @@ function ConectarDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()} size="sm" disableDismiss={fleet.isPending}>
       <form onSubmit={enviar} noValidate>
         <DialogHeader>
-          <DialogTitle>Conectar FleetHub</DialogTitle>
+          <DialogTitle>
+            {emailAtual ? 'Alterar credenciais da FleetHub' : 'Conectar FleetHub'}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={erro} />

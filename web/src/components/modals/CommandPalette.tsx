@@ -17,6 +17,20 @@ const GRUPO =
 const ITEM =
   'flex items-center gap-2.5 px-2 h-9 rounded text-sm text-text cursor-pointer data-[selected=true]:bg-accent-glow-strong data-[disabled=true]:cursor-not-allowed data-[disabled=true]:text-text-dim'
 
+const semAcento = (s: string): string =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+/** Casa quando todas as palavras digitadas aparecem no item, sem contar acento; o começo do nome vem primeiro. */
+function filtrar(valor: string, busca: string): number {
+  const v = semAcento(valor)
+  const termos = semAcento(busca).split(/\s+/).filter(Boolean)
+  if (!termos.every((t) => v.includes(t))) return 0
+  return v.startsWith(termos[0]) ? 1 : 0.6
+}
+
 /** Busca do app (Ctrl+K): páginas do menu, obras e ações. */
 export function CommandPalette(): ReactNode {
   const open = useUIStore((s) => s.activeModals.has('commandPalette'))
@@ -25,15 +39,21 @@ export function CommandPalette(): ReactNode {
   const signOut = useAuthStore((s) => s.signOut)
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const setObraId = useObraStore((s) => s.setObraId)
+  const setEmpresaId = useObraStore((s) => s.setEmpresaId)
+  const todasObras = useAuthStore((s) => s.obras)
   const tema = useThemeStore((s) => s.tema)
   const setPreferencia = useThemeStore((s) => s.setPreferencia)
-  const { obraId, obrasNaEmpresa } = useCurrentScope()
+  const { obraId, empresaId, obrasNaEmpresa, isGod } = useCurrentScope()
   const [value, setValue] = useState('')
+  const [busca, setBusca] = useState('')
   const caixa = useRef<HTMLDivElement>(null)
   useCamadaModal(open, caixa, { aoFechar: close, focoInicial: false })
 
   useEffect(() => {
-    if (!open) setValue('')
+    if (!open) {
+      setValue('')
+      setBusca('')
+    }
   }, [open])
 
   if (!open) return null
@@ -44,6 +64,13 @@ export function CommandPalette(): ReactNode {
   }
   const modulos = visibleFor(MODULES, role)
   const podeLancar = !!role && role !== 'cliente'
+  // sem digitar, só as obras da empresa em uso; digitando, o god acha obra de qualquer empresa
+  const obras = busca.trim() && isGod ? todasObras : obrasNaEmpresa
+  const mostrarObras = busca.trim() ? obras.length > 0 : obrasNaEmpresa.length > 1 || !obraId
+  const abrirObra = (o: { id: string; empresa_id: string }): void => {
+    if (o.empresa_id !== empresaId) setEmpresaId(o.empresa_id)
+    setObraId(o.id)
+  }
 
   return (
     <div
@@ -60,6 +87,7 @@ export function CommandPalette(): ReactNode {
         <Command
           className="rounded-md border border-border-strong bg-bg-panel shadow-[var(--sombra-flutuante)] animate-slide-up overflow-hidden"
           shouldFilter
+          filter={filtrar}
           value={value}
           onValueChange={setValue}
           loop
@@ -67,6 +95,8 @@ export function CommandPalette(): ReactNode {
           <div className="flex items-center gap-2 px-3 border-b border-border">
             <Search size={15} className="text-text-dim shrink-0" />
             <Command.Input
+              value={busca}
+              onValueChange={setBusca}
               placeholder="Buscar páginas, obras e ações"
               className="h-11 w-full bg-transparent text-md text-text placeholder:text-text-dim focus:outline-none"
               autoFocus
@@ -125,13 +155,13 @@ export function CommandPalette(): ReactNode {
               )}
             </Command.Group>
 
-            {obrasNaEmpresa.length > 1 || !obraId ? (
+            {mostrarObras ? (
               <Command.Group heading="Obras" className={GRUPO}>
-                {obrasNaEmpresa.map((o) => (
+                {obras.map((o) => (
                   <Command.Item
                     key={o.id}
                     value={`obra ${o.codigo} ${o.nome}`}
-                    onSelect={() => executar(() => setObraId(o.id))}
+                    onSelect={() => executar(() => abrirObra(o))}
                     className={ITEM}
                   >
                     <Icon

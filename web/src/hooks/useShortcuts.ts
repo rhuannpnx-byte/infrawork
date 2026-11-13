@@ -33,12 +33,6 @@ export function useShortcuts(): void {
     toggleSidebar()
   })
 
-  // ? — keyboard shortcuts overlay
-  useHotkeys('shift+slash, ?', (e) => {
-    e.preventDefault()
-    openModal('shortcuts')
-  })
-
   // ─── Vim-style sequence "G + letter" ──────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -64,6 +58,13 @@ export function useShortcuts(): void {
         waitingForG.current = false
         if (gTimer.current) clearTimeout(gTimer.current)
         gTimer.current = null
+        return
+      }
+
+      // pelo caractere, não pela tecla: no teclado ABNT2 o "?" não fica na tecla da barra
+      if (e.key === '?') {
+        e.preventDefault()
+        useUIStore.getState().openModal('shortcuts')
         return
       }
 

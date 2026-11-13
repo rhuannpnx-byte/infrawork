@@ -171,6 +171,9 @@ export interface OutboxCounts {
   fichas: number
   fotos: number
   recusados: number
+  /** recusados por módulo, para a tela inicial dizer onde corrigir */
+  recusadosProducao: number
+  recusadosFichas: number
   total: number
 }
 
@@ -184,7 +187,15 @@ export function useOutboxCounts(): OutboxCounts | undefined {
       db.out_producao.where('syncStatus').equals('REJEITADA').count(),
       db.out_ficha.where('syncStatus').equals('REJEITADA').count(),
     ])
-    return { producao: p, fichas: f, fotos: fo, recusados: rp + rf, total: p + f + fo }
+    return {
+      producao: p,
+      fichas: f,
+      fotos: fo,
+      recusados: rp + rf,
+      recusadosProducao: rp,
+      recusadosFichas: rf,
+      total: p + f + fo,
+    }
   }, [])
 }
 

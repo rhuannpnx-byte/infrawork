@@ -1,8 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Sheet, SheetHeader, SheetTitle, SheetBody, SheetFooter } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { Palette, User, Info, Sun, Moon, Monitor } from 'lucide-react'
@@ -36,7 +34,12 @@ export function SettingsDialog(): ReactNode {
         <SheetTitle>Configurações</SheetTitle>
       </SheetHeader>
       <SheetBody className="!px-0 !py-0 flex">
-        <nav className="w-44 border-r border-border bg-bg-elevated p-2 flex flex-col gap-px">
+        <div
+          role="tablist"
+          aria-label="Seções das configurações"
+          aria-orientation="vertical"
+          className="w-44 shrink-0 border-r border-border bg-bg-elevated p-2 flex flex-col gap-px"
+        >
           <TabBtn
             icon={<Palette size={12} />}
             label="Aparência"
@@ -55,8 +58,8 @@ export function SettingsDialog(): ReactNode {
             active={tab === 'sobre'}
             onClick={() => setTab('sobre')}
           />
-        </nav>
-        <div className="flex-1 overflow-auto p-4">
+        </div>
+        <div role="tabpanel" className="flex-1 overflow-auto p-4">
           {tab === 'aparencia' ? (
             <>
               <fieldset>
@@ -106,29 +109,33 @@ export function SettingsDialog(): ReactNode {
               </div>
             </>
           ) : tab === 'conta' ? (
-            <div className="space-y-3">
-              <div>
-                <Label>Nome</Label>
-                <Input readOnly value={profile?.nome ?? ''} />
-              </div>
-              <div>
-                <Label>Email</Label>
-                <Input readOnly value={profile?.email ?? ''} />
-              </div>
-              <div>
-                <Label>Papel</Label>
-                <Input readOnly value={rotuloPapel(profile?.role)} />
-              </div>
-              <div>
-                <Label>Empresa</Label>
-                <Input readOnly value={empresa?.nome ?? 'Acesso global'} />
-              </div>
-            </div>
+            <>
+              <dl className="space-y-3">
+                {(
+                  [
+                    ['Nome', profile?.nome ?? '—'],
+                    ['E-mail', profile?.email ?? '—'],
+                    ['Papel', rotuloPapel(profile?.role)],
+                    ['Empresa', empresa?.nome ?? 'Acesso global']
+                  ] as const
+                ).map(([rotulo, valor]) => (
+                  <div key={rotulo}>
+                    <dt className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                      {rotulo}
+                    </dt>
+                    <dd className="text-sm text-text break-words">{valor}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-4 text-sm text-text-muted">
+                Para mudar nome, papel ou obras liberadas, fale com o administrador da sua empresa.
+              </p>
+            </>
           ) : (
             <div className="space-y-1 text-sm text-text-muted">
               <div className="text-sm text-text font-semibold mb-2">InfraWork</div>
               <div>Versão {__APP_VERSION__}</div>
-              <div>Web · React 19 · TypeScript · Supabase</div>
+              <div>Orçamento, planejamento e acompanhamento de obras rodoviárias.</div>
               <div className="mt-3 text-text-dim">© 2026 TECPAV. Todos os direitos reservados.</div>
             </div>
           )}
@@ -157,10 +164,14 @@ function TabBtn({
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 rounded-sm text-xs transition-colors text-left',
-        active ? 'bg-accent-glow text-accent' : 'text-text-muted hover:text-text hover:bg-bg-hover'
+        'flex items-center gap-2 h-8 px-2 rounded text-sm transition-colors text-left',
+        active
+          ? 'bg-accent-glow-strong text-accent font-semibold'
+          : 'text-text-muted hover:text-text hover:bg-bg-hover'
       )}
     >
       {icon} {label}

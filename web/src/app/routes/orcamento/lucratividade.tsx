@@ -31,7 +31,12 @@ function Lucratividade(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Lucratividade" subtitle="Venda, custos, impostos e lucro do orçamento" />
-      <div className="flex-1 overflow-auto p-5 space-y-4">
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Lucratividade do orçamento"
+        className="flex-1 overflow-auto p-5 space-y-4"
+      >
         {!lucr ? (
           <EstadoConsulta
             consulta={consulta}
@@ -57,7 +62,12 @@ function Lucratividade(): ReactNode {
                 textoVazio="A planilha orçamentária ainda não tem itens. Importe ou monte a planilha para ver o resultado por etapa."
                 className="px-4"
               >
-                <div className="overflow-x-auto border-t border-border">
+                <div
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Tabela do resultado por etapa"
+                  className="overflow-x-auto border-t border-border"
+                >
                   <table className="w-full text-sm tabular">
                     <thead className="bg-bg-elevated border-b border-border-strong">
                       <tr>

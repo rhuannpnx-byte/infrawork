@@ -116,7 +116,7 @@ export function PromoverBaselineDialog({
             variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={promover.isPending}
-            autoFocus
+            data-foco-inicial
           >
             Cancelar
           </Button>

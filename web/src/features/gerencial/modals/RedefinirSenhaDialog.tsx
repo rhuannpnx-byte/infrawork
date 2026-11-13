@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUpdateUsuario } from '../hooks'
+import { falhaDoServidor } from '../lib/falha-servidor'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
 /** Senha legível para ditar no canteiro: sem 0/O, 1/l/I. */
@@ -64,9 +65,7 @@ export function RedefinirSenhaDialog({ open, onOpenChange, usuario }: Props): Re
       toast.success(`Senha de ${usuario.nome} redefinida e copiada para a área de transferência.`)
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível redefinir a senha. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível redefinir a senha. ${falhaDoServidor(err)}`)
     }
   }
 
@@ -96,7 +95,7 @@ export function RedefinirSenhaDialog({ open, onOpenChange, usuario }: Props): Re
                 onChange={(e) => setSenha(e.target.value)}
                 autoComplete="off"
                 spellCheck={false}
-                autoFocus
+                data-foco-inicial
                 aria-required
                 aria-invalid={erroVisivel ? true : undefined}
                 aria-describedby="nova-senha-apoio"

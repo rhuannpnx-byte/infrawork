@@ -126,7 +126,7 @@ export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }:
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial
               placeholder="Ex.: Inicial, Replanejamento de maio, Após as chuvas"
             />
           </Campo>

@@ -35,7 +35,7 @@ export function FotosListRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-1 px-2 py-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Voltar">
             <ArrowLeft className="h-5 w-5" />
@@ -43,12 +43,12 @@ export function FotosListRoute() {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-on-surface">Fotos a enviar</h1>
             <p className="truncate text-xs text-on-surface-dim">
-              {obra?.codigo ?? '—'} ·{' '}
               {pending == null
                 ? 'Carregando…'
                 : pending.length === 0
                   ? 'Tudo enviado'
-                  : `${pending.length} a enviar`}
+                  : `${pending.length} a enviar`}{' '}
+              · {obra?.codigo ?? '—'}
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={handleRefresh} aria-label="Enviar agora">
@@ -136,7 +136,7 @@ function PendingFotoCard({ foto }: { foto: OutFoto }) {
       <div className="min-w-0 flex-1 px-3 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <SeloEnvio status={foto.syncStatus} />
-          <span className="text-xs text-on-surface-dim tabular">{time}</span>
+          <span className="tabular text-xs text-on-surface-dim">{time}</span>
         </div>
         <p className="mt-1 truncate text-sm font-medium text-on-surface">
           {foto.servicoNome ?? 'Sem serviço'}
@@ -144,16 +144,14 @@ function PendingFotoCard({ foto }: { foto: OutFoto }) {
         <p className="truncate text-xs text-on-surface-dim">
           {[foto.encarregadoNome, foto.equipeNome].filter(Boolean).join(' · ') || '—'}
         </p>
-        <p className="mt-1 text-xs text-on-surface-muted tabular">
+        <p className="tabular mt-1 text-xs text-on-surface-muted">
           {foto.lat != null && foto.lng != null
             ? `GPS ${foto.lat.toFixed(4)}, ${foto.lng.toFixed(4)}${foto.accuracy ? ` ±${Math.round(foto.accuracy)} m` : ''}`
             : 'Sem GPS'}
         </p>
         {comErro && (
           <div className="mt-2">
-            {foto.failureReason && (
-              <p className="text-xs text-bad">Motivo: {foto.failureReason}</p>
-            )}
+            {foto.failureReason && <p className="text-xs text-bad">Motivo: {foto.failureReason}</p>}
             <button
               type="button"
               onClick={() =>

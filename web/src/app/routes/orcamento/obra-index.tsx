@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
+import { ErroConsulta } from '@/components/ui/estado'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useLucratividade } from '@/features/orcamento/hooks/lucratividade'
@@ -24,9 +25,14 @@ function ObraDashboard(): ReactNode {
   const scope = useCurrentScope()
   const navigate = useNavigate()
   const obraId = scope.obraId!
-  const { data: plan } = usePlanOrc(obraId)
-  const { data: indiretos = [] } = useIndireto(obraId)
-  const { data: lucr } = useLucratividade(obraId)
+  const planQ = usePlanOrc(obraId)
+  const indiretoQ = useIndireto(obraId)
+  const lucrQ = useLucratividade(obraId)
+  const plan = planQ.data
+  const indiretos = indiretoQ.data ?? []
+  const lucr = lucrQ.data
+  const consultas = [planQ, indiretoQ, lucrQ]
+  const comErro = consultas.find((q) => q.error)
 
   const totalItens = plan?.flat.length ?? 0
   const totalReceitas = (plan?.flat ?? []).filter((i) => i.tipo === 'receita').length
@@ -39,11 +45,20 @@ function ObraDashboard(): ReactNode {
         subtitle={`Código ${scope.obra?.codigo ?? '—'} · ${rotuloStatusObra(scope.obra?.status)}`}
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
+        {comErro ? (
+          <ErroConsulta
+            erro={comErro.error}
+            oQue="o resumo do orçamento"
+            aoTentar={() => consultas.forEach((q) => (q.error ? void q.refetch() : undefined))}
+            compacto
+          />
+        ) : null}
         <FaixaIndicadores rotulo="Resumo do orçamento">
           <Indicador
             rotulo="Venda total"
             tamanho="sm"
-            valor={fmtBRL(lucr?.venda_total ?? 0)}
+            valor={lucrQ.error ? '—' : fmtBRL(lucr?.venda_total ?? 0)}
+            carregando={lucrQ.isLoading}
             aoClicar={() => void navigate({ to: '/orcamento/obra/lucratividade' })}
           >
             <span>soma das receitas da planilha</span>
@@ -65,18 +80,22 @@ function ObraDashboard(): ReactNode {
                 ? fmtPct2(lucr.margem_perc)
                 : '—'
             }
+            carregando={lucrQ.isLoading}
             aoClicar={() => void navigate({ to: '/orcamento/obra/lucratividade' })}
           >
             <span>
               {lucr
                 ? `${fmtBRL(lucr.lucro_liquido)}${lucr.lucro_liquido < 0 ? ' de prejuízo' : (lucr.margem_perc ?? 0) < 0.1 ? ' (margem baixa)' : ' de lucro'}`
-                : 'sem orçamento calculado'}
+                : lucrQ.error
+                  ? 'não carregou'
+                  : 'sem orçamento calculado'}
             </span>
           </Indicador>
           <Indicador
             rotulo="Indireto"
             tamanho="sm"
-            valor={fmtBRL(indiretoTotal)}
+            valor={indiretoQ.error ? '—' : fmtBRL(indiretoTotal)}
+            carregando={indiretoQ.isLoading}
             aoClicar={() => void navigate({ to: '/orcamento/obra/indireto' })}
           >
             <span>{contar(indiretos.length, 'lançamento', 'lançamentos')}</span>
@@ -84,7 +103,8 @@ function ObraDashboard(): ReactNode {
           <Indicador
             rotulo="Itens da planilha"
             tamanho="sm"
-            valor={totalItens.toLocaleString('pt-BR')}
+            valor={planQ.error ? '—' : totalItens.toLocaleString('pt-BR')}
+            carregando={planQ.isLoading}
             aoClicar={() => void navigate({ to: '/orcamento/obra/plan-orc' })}
           >
             <span>{contar(totalReceitas, 'receita', 'receitas')}</span>

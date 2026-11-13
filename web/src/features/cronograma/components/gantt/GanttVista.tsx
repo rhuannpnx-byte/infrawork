@@ -7,7 +7,7 @@ import { Calendar, getWorkDaysBetween } from '@apex/calendar'
 import { toast } from 'sonner'
 import { FolderPlus, ListPlus, Pencil, Wand2, Zap } from 'lucide-react'
 import type { CalculoCronograma } from '../../hooks/calculo'
-import { useAtualizarTarefa, useMudarTrecho } from '../../hooks/edicao'
+import { traduzirErro, useAtualizarTarefa, useMudarTrecho } from '../../hooks/edicao'
 import { useCronogramaUi, type ColunaGantt } from '../../store'
 import { calendarioInterface, EixoTempo, HORA } from '../../visoes/eixo'
 import {
@@ -100,6 +100,9 @@ const COLS_GANTT_BASE: Record<
     dica: 'Modo controle: término previsto pela taxa realizada e a planejada'
   }
 }
+
+const falhaGravar = (e: Error): void =>
+  void toast.error(`Não foi possível gravar a alteração da tarefa. ${traduzirErro(e.message)}`)
 
 export function GanttVista({
   calc,
@@ -310,7 +313,7 @@ export function GanttVista({
                 v.trim() &&
                 atualizarTarefa.mutate(
                   { planejamentoId: planoId, id: l.id, campos: { nome_custom: v.trim() } },
-                  { onError: (e) => toast.error(e.message) }
+                  { onError: falhaGravar }
                 )
             }
             break
@@ -363,7 +366,7 @@ export function GanttVista({
                   { planejamentoId: planoId, tarefaId: l.id, trechoId: v || null },
                   {
                     onSuccess: (r) => r.avisos.length && toast.warning(r.avisos.join(' · ')),
-                    onError: (e) => toast.error(e.message)
+                    onError: falhaGravar
                   }
                 )
             }
@@ -408,7 +411,7 @@ export function GanttVista({
                 if (l.id)
                   atualizarTarefa.mutate(
                     { planejamentoId: planoId, id: l.id, campos: { qtd_equipes: n } },
-                    { onError: (e) => toast.error(e.message) }
+                    { onError: falhaGravar }
                   )
               }
             }
@@ -459,7 +462,7 @@ export function GanttVista({
                 if (l.id)
                   atualizarTarefa.mutate(
                     { planejamentoId: planoId, id: l.id, campos: { prioridade: n } },
-                    { onError: (e) => toast.error(e.message) }
+                    { onError: falhaGravar }
                   )
               }
             }

@@ -26,6 +26,7 @@ import { RecursoPrecoHistoricoDialog } from '@/features/orcamento/modals/Recurso
 import { fmtBRL4 } from '@/lib/money'
 import { contar } from '@/lib/rotulos'
 import { RECURSO_GRUPO_LABEL, type Recurso, type RecursoGrupo } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 const GRUPO_VARIANT: Record<RecursoGrupo, 'accent' | 'success' | 'warn' | 'default'> = {
   MO: 'warn',
@@ -48,7 +49,7 @@ function RecursosInner(): ReactNode {
   const role = useAuthStore((s) => s.profile?.role)
   const obraId = scope.obraId!
   const { data: recursos = [], isLoading, error, refetch } = useRecursos(obraId)
-  const toggleAtivo = useToggleAtivoRecurso()
+  const { mutate: alternarAtivo, isPending: alternandoAtivo } = useToggleAtivoRecurso()
   const confirm = useConfirm()
   const qc = useQueryClient()
   const [openNew, setOpenNew] = useState(false)
@@ -57,8 +58,9 @@ function RecursosInner(): ReactNode {
   const [precosOpen, setPrecosOpen] = useState<{ id: string; nome: string } | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
 
-  const { data: cadeiaTrava } = useCadeiaTrava(obraId)
-  const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
+  const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
+  const podeEditar =
+    (role === 'god' || role === 'adm' || role === 'engenheiro') && !travaCarregando && !cadeiaTrava
 
   const handleBulkDelete = async (rows: Recurso[], clear: () => void): Promise<void> => {
     if (rows.length === 0) return
@@ -68,7 +70,7 @@ function RecursosInner(): ReactNode {
       preview = await previewCascadeRecursos(rows.map((r) => r.id))
     } catch (err) {
       toast.error(
-        `Não foi possível conferir onde os recursos são usados. ${err instanceof Error ? err.message : ''}`.trim()
+        `Não foi possível conferir onde os recursos são usados. ${detalheDoErro(err) ?? ''}`.trim()
       )
       return
     }
@@ -246,10 +248,10 @@ function RecursosInner(): ReactNode {
                 <IconButton
                   size="sm"
                   variant="ghost"
-                  disabled={toggleAtivo.isPending}
+                  disabled={alternandoAtivo}
                   onClick={(e) => {
                     e.stopPropagation()
-                    toggleAtivo.mutate({ id: row.original.id, ativo: !row.original.ativo })
+                    alternarAtivo({ id: row.original.id, ativo: !row.original.ativo })
                   }}
                   aria-label={`${row.original.ativo ? 'Desativar' : 'Reativar'} ${nome}`}
                   title={row.original.ativo ? 'Desativar' : 'Reativar'}
@@ -263,7 +265,7 @@ function RecursosInner(): ReactNode {
         meta: { label: 'Ações' }
       }
     ],
-    [toggleAtivo, podeEditar]
+    [alternarAtivo, alternandoAtivo, podeEditar]
   )
 
   const botoesNovo = podeEditar ? (

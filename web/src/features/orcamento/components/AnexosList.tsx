@@ -8,6 +8,7 @@ import { getAnexoSignedUrl, useAnexos, useDeleteAnexo, useUploadAnexo } from '..
 import { formatDate } from '@/lib/format'
 import type { AnexoEscopo } from '@/types/orcamento'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   obraId: string
@@ -45,9 +46,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
       })
       toast.success(`Anexo "${file.name}" enviado.`)
     } catch (err) {
-      toast.error(
-        `Não foi possível enviar "${file.name}". ${err instanceof Error ? err.message : ''}`.trim()
-      )
+      toast.error(`Não foi possível enviar "${file.name}". ${detalheDoErro(err) ?? ''}`.trim())
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }

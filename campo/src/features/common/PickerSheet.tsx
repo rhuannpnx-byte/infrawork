@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/core/ui/Button'
 import { Input } from '@/core/ui/Input'
+import { useFolha } from './useFolha'
 
 export interface PickerSheetProps<T> {
   open: boolean
@@ -23,10 +24,8 @@ export interface PickerSheetProps<T> {
 }
 
 /**
- * Bottom sheet de seleção reutilizável. Substitui `PickerSheet.kt` do Android.
- *
- * Implementação simples baseada em backdrop + container animado via CSS transition.
- * Quando a Fase de UI polish chegar, migrar para Radix Dialog ou shadcn/ui Sheet.
+ * Folha de seleção que sobe de baixo, com busca. É um diálogo: o Esc fecha só ela (mesmo aberta por cima de um
+ * formulário), o Tab fica dentro e o foco volta ao campo que a abriu (`useFolha`).
  */
 export function PickerSheet<T>(props: PickerSheetProps<T>) {
   const {
@@ -45,6 +44,8 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
 
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const folhaRef = useFolha(open, onDismiss)
+  const tituloId = useId()
   // Altura disponível para o sheet — encolhe quando teclado iOS sobe.
   // Sem isso, o sheet com items-end fica metade atrás do teclado e o item filtrado
   // some "lá embaixo" exigindo scroll bizarro.
@@ -83,16 +84,6 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
     }
   }, [open])
 
-  // Escape fecha
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismiss()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onDismiss])
-
   if (!open) return null
 
   const filtered =
@@ -108,17 +99,27 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end bg-veu sm:items-center sm:justify-center"
-      onClick={onDismiss}
+      onClick={(e) => {
+        // aberta por cima de um formulário: o toque fora fecha só o seletor, não o formulário de baixo
+        e.stopPropagation()
+        onDismiss()
+      }}
     >
       <div
+        ref={folhaRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        tabIndex={-1}
         className={cn(
-          'folha-flutuante w-full sm:max-w-md sm:rounded-lg',
+          'folha-flutuante w-full focus-visible:ring-0 sm:max-w-md sm:rounded-lg',
           // Mobile: altura FIXA grande pra item filtrado não "sumir" lá embaixo.
           // Desktop (sm+): adapta ao conteúdo.
-          'flex h-[85vh] flex-col sm:h-auto sm:max-h-[80vh]',
+          // (a altura vem por variável: no estilo direto ela venceria o `sm:h-auto` e o diálogo ficava alto e vazio)
+          'flex h-[var(--folha-altura,85vh)] flex-col sm:h-auto sm:max-h-[80vh]',
           'rounded-t-2xl pb-safe sm:rounded-b-lg',
         )}
-        style={{ height: maxH }}
+        style={{ '--folha-altura': maxH } as CSSProperties}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
@@ -128,7 +129,9 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
-          <h2 className="text-lg font-semibold text-on-surface">{title}</h2>
+          <h2 id={tituloId} className="text-lg font-semibold text-on-surface">
+            {title}
+          </h2>
           <Button variant="ghost" size="icon" onClick={onDismiss} aria-label="Fechar">
             <X className="h-5 w-5" />
           </Button>
@@ -142,6 +145,7 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
               ref={inputRef}
               type="search"
               placeholder={searchHint}
+              aria-label={searchHint}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9"

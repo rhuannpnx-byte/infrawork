@@ -17,6 +17,7 @@ import { useCreateServico, useServicos } from '../hooks/servicos'
 import { useCpusOrfas, useCreateServicoFromCpu } from '../hooks/servico-links'
 import { parseBR } from '@/lib/money'
 import { nomeDaCpu } from '../lib/nomeDaCpu'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 // Regex de código hierárquico: "01", "01.02", "01.02.03" — 1 a 3 dígitos por nível.
 const CODIGO_REGEX = /^\d{1,3}(\.\d{1,3})*$/
@@ -129,9 +130,7 @@ export function NewServicoDialog({
         reset()
         onOpenChange(false)
       } catch (err) {
-        setError(
-          `Não foi possível criar o serviço. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-        )
+        setError(`Não foi possível criar o serviço. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
       }
     } else {
       const codigoFinal = codigo.trim() || nextImpCodigo
@@ -151,9 +150,7 @@ export function NewServicoDialog({
         reset()
         onOpenChange(false)
       } catch (err) {
-        setError(
-          `Não foi possível criar o serviço. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-        )
+        setError(`Não foi possível criar o serviço. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
       }
     }
   }
@@ -212,7 +209,7 @@ export function NewServicoDialog({
                       if (!codigo.trim()) setCodigo(nextImpCodigo)
                     }
                   }}
-                  autoFocus
+                  data-foco-inicial=""
                 >
                   <option value="">
                     {semComposicao ? 'Nenhuma composição disponível' : 'Selecione…'}
@@ -269,7 +266,7 @@ export function NewServicoDialog({
                 onChange={(e) => setCodigo(e.target.value)}
                 placeholder="Ex.: 02.03.50"
                 autoComplete="off"
-                autoFocus={modo === 'novo'}
+                data-foco-inicial={modo === 'novo' ? '' : undefined}
               />
             </Campo>
             <Campo

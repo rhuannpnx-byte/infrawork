@@ -22,6 +22,7 @@ import { ServicosTree } from '@/features/orcamento/components/ServicosTree'
 import { NewServicoDialog } from '@/features/orcamento/modals/NewServicoDialog'
 import { ServicoCpuLinksDialog } from '@/features/orcamento/modals/ServicoCpuLinksDialog'
 import type { Servico, ServicoTreeNode } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 export function ServicosPage(): ReactNode {
   return (
@@ -48,8 +49,9 @@ function ServicosInner(): ReactNode {
     return () => clearTimeout(id)
   }, [searchRaw])
 
-  const { data: cadeiaTrava } = useCadeiaTrava(obraId)
-  const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
+  const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
+  const podeEditar =
+    (role === 'god' || role === 'adm' || role === 'engenheiro') && !travaCarregando && !cadeiaTrava
   const tree = useMemo(() => buildServicoTree(servicos), [servicos])
 
   // Seleção em lote pra excluir.
@@ -80,7 +82,7 @@ function ServicosInner(): ReactNode {
       )
     } catch (err) {
       toast.error(
-        `Não foi possível conferir onde os serviços são usados. ${err instanceof Error ? err.message : ''}`.trim()
+        `Não foi possível conferir onde os serviços são usados. ${detalheDoErro(err) ?? ''}`.trim()
       )
       return
     }
@@ -405,6 +407,7 @@ function ServicosInner(): ReactNode {
       </div>
 
       <NewServicoDialog
+        key={parentInicial ?? 'raiz'}
         open={openNew}
         onOpenChange={(o) => {
           setOpenNew(o)

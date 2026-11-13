@@ -28,7 +28,7 @@ import { getWorkDaysBetween } from '@apex/calendar'
 import { Calendar } from '@apex/calendar'
 import { segParaData, segParaTimestamp, isoParaSeg } from '../motor/tempo'
 import { fmtDataLonga, fmtDias } from '../visoes/formato'
-import { Campo } from './campos'
+import { Campo, enterEnvia, useErroForm } from './campos'
 
 export type AlvoGrupo = { id: string } | { novo: true; pai: string | null }
 
@@ -72,7 +72,7 @@ function GrupoConteudo({
   const e = calc.entrada!
   const g = 'id' in alvo ? e.tarefas.find((t) => t.id === alvo.id) : undefined
   const [nome, setNome] = useState(g?.nome ?? '')
-  const [erro, setErro] = useState<string | null>(null)
+  const erro = useErroForm()
   const atualizar = useAtualizarTarefa()
   const criar = useCriarGrupo()
   const mover = useAtualizarTarefas()
@@ -92,8 +92,8 @@ function GrupoConteudo({
   const ro = somenteLeitura
 
   const salvar = async (): Promise<void> => {
-    setErro(null)
-    if (!nome.trim()) return setErro('Informe o nome.')
+    erro.limpar()
+    if (!nome.trim()) return erro.falhar('Informe o nome da tarefa-resumo.', 'nome')
     try {
       if (!g && 'novo' in alvo) {
         let nivel = 1
@@ -142,7 +142,7 @@ function GrupoConteudo({
       }
       onFechar()
     } catch (x) {
-      setErro(traduzirErro(x instanceof Error ? x.message : String(x)))
+      erro.falhar(traduzirErro(x instanceof Error ? x.message : String(x)))
     }
   }
   const ocupado = criar.isPending || atualizar.isPending || mover.isPending
@@ -154,11 +154,17 @@ function GrupoConteudo({
           Agrupa tarefas na EAP do plano; a barra cobre as tarefas de dentro.
         </DialogDescription>
       </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={erro} />
-        <Campo rotulo="Nome">
-          <Input value={nome} onChange={(x) => setNome(x.target.value)} disabled={ro} autoFocus />
-        </Campo>
+      <DialogBody>
+        <div ref={erro.caixa} className="space-y-3" onKeyDown={enterEnvia(() => void salvar())}>
+          <DialogErrorBanner message={erro.geral} />
+          <Campo rotulo="Nome" erro={erro.de('nome')}>
+            <Input
+              value={nome}
+              onChange={(x) => setNome(x.target.value)}
+              disabled={ro}
+              data-foco-inicial
+            />
+          </Campo>
         {g && ini !== null && fim !== null ? (
           <>
             <Campo
@@ -179,6 +185,7 @@ function GrupoConteudo({
             </p>
           </>
         ) : null}
+        </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onFechar} disabled={ocupado}>
@@ -186,7 +193,7 @@ function GrupoConteudo({
         </Button>
         {!ro ? (
           <Button onClick={() => void salvar()} disabled={ocupado}>
-            {g ? 'Salvar' : 'Criar'}
+            {ocupado ? 'Salvando…' : g ? 'Salvar' : 'Criar'}
           </Button>
         ) : null}
       </DialogFooter>
@@ -231,17 +238,18 @@ function PlanoConteudo({
   const [calendario, setCalendario] = useState(p.calendario_id ?? '')
   const [modo, setModo] = useState(p.modo)
   const [dataControle, setDataControle] = useState(p.data_controle ?? '')
-  const [erro, setErro] = useState<string | null>(null)
+  const erro = useErroForm()
   const atualizar = useAtualizarPlano()
   const ro = somenteLeitura
 
   const salvar = async (): Promise<void> => {
-    setErro(null)
-    if (!nome.trim()) return setErro('Informe o nome do plano.')
-    if (!inicio) return setErro('Informe o início do plano.')
-    if (prazo && prazo < inicio) return setErro('O prazo não pode ser antes do início.')
+    erro.limpar()
+    if (!nome.trim()) return erro.falhar('Informe o nome do plano.', 'nome')
+    if (!inicio) return erro.falhar('Informe o início do plano.', 'inicio')
+    if (prazo && prazo < inicio)
+      return erro.falhar('O prazo não pode ser antes do início.', 'prazo')
     if (modo === 'controle' && dataControle && dataControle < inicio)
-      return setErro('A data de controle não pode ser antes do início do plano.')
+      return erro.falhar('A data de controle não pode ser antes do início do plano.', 'controle')
     try {
       await atualizar.mutateAsync({
         planejamentoId: p.id,
@@ -256,7 +264,7 @@ function PlanoConteudo({
       })
       onFechar()
     } catch (x) {
-      setErro(traduzirErro(x instanceof Error ? x.message : String(x)))
+      erro.falhar(traduzirErro(x instanceof Error ? x.message : String(x)))
     }
   }
   const fim = calc.resultado?.fimProjeto
@@ -270,13 +278,18 @@ function PlanoConteudo({
             : 'Início, prazo e calendário valem para todo o cronograma.'}
         </DialogDescription>
       </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={erro} />
-        <Campo rotulo="Nome">
+      <DialogBody>
+        <div ref={erro.caixa} className="space-y-3" onKeyDown={enterEnvia(() => void salvar())}>
+        <DialogErrorBanner message={erro.geral} />
+        <Campo rotulo="Nome" erro={erro.de('nome')}>
           <Input value={nome} onChange={(x) => setNome(x.target.value)} disabled={ro} />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
-          <Campo rotulo="Início" dica="Nenhuma tarefa começa antes do início do plano">
+        <div className="grid grid-cols-2 items-start gap-3">
+          <Campo
+            rotulo="Início"
+            dica="Nenhuma tarefa começa antes do início do plano"
+            erro={erro.de('inicio')}
+          >
             <Input
               type="date"
               value={inicio}
@@ -287,6 +300,7 @@ function PlanoConteudo({
           <Campo
             rotulo="Prazo"
             dica="Tarefas que terminam depois do prazo recebem a bandeira de violação"
+            erro={erro.de('prazo')}
           >
             <Input
               type="date"
@@ -327,6 +341,7 @@ function PlanoConteudo({
             <Campo
               rotulo="Data de controle"
               dica="O realizado vale até o fim deste dia; a previsão parte dele. Vazio = hoje (uma data futura também vale como hoje)"
+              erro={erro.de('controle')}
             >
               <div className="flex items-center gap-1">
                 <Input
@@ -334,6 +349,7 @@ function PlanoConteudo({
                   value={dataControle}
                   onChange={(x) => setDataControle(x.target.value)}
                   disabled={ro}
+                  aria-invalid={erro.de('controle') ? true : undefined}
                 />
                 {dataControle && !ro ? (
                   <Button variant="ghost" size="sm" onClick={() => setDataControle('')}>
@@ -352,6 +368,7 @@ function PlanoConteudo({
             ) : null}
           </p>
         ) : null}
+        </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onFechar} disabled={atualizar.isPending}>
@@ -359,7 +376,7 @@ function PlanoConteudo({
         </Button>
         {!ro ? (
           <Button onClick={() => void salvar()} disabled={atualizar.isPending}>
-            Salvar
+            {atualizar.isPending ? 'Salvando…' : 'Salvar'}
           </Button>
         ) : null}
       </DialogFooter>

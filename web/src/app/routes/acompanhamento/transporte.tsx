@@ -47,6 +47,12 @@ const txtKm = (v: number | null | undefined): string =>
 const ROTULO_COLUNA = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 const MARCA = 'h-4 w-4 accent-[var(--accent)]'
 const ERRO_ACESSO = 'Informe o acesso em km, com número maior ou igual a zero.'
+const ERRO_DISTANCIA = 'A distância não pode ser negativa.'
+
+/** Depois de mostrar os erros, leva o foco ao primeiro campo marcado. */
+function focarPrimeiroInvalido(form: HTMLFormElement): void {
+  requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+}
 
 /** Estaca digitada na unidade do trecho → metros no trecho; vazio limpa. */
 function lerEstaca(txt: string, t: ObraTrecho | undefined): { m: number | null; erro?: string } {
@@ -180,8 +186,9 @@ function Inner(): ReactNode {
       setIncluindo(null)
     }
   }
-  const incluirLocal = (e: FormEvent): void => {
+  const incluirLocal = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
+    const form = e.currentTarget
     const pista = novo.tipo === 'pista'
     const est = pista ? { m: null } : lerEstaca(novo.estaca, trechoDe(novo.trecho))
     const acesso = pista || !novo.acesso.trim() ? 0 : parseQtd(novo.acesso)
@@ -191,7 +198,10 @@ function Inner(): ReactNode {
       acesso: acesso == null || acesso < 0 ? ERRO_ACESSO : undefined
     }
     setErrosNovo(erros)
-    if (erros.nome || erros.estaca || acesso == null || acesso < 0) return
+    if (erros.nome || erros.estaca || acesso == null || acesso < 0) {
+      focarPrimeiroInvalido(e.currentTarget)
+      return
+    }
     setIncluindo('local')
     void salvarLocal
       .mutateAsync({
@@ -202,23 +212,35 @@ function Inner(): ReactNode {
         estaca_acesso_m: est.m,
         distancia_acesso_km: acesso
       })
-      .then(() => setNovo((n) => ({ ...n, nome: '', estaca: '', acesso: '' })))
+      .then(() => {
+        toast.success(`Local "${novo.nome.trim()}" incluído.`)
+        setNovo((n) => ({ ...n, nome: '', estaca: '', acesso: '' }))
+      })
       .catch((err: Error) => {
-        if (err.message.startsWith('Já existe')) setErrosNovo({ nome: err.message })
-        else toast.error(`Não foi possível incluir o local. ${err.message}`)
+        if (err.message.startsWith('Já existe')) {
+          setErrosNovo({ nome: err.message })
+          focarPrimeiroInvalido(form)
+        } else toast.error(`Não foi possível incluir o local. ${err.message}`)
       })
       .finally(() => setIncluindo(null))
   }
-  const incluirRota = (e: FormEvent): void => {
+  const incluirRota = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
     const dmt = parseQtd(rota.dmt)
     const erros = {
       origem: rota.origem ? undefined : 'Escolha a origem.',
-      destino: rota.destino ? undefined : 'Escolha o destino.',
-      dmt: dmt == null ? 'Informe a distância em km.' : undefined
+      destino: !rota.destino
+        ? 'Escolha o destino.'
+        : rota.destino === rota.origem
+          ? 'Escolha um destino diferente da origem.'
+          : undefined,
+      dmt: dmt == null ? 'Informe a distância em km.' : dmt < 0 ? ERRO_DISTANCIA : undefined
     }
     setErrosRota(erros)
-    if (erros.origem || erros.destino || dmt == null) return
+    if (erros.origem || erros.destino || dmt == null || dmt < 0) {
+      focarPrimeiroInvalido(e.currentTarget)
+      return
+    }
     setIncluindo('rota')
     void salvarRota
       .mutateAsync({
@@ -227,7 +249,10 @@ function Inner(): ReactNode {
         destino_id: rota.destino,
         dmt_km: dmt
       })
-      .then(() => setRota({ origem: '', destino: '', dmt: '' }))
+      .then(() => {
+        toast.success('Distância fixa incluída.')
+        setRota({ origem: '', destino: '', dmt: '' })
+      })
       .catch((err: Error) =>
         toast.error(`Não foi possível incluir a distância fixa. ${err.message}`)
       )
@@ -241,7 +266,7 @@ function Inner(): ReactNode {
         title="Origens e destinos"
         subtitle="Locais de carga e descarga e as distâncias usadas nas viagens."
       />
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-5 xl:overflow-hidden">
         <div className="flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-1">
           <p className="max-w-[75ch] text-sm text-text-muted">
             A distância média de transporte (DMT) da viagem soma o acesso da origem, a distância
@@ -259,7 +284,7 @@ function Inner(): ReactNode {
             aoTentar={() => void refetch()}
           />
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
+          <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <Secao
               titulo="Locais de carga e descarga"
               semRecuo
@@ -300,7 +325,7 @@ function Inner(): ReactNode {
                   <table className="w-full min-w-[740px] text-sm">
                     <thead className="sticky top-0 z-10 bg-bg-elevated shadow-[inset_0_-1px_0_var(--border-strong)]">
                       <tr className={`text-left ${ROTULO_COLUNA}`}>
-                        <th className="px-3 py-2 font-semibold">Nome</th>
+                        <th className="w-[34%] px-3 py-2 font-semibold">Nome</th>
                         <th className="px-2 py-2 font-semibold">Tipo</th>
                         <th className="px-2 py-2 font-semibold">Trecho</th>
                         <th
@@ -316,9 +341,7 @@ function Inner(): ReactNode {
                           Acesso (km)
                         </th>
                         <th className="px-2 py-2 text-center font-semibold">Ativo</th>
-                        <th className="w-10">
-                          <span className="sr-only">Ações</span>
-                        </th>
+                        <th className="w-10" aria-label="Ações" />
                       </tr>
                     </thead>
                     <tbody>
@@ -494,7 +517,10 @@ function Inner(): ReactNode {
                   >
                     <Input
                       value={novo.nome}
-                      onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
+                      onChange={(e) => {
+                        setNovo({ ...novo, nome: e.target.value })
+                        if (errosNovo.nome) setErrosNovo({ ...errosNovo, nome: undefined })
+                      }}
                       placeholder="ex.: Jazida Km 8"
                     />
                   </Campo>
@@ -600,9 +626,10 @@ function Inner(): ReactNode {
                           <ArrowRight
                             size={12}
                             className="inline-block align-[-1px] text-text-dim"
-                            aria-hidden
-                          />
-                          <span className="sr-only">até</span> {nome(r.destino_id)}
+                            role="img"
+                            aria-label="até"
+                          />{' '}
+                          {nome(r.destino_id)}
                         </span>
                         <Input
                           key={r.dmt_km}
@@ -616,6 +643,11 @@ function Inner(): ReactNode {
                               toast.error(
                                 `Informe a distância de ${par(r)} em km. Para voltar ao cálculo pelo eixo, remova a distância fixa.`
                               )
+                              e.currentTarget.value = e.currentTarget.defaultValue
+                              return
+                            }
+                            if (v < 0) {
+                              toast.error(ERRO_DISTANCIA)
                               e.currentTarget.value = e.currentTarget.defaultValue
                               return
                             }

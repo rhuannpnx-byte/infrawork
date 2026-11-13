@@ -378,21 +378,22 @@ export function QuantidadesTrechoDialog({
                 <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                   Faixas
                 </span>
-                <Select
-                  className="w-44"
-                  aria-label="Tamanho das faixas"
-                  value={passoTipo}
-                  disabled={!editavel}
-                  onChange={(e) => {
-                    const t = e.target.value as PassoUI
-                    aplicarPasso(t, t === 'metros' ? '500' : t === 'unidades' ? '5' : passoN)
-                  }}
-                >
-                  <option value="unidade">A cada {rot}</option>
-                  <option value="unidades">A cada N {rot}</option>
-                  <option value="metros">A cada N metros</option>
-                  <option value="livre">Faixas livres</option>
-                </Select>
+                <div className="w-44 shrink-0">
+                  <Select
+                    aria-label="Tamanho das faixas"
+                    value={passoTipo}
+                    disabled={!editavel}
+                    onChange={(e) => {
+                      const t = e.target.value as PassoUI
+                      aplicarPasso(t, t === 'metros' ? '500' : t === 'unidades' ? '5' : passoN)
+                    }}
+                  >
+                    <option value="unidade">A cada {rot}</option>
+                    <option value="unidades">A cada N {rot}</option>
+                    <option value="metros">A cada N metros</option>
+                    <option value="livre">Faixas livres</option>
+                  </Select>
+                </div>
                 {passoTipo === 'unidades' || passoTipo === 'metros' ? (
                   <Input
                     className="tabular w-20 text-right"

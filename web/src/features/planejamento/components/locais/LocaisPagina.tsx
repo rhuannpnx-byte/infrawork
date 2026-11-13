@@ -190,9 +190,7 @@ export function LocaisPagina(): ReactNode {
                       <th className="w-[110px] px-2 py-2 text-left font-semibold">Numeração</th>
                       <th className="w-[140px] px-2 py-2 text-left font-semibold">Mapa</th>
                       <th className="w-[190px] px-2 py-2 text-left font-semibold">Quantidades</th>
-                      <th className="w-24 px-2 py-2">
-                        <span className="sr-only">Ações</span>
-                      </th>
+                      <th className="w-24 px-2 py-2" aria-label="Ações" />
                     </tr>
                   </thead>
                   <tbody>
@@ -228,9 +226,7 @@ export function LocaisPagina(): ReactNode {
                       <th className="w-20 px-2 py-2 text-left font-semibold">Ordem</th>
                       <th className="w-full px-2 py-2 text-left font-semibold">Nome</th>
                       <th className="w-[190px] px-2 py-2 text-left font-semibold">Quantidades</th>
-                      <th className="w-24 px-2 py-2">
-                        <span className="sr-only">Ações</span>
-                      </th>
+                      <th className="w-24 px-2 py-2" aria-label="Ações" />
                     </tr>
                   </thead>
                   <tbody>
@@ -435,14 +431,19 @@ function LinhaLocal({
                 onClick={onEditar}
                 className={cn(BOTAO_CELULA, 'border-border-strong tabular')}
                 title="Editar a estaca inicial, a final e a unidade"
+                aria-label={
+                  comp > 0
+                    ? `Estacas de ${trecho.nome}: ${estacaInicialTexto(trecho)} até ${estacaFinalTexto(trecho)}. Editar`
+                    : `Definir estacas de ${trecho.nome}`
+                }
               >
                 {comp > 0 ? (
                   <>
                     {estacaInicialTexto(trecho)}{' '}
                     <span className="text-text-dim" aria-hidden>
                       →
-                    </span>
-                    <span className="sr-only">até</span> {estacaFinalTexto(trecho)}
+                    </span>{' '}
+                    {estacaFinalTexto(trecho)}
                   </>
                 ) : (
                   <span className="text-warn">Definir estacas</span>

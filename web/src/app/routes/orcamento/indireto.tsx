@@ -29,8 +29,9 @@ function Indireto(): ReactNode {
   const { data: indiretos = [], isLoading, error, refetch } = useIndireto(obraId)
   const [openNew, setOpenNew] = useState(false)
 
-  const { data: cadeiaTrava } = useCadeiaTrava(obraId)
-  const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
+  const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
+  const podeEditar =
+    (role === 'god' || role === 'adm' || role === 'engenheiro') && !travaCarregando && !cadeiaTrava
   const total = totalIndireto(indiretos)
 
   const botaoNovo = podeEditar ? (

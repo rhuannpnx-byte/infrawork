@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
 import { Secao } from '@/components/ui/secao'
 import { BarraAvanco, FaixaIndicadores, Indicador } from '@/components/ui/indicador'
-import { EstadoConsulta } from '@/components/ui/estado'
+import { ErroConsulta, EstadoConsulta } from '@/components/ui/estado'
 import { CurvaS, reaisCurto } from '@/components/charts/CurvaS'
 import { contar } from '@/lib/rotulos'
 import { formatNumber } from '@/lib/format'
@@ -23,6 +23,7 @@ import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
 import {
   STATUS_COMP_LABEL,
   type PrevistoRealizadoItem,
+  type ProducaoEnriquecida,
   type StatusComparativo
 } from '@/types/acompanhamento'
 import { FaixaObra } from './FaixaObra'
@@ -55,18 +56,26 @@ const ORDEM: StatusComparativo[] = [
   'sem_plano'
 ]
 
+const SEM_SERVICOS: PrevistoRealizadoItem[] = []
+const SEM_PRODUCAO: ProducaoEnriquecida[] = []
+
 /** Tela inicial com obra selecionada: a situação da obra numa folha só. */
 export function PainelObra({ obraId }: { obraId: string }): ReactNode {
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const interno = !!role && role !== 'cliente'
   const hoje = hojeLocalISO()
 
-  const { data: obra } = useObra(obraId)
-  const { data: linhaBase } = useBaseline(interno ? obraId : null)
+  const consultaObra = useObra(obraId)
+  const consultaLinhaBase = useBaseline(interno ? obraId : null)
   const { data: trechos = [] } = useObraTrechos(interno ? obraId : null)
-  const { data: servicos = [], isLoading: carregandoServicos } = usePrevistoXRealizado(obraId)
-  const { data: painel } = useDashboardResumo(interno ? obraId : null, 30)
-  const { data: producao = [] } = useProducao(obraId)
+  const consultaServicos = usePrevistoXRealizado(obraId)
+  const consultaPainel = useDashboardResumo(interno ? obraId : null, 30)
+  const consultaProducao = useProducao(obraId)
+  const obra = consultaObra.data
+  const linhaBase = consultaLinhaBase.data
+  const servicos = consultaServicos.data ?? SEM_SERVICOS
+  const painel = consultaPainel.data
+  const producao = consultaProducao.data ?? SEM_PRODUCAO
   const valor = useCurvaSValor(interno ? obraId : null)
   const { data: faixasPrevistas = [] } = useFaixasPrevistas(interno ? linhaBase?.id : null)
 
@@ -108,14 +117,41 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
   const alertas = painel?.alertas_criticos ?? []
   const ultimos = painel?.ultimos_apontamentos ?? []
 
+  // enquanto a consulta não volta, o campo mostra reticências em vez de um valor que ainda não se sabe
+  const daObra = (v: string): string => (obra ? v : consultaObra.isLoading ? '…' : '—')
   const carimbo: Array<[string, string]> = [
-    ['Obra', obra?.codigo ?? '—'],
-    ['Trecho', [obra?.rodovia, obra?.trecho].filter(Boolean).join(' · ') || '—'],
-    ['Extensão', obra?.extensao_km != null ? `${formatNumber(obra.extensao_km, 2)} km` : '—'],
-    ['Linha de base', linhaBase?.nome ?? (interno ? 'Sem linha de base' : '—')],
-    ['Situação', rotuloStatusObra(obra?.status)],
+    ['Obra', daObra(obra?.codigo ?? '—')],
+    ['Trecho', daObra([obra?.rodovia, obra?.trecho].filter(Boolean).join(' · ') || '—')],
+    [
+      'Extensão',
+      daObra(obra?.extensao_km != null ? `${formatNumber(obra.extensao_km, 2)} km` : '—')
+    ],
+    [
+      'Linha de base',
+      linhaBase?.nome ??
+        (!interno
+          ? '—'
+          : consultaLinhaBase.isLoading
+            ? '…'
+            : consultaLinhaBase.error
+              ? '—'
+              : 'Sem linha de base')
+    ],
+    ['Situação', daObra(rotuloStatusObra(obra?.status))],
     ['Data de controle', dataBR(hoje)]
   ]
+
+  const consultas = [
+    consultaObra,
+    consultaLinhaBase,
+    consultaServicos,
+    consultaPainel,
+    consultaProducao
+  ]
+  const falha = consultas.find((c) => c.error)?.error
+  const tentarDeNovo = (): void => {
+    for (const c of consultas) if (c.error) void c.refetch()
+  }
 
   return (
     <div className="h-full w-full overflow-auto bg-bg">
@@ -152,9 +188,17 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
           ))}
         </dl>
 
+        {falha ? (
+          <ErroConsulta erro={falha} oQue="todos os dados da obra" aoTentar={tentarDeNovo} />
+        ) : null}
+
         <FaixaIndicadores rotulo="Situação da obra">
           {interno ? (
-            <Indicador rotulo="Avanço físico" valor={pct(resumo?.avanco_pct)}>
+            <Indicador
+              rotulo="Avanço físico"
+              carregando={consultaPainel.isLoading}
+              valor={pct(resumo?.avanco_pct)}
+            >
               <BarraAvanco valor={Number(resumo?.avanco_pct ?? 0)} marca={previstoPct} />
               <span>
                 {resumo?.avanco_pct == null
@@ -176,12 +220,16 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
                   <span>de {reaisCurto(valor.total)} previstos na linha de base</span>
                   <span>previsto até hoje: {reaisCurto(valor.previstoHoje)}</span>
                 </>
-              ) : (
+              ) : valor.error ? null : (
                 <span>sem linha de base vigente</span>
               )}
             </Indicador>
           ) : null}
-          <Indicador rotulo="Término previsto" valor={dataBR(termino)}>
+          <Indicador
+            rotulo="Término previsto"
+            carregando={consultaServicos.isLoading}
+            valor={dataBR(termino)}
+          >
             {termino ? (
               <span>
                 {diasEntre(hoje, termino) >= 0
@@ -191,7 +239,11 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
             ) : null}
             {inicio ? <span>início em {dataBR(inicio)}</span> : null}
           </Indicador>
-          <Indicador rotulo="Serviços" valor={formatNumber(servicos.length, 0)}>
+          <Indicador
+            rotulo="Serviços"
+            carregando={consultaServicos.isLoading}
+            valor={consultaServicos.error ? '—' : formatNumber(servicos.length, 0)}
+          >
             {contagem.atrasados > 0 ? (
               <span className="text-danger font-semibold">
                 {contar(contagem.atrasados, 'atrasado', 'atrasados')}
@@ -202,12 +254,18 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
             ) : servicos.length > 0 ? (
               <span className="text-success font-semibold">nenhum atrasado</span>
             ) : null}
-            <span>
-              {contagem.andamento} em andamento ·{' '}
-              {contar(contagem.concluidos, 'concluído', 'concluídos')}
-            </span>
+            {consultaServicos.error ? null : (
+              <span>
+                {contagem.andamento} em andamento ·{' '}
+                {contar(contagem.concluidos, 'concluído', 'concluídos')}
+              </span>
+            )}
           </Indicador>
-          <Indicador rotulo="Último lançamento" valor={dataBR(ultimo)}>
+          <Indicador
+            rotulo="Último lançamento"
+            carregando={consultaProducao.isLoading || consultaPainel.isLoading}
+            valor={dataBR(ultimo)}
+          >
             {diasSemLancar != null && diasSemLancar > 1 ? (
               <span className="text-warn font-semibold">
                 há {formatNumber(diasSemLancar, 0)} dias sem lançamento
@@ -260,32 +318,39 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
             semRecuo
             className="flex-[3_1_520px]"
           >
-            {tabela.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-text-muted">
-                {carregandoServicos
-                  ? 'Carregando os serviços…'
-                  : 'Sem linha de base vigente: o previsto aparece aqui quando o cronograma for travado como linha de base.'}
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px] text-sm">
-                  <thead>
-                    <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim border-y border-border">
-                      <th className="text-left font-semibold px-4 py-2">Serviço</th>
-                      <th className="text-left font-semibold px-2 py-2 w-[26%]">Avanço</th>
-                      <th className="text-right font-semibold px-2 py-2">Previsto</th>
-                      <th className="text-right font-semibold px-2 py-2">Executado</th>
-                      <th className="text-left font-semibold pl-2 pr-4 py-2">Situação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tabela.map((s) => (
-                      <LinhaServico key={s.tarefa_id} s={s} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className={tabela.length === 0 ? 'px-4 pb-4' : undefined}>
+              <EstadoConsulta
+                consulta={consultaServicos}
+                oQue="os serviços"
+                vazio={tabela.length === 0}
+                textoVazio="Sem linha de base vigente: o previsto aparece aqui quando o cronograma for travado como linha de base."
+                className="py-0"
+              >
+                <div
+                  className="overflow-x-auto"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Tabela de serviços"
+                >
+                  <table className="w-full min-w-[600px] text-sm">
+                    <thead>
+                      <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim border-y border-border">
+                        <th className="text-left font-semibold px-4 py-2">Serviço</th>
+                        <th className="text-left font-semibold px-2 py-2 w-[26%]">Avanço</th>
+                        <th className="text-right font-semibold px-2 py-2">Previsto</th>
+                        <th className="text-right font-semibold px-2 py-2">Executado</th>
+                        <th className="text-left font-semibold pl-2 pr-4 py-2">Situação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tabela.map((s) => (
+                        <LinhaServico key={s.tarefa_id} s={s} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </EstadoConsulta>
+            </div>
           </Secao>
 
           {interno ? (

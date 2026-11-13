@@ -3,17 +3,24 @@
  * do motor e o rodapé com início, término, prazo e avisos. Sem plano, o convite para criar um.
  */
 import { useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { Button } from '@/components/ui/button'
+import { ErroConsulta } from '@/components/ui/estado'
 import { FaixaLinhaBase, SeletorPlano } from './planos/PlanosControle'
 import { useAuthStore } from '@/stores/auth-store'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { usePlanejamentoAtivo, usePlanejamentos } from '@/features/planejamento/hooks/planejamentos'
 import { NewPlanejamentoDialog } from '@/features/planejamento/modals/NewPlanejamentoDialog'
-import { useCalculoCronograma, type CalculoCronograma } from '../hooks/calculo'
+import {
+  CHAVE_CRONOGRAMA,
+  useCalculoCronograma,
+  type CalculoCronograma
+} from '../hooks/calculo'
 import { useCronogramaUi } from '../store'
 import { fmtDataLonga } from '../visoes/formato'
 import { isoParaSeg } from '../motor/tempo'
@@ -35,7 +42,9 @@ export function PaginaPlano({ obraId, titulo, corpo }: Props): ReactNode {
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const planoPorObra = useCronogramaUi((s) => s.planoPorObra)
   const escolherPlano = useCronogramaUi((s) => s.escolherPlano)
-  const { data: planos = [], isLoading: carregandoPlanos } = usePlanejamentos(obraId)
+  const qc = useQueryClient()
+  const planosQ = usePlanejamentos(obraId)
+  const { data: planos = [], isLoading: carregandoPlanos } = planosQ
   const { data: ativo } = usePlanejamentoAtivo(obraId)
   const escolhido = planoPorObra[obraId]
   const planoId =
@@ -50,6 +59,18 @@ export function PaginaPlano({ obraId, titulo, corpo }: Props): ReactNode {
   const [novoPlano, setNovoPlano] = useState(false)
 
   if (carregandoPlanos) return <PulseBlock h={480} className="m-4" />
+  if (planosQ.error && !planosQ.data)
+    return (
+      <div className="flex h-full flex-col">
+        <PageHeader title={titulo} />
+        <ErroConsulta
+          className="m-5"
+          erro={planosQ.error}
+          oQue="os planos da obra"
+          aoTentar={() => void planosQ.refetch()}
+        />
+      </div>
+    )
   if (!plano) {
     return (
       <div className="flex h-full flex-col">
@@ -110,9 +131,12 @@ export function PaginaPlano({ obraId, titulo, corpo }: Props): ReactNode {
           <RodapePlano calc={calc} />
         </>
       ) : calc.erro ? (
-        <div className="m-4 rounded border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
-          {calc.erro.message}
-        </div>
+        <ErroConsulta
+          className="m-5"
+          erro={calc.erro}
+          oQue="o cronograma"
+          aoTentar={() => void qc.invalidateQueries({ queryKey: [CHAVE_CRONOGRAMA] })}
+        />
       ) : (
         <PulseBlock h={480} className="m-4" />
       )}
@@ -124,7 +148,7 @@ export function EstadoCalculo({ calc }: { calc: CalculoCronograma }): ReactNode 
   if (calc.erro)
     return (
       <span
-        className="flex items-center gap-1.5 rounded border border-danger/40 bg-danger/10 px-2 py-1 text-2xs text-danger"
+        className="flex items-center gap-1.5 rounded border border-danger/40 bg-danger/10 px-2 py-1 text-xs text-danger"
         title={calc.erro.message}
       >
         <AlertTriangle size={12} /> Erro no cálculo
@@ -132,14 +156,15 @@ export function EstadoCalculo({ calc }: { calc: CalculoCronograma }): ReactNode 
     )
   if (calc.carregando || calc.calculando || calc.gravando || calc.previa)
     return (
-      <span className="flex items-center gap-1.5 px-2 py-1 text-2xs text-text-muted">
+      <span role="status" className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-muted">
         <Loader2 size={12} className="animate-spin" />
         {calc.gravando ? 'Gravando…' : calc.carregando ? 'Carregando…' : 'Calculando…'}
       </span>
     )
   return (
     <span
-      className="flex items-center gap-1.5 px-2 py-1 text-2xs text-text-dim"
+      role="status"
+      className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-muted"
       title={calc.duracaoMs !== null ? `Cálculo em ${Math.round(calc.duracaoMs)} ms` : undefined}
     >
       <CheckCircle2 size={12} className={calc.gravado ? 'text-success' : 'text-warn'} />
@@ -167,7 +192,7 @@ function RodapePlano({ calc }: { calc: CalculoCronograma }): ReactNode {
   )
   const prazo = e.plano.prazo ? isoParaSeg(e.plano.prazo) : null
   return (
-    <div className="flex shrink-0 items-center gap-4 border-t border-border bg-bg-panel px-3 py-1 text-2xs text-text-dim">
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-0.5 border-t border-border bg-bg-panel px-3 py-1 text-xs text-text-dim">
       <span>
         Início <span className="text-text-muted">{fmtDataLonga(isoParaSeg(e.plano.inicio))}</span>
       </span>
@@ -186,9 +211,20 @@ function RodapePlano({ calc }: { calc: CalculoCronograma }): ReactNode {
           {prazo !== null ? fmtDataLonga(prazo) : 'sem prazo'}
         </span>
       </span>
-      <span>{r?.tarefas.size ?? 0} tarefas no cálculo</span>
-      {nViol ? <span className="text-danger">⚑ {nViol} com violação</span> : null}
-      {semProducao ? <span className="text-warn">{semProducao} sem produção</span> : null}
+      <span>{contar(r?.tarefas.size ?? 0, 'tarefa', 'tarefas')} no cálculo</span>
+      {nViol ? (
+        <span
+          className="text-danger"
+          title="Tarefas que passam do prazo, de um marco, de uma restrição ou de um atraso máximo"
+        >
+          ⚑ {nViol} com violação
+        </span>
+      ) : null}
+      {semProducao ? (
+        <span className="text-warn" title="Tarefas de serviço sem produção por dia na composição">
+          {semProducao} sem produção
+        </span>
+      ) : null}
       {fora ? (
         <span
           className="text-warn"

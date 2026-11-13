@@ -35,7 +35,8 @@ export async function saveFoto(
   if (!user) throw new Error('Sem sessão de usuário')
   const obra = await db.cat_obra.get(input.obraId)
   const empresaId = obra?.empresa_id ?? user.empresaId
-  if (!empresaId) throw new Error('Obra sem empresa — atualize os dados da obra')
+  if (!empresaId)
+    throw new Error('Obra sem empresa. Conecte-se à internet para atualizar os dados da obra.')
   const id = uuidv7()
   const fileData = await input.fileBlob.arrayBuffer()
   const entity: OutFoto = {
@@ -80,6 +81,6 @@ export async function deleteFoto(id: string): Promise<void> {
   const foto = await db.out_foto.get(id)
   if (!foto) return
   if (foto.syncStatus === 'SYNCING') throw new Error('Foto em envio, aguarde')
-  if (foto.syncStatus === 'SYNCED') throw new Error('Foto já enviada — exclua pelo sistema web')
+  if (foto.syncStatus === 'SYNCED') throw new Error('Foto já enviada: exclua pelo InfraWork Web.')
   await db.out_foto.delete(id)
 }

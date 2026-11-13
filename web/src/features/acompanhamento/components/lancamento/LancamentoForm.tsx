@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { contar } from '@/lib/rotulos'
 import { formatNumber } from '@/lib/format'
 import { hojeLocalISO, dataBR as fmtBR } from '@/lib/format/local-date'
@@ -100,7 +101,11 @@ export function LancamentoForm(props: Props): ReactNode {
   })
   const { data: materiaisEdit, isFetched } = useMateriaisLancamento(editar?.id)
   if (editar && !isFetched) {
-    return <div className="p-5 text-2xs font-mono text-text-dim">Carregando lançamento…</div>
+    return (
+      <div role="status" className="p-5 text-sm text-text-muted">
+        Carregando o lançamento…
+      </div>
+    )
   }
   return (
     <FormInner
@@ -271,8 +276,9 @@ function FormInner({
   if (!itemId) erros.servico = 'Escolha o serviço.'
   else if (porViagens)
     erros.servico = 'Este serviço é lançado por viagens: registre as viagens do dia.'
-  if (qtdNum == null || qtdNum < 0)
+  if (qtdNum == null)
     erros.quantidade = quantidade ? 'Digite um número, como 1.250,5.' : 'Informe a quantidade.'
+  else if (qtdNum < 0) erros.quantidade = 'A quantidade não pode ser negativa.'
   if (data > hojeLocalISO()) erros.data = 'A data não pode ser no futuro.'
   if (par.exige_local && !trecho) erros.local = 'Este serviço exige o local do lançamento.'
   else if (!loc.ok) erros.estacas = loc.erro
@@ -356,7 +362,7 @@ function FormInner({
       limparPorLancamento()
       onSalvo?.(id)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Não foi possível salvar o lançamento.')
+      toast.error(`Não foi possível salvar o lançamento.${motivoDoErro(err)}`)
     }
   }
 
@@ -409,7 +415,7 @@ function FormInner({
           </div>
           <div>
             <Label htmlFor="lc-equipe">Equipe</Label>
-            <select
+            <Select
               id="lc-equipe"
               value={equipeId}
               onChange={(e) => {
@@ -417,7 +423,7 @@ function FormInner({
                 const enc = equipes.find((eq) => eq.id === e.target.value)?.encarregado_id
                 if (enc && encarregados.some((en) => en.id === enc)) setEncarregadoId(enc)
               }}
-              className={campo}
+              className="h-10 text-md"
             >
               <option value="">Sem equipe</option>
               {equipes.map((eq) => (
@@ -425,19 +431,22 @@ function FormInner({
                   {eq.nome}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
         <div data-campo="servico">
-          <Label>Serviço</Label>
+          <Label id="lc-servico-rotulo">Serviço</Label>
           <ItemCombobox
             itens={itensManuais}
             value={itemId}
             onChange={escolherItem}
             loading={loadingItens}
+            rotuloId="lc-servico-rotulo"
+            invalido={!!erro('servico')}
+            descritoPor={erro('servico') ? 'lc-servico-erro' : undefined}
           />
-          <ErroCampo texto={erro('servico')} />
+          <ErroCampo id="lc-servico-erro" texto={erro('servico')} />
           {item ? (
             <div className="mt-1 text-xs text-text-muted flex items-center gap-2">
               <ProgressoItem item={item} />
@@ -459,7 +468,9 @@ function FormInner({
                 placeholder="0,00"
                 className={cn(campo, 'tabular pr-14')}
                 aria-invalid={
-                  erro('quantidade') || (quantidade && qtdNum == null) ? true : undefined
+                  erro('quantidade') || (quantidade && (qtdNum == null || qtdNum < 0))
+                    ? true
+                    : undefined
                 }
                 required
               />
@@ -472,18 +483,22 @@ function FormInner({
             <ErroCampo
               texto={
                 erro('quantidade') ??
-                (quantidade && qtdNum == null ? 'Digite um número, como 1.250,5.' : undefined)
+                (quantidade && qtdNum == null
+                  ? 'Digite um número, como 1.250,5.'
+                  : qtdNum != null && qtdNum < 0
+                    ? 'A quantidade não pode ser negativa.'
+                    : undefined)
               }
             />
           </div>
           <div>
             <Label htmlFor="lc-encarregado">Encarregado</Label>
             <div className="flex gap-1.5">
-              <select
+              <Select
                 id="lc-encarregado"
                 value={encarregadoId}
                 onChange={(e) => setEncarregadoId(e.target.value)}
-                className={campo}
+                className="h-10 text-md"
               >
                 <option value="">Sem encarregado</option>
                 {encarregados.map((en) => (
@@ -491,7 +506,7 @@ function FormInner({
                     {en.apelido ? `${en.nome} (${en.apelido})` : en.nome}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button
                 type="button"
                 variant="outline"
@@ -726,7 +741,7 @@ function FormInner({
               ))}
             </div>
           ) : null}
-          <p className="text-2xs text-text-dim mt-1">
+          <p className="text-xs text-text-muted mt-1">
             As fotos são comprimidas no aparelho (máx. 1920 px). Localização e hora vêm do EXIF
             quando existirem.
           </p>
@@ -738,7 +753,8 @@ function FormInner({
             <button
               type="button"
               onClick={() => setMaisAberto((o) => !o)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs text-text-muted hover:text-text"
+              aria-expanded={maisAberto}
+              className="w-full flex items-center justify-between rounded px-3 py-2 text-sm text-text-muted hover:text-text"
             >
               <span>
                 Mais detalhes (
@@ -774,13 +790,13 @@ function FormInner({
                       <button
                         type="button"
                         onClick={() => setMateriais((m) => [...m, { ...MAT_VAZIO }])}
-                        className="text-2xs text-accent inline-flex items-center gap-1 hover:underline"
+                        className="inline-flex min-h-6 items-center gap-1 rounded text-sm font-semibold text-accent hover:underline"
                       >
-                        <Plus size={12} /> adicionar
+                        <Plus size={12} /> Adicionar material
                       </button>
                     </div>
                     {materiais.length === 0 ? (
-                      <div className="text-2xs text-text-dim">Nenhum material informado.</div>
+                      <div className="text-sm text-text-muted">Nenhum material informado.</div>
                     ) : null}
                     <div className="space-y-1.5">
                       {materiais.map((m, i) => (
@@ -796,6 +812,7 @@ function FormInner({
                               )
                             }
                             placeholder="Material"
+                            aria-label={`Nome do material ${i + 1}`}
                             className="h-9 text-sm"
                           />
                           <Input
@@ -808,8 +825,9 @@ function FormInner({
                                 )
                               )
                             }
-                            placeholder="qtd"
-                            className="h-9 text-sm font-mono"
+                            placeholder="Qtd."
+                            aria-label={`Quantidade do material ${i + 1}`}
+                            className="h-9 text-sm tabular"
                           />
                           <Input
                             value={m.unidade}
@@ -818,14 +836,16 @@ function FormInner({
                                 arr.map((x, j) => (j === i ? { ...x, unidade: e.target.value } : x))
                               )
                             }
-                            placeholder="un"
-                            className="h-9 text-sm font-mono"
+                            placeholder="Un."
+                            aria-label={`Unidade do material ${i + 1}`}
+                            className="h-9 text-sm"
                           />
                           <button
                             type="button"
                             onClick={() => setMateriais((arr) => arr.filter((_, j) => j !== i))}
-                            className="text-text-dim hover:text-danger flex items-center justify-center"
-                            title="Remover"
+                            className="flex h-7 items-center justify-center rounded text-text-muted hover:text-danger"
+                            title="Remover o material"
+                            aria-label={`Remover o material ${i + 1}`}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -845,13 +865,16 @@ function FormInner({
         className={cn(
           'border-t border-border bg-bg-panel px-4 py-3 flex items-center gap-2',
           compacto
-            ? 'fixed bottom-0 left-0 right-0 z-30 shadow-[0_-4px_12px_rgba(0,0,0,.25)]'
+            ? 'fixed bottom-0 left-0 right-0 z-30 shadow-[var(--sombra-flutuante)]'
             : 'sticky bottom-0'
         )}
       >
         {progresso ? (
-          <span className="text-2xs font-mono text-text-dim inline-flex items-center gap-1">
-            <Loader2 size={12} className="animate-spin" /> fotos {progresso.feitas}/
+          <span
+            role="status"
+            className="text-sm text-text-muted tabular inline-flex items-center gap-1"
+          >
+            <Loader2 size={12} className="animate-spin" /> Enviando fotos: {progresso.feitas} de{' '}
             {progresso.total}
           </span>
         ) : null}
@@ -892,10 +915,10 @@ const ORDEM_ERROS: CampoComErro[] = [
   'estacas'
 ]
 
-function ErroCampo({ texto }: { texto?: string }): ReactNode {
+function ErroCampo({ texto, id }: { texto?: string; id?: string }): ReactNode {
   if (!texto) return null
   return (
-    <p role="alert" className="mt-1 text-xs font-medium text-danger">
+    <p id={id} role="alert" className="mt-1 text-xs font-medium text-danger">
       {texto}
     </p>
   )

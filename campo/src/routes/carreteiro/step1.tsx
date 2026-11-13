@@ -7,6 +7,7 @@ import { useCatalogo } from '@/core/db/daos'
 import type { ViagemLocal } from '@/core/db/entities'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { ViagemFormSheet } from '@/features/carreteiro/ViagemFormSheet'
+import { totalDasViagens } from '@/features/carreteiro/totalViagens'
 import { formatBR, formatNumero } from '@/lib/datas'
 import { contar } from '@/lib/texto'
 import { uuidv7 } from '@/lib/uuidv7'
@@ -61,11 +62,11 @@ export function CarreteiroStep1Route() {
     })
   }
 
-  const total = ficha.viagens.reduce((s, v) => s + v.quantidade, 0)
+  const total = totalDasViagens(ficha.viagens)
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
@@ -103,13 +104,13 @@ export function CarreteiroStep1Route() {
                   onClick={() => setEditando({ v, nova: false })}
                   className="min-w-0 flex-1 p-3 text-left"
                 >
-                  <p className="text-xs text-on-surface-dim tabular">
+                  <p className="tabular text-xs text-on-surface-dim">
                     #{i + 1}
                     {v.horaCarga ? ` · ${v.horaCarga}` : ''}
                     {v.horaDescarga ? ` → ${v.horaDescarga}` : ''}
                   </p>
-                  <p className="truncate font-medium text-on-surface">{v.servicoNome}</p>
-                  <p className="truncate text-xs text-on-surface-dim">
+                  <p className="font-medium text-on-surface">{v.servicoNome}</p>
+                  <p className="text-xs text-on-surface-dim">
                     {(v.origemNome ?? '—') +
                       (v.estacaCarga ? ` (${v.estacaCarga})` : '') +
                       ' → ' +
@@ -117,7 +118,7 @@ export function CarreteiroStep1Route() {
                       (v.estacaDescarga ? ` (${v.estacaDescarga})` : '') +
                       (v.estaca && v.estacaCarga === undefined ? ` · est. ${v.estaca}` : '')}
                   </p>
-                  <p className="mt-0.5 font-semibold text-accent tabular">
+                  <p className="tabular mt-0.5 font-semibold text-accent">
                     {formatNumero(v.quantidade, 2)} {v.unidade ?? ''}
                     <span className="text-xs font-normal text-on-surface-dim">
                       {v.dmtKm != null
@@ -169,15 +170,17 @@ export function CarreteiroStep1Route() {
         Nova viagem
       </button>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button
           variant="primary"
           size="lg"
           disabled={ficha.viagens.length === 0}
+          title={ficha.viagens.length === 0 ? 'Adicione ao menos uma viagem' : undefined}
           onClick={() => navigate('/carreteiro/step2')}
           className="w-full"
         >
-          Revisar ({contar(ficha.viagens.length, 'viagem', 'viagens')} · {formatNumero(total, 2)})
+          Revisar ({contar(ficha.viagens.length, 'viagem', 'viagens')}
+          {total ? ` · ${total}` : ''})
         </Button>
       </div>
 

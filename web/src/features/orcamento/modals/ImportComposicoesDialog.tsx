@@ -138,6 +138,15 @@ export function ImportComposicoesDialog({ open, onOpenChange, obraId }: Props): 
           )
         }
       }}
+      acaoEfetiva={(acao, opt) =>
+        acao !== 'atualizar'
+          ? acao
+          : opt.modo_existente === 'pular'
+            ? 'pular'
+            : opt.modo_existente === 'erro'
+              ? 'erro'
+              : acao
+      }
       aplicar={(rows, opt) =>
         importar.mutateAsync({
           obra_id: obraId,

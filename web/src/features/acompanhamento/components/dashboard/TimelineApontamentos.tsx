@@ -58,7 +58,15 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
                   </div>
                 </div>
                 <div className="text-xs text-text-muted truncate">
-                  {[dataBR(i.data), i.equipe_display_nome, i.frente].filter(Boolean).join(' · ')}
+                  {[
+                    dataBR(i.data),
+                    i.equipe_display_nome && i.equipe_display_nome !== '—'
+                      ? i.equipe_display_nome
+                      : 'Sem equipe',
+                    i.frente && i.frente !== '(sem frente)' ? i.frente : null
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </div>
               </div>
             </div>

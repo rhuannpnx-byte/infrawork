@@ -7,6 +7,7 @@ import { fmtBRL } from '@/lib/money'
 import type { ItemOrcamentario } from '@/types/orcamento'
 import { useAlocarReceitas, useCriarServico } from '../hooks/alocacao'
 import { avisarAlocacao } from '../lib/alocacao-ui'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   obraId: string
@@ -46,7 +47,7 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
       setQ('')
       onDone()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao agrupar')
+      toast.error(`Não foi possível agrupar as receitas. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -56,7 +57,7 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
       const s = await criar.mutateAsync({ obra_id: obraId, descricao: nomeNovo })
       await aplicar(s.id)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao criar serviço')
+      toast.error(`Não foi possível criar o serviço. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 

@@ -21,12 +21,15 @@ export interface SyncStatus {
   online: boolean
   syncing: boolean
   outboxPending: number
+  /** recusados pelo servidor, esperando correção */
+  recusados: number
   lastSyncAt: number | null
 }
 
 export function useSyncStatus(): SyncStatus {
   const counts = useOutboxCounts()
   const outboxPending = counts?.total ?? 0
+  const recusados = counts?.recusados ?? 0
 
   const [online, setOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -63,5 +66,5 @@ export function useSyncStatus(): SyncStatus {
     }
   }, [])
 
-  return { online, syncing, outboxPending, lastSyncAt }
+  return { online, syncing, outboxPending, recusados, lastSyncAt }
 }

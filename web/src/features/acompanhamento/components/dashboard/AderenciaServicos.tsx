@@ -65,12 +65,13 @@ export function AderenciaServicos({
           plan: planAcumAte || Number(i.qtd_plan ?? 0),
           real: realAcumAte,
           pct: pctSobreAcum ?? 0,
+          semPrevisto: pctSobreAcum == null,
           pctTotal: Number(i.pct_avanco ?? 0),
           cor: pctSobreAcum != null ? corPct : STATUS_COMP_COR[i.status],
           unidade: i.unidade ?? ''
         }
       })
-      .sort((a, b) => b.pct - a.pct)
+      .sort((a, b) => Number(a.semPrevisto) - Number(b.semPrevisto) || b.pct - a.pct)
   }, [itens, curvaS, dataAte])
 
   return (
@@ -122,9 +123,18 @@ export function AderenciaServicos({
                     {l.descricao}
                   </span>
                 </span>
-                <span style={{ color: l.cor }} className="font-semibold tabular-nums shrink-0">
-                  {pct}%
-                </span>
+                {l.semPrevisto ? (
+                  <span
+                    className="shrink-0 font-semibold text-text-muted"
+                    title="Sem previsto na linha de base até o fim do período"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <span style={{ color: l.cor }} className="font-semibold tabular-nums shrink-0">
+                    {pct}%
+                  </span>
+                )}
               </div>
               <div className="h-1.5 bg-bg-elevated overflow-hidden">
                 <div
@@ -135,6 +145,7 @@ export function AderenciaServicos({
               <div className="flex items-center justify-between text-xs text-text-muted mt-0.5">
                 <span className="tabular-nums">
                   {fmt(l.real)} / {fmt(l.plan)} {l.unidade}
+                  {l.semPrevisto ? ' no total (sem previsto até a data)' : ''}
                 </span>
               </div>
             </button>

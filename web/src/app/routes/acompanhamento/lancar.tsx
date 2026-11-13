@@ -12,6 +12,7 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { LancamentoForm } from '@/features/acompanhamento/components/lancamento/LancamentoForm'
 import { LancamentosDoDia } from '@/features/acompanhamento/components/lancamento/LancamentosDoDia'
 import { LancamentoBulkGrid } from '@/features/acompanhamento/components/lancamento/LancamentoBulkGrid'
@@ -86,9 +87,7 @@ function Inner(): ReactNode {
       toast.success(`${contar(n, 'lançamento removido', 'lançamentos removidos')}.`)
       setUltimoLote(null)
     } catch (e) {
-      toast.error(
-        `Não foi possível desfazer a importação.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
-      )
+      toast.error(`Não foi possível desfazer a importação.${motivoDoErro(e)}`)
     }
   }
 

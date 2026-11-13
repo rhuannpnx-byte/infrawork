@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase/client'
 import { contar } from '@/lib/rotulos'
 import { useUpdateRecurso } from '../hooks/recursos'
 import { RECURSO_GRUPO_LABEL, type Recurso, type RecursoGrupo } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
@@ -102,9 +103,7 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
       onOpenChange(false)
     } catch (err) {
       setConferindo(false)
-      setError(
-        `Não foi possível salvar o recurso. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível salvar o recurso. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -126,7 +125,7 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial=""
             />
           </Campo>
           <div className="grid grid-cols-2 gap-3">

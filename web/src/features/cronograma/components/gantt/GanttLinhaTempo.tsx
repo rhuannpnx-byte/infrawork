@@ -467,7 +467,7 @@ export function GanttLinhaTempo(p: Props): ReactNode {
       tabIndex={0}
       role="region"
       aria-label="Linha do tempo do cronograma"
-      className="relative h-full w-full overflow-auto bg-bg focus-visible:outline-none"
+      className="relative h-full w-full overflow-auto bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
       onScroll={onScroll}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -501,7 +501,7 @@ export function GanttLinhaTempo(p: Props): ReactNode {
                     x={(a + b) / 2}
                     y={cabecalho.temFino ? 15 : 27}
                     textAnchor="middle"
-                    className="fill-[var(--text-muted)] text-[11px] font-medium capitalize"
+                    className="fill-[var(--text-muted)] text-[11px] font-medium"
                   >
                     {c.rotulo}
                   </text>
@@ -532,7 +532,7 @@ export function GanttLinhaTempo(p: Props): ReactNode {
                   x={(c.x0 + c.x1) / 2}
                   y={ALTURA_CABECALHO / 2 + 15}
                   textAnchor="middle"
-                  className="fill-[var(--text-dim)] text-[10px] font-mono capitalize"
+                  className="fill-[var(--text-dim)] text-[10px] font-mono"
                 >
                   {c.rotulo}
                 </text>

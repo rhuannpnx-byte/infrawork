@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { formatNumber } from '@/lib/format'
 import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { useDeleteLancamento, useLancamentosDia } from '../../hooks/lancamento'
 import { rotuloLocalProducao } from '../../lib/local-producao'
@@ -51,7 +52,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
   const excluir = async (p: ProducaoEnriquecida): Promise<void> => {
     const ok = await confirm({
       title: 'Excluir este lançamento?',
-      description: `Lançamento de ${p.servico_display_nome}: ${formatNumber(Number(p.qtd ?? 0), 2)} ${p.unidade ?? ''}${p.equipe_display_nome ? `, equipe ${p.equipe_display_nome}` : ''}. Não dá para desfazer.`,
+      description: `Lançamento de ${p.servico_display_nome}: ${formatNumber(Number(p.qtd ?? 0), 2)} ${p.unidade ?? ''}${p.equipe_id && p.equipe_display_nome ? `, equipe ${p.equipe_display_nome}` : ''}. Não dá para desfazer.`,
       confirmLabel: 'Excluir',
       variant: 'danger'
     })
@@ -60,9 +61,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
       await del.mutateAsync({ id: p.id })
       toast.success('Lançamento excluído.')
     } catch (e) {
-      toast.error(
-        `Não foi possível excluir o lançamento.${e instanceof Error && e.message ? ` ${e.message}` : ''}`
-      )
+      toast.error(`Não foi possível excluir o lançamento.${motivoDoErro(e)}`)
     }
   }
 
@@ -139,7 +138,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
                         style={{ background: p.equipe_display_cor ?? 'var(--border-strong)' }}
                       />
                       <span className="truncate">
-                        {p.equipe_display_nome ?? 'Sem equipe'}
+                        {(p.equipe_id && p.equipe_display_nome) || 'Sem equipe'}
                         {p.encarregado_display_nome ? ` · ${p.encarregado_display_nome}` : ''}
                         {p.frente_raw ? ` · ${p.frente_raw}` : ''}
                         {local ? ` · ${local}` : ''}
@@ -161,6 +160,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
                           <span className="sr-only">{nFotos === 1 ? 'foto' : 'fotos'}</span>
                         </span>
                       ) : null}
+                      {p.origem === 'viagens' ? <Badge variant="outline">Viagens</Badge> : null}
                       {p.origem === 'importacao' ? (
                         <Badge variant="outline">Importação</Badge>
                       ) : null}
@@ -170,7 +170,13 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
                 {p.obs ? (
                   <div className="text-sm text-text-muted mt-1 line-clamp-2">{p.obs}</div>
                 ) : null}
-                {podeEditar(p) ? (
+                {p.origem === 'viagens' ? (
+                  // a produção das viagens é a soma das viagens do dia: muda pelas viagens
+                  <p className="mt-1.5 text-sm text-text-muted">
+                    Soma das viagens do dia. Para mudar, altere as viagens em Acompanhamento, na
+                    página Viagens.
+                  </p>
+                ) : podeEditar(p) ? (
                   <div className="flex items-center gap-1 mt-1.5 -ml-2">
                     <Button type="button" variant="ghost" size="sm" onClick={() => onEditar?.(p)}>
                       <Pencil size={12} /> Editar
@@ -195,4 +201,3 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
     </section>
   )
 }
-

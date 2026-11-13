@@ -87,7 +87,7 @@ function tooltip(info: AlocInfo | undefined): string {
   if (!info || info.status === 'sem') return ALOC_STATUS_LABEL.sem
   if (info.destinos.length === 0) return `${fmtPct2(info.fracao)} da venda agrupada`
   const linhas = info.destinos.map(
-    (d) => `${d.servico.codigo} ${d.servico.descricao} — ${fmtPct2(d.alocacao.fracao)}`
+    (d) => `${d.servico.codigo} ${d.servico.descricao}: ${fmtPct2(d.alocacao.fracao)}`
   )
   if (info.status === 'saldo') linhas.push(`Saldo: ${fmtPct2(1 - info.fracao)}`)
   return linhas.join('\n')

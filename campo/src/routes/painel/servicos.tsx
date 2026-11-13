@@ -72,7 +72,7 @@ function Servicos({ p }: { p: CatPainel }) {
             >
               {info && <span className={cn('h-2 w-2 rounded-full', TOM_FUNDO[info.tom])} />}
               {info ? info.label : 'Todos'}
-              <span className="text-on-surface-muted tabular">
+              <span className="tabular text-on-surface-muted">
                 {f === 'todos' ? (p.servicos ?? []).length : contagem[f]}
               </span>
             </button>
@@ -81,8 +81,10 @@ function Servicos({ p }: { p: CatPainel }) {
       </div>
 
       <label className="flex items-center gap-2 rounded-md border border-border-strong bg-bg-panel px-3 focus-within:border-accent">
-        <Search className="h-4 w-4 text-on-surface-muted" />
+        <Search className="h-4 w-4 text-on-surface-muted" aria-hidden />
         <input
+          type="search"
+          aria-label="Buscar serviço"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar serviço"
@@ -92,7 +94,11 @@ function Servicos({ p }: { p: CatPainel }) {
 
       {lista.length === 0 ? (
         <p className="py-8 text-center text-sm text-on-surface-dim">
-          Nenhum serviço neste filtro.
+          {(p.servicos ?? []).length === 0
+            ? 'Esta lista mostra os serviços da linha de base vigente, e a obra ainda não tem uma. Aprove a linha de base no InfraWork Web.'
+            : busca.trim()
+              ? 'Nenhum serviço com esse texto. Confira a busca.'
+              : 'Nenhum serviço nesta situação.'}
         </p>
       ) : (
         <ul className="space-y-2" data-testid="painel-servicos">
@@ -108,7 +114,7 @@ function Servicos({ p }: { p: CatPainel }) {
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-on-surface">
-                        <span className="text-on-surface-dim tabular">{s.codigo}</span>{' '}
+                        <span className="tabular text-on-surface-dim">{s.codigo}</span>{' '}
                         {s.descricao}
                       </p>
                       <p className="mt-0.5 text-xs">
@@ -124,14 +130,14 @@ function Servicos({ p }: { p: CatPainel }) {
                     tom={st.tom}
                     className="mt-2.5"
                   />
-                  <div className="mt-1.5 flex items-baseline justify-between gap-2 whitespace-nowrap text-xs text-on-surface-dim tabular">
+                  <div className="tabular mt-1.5 flex items-baseline justify-between gap-2 whitespace-nowrap text-xs text-on-surface-dim">
                     <span>
                       <span className="text-on-surface">{pct(s.pct_avanco)}</span>
                       {s.pct_esperado != null && ` · esp. ${pct(s.pct_esperado)}`}
                     </span>
                     <span className="text-on-surface">{moeda(s.valor_executado)}</span>
                   </div>
-                  <p className="mt-0.5 truncate text-2xs text-on-surface-muted tabular">
+                  <p className="tabular mt-0.5 truncate text-2xs text-on-surface-muted">
                     {qtd(s.qtd_real)} de {qtd(s.qtd_plan, s.unidade)}
                   </p>
                 </Link>

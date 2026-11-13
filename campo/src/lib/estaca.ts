@@ -68,24 +68,31 @@ export function estacaParaMetros(t: LocalDto, texto: string): number | null {
 
 export type LocalResolvido =
   | { ok: true; trechoId: string | null; inicioM: number | null; fimM: number | null }
-  | { ok: false; erro: string }
+  /** `campos`: a frase de cada campo errado (inicial, final), para a tela mostrar embaixo dele */
+  | { ok: false; erro: string; campos: { inicial?: string; final?: string } }
+
+/** "EST 0 a EST 600": os limites do eixo, para as frases de erro. */
+export const faixaTexto = (t: LocalDto): string =>
+  `${estacaInicialTexto(t)} a ${estacaFinalTexto(t)}`
+export const erroPosicaoVazia = (t: LocalDto): string => `Informe um valor de ${faixaTexto(t)}.`
+export const erroPosicaoFora = (t: LocalDto): string =>
+  `Valor inválido ou fora do eixo (${faixaTexto(t)}).`
 
 export function resolverLocal(t: LocalDto | null, ini: string, fim: string): LocalResolvido {
   if (!t) return { ok: true, trechoId: null, inicioM: null, fimM: null }
   if (t.tipo === 'area') return { ok: true, trechoId: t.id, inicioM: null, fimM: null }
-  const faixa = `${estacaInicialTexto(t)} – ${estacaFinalTexto(t)}`
-  const nome = nomePosicao(t)
-  if (!ini.trim() || !fim.trim())
-    return { ok: false, erro: `Informe ${nome} inicial e final (${faixa}).` }
-  const a = estacaParaMetros(t, ini)
-  const b = estacaParaMetros(t, fim)
-  if (a === null)
-    return { ok: false, erro: `${nome} inicial "${ini}" inválido ou fora de ${t.nome} (${faixa}).` }
-  if (b === null)
-    return { ok: false, erro: `${nome} final "${fim}" inválido ou fora de ${t.nome} (${faixa}).` }
+  const a = ini.trim() ? estacaParaMetros(t, ini) : null
+  const b = fim.trim() ? estacaParaMetros(t, fim) : null
+  const campos: { inicial?: string; final?: string } = {}
+  if (!ini.trim()) campos.inicial = erroPosicaoVazia(t)
+  else if (a === null) campos.inicial = erroPosicaoFora(t)
+  if (!fim.trim()) campos.final = erroPosicaoVazia(t)
+  else if (b === null) campos.final = erroPosicaoFora(t)
+  if (a !== null && b !== null && a === b) campos.final = 'Informe um valor diferente do inicial.'
+  if (a === null || b === null || a === b)
+    return { ok: false, erro: campos.inicial ?? campos.final ?? erroPosicaoFora(t), campos }
   const i = Math.min(a, b)
   const f = Math.max(a, b)
-  if (!(f > i)) return { ok: false, erro: `${nome} final precisa ser diferente do inicial.` }
   return {
     ok: true,
     trechoId: t.id,

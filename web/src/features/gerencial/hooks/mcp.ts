@@ -118,6 +118,8 @@ export function useCriarTokenIA(): ReturnType<
       if (error) throw new Error(error.message)
       return (data as { token: string }).token
     },
+    // a janela mostra a falha no próprio lugar (sem o aviso global repetido)
+    onError: () => undefined,
     onSuccess: () => void qc.invalidateQueries({ queryKey: [...CHAVE, 'tokens'] })
   })
 }
@@ -129,6 +131,8 @@ export function useRevogarTokenIA(): ReturnType<typeof useMutation<void, Error, 
       const { error } = await supabase.rpc('mcp_token_revogar', { _id: id })
       if (error) throw new Error(error.message)
     },
+    // a janela mostra a falha no próprio lugar (sem o aviso global repetido)
+    onError: () => undefined,
     onSuccess: () => void qc.invalidateQueries({ queryKey: [...CHAVE, 'tokens'] })
   })
 }

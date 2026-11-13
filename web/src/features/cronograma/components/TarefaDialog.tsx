@@ -13,7 +13,7 @@
  */
 import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
@@ -57,7 +57,7 @@ import {
   lerEstaca,
   textoEstaca
 } from '../visoes/formato'
-import { Caixa, Campo, Secao } from './campos'
+import { Caixa, Campo, Secao, enterEnvia, useErroForm } from './campos'
 import { IndiretoCampos } from './IndiretoCampos'
 import { configDoForm, formDoConfig, mesmoForm } from './indireto-form'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
@@ -153,7 +153,12 @@ function Conteudo({
   const excluirDeps = useExcluirDependencias()
 
   const [aba, setAba] = useState<Aba>('geral')
-  const [erro, setErro] = useState<string | null>(null)
+  const erro = useErroForm()
+  // erro num campo de outra aba: abre a aba antes de mostrar
+  const falhar = (msg: string, onde?: { aba: Aba; campo?: string }): void => {
+    if (onde) setAba(onde.aba)
+    erro.falhar(msg, onde?.campo)
+  }
   const [salvando, setSalvando] = useState(false)
 
   // ── formulário ──
@@ -270,29 +275,37 @@ function Conteudo({
   }
 
   const salvar = async (): Promise<void> => {
-    setErro(null)
+    erro.limpar()
     const campos: CamposTarefa = {}
     if (nome.trim() !== t.nome) campos.nome_custom = nome.trim() || null
     if (asap !== t.asap) campos.asap = asap
     if (inicioDia !== t.inicio_dia) campos.inicio_dia = inicioDia
     if (derivar !== t.derivar_predecessoras) campos.derivar_predecessoras = derivar
     const pr = Math.round(lerNumero(prioridade) ?? NaN)
-    if (!(pr >= 0)) return setErro('A prioridade é um número inteiro a partir de zero.')
+    if (!(pr >= 0))
+      return falhar('A prioridade é um número inteiro a partir de zero.', {
+        aba: 'geral',
+        campo: 'prioridade'
+      })
     if (pr !== t.prioridade) campos.prioridade = pr
     if ((calendario || null) !== t.calendario_id) campos.calendario_id = calendario || null
     const ri = restIni || null,
       rie = ri ? doInputDataHora(restIniEm) : null
-    if (ri && !rie) return setErro('Informe a data da restrição de início.')
+    if (ri && !rie)
+      return falhar('Informe a data da restrição de início.', { aba: 'geral', campo: 'restIni' })
     if (ri !== t.restricao_inicio || rie !== t.restricao_inicio_em)
       Object.assign(campos, { restricao_inicio: ri, restricao_inicio_em: rie })
     const rf = restFim || null,
       rfe = rf ? doInputDataHora(restFimEm) : null
-    if (rf && !rfe) return setErro('Informe a data da restrição de término.')
+    if (rf && !rfe)
+      return falhar('Informe a data da restrição de término.', { aba: 'geral', campo: 'restFim' })
     if (rf !== t.restricao_fim || rfe !== t.restricao_fim_em)
       Object.assign(campos, { restricao_fim: rf, restricao_fim_em: rfe })
-    if (!(n >= 1 && n <= 50)) return setErro('O número de equipes vai de 1 a 50.')
+    const nDigitado = lerNumero(qtdEquipes)
+    if (nDigitado === null || nDigitado < 1 || nDigitado > 50)
+      return falhar('O número de equipes vai de 1 a 50.', { aba: 'equipes', campo: 'equipes' })
     if (n !== t.qtd_equipes) campos.qtd_equipes = n
-    if (!(coefN > 0)) return setErro('O coeficiente de produção precisa ser maior que zero.')
+    if (!(coefN > 0)) return falhar('O coeficiente de produção precisa ser maior que zero.')
     if (Math.abs(coefN - t.coef_producao) > 1e-9)
       campos.coef_producao = Math.round(coefN * 1e6) / 1e6
     if (sentido !== t.sentido) campos.sentido = sentido
@@ -309,13 +322,16 @@ function Conteudo({
     if (!locais.length && !t.is_indireto) {
       const q = lerNumero(qtdSemLocal)
       if (t.servico_id && !t.is_indireto && (q === null || q <= 0))
-        return setErro('Informe a quantidade da tarefa.')
+        return falhar('Informe a quantidade da tarefa, maior que zero.', {
+          aba: 'locais',
+          campo: 'qtdSemLocal'
+        })
       if (q !== null && Math.abs(q - t.quantidade) > 1e-9) campos.quantidade_alocada = q
     }
     const ls = locaisDoForm()
     if (typeof ls === 'string') {
       setAba('locais')
-      return setErro(ls)
+      return erro.falhar(ls)
     }
     const locaisMudaram = !mesmosLocais(ls, locaisDoFormInicial())
     const equipesMudaram = [...nomeadas].sort().join() !== [...t.equipes_ids].sort().join()
@@ -326,7 +342,7 @@ function Conteudo({
         : null
     if (typeof cfgInd === 'string') {
       setAba('indireto')
-      return setErro(cfgInd)
+      return erro.falhar(cfgInd)
     }
 
     setSalvando(true)
@@ -358,7 +374,7 @@ function Conteudo({
         })
       onFechar()
     } catch (err) {
-      setErro(traduzirErro(err instanceof Error ? err.message : String(err)))
+      erro.falhar(traduzirErro(err instanceof Error ? err.message : String(err)))
     } finally {
       setSalvando(false)
     }
@@ -402,7 +418,11 @@ function Conteudo({
             ? ` · ${fmtDataHora(r.inicio)} → ${fmtDataHora(r.fim)} · ${fmtDias(r.duracao_dias_uteis)}`
             : ''}
         </DialogDescription>
-        <div className="mt-2 flex gap-4 border-b border-transparent" role="tablist">
+        <div
+          className="mt-2 flex gap-4 border-b border-transparent"
+          role="tablist"
+          aria-label="Seções da tarefa"
+        >
           {(
             [
               ['geral', 'Geral'],
@@ -422,7 +442,7 @@ function Conteudo({
               active={aba === k}
               onClick={() => {
                 setAba(k)
-                setErro(null)
+                erro.limpar()
               }}
             >
               {rot}
@@ -430,10 +450,11 @@ function Conteudo({
           ))}
         </div>
       </DialogHeader>
-      <DialogBody className="max-h-[62vh] min-h-[420px] overflow-y-auto">
-        <DialogErrorBanner message={erro} />
+      <DialogBody className="h-[min(62vh,560px)] min-h-[420px] overflow-y-auto">
+        <div ref={erro.caixa} onKeyDown={ro ? undefined : enterEnvia(() => void salvar())}>
+        <DialogErrorBanner message={erro.geral} />
         {viol.length ? (
-          <div className="mb-3 space-y-0.5 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-2xs text-danger">
+          <div className="mb-3 space-y-0.5 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
             {viol.map((v, i) => (
               <div key={i}>
                 ⚑{' '}
@@ -508,7 +529,7 @@ function Conteudo({
                 Começar no início do dia
               </Caixa>
               {r ? (
-                <div className="grid grid-cols-3 gap-2 pt-1 text-2xs text-text-muted">
+                <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-text-muted">
                   <span>Duração: {fmtDias(r.duracao_dias_uteis)}</span>
                   <span>Folga total: {fmtNum(r.folga_total_h, 1)} h</span>
                   <span>Folga livre: {fmtNum(r.folga_livre_h, 1)} h</span>
@@ -516,7 +537,7 @@ function Conteudo({
               ) : null}
             </Secao>
             <Secao titulo="Restrições">
-              <div className="grid grid-cols-[1fr_1.2fr] gap-2">
+              <div className="grid grid-cols-[1fr_1.2fr] items-start gap-2">
                 <Campo rotulo="Início">
                   <Select
                     value={restIni}
@@ -528,9 +549,10 @@ function Conteudo({
                     <option value="exato">Exatamente em</option>
                   </Select>
                 </Campo>
-                <Campo rotulo="Data">
+                <Campo rotulo="Data" erro={erro.de('restIni')}>
                   <Input
                     type="datetime-local"
+                    aria-label="Data da restrição de início"
                     value={restIniEm}
                     onChange={(x) => setRestIniEm(x.target.value)}
                     disabled={ro || !restIni}
@@ -547,9 +569,10 @@ function Conteudo({
                     <option value="exato">Exatamente em</option>
                   </Select>
                 </Campo>
-                <Campo rotulo="Data">
+                <Campo rotulo="Data" erro={erro.de('restFim')}>
                   <Input
                     type="datetime-local"
+                    aria-label="Data da restrição de término"
                     value={restFimEm}
                     onChange={(x) => setRestFimEm(x.target.value)}
                     disabled={ro || !restFim}
@@ -558,7 +581,7 @@ function Conteudo({
               </div>
             </Secao>
             <Secao titulo="Programação">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 items-start gap-3">
                 <Campo rotulo="Calendário">
                   <Select
                     value={calendario}
@@ -576,6 +599,7 @@ function Conteudo({
                 <Campo
                   rotulo="Prioridade"
                   dica="Ordem de cálculo quando há disputa por equipes ou recursos: maior primeiro"
+                  erro={erro.de('prioridade')}
                 >
                   <Input
                     value={prioridade}
@@ -638,17 +662,19 @@ function Conteudo({
                 planilha.
               </p>
             </div>
-            <table className="w-full text-xs">
+            <table className="w-full table-fixed text-xs">
               <thead>
                 <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-                  <th className="w-6" />
+                  <th className="w-6" aria-label="Ordem" />
                   <th className="px-1 py-1 text-left">Local</th>
-                  <th className="px-1 py-1 text-left">Estaca inicial</th>
-                  <th className="px-1 py-1 text-left">Estaca final</th>
-                  <th className="px-1 py-1 text-left">Origem</th>
-                  <th className="px-1 py-1 text-right">Quantidade {servico?.unidade ?? ''}</th>
-                  <th className="px-1 py-1 text-left">Calculado</th>
-                  <th className="w-16" />
+                  <th className="w-[112px] px-1 py-1 text-left">Estaca inicial</th>
+                  <th className="w-[112px] px-1 py-1 text-left">Estaca final</th>
+                  <th className="w-[128px] px-1 py-1 text-left">Origem</th>
+                  <th className="w-[112px] px-1 py-1 text-right">
+                    Quantidade{servico?.unidade ? ` (${servico.unidade})` : ''}
+                  </th>
+                  <th className="w-[124px] px-1 py-1 text-left">Calculado</th>
+                  <th className="w-[92px]" aria-label="Ações" />
                 </tr>
               </thead>
               <tbody>
@@ -668,6 +694,8 @@ function Conteudo({
                       <td className="px-1 py-1">
                         <Select
                           value={l.trecho_id}
+                          aria-label={`Local ${k + 1}`}
+                          className="h-7 text-xs"
                           onChange={(x) => {
                             const ntr = trechos.get(x.target.value)
                             muda({
@@ -716,7 +744,9 @@ function Conteudo({
                           onChange={(x) => muda({ ini: x.target.value })}
                           disabled={ro || !ehEixo}
                           placeholder={ehEixo ? textoEstaca(0, tr) : tr ? 'área inteira' : '—'}
-                          className={cn('font-mono', !iniOk && 'border-danger')}
+                          aria-label={`Estaca inicial do local ${k + 1}`}
+                          aria-invalid={!iniOk || undefined}
+                          className="h-7 px-1.5 text-xs tabular"
                           title={
                             ehEixo
                               ? iniOk
@@ -738,7 +768,9 @@ function Conteudo({
                                 ? 'área inteira'
                                 : '—'
                           }
-                          className={cn('font-mono', !fimOk && 'border-danger')}
+                          aria-label={`Estaca final do local ${k + 1}`}
+                          aria-invalid={!fimOk || undefined}
+                          className="h-7 px-1.5 text-xs tabular"
                           title={
                             ehEixo
                               ? fimOk
@@ -751,6 +783,8 @@ function Conteudo({
                       <td className="px-1 py-1">
                         <Select
                           value={l.origem}
+                          aria-label={`Origem da quantidade do local ${k + 1}`}
+                          className="h-7 text-xs"
                           onChange={(x) => muda({ origem: x.target.value as LocalForm['origem'] })}
                           disabled={ro || !l.trecho_id}
                           title={
@@ -784,7 +818,8 @@ function Conteudo({
                               onChange={(x) => muda({ qtd: x.target.value })}
                               disabled={ro}
                               inputMode="decimal"
-                              className="text-right"
+                              aria-label={`Quantidade do local ${k + 1}`}
+                              className="h-7 px-1.5 text-right text-xs tabular"
                             />
                             {tpl !== null ? (
                               <div
@@ -797,7 +832,7 @@ function Conteudo({
                           </>
                         )}
                       </td>
-                      <td className="px-1 py-1 whitespace-nowrap font-mono text-2xs text-text-muted">
+                      <td className="whitespace-nowrap px-1 py-1 text-xs tabular text-text-muted">
                         {ws.length
                           ? `${fmtData(Math.min(...ws.map((w) => w.inicio)))} → ${fmtData(Math.max(...ws.map((w) => w.fim)) - 1)}`
                           : '—'}
@@ -807,27 +842,33 @@ function Conteudo({
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-7 w-7"
                             disabled={ro || k === 0}
                             onClick={() => setLocais(trocar(locais, k, k - 1))}
-                            aria-label="Subir"
+                            aria-label={`Subir o local ${k + 1}`}
+                            title="Subir"
                           >
                             <ArrowUp size={12} />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-7 w-7"
                             disabled={ro || k === locais.length - 1}
                             onClick={() => setLocais(trocar(locais, k, k + 1))}
-                            aria-label="Descer"
+                            aria-label={`Descer o local ${k + 1}`}
+                            title="Descer"
                           >
                             <ArrowDown size={12} />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-7 w-7"
                             disabled={ro}
                             onClick={() => setLocais(locais.filter((_, j) => j !== k))}
-                            aria-label="Remover local"
+                            aria-label={`Remover o local ${k + 1}`}
+                            title="Remover o local"
                           >
                             <Trash2 size={12} />
                           </Button>
@@ -848,10 +889,17 @@ function Conteudo({
                   onChange={(x) => setQtdSemLocal(x.target.value)}
                   disabled={ro || t.is_indireto}
                   inputMode="decimal"
+                  aria-label="Quantidade da tarefa sem local"
+                  aria-invalid={erro.de('qtdSemLocal') ? true : undefined}
                   className="w-32 text-right"
                 />
-                <span className="text-xs text-text-dim">{servico?.unidade ?? ''}</span>
+                <span className="text-xs text-text-muted">{servico?.unidade ?? ''}</span>
               </div>
+            ) : null}
+            {erro.de('qtdSemLocal') ? (
+              <p role="alert" className="text-xs font-medium text-danger">
+                {erro.de('qtdSemLocal')}
+              </p>
             ) : null}
             <Button
               variant="secondary"
@@ -888,15 +936,16 @@ function Conteudo({
             <Secao titulo="Composição (equipe do cálculo)">
               {equipe && prodComp > 0 ? (
                 <>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 items-start gap-3">
                     <Campo rotulo="Produção/dia" dica="Produção da composição vigente do serviço">
-                      <div className="flex h-7 items-center justify-end rounded border border-border bg-bg px-2 text-xs tabular-nums text-text-muted">
+                      <div className="flex h-8 items-center justify-end rounded border border-border bg-bg px-2 text-sm tabular-nums text-text-muted">
                         {fmtNum(prodComp, 'auto')} {servico?.unidade ?? ''}
                       </div>
                     </Campo>
                     <Campo
                       rotulo="Equipes"
                       dica="Composições trabalhando juntas: recursos e produção multiplicados"
+                      erro={erro.de('equipes')}
                     >
                       <Input
                         value={qtdEquipes}
@@ -910,7 +959,7 @@ function Conteudo({
                       rotulo="Produtividade"
                       dica="A produtividade é a da composição do serviço; a duração muda pelo número de equipes"
                     >
-                      <div className="flex h-7 items-center justify-end rounded border border-border bg-bg px-2 text-xs tabular-nums text-text-muted">
+                      <div className="flex h-8 items-center justify-end rounded border border-border bg-bg px-2 text-sm tabular-nums text-text-muted">
                         {Math.abs(coefN - 1) < 1e-9
                           ? 'da composição'
                           : `× ${fmtNum(coefN, 'auto')}`}
@@ -918,7 +967,7 @@ function Conteudo({
                     </Campo>
                   </div>
                   {Math.abs(coefN - 1) > 1e-9 ? (
-                    <div className="flex items-center gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-2xs text-warn">
+                    <div className="flex items-center gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-xs text-warn">
                       <span className="flex-1">
                         Esta tarefa está com a produtividade alterada (× {fmtNum(coefN, 'auto')}),
                         resto de um arraste antigo do término. No InfraWork a produção é a da
@@ -1038,7 +1087,7 @@ function Conteudo({
                     <span className="flex-1 truncate text-text">
                       {nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}
                     </span>
-                    <span className="font-mono text-2xs text-text-muted" title={NOME_TIPO[d.tipo]}>
+                    <span className="text-xs tabular text-text-muted" title={NOME_TIPO[d.tipo]}>
                       {d.tipo}
                       {d.atraso_min ? ` +${d.atraso_min}d` : ''}
                       {d.atraso_max !== null ? ` ≤${d.atraso_max}d` : ''}
@@ -1056,9 +1105,11 @@ function Conteudo({
                           tipo: d.tipo
                         })
                       }
-                      aria-label="Editar"
+                      className="h-7 w-7"
+                      aria-label={`Editar a dependência com ${nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}`}
+                      title="Editar a dependência"
                     >
-                      ✎
+                      <Pencil size={12} />
                     </Button>
                     <Button
                       variant="ghost"
@@ -1067,10 +1118,17 @@ function Conteudo({
                       onClick={() =>
                         excluirDeps.mutate(
                           { planejamentoId: planoId, ids: [d.id] },
-                          { onError: (x) => toast.error(x.message) }
+                          {
+                            onError: (x) =>
+                              toast.error(
+                                `Não foi possível remover a dependência. ${traduzirErro(x.message)}`
+                              )
+                          }
                         )
                       }
-                      aria-label="Remover"
+                      className="h-7 w-7"
+                      aria-label={`Remover a dependência com ${nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}`}
+                      title="Remover a dependência"
                     >
                       <Trash2 size={12} />
                     </Button>
@@ -1085,7 +1143,7 @@ function Conteudo({
                     <span className="flex-1 truncate">
                       {nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}
                     </span>
-                    <span className="font-mono text-2xs">
+                    <span className="text-xs tabular">
                       por estacas{d.atraso ? ` +${d.atraso}d` : ''}
                     </span>
                   </div>
@@ -1149,13 +1207,15 @@ function Conteudo({
             onChange={(x) => setNotas(x.target.value)}
             disabled={ro}
             rows={12}
-            className="w-full rounded border border-border-strong bg-bg-elevated p-2 text-xs text-text outline-none focus:border-accent"
+            aria-label="Comentário da tarefa"
+            className="w-full rounded border border-border-strong bg-bg-panel p-2 text-sm text-text outline-none placeholder:text-text-dim focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent"
             placeholder="Observações da tarefa…"
           />
         ) : null}
+        </div>
       </DialogBody>
       <DialogFooter>
-        <span className={cn('mr-auto text-2xs text-text-dim', !ro && 'hidden')}>
+        <span className={cn('mr-auto text-xs text-text-muted', !ro && 'hidden')}>
           Somente leitura
         </span>
         <Button variant="ghost" onClick={onFechar} disabled={salvando}>

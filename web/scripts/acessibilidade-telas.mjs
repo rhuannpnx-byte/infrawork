@@ -1,6 +1,6 @@
 // Acessibilidade das telas: roda o axe (WCAG 2 A e AA) em cada rota do menu e lista as violações por regra.
 //   E2E_EMAIL=… E2E_PASSWORD=… E2E_EMPRESA_ID=… E2E_OBRA_ID=… [E2E_URL=…] [E2E_TEMA=light|dark]
-//   [E2E_ROTAS=/,/orcamento] [E2E_SAIDA=acessibilidade.json] node scripts/acessibilidade-telas.mjs
+//   [E2E_ROTAS=/,/orcamento] [E2E_LARGURA=1440] [E2E_SAIDA=acessibilidade.json] node scripts/acessibilidade-telas.mjs
 // Sai com erro se houver violação grave ou crítica.
 import { writeFileSync } from 'node:fs'
 import { AxeBuilder } from '@axe-core/playwright'
@@ -9,7 +9,12 @@ import { URL_BASE, abrirSessao } from './sessao-telas.mjs'
 
 const TEMA = process.env.E2E_TEMA === 'dark' ? 'dark' : 'light'
 const rotas = process.env.E2E_ROTAS ? process.env.E2E_ROTAS.split(',') : ROTAS
-const { browser, page } = await abrirSessao({ tema: TEMA })
+const LARGURA = Number(process.env.E2E_LARGURA ?? 1440)
+const { browser, page } = await abrirSessao({
+  tema: TEMA,
+  largura: LARGURA,
+  altura: LARGURA < 600 ? 844 : 900
+})
 
 const porRegra = new Map()
 const porRota = {}

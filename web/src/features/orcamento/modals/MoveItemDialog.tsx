@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { usePlanOrc, useReparentItem } from '../hooks/plan-orc'
 import type { ItemTreeNode } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
@@ -107,9 +108,7 @@ export function MoveItemDialog({ open, onOpenChange, obraId, item }: Props): Rea
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível mover o item. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível mover o item. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -136,7 +135,11 @@ export function MoveItemDialog({ open, onOpenChange, obraId, item }: Props): Rea
               ' Os itens que estão dentro deste não aparecem na lista.'
             }
           >
-            <Select value={novoPaiId} onChange={(e) => setNovoPaiId(e.target.value)} autoFocus>
+            <Select
+              value={novoPaiId}
+              onChange={(e) => setNovoPaiId(e.target.value)}
+              data-foco-inicial=""
+            >
               <option value="">Selecione…</option>
               <option value="__raiz__">Raiz da planilha</option>
               {possiveisPais.length > 0 ? (

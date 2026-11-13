@@ -15,6 +15,7 @@ import type { Encarregado } from '@/types/acompanhamento'
 import { useCreateEncarregado, useEncarregados, useUpdateEncarregado } from '../../hooks/lancamento'
 import { useEquipes, useVincularEquipesEncarregado } from '@/features/planejamento/hooks/equipes'
 import { useAuthStore } from '@/stores/auth-store'
+import { mensagemErro } from '@/features/acompanhamento/lib/mensagem-erro'
 
 interface Props {
   open: boolean
@@ -59,7 +60,14 @@ function FormDialog({
   const [ativo, setAtivo] = useState(encarregado?.ativo ?? true)
   const [error, setError] = useState<string | null>(null)
   const [tentou, setTentou] = useState(false)
-  const erroNome = tentou && nome.trim().length < 2 ? 'Informe o nome do encarregado.' : null
+  // nome recusado pelo banco por já existir na obra
+  const [nomeRepetido, setNomeRepetido] = useState<string | null>(null)
+  const erroNome =
+    tentou && nome.trim().length < 2
+      ? 'Informe o nome do encarregado.'
+      : nomeRepetido !== null && nomeRepetido === nome.trim()
+        ? 'Já existe um encarregado com esse nome nesta obra.'
+        : null
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const podeVincular = role === 'god' || role === 'adm' || role === 'engenheiro'
   const vincular = useVincularEquipesEncarregado()
@@ -80,6 +88,8 @@ function FormDialog({
 
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
+    // aberto de dentro do formulário de lançamento: o envio não pode borbulhar e lançar a produção
+    e.stopPropagation()
     setError(null)
     setTentou(true)
     if (nome.trim().length < 2) {
@@ -108,12 +118,11 @@ function FormDialog({
       )
       onOpenChange(false)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      setError(
-        /duplicate|unique/i.test(msg)
-          ? 'Já existe um encarregado com esse nome nesta obra.'
-          : `Não foi possível salvar o encarregado.${msg ? ` ${msg}` : ''}`
-      )
+      const msg = mensagemErro(err)
+      if ((err as { code?: string } | null)?.code === '23505' || /duplicate|unique/i.test(msg)) {
+        setNomeRepetido(nome.trim())
+        document.getElementById('enc-nome')?.focus()
+      } else setError(`Não foi possível salvar o encarregado.${msg ? ` ${msg}` : ''}`)
     }
   }
 
@@ -130,7 +139,7 @@ function FormDialog({
               id="enc-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              autoFocus
+              data-foco-inicial
               placeholder="Ex.: João da Silva"
             />
           </Campo>

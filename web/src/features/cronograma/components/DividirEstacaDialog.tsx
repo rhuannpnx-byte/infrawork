@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { quantidadeNaFaixa, type SegmentoValores } from '@/lib/quantidades/segmentos'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import type { CalculoCronograma } from '../hooks/calculo'
 import { traduzirErro, useDividirEstaca } from '../hooks/edicao'
@@ -188,11 +189,15 @@ function Conteudo({
       </DialogHeader>
       <DialogBody className="space-y-3">
         <DialogErrorBanner message={erro} />
-        <div className="max-h-[50vh] overflow-auto rounded border border-border">
+        <div
+          className="max-h-[50vh] overflow-auto rounded border border-border"
+          role="region"
+          aria-label="Tarefas a dividir"
+        >
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-bg-panel text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
               <tr>
-                <th className="w-8 py-1.5" />
+                <th className="w-8 py-1.5" aria-label="Dividir" />
                 <th className="px-2 py-1.5 text-left">Tarefa</th>
                 <th className="px-2 py-1.5 text-left w-40">Trecho</th>
                 <th className="px-2 py-1.5 text-left">Faixa</th>
@@ -222,6 +227,7 @@ function Conteudo({
                         className="accent-[var(--accent)]"
                         checked={l.marcada}
                         onChange={(x) => muda({ marcada: x.target.checked })}
+                        aria-label={`Dividir ${t.nome}`}
                       />
                     </td>
                     <td className="px-2 py-1 text-text">{t.nome}</td>
@@ -229,7 +235,8 @@ function Conteudo({
                       {eixos.length > 1 ? (
                         <Select
                           value={l.trechoId}
-                          className="h-6"
+                          aria-label={`Trecho do corte de ${t.nome}`}
+                          className="h-7 text-xs"
                           onChange={(x) => {
                             const ntr = trechos.get(x.target.value)
                             const f = faixaDe(t, x.target.value)
@@ -249,7 +256,7 @@ function Conteudo({
                         <span className="text-text-muted">{tr?.nome ?? '—'}</span>
                       )}
                     </td>
-                    <td className="px-2 py-1 font-mono text-text-muted">
+                    <td className="px-2 py-1 tabular text-text-muted">
                       {a.faixa && tr
                         ? `${fmtEstacaCompacta(a.faixa[0], tr)} – ${fmtEstacaCompacta(a.faixa[1], tr)}`
                         : '—'}
@@ -258,7 +265,9 @@ function Conteudo({
                       <Input
                         value={l.estaca}
                         onChange={(x) => muda({ estaca: x.target.value })}
-                        className={cn('h-6 font-mono', a.erro && l.marcada && 'border-danger')}
+                        aria-label={`Estaca do corte de ${t.nome}`}
+                        aria-invalid={(a.erro && l.marcada) || undefined}
+                        className="h-7 px-1.5 text-xs tabular"
                         title={a.erro ?? 'Estaca no padrão do trecho'}
                       />
                     </td>
@@ -282,8 +291,12 @@ function Conteudo({
         <Button variant="ghost" onClick={onFechar} disabled={salvando}>
           Cancelar
         </Button>
-        <Button onClick={() => void executar()} disabled={salvando || nMarcadas === 0}>
-          {salvando ? 'Dividindo…' : `Dividir ${nMarcadas} tarefa${nMarcadas === 1 ? '' : 's'}`}
+        <Button onClick={() => void executar()} disabled={salvando}>
+          {salvando
+            ? 'Dividindo…'
+            : nMarcadas
+              ? `Dividir ${contar(nMarcadas, 'tarefa', 'tarefas')}`
+              : 'Dividir'}
         </Button>
       </DialogFooter>
     </>

@@ -1,11 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { LayoutDashboard } from 'lucide-react'
 import { TitleBar, ScopePill, UserMenu } from './TitleBar'
 import { Sidebar } from './Sidebar'
 import infraworkIcon from '@/assets/infrawork-icon.png'
 import { useUIStore } from '@/stores/ui-store'
 import { useActiveTab } from '@/stores/tabs-store'
-import { isBareRoute } from '@/config/modules'
+import { MODULES, getModuleByRoute, isBareRoute } from '@/config/modules'
+import { useCamadaModal } from '@/components/ui/camada-modal'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
 
 /**
@@ -23,6 +24,16 @@ export function AppShell({ children }: { children: ReactNode }): ReactNode {
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
   const estreito = useTelaEstreita()
   const activeTab = useActiveTab()
+  const caminho = activeTab?.location.split('?')[0] ?? '/'
+
+  // nome da página na aba do navegador e no histórico
+  useEffect(() => {
+    const pagina = tituloDaPagina(caminho)
+    document.title = pagina ? `${pagina} · InfraWork` : 'InfraWork'
+    return () => {
+      document.title = 'InfraWork'
+    }
+  }, [caminho])
 
   const bare = !!activeTab && isBareRoute(activeTab.location.split('?')[0])
   if (bare) {
@@ -51,21 +62,53 @@ export function AppShell({ children }: { children: ReactNode }): ReactNode {
       <main style={{ gridArea: 'main' }} className="bg-bg overflow-hidden relative">
         {children}
       </main>
-      {sidebarOpen && estreito ? (
-        <div className="fixed inset-x-0 bottom-0 top-12 z-40 flex">
-          <div className="w-[min(280px,85vw)] h-full grid shadow-[var(--sombra-flutuante)]">
-            <Sidebar aoNavegar={() => setSidebarOpen(false)} />
-          </div>
-          <button
-            type="button"
-            aria-label="Fechar o menu"
-            className="flex-1 bg-[color:var(--veu)]"
-            onClick={() => setSidebarOpen(false)}
-          />
-        </div>
-      ) : null}
+      {sidebarOpen && estreito ? <GavetaMenu aoFechar={() => setSidebarOpen(false)} /> : null}
     </div>
   )
+}
+
+/** Menu por cima do conteúdo, em tela estreita: prende o foco, fecha com Esc, ao escolher a página e no véu. */
+function GavetaMenu({ aoFechar }: { aoFechar: () => void }): ReactNode {
+  const caixa = useRef<HTMLDivElement>(null)
+  useCamadaModal(true, caixa, { aoFechar })
+  return (
+    <div className="fixed inset-x-0 bottom-0 top-12 z-40 flex">
+      <div
+        ref={caixa}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        tabIndex={-1}
+        className="w-[min(280px,85vw)] h-full flex shadow-[var(--sombra-flutuante)]"
+      >
+        <Sidebar gaveta aoNavegar={aoFechar} />
+      </div>
+      <button
+        type="button"
+        aria-label="Fechar o menu"
+        tabIndex={-1}
+        className="flex-1 bg-[color:var(--veu)]"
+        onClick={aoFechar}
+      />
+    </div>
+  )
+}
+
+function tituloDaPagina(caminho: string): string {
+  if (caminho === '/') return 'Início'
+  let rota = ''
+  let rotulo = ''
+  for (const m of MODULES)
+    for (const s of m.sections)
+      for (const i of s.items)
+        if (
+          (caminho === i.route || caminho.startsWith(`${i.route}/`)) &&
+          i.route.length > rota.length
+        ) {
+          rota = i.route
+          rotulo = i.label
+        }
+  return rotulo || getModuleByRoute(caminho)?.title || ''
 }
 
 function useTelaEstreita(): boolean {

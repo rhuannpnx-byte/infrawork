@@ -48,7 +48,7 @@ export function paraApiError(e: unknown): ApiError {
     o.status === 401 ||
     /jwt expired|invalid jwt|sessão expirada/i.test(msg)
   ) {
-    return new ApiError(401, 'Sessão expirada — entre de novo', o.code)
+    return new ApiError(401, 'Sessão expirada. Entre de novo.', o.code)
   }
   return new ApiError(o.status ?? 400, msg, o.code, o.details)
 }

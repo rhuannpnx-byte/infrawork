@@ -3,8 +3,20 @@ import { AlertTriangle, RotateCw } from 'lucide-react'
 import { Button } from './button'
 import { cn } from '@/lib/utils'
 
-const mensagemDe = (erro: unknown): string =>
-  erro instanceof Error ? erro.message : typeof erro === 'string' ? erro : 'Erro desconhecido'
+function mensagemDe(erro: unknown): string {
+  const doObjeto = (erro as { message?: unknown } | null)?.message
+  const m =
+    erro instanceof Error
+      ? erro.message
+      : typeof erro === 'string'
+        ? erro
+        : typeof doObjeto === 'string'
+          ? doObjeto
+          : ''
+  if (/failed to fetch|networkerror|load failed/i.test(m))
+    return 'Sem conexão com o servidor. Confira a internet e tente de novo.'
+  return m || 'Erro desconhecido.'
+}
 
 /** Falha de consulta: diz o que não carregou, mostra a mensagem do servidor e oferece nova tentativa. */
 export function ErroConsulta({
@@ -115,12 +127,13 @@ export function EstadoConsulta({
   if (consulta.isLoading) return <Carregando className={className} />
   if (consulta.error)
     return (
-      <ErroConsulta
-        erro={consulta.error}
-        oQue={oQue}
-        aoTentar={consulta.refetch ? () => void consulta.refetch?.() : undefined}
-        className={className}
-      />
+      <div className={className}>
+        <ErroConsulta
+          erro={consulta.error}
+          oQue={oQue}
+          aoTentar={consulta.refetch ? () => void consulta.refetch?.() : undefined}
+        />
+      </div>
     )
   if (vazio)
     return (

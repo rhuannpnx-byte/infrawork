@@ -43,6 +43,8 @@ export interface ImportTemplateDialogProps<T, O> {
     inicial: O
     render: (value: O, set: (v: O) => void, rows: ParsedRow<T>[]) => ReactNode
   }
+  /** O que a linha vira com as opções escolhidas (ex.: "atualizar" passa a "ignorar"). Só muda a prévia. */
+  acaoEfetiva?: (acao: ImportAcao, opcoes: O) => ImportAcao
   aplicar: (rows: ParsedRow<T>[], opcoes: O) => Promise<ImportResultado>
   resultadoMetrics: (r: ImportResultado) => Array<{ label: string; value: number }>
   onAplicado?: (r: ImportResultado) => void
@@ -84,6 +86,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
     parse,
     previewColumns,
     opcoes,
+    acaoEfetiva,
     aplicar,
     resultadoMetrics,
     onAplicado
@@ -142,8 +145,14 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
       }
       setStep('preview')
     } catch (e) {
+      // erro da biblioteca de leitura (arquivo que não é .xlsx) não diz nada a quem usa a tela
+      const detalhe = e instanceof Error ? e.message : ''
       setErroGeral(
-        `Não foi possível ler o arquivo. ${e instanceof Error ? e.message : 'Confira se é o modelo em .xlsx e envie de novo.'}`
+        `Não foi possível ler o arquivo. ${
+          detalhe && !/zip|central directory|corrupt|signature|unexpected/i.test(detalhe)
+            ? detalhe
+            : 'Confira se é o modelo em .xlsx e envie de novo.'
+        }`
       )
     } finally {
       setParsing(false)
@@ -169,13 +178,19 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
       else toast.warning(`Importação concluída com ${contar(r.erros.length, 'erro', 'erros')}.`)
     } catch (e) {
       setErroGeral(
-        `Não foi possível importar. ${e instanceof Error ? e.message : 'Tente de novo.'}`
+        `Não foi possível importar. ${(e as { message?: string } | null)?.message ?? 'Tente de novo.'}`
       )
       setStep('preview')
     }
   }
 
-  const resumo = parsed?.resumo
+  const acaoDe = (acao: ImportAcao): ImportAcao => (acaoEfetiva ? acaoEfetiva(acao, opt) : acao)
+  const resumo = useMemo(() => {
+    if (!parsed || !acaoEfetiva) return parsed?.resumo
+    const conta: Record<ImportAcao, number> = { criar: 0, atualizar: 0, pular: 0, erro: 0 }
+    for (const r of parsed.rows) conta[acaoEfetiva(r.acao, opt)]++
+    return conta
+  }, [parsed, acaoEfetiva, opt])
   const totalAvisos = (parsed?.rows ?? []).reduce((n, r) => n + r.avisos.length, 0)
   const semValidas = validas.length === 0
 
@@ -378,7 +393,9 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
                     >
                       <td className="tabular px-2 py-1 text-text-muted">{r.row}</td>
                       <td className="px-2 py-1">
-                        <Badge variant={ACAO_VARIANT[r.acao]}>{ACAO_LABEL[r.acao]}</Badge>
+                        <Badge variant={ACAO_VARIANT[acaoDe(r.acao)]}>
+                          {ACAO_LABEL[acaoDe(r.acao)]}
+                        </Badge>
                       </td>
                       {previewColumns.map((c) => (
                         <td

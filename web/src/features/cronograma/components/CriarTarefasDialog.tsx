@@ -445,17 +445,17 @@ function Conteudo({
               value={sentido}
               onChange={(x) => setSentido(x.target.value as 'crescente' | 'decrescente')}
             >
-              <option value="crescente">crescente</option>
-              <option value="decrescente">decrescente</option>
+              <option value="crescente">Crescente</option>
+              <option value="decrescente">Decrescente</option>
             </Select>
           </Campo>
           {aba === 'quantidades' ? (
             <>
               <Campo rotulo="Uma tarefa por" className="w-56">
                 <Select value={modo} onChange={(x) => setModo(x.target.value as Modo)}>
-                  <option value="sequencia">sequência contígua</option>
-                  <option value="local">local (todas as faixas juntas)</option>
-                  <option value="janela">janela de N metros</option>
+                  <option value="sequencia">Sequência contígua</option>
+                  <option value="local">Local (todas as faixas juntas)</option>
+                  <option value="janela">Janela de N metros</option>
                 </Select>
               </Campo>
               {modo === 'janela' ? (
@@ -478,6 +478,7 @@ function Conteudo({
                 value={busca}
                 onChange={(x) => setBusca(x.target.value)}
                 placeholder="Filtrar por código ou descrição"
+                aria-label="Filtrar serviços por código ou descrição"
                 className="pl-7"
               />
             </div>
@@ -487,12 +488,16 @@ function Conteudo({
         {aba === 'quantidades' ? (
           <>
             {locaisComTemplate.length === 0 ? (
-              <div className="rounded border border-dashed border-border px-4 py-6 text-center text-xs text-text-dim">
+              <div className="rounded border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
                 Nenhum local tem quantidades por serviço ainda. Informe-as em Planejamento › Locais
                 (grade ou importação da planilha), ou use a aba Manual.
               </div>
             ) : (
-              <div className="max-h-[34vh] overflow-auto rounded border border-border">
+              <div
+                className="max-h-[34vh] overflow-auto rounded border border-border"
+                role="region"
+                aria-label="Quantidades livres por serviço e local"
+              >
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 z-[1] bg-bg-panel">
                     <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
@@ -540,7 +545,7 @@ function Conteudo({
                             }
                             title="Marcar/desmarcar a linha"
                           >
-                            <span className="font-mono text-2xs text-text-dim">{it.codigo}</span>
+                            <span className="text-xs tabular text-text-dim">{it.codigo}</span>
                             <span className="text-text">{it.descricao}</span>
                             <span className="text-xs text-text-muted">{it.unidade ?? ''}</span>
                           </button>
@@ -560,8 +565,13 @@ function Conteudo({
                               <label
                                 className={cn(
                                   'inline-flex items-center gap-1.5 tabular-nums',
-                                  !livre && 'opacity-50'
+                                  !livre && 'text-text-dim'
                                 )}
+                                title={
+                                  livre
+                                    ? `${fmtNum(info.livre, 'auto')} livres de ${fmtNum(info.total, 'auto')} na planilha`
+                                    : 'Toda a quantidade deste local já está em tarefas'
+                                }
                               >
                                 <span className={livre ? 'text-text' : 'text-text-muted'}>
                                   {fmtNum(info.livre, 'auto')}
@@ -575,6 +585,7 @@ function Conteudo({
                                   disabled={!livre}
                                   checked={celulas.has(k)}
                                   onChange={() => alternarCel(k)}
+                                  aria-label={`${it.codigo} ${it.descricao} em ${t.nome}: ${fmtNum(info.livre, 'auto')} livres de ${fmtNum(info.total, 'auto')}`}
                                 />
                               </label>
                             </td>
@@ -588,11 +599,16 @@ function Conteudo({
             )}
             <div className="rounded border border-border">
               <div className="px-2 py-1 border-b border-border text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-                Prévia: {previa.length} {previa.length === 1 ? 'tarefa' : 'tarefas'}
+                Prévia: {contar(previa.length, 'tarefa', 'tarefas')}
               </div>
-              <div className="max-h-[22vh] overflow-auto">
+              <div
+                className="max-h-[22vh] overflow-auto"
+                tabIndex={0}
+                role="region"
+                aria-label="Prévia das tarefas a criar"
+              >
                 {previa.length === 0 ? (
-                  <div className="px-3 py-3 text-xs text-text-dim italic">
+                  <div className="px-3 py-3 text-sm text-text-muted">
                     Marque células na matriz: cada marca vira tarefas com locais “do template”.
                   </div>
                 ) : (
@@ -604,7 +620,7 @@ function Conteudo({
                           <td className="px-2 py-1 text-text-muted">
                             {p.trecho.tipo === 'area' ? `Área ${p.trecho.nome}` : p.trecho.nome}
                           </td>
-                          <td className="px-2 py-1 font-mono text-text-muted">
+                          <td className="px-2 py-1 tabular text-text-muted">
                             {faixaTexto(p.trecho, p.faixas)}
                           </td>
                           <td className="px-2 py-1 text-right tabular-nums">
@@ -619,11 +635,15 @@ function Conteudo({
             </div>
           </>
         ) : (
-          <div className="max-h-[52vh] overflow-auto rounded border border-border">
+          <div
+            className="max-h-[52vh] overflow-auto rounded border border-border"
+            role="region"
+            aria-label="Serviços do orçamento"
+          >
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-[1] bg-bg-panel">
                 <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-                  <th className="w-8 py-1.5" />
+                  <th className="w-8 py-1.5" aria-label="Escolher" />
                   <th className="px-2 py-1.5 text-left">Serviço</th>
                   <th className="px-2 py-1.5 text-right">Orçado</th>
                   <th className="px-2 py-1.5 text-right">No plano</th>
@@ -635,15 +655,17 @@ function Conteudo({
               <tbody>
                 {itensQ.isLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-text-dim">
+                    <td colSpan={7} className="py-6 text-center text-sm text-text-muted">
                       Carregando serviços…
                     </td>
                   </tr>
                 ) : null}
                 {!itensQ.isLoading && !itensFiltrados.length ? (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-text-dim">
-                      Nenhum serviço com composição no orçamento.
+                    <td colSpan={7} className="py-6 text-center text-sm text-text-muted">
+                      {busca.trim()
+                        ? 'Nenhum serviço corresponde ao filtro.'
+                        : 'Nenhum serviço com composição no orçamento.'}
                     </td>
                   </tr>
                 ) : null}
@@ -666,14 +688,15 @@ function Conteudo({
                           className="accent-[var(--accent)]"
                           checked={escolhido}
                           onChange={() => alternar(it.id, it.restante)}
+                          aria-label={`Criar tarefa de ${it.codigo} ${it.descricao}`}
                         />
                       </td>
                       <td className="px-2 py-1 align-top">
                         <div className="flex items-baseline gap-2">
-                          <span className="font-mono text-2xs text-text-dim">{it.codigo}</span>
+                          <span className="text-xs tabular text-text-dim">{it.codigo}</span>
                           <span className="truncate text-text">{it.descricao}</span>
                           {it.indireto_id ? (
-                            <span className="rounded bg-bg-elevated px-1 text-2xs text-text-muted">
+                            <span className="rounded bg-bg-elevated px-1 text-xs text-text-muted">
                               indireto
                             </span>
                           ) : null}
@@ -695,7 +718,7 @@ function Conteudo({
                       <td className="px-2 py-1 align-top">
                         {escolhido && !it.indireto_id ? (
                           l.origem === 'trecho' ? (
-                            <span className="block text-right text-2xs text-text-muted tabular-nums">
+                            <span className="block text-right text-xs text-text-muted tabular-nums">
                               {tpl !== null ? fmtNum(tpl, 'auto') : '—'} do template
                             </span>
                           ) : (
@@ -703,7 +726,8 @@ function Conteudo({
                               value={l.qtd}
                               onChange={(x) => mudar(it.id, { qtd: x.target.value })}
                               inputMode="decimal"
-                              className="h-6 text-right"
+                              aria-label={`Quantidade de ${it.codigo}`}
+                              className="h-7 px-1.5 text-right text-xs tabular"
                             />
                           )
                         ) : null}
@@ -713,7 +737,8 @@ function Conteudo({
                           <Select
                             value={l.trecho}
                             onChange={(x) => mudar(it.id, { trecho: x.target.value })}
-                            className="h-6"
+                            aria-label={`Local de ${it.codigo}`}
+                            className="h-7 text-xs"
                           >
                             <option value="">Sem local</option>
                             {e.trechos.filter((t) => t.tipo === 'eixo').length ? (
@@ -749,31 +774,33 @@ function Conteudo({
                                 <Input
                                   value={l.ini}
                                   onChange={(x) => mudar(it.id, { ini: x.target.value })}
-                                  className={cn(
-                                    'h-6 w-24 font-mono',
-                                    lerEstaca(l.ini, tr) === null && 'border-danger'
-                                  )}
+                                  aria-label={`Estaca inicial de ${it.codigo}`}
+                                  aria-invalid={lerEstaca(l.ini, tr) === null || undefined}
+                                  className="h-7 w-24 px-1.5 text-xs tabular"
                                   title={`Estaca inicial (${textoEstaca(0, tr)} – ${textoEstaca(tr.comprimento_m ?? 0, tr)})`}
                                 />
-                                <span className="text-text-dim">–</span>
+                                <span className="text-text-dim" aria-hidden>
+                                  –
+                                </span>
                                 <Input
                                   value={l.fim}
                                   onChange={(x) => mudar(it.id, { fim: x.target.value })}
-                                  className={cn(
-                                    'h-6 w-24 font-mono',
-                                    lerEstaca(l.fim, tr) === null && 'border-danger'
-                                  )}
+                                  aria-label={`Estaca final de ${it.codigo}`}
+                                  aria-invalid={lerEstaca(l.fim, tr) === null || undefined}
+                                  className="h-7 w-24 px-1.5 text-xs tabular"
                                   title="Estaca final"
                                 />
                               </div>
                             ) : null}
                             <div className="flex items-center gap-2">
+                              <div className="w-40 shrink-0">
                               <Select
                                 value={l.origem}
                                 onChange={(x) =>
                                   mudar(it.id, { origem: x.target.value as 'manual' | 'trecho' })
                                 }
-                                className="h-6 w-36"
+                                aria-label={`Origem da quantidade de ${it.codigo}`}
+                                className="h-7 text-xs"
                                 disabled={!temTemplate}
                                 title={
                                   temTemplate
@@ -781,9 +808,10 @@ function Conteudo({
                                     : 'Este local não tem quantidade do serviço na planilha'
                                 }
                               >
-                                <option value="manual">quantidade manual</option>
-                                <option value="trecho">do template</option>
+                                <option value="manual">Quantidade manual</option>
+                                <option value="trecho">Do template</option>
                               </Select>
+                              </div>
                               {tpl !== null ? (
                                 <span className="text-xs text-text-muted whitespace-nowrap">
                                   no template: {fmtNum(tpl, 'auto')}
@@ -826,17 +854,20 @@ function Conteudo({
           Cancelar
         </Button>
         {aba === 'quantidades' ? (
-          <Button
-            onClick={() => void criarDasQuantidades()}
-            disabled={salvando || previa.length === 0}
-          >
+          <Button onClick={() => void criarDasQuantidades()} disabled={salvando}>
             {salvando
               ? 'Criando…'
-              : `Criar ${previa.length || ''} tarefa${previa.length === 1 ? '' : 's'}`}
+              : previa.length
+                ? `Criar ${contar(previa.length, 'tarefa', 'tarefas')}`
+                : 'Criar tarefas'}
           </Button>
         ) : (
-          <Button onClick={() => void criarManual()} disabled={salvando || !sel.size}>
-            {salvando ? 'Criando…' : `Criar ${sel.size || ''} tarefa${sel.size === 1 ? '' : 's'}`}
+          <Button onClick={() => void criarManual()} disabled={salvando}>
+            {salvando
+              ? 'Criando…'
+              : sel.size
+                ? `Criar ${contar(sel.size, 'tarefa', 'tarefas')}`
+                : 'Criar tarefas'}
           </Button>
         )}
       </DialogFooter>

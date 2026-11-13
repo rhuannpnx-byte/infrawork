@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useDeleteUsuario } from '../hooks'
+import { falhaDoServidor } from '../lib/falha-servidor'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
 interface Props {
@@ -35,9 +36,7 @@ export function DeleteUsuarioDialog({ open, onOpenChange, usuario }: Props): Rea
       toast.success(`Usuário ${usuario.nome} excluído.`)
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível excluir o usuário. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível excluir o usuário. ${falhaDoServidor(err)}`)
     }
   }
 
@@ -64,7 +63,7 @@ export function DeleteUsuarioDialog({ open, onOpenChange, usuario }: Props): Rea
           variant="secondary"
           onClick={() => onOpenChange(false)}
           disabled={del.isPending}
-          autoFocus
+          data-foco-inicial
         >
           Cancelar
         </Button>

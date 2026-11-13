@@ -18,6 +18,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useCreateUsuario, useEmpresas, useEngenheiros } from '../hooks'
 import { maskWhatsappBR } from '@/lib/format'
 import { gerarSenha } from './RedefinirSenhaDialog'
+import { falhaDoServidor } from '../lib/falha-servidor'
 import { ROTULO_PAPEL, rotuloPapel } from '@/lib/rotulos'
 import type { Role } from '@/types/auth'
 
@@ -41,6 +42,10 @@ function rolesAllowedFor(caller: Role | undefined): Role[] {
   return []
 }
 
+/** O formulário abre no papel mais comum de cadastrar; administrador geral só por escolha explícita. */
+const papelInicial = (permitidos: Role[]): Role =>
+  permitidos.find((r) => r !== 'god') ?? permitidos[0] ?? 'apoio'
+
 const ROLE_LABEL: Record<Role, string> = {
   ...ROTULO_PAPEL,
   apontador: 'Apontador (app de campo)'
@@ -60,7 +65,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
 
   const [email, setEmail] = useState('')
   const [nome, setNome] = useState('')
-  const [role, setRole] = useState<Role>(allowedRoles[0] ?? 'apoio')
+  const [role, setRole] = useState<Role>(papelInicial(allowedRoles))
   const [empresaId, setEmpresaId] = useState<string>('')
   const [engenheiroId, setEngenheiroId] = useState<string>('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -90,7 +95,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
   const reset = (): void => {
     setEmail('')
     setNome('')
-    setRole(allowedRoles[0] ?? 'apoio')
+    setRole(papelInicial(allowedRoles))
     setPassword('')
     setEngenheiroId('')
     setWhatsapp('')
@@ -148,7 +153,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
       onOpenChange(false)
     } catch (err) {
       setError(
-        `Não foi possível criar o usuário. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+        `Não foi possível criar o usuário. ${falhaDoServidor(err, 'Já existe um usuário com esse e-mail.')}`
       )
     }
   }
@@ -178,7 +183,7 @@ export function NewUsuarioDialog({ open, onOpenChange }: Props): ReactNode {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nome@empresa.com.br"
-                autoFocus
+                data-foco-inicial
               />
             </Campo>
             <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>

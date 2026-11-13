@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { formatBR } from '@/lib/datas'
+import { contar } from '@/lib/texto'
 import { cn } from '@/lib/cn'
 import type { CatPainel } from '@/core/db/entities'
 import { Kpi, PainelShell, Secao } from '@/features/painel/PainelShell'
@@ -56,7 +57,7 @@ function Resumo({ p }: { p: CatPainel }) {
         <div className="flex items-end justify-between gap-3">
           <div>
             <p
-              className={cn('text-4xl font-medium tabular', TOM_TEXTO[tomFisico])}
+              className={cn('tabular text-4xl font-medium', TOM_TEXTO[tomFisico])}
               data-testid="painel-avanco"
             >
               {pct(r.avanco)}
@@ -66,7 +67,7 @@ function Resumo({ p }: { p: CatPainel }) {
             </p>
           </div>
           {desvioPp != null && (
-            <p className={cn('text-right font-mono text-sm tabular', TOM_TEXTO[tomFisico])}>
+            <p className={cn('tabular text-right font-mono text-sm', TOM_TEXTO[tomFisico])}>
               {desvioPp >= 0 ? '+' : '−'}
               {Math.abs(desvioPp * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} p.p.
               <span className="block text-xs text-on-surface-dim">
@@ -140,11 +141,17 @@ function Resumo({ p }: { p: CatPainel }) {
         <div className="grid grid-cols-3 gap-3">
           <Kpi
             valor={r.registros_hoje}
-            legenda={`hoje · ${r.servicos_hoje} serv.`}
+            legenda={`hoje · ${contar(Number(r.servicos_hoje ?? 0), 'serviço', 'serviços')}`}
             testId="painel-registros-hoje"
           />
-          <Kpi valor={r.registros_7d} legenda={`7 dias · ${r.servicos_7d} serv.`} />
-          <Kpi valor={r.registros_30d} legenda={`30 dias · ${r.dias_30d} dias`} />
+          <Kpi
+            valor={r.registros_7d}
+            legenda={`7 dias · ${contar(Number(r.servicos_7d ?? 0), 'serviço', 'serviços')}`}
+          />
+          <Kpi
+            valor={r.registros_30d}
+            legenda={`30 dias · ${contar(Number(r.dias_30d ?? 0), 'dia', 'dias')}`}
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-on-surface-dim">
           <span>
@@ -240,9 +247,9 @@ function UltimosLancamentos({ ultimos }: { ultimos: CatPainel['ultimos'] }) {
             <li key={i} className="py-2">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="min-w-0 truncate text-sm text-on-surface">
-                  <span className="text-on-surface-dim tabular">{u.codigo}</span> {u.descricao}
+                  <span className="tabular text-on-surface-dim">{u.codigo}</span> {u.descricao}
                 </p>
-                <p className="flex-shrink-0 font-mono text-sm text-on-surface tabular">
+                <p className="tabular flex-shrink-0 font-mono text-sm text-on-surface">
                   {qtd(u.qtd, u.unidade)}
                 </p>
               </div>

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { useCreateObra, useEmpresas } from '../hooks'
 import { useAuthStore } from '@/stores/auth-store'
 import { STATUS_OBRA } from '../lib/status-obra'
+import { falhaDoServidor } from '../lib/falha-servidor'
 
 interface Props {
   open: boolean
@@ -87,7 +88,7 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
       onOpenChange(false)
     } catch (err) {
       setError(
-        `Não foi possível criar a obra. ${err instanceof Error ? err.message : 'Tente de novo.'}`
+        `Não foi possível criar a obra. ${falhaDoServidor(err, 'Já existe uma obra com esse código nesta empresa. Use outro código.')}`
       )
     }
   }
@@ -105,7 +106,11 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
           <DialogErrorBanner message={error} />
           {role === 'god' ? (
             <Campo rotulo="Empresa" obrigatorio erro={erro('empresa')}>
-              <Select value={empresaId} onChange={(e) => setEmpresaId(e.target.value)} autoFocus>
+              <Select
+                value={empresaId}
+                onChange={(e) => setEmpresaId(e.target.value)}
+                data-foco-inicial
+              >
                 <option value="">Selecione…</option>
                 {empresas.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -122,7 +127,7 @@ export function NewObraDialog({ open, onOpenChange }: Props): ReactNode {
                 onChange={(e) => setCodigo(e.target.value)}
                 placeholder="Ex.: OB-2026-001"
                 autoComplete="off"
-                autoFocus={role !== 'god'}
+                data-foco-inicial={role !== 'god' ? '' : undefined}
               />
             </Campo>
             <Campo rotulo="Status">

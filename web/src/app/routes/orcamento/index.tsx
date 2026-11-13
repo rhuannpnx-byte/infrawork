@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
 import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
+import { ErroConsulta } from '@/components/ui/estado'
 import { Secao } from '@/components/ui/secao'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useUIStore } from '@/stores/ui-store'
@@ -49,6 +50,10 @@ export function OrcamentoIndex(): ReactNode {
     )
   }
 
+  const consultas = [recursosQ, servicosQ, cpusQ, taxasQ]
+  const comErro = consultas.find((q) => q.error)
+  const contagem = (q: { error: unknown }, n: number): string =>
+    q.error ? '—' : n.toLocaleString('pt-BR')
   const servicosFolha = servicos.filter((s) => s.unidade !== null).length
   const servicosAgr = servicos.length - servicosFolha
 
@@ -56,10 +61,18 @@ export function OrcamentoIndex(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader title="Orçamento" subtitle="Cadastros desta obra, sem compartilhar com outras" />
       <div className="flex-1 overflow-auto p-5 space-y-4">
+        {comErro ? (
+          <ErroConsulta
+            erro={comErro.error}
+            oQue="os cadastros do orçamento"
+            aoTentar={() => consultas.forEach((q) => (q.error ? void q.refetch() : undefined))}
+            compacto
+          />
+        ) : null}
         <FaixaIndicadores rotulo="Cadastros do orçamento">
           <Indicador
             rotulo="Recursos"
-            valor={recursos.length.toLocaleString('pt-BR')}
+            valor={contagem(recursosQ, recursos.length)}
             carregando={recursosQ.isLoading}
             aoClicar={() => navigate({ to: '/orcamento/recursos' })}
           >
@@ -67,7 +80,7 @@ export function OrcamentoIndex(): ReactNode {
           </Indicador>
           <Indicador
             rotulo="Serviços"
-            valor={servicos.length.toLocaleString('pt-BR')}
+            valor={contagem(servicosQ, servicos.length)}
             carregando={servicosQ.isLoading}
             aoClicar={() => navigate({ to: '/orcamento/servicos' })}
           >
@@ -78,7 +91,7 @@ export function OrcamentoIndex(): ReactNode {
           </Indicador>
           <Indicador
             rotulo="Composições"
-            valor={cpus.length.toLocaleString('pt-BR')}
+            valor={contagem(cpusQ, cpus.length)}
             carregando={cpusQ.isLoading}
             aoClicar={() => navigate({ to: '/orcamento/composicoes' })}
           >
@@ -86,7 +99,7 @@ export function OrcamentoIndex(): ReactNode {
           </Indicador>
           <Indicador
             rotulo="Taxas"
-            valor={taxas.length.toLocaleString('pt-BR')}
+            valor={contagem(taxasQ, taxas.length)}
             carregando={taxasQ.isLoading}
             aoClicar={() => navigate({ to: '/orcamento/taxas' })}
           >

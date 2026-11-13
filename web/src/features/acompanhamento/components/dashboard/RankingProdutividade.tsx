@@ -3,6 +3,7 @@ import { Info } from 'lucide-react'
 import type { ProdutividadeEquipeItem } from '@/types/acompanhamento'
 import { corAderenciaCpu } from '@/lib/colors/aderencia'
 import { formatNumber } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 
 interface Props {
@@ -72,6 +73,7 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
           // visual width capa em 100% mas mostra real number a direita
           const barFill = pctNum == null ? 4 : Math.min(100, pctNum * 100)
           const key = `${d.equipe_id ?? d.equipe_display_nome}__${d.item_orcamentario_id ?? d.servico_id ?? d.servico_nome}`
+          const equipe = d.equipe_id ? d.equipe_display_nome : 'Sem equipe'
           return (
             <div key={key} className="space-y-1">
               <div className="flex items-center justify-between text-sm gap-2">
@@ -80,17 +82,11 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
                     className="size-2 rounded-sm shrink-0"
                     style={{ background: d.equipe_cor }}
                   />
-                  <span
-                    className="text-text truncate"
-                    title={`${d.equipe_display_nome} — ${d.servico_nome}`}
-                  >
-                    <span className="font-semibold">{d.equipe_display_nome}</span>
+                  <span className="text-text truncate" title={`${equipe}: ${d.servico_nome}`}>
+                    <span className="font-semibold">{equipe}</span>
                     <span className="text-text-dim mx-1">·</span>
                     <span className="text-text-muted">{d.servico_nome}</span>
                   </span>
-                  {!d.equipe_planejamento_id && (
-                    <span className="text-2xs text-text-dim italic shrink-0">(n/v)</span>
-                  )}
                 </div>
                 <span className="tabular-nums shrink-0 font-semibold" style={{ color: cor }}>
                   {pctLabel ?? '—'}
@@ -104,7 +100,7 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
               </div>
               <div className="flex items-center justify-between text-xs text-text-muted gap-2">
                 <span className="truncate">
-                  {dias} dia{dias !== 1 ? 's' : ''} · {formatNumber(total, 1)} {unidade} total
+                  {contar(dias, 'dia', 'dias')} · {formatNumber(total, 1)} {unidade} no total
                 </span>
                 <span className="tabular-nums shrink-0">
                   {formatNumber(mediana, 1)}

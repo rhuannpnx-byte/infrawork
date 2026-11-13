@@ -15,8 +15,10 @@ import { EstadoConsulta } from '@/components/ui/estado'
 import { useRecursoPrecos, useSetRecursoPrecoVigente } from '../hooks/recursos'
 import { fmtBRL4 } from '@/lib/money'
 import { formatDate } from '@/lib/format'
+import { dataBR } from '@/lib/format/local-date'
 import { cn } from '@/lib/utils'
 import { NewRecursoPrecoDialog } from './NewRecursoPrecoDialog'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 /** Origem gravada pela importação da planilha; as demais são texto digitado pelo usuário. */
 const rotuloOrigem = (origem: string | null): string =>
@@ -46,7 +48,7 @@ export function RecursoPrecoHistoricoDialog({
       toast.success('Preço vigente atualizado.')
     } catch (err) {
       toast.error('Não foi possível trocar o preço vigente.', {
-        description: err instanceof Error ? err.message : undefined
+        description: detalheDoErro(err) ?? undefined
       })
     }
   }
@@ -105,7 +107,7 @@ export function RecursoPrecoHistoricoDialog({
                             checked={p.is_vigente}
                             onChange={() => void marcarVigente(p.id)}
                             disabled={setVigente.isPending}
-                            aria-label={`Usar como vigente o preço de ${fmtBRL4(p.custo_unitario)}, de ${formatDate(p.vigencia_inicio)}`}
+                            aria-label={`Usar como vigente o preço de ${fmtBRL4(p.custo_unitario)}, de ${dataBR(p.vigencia_inicio)}`}
                             className="h-4 w-4 cursor-pointer accent-[color:var(--accent)]"
                           />
                           {p.is_vigente ? <Badge variant="success">Vigente</Badge> : null}
@@ -119,8 +121,8 @@ export function RecursoPrecoHistoricoDialog({
                       </td>
                       <td className="tabular px-2 py-1.5 text-text-muted">
                         {p.vigencia_fim
-                          ? `${formatDate(p.vigencia_inicio)} a ${formatDate(p.vigencia_fim)}`
-                          : `desde ${formatDate(p.vigencia_inicio)}`}
+                          ? `${dataBR(p.vigencia_inicio)} a ${dataBR(p.vigencia_fim)}`
+                          : `desde ${dataBR(p.vigencia_inicio)}`}
                       </td>
                       <td className="px-2 py-1.5 text-text-muted">{rotuloOrigem(p.origem)}</td>
                     </tr>

@@ -10,6 +10,7 @@ import { rotuloLocalProducao } from '../../lib/local-producao'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { formatNumber } from '@/lib/format'
 import { contar } from '@/lib/rotulos'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { normalizeTxt } from '@/lib/xlsx/parse-sheet'
 import type { ImportResultado } from '@/lib/xlsx/types'
 import {
@@ -87,9 +88,7 @@ export function ImportarProducaoDialog({
           idPorNome.set(k, e.id)
           criados++
         } catch (err) {
-          erros.push(
-            `Não foi possível criar o encarregado "${nome}".${err instanceof Error && err.message ? ` ${err.message}` : ''}`
-          )
+          erros.push(`Não foi possível criar o encarregado "${nome}".${motivoDoErro(err)}`)
         }
       }
     } else {

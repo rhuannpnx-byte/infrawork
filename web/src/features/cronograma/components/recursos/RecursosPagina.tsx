@@ -9,16 +9,17 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Calendar } from '@apex/calendar'
-import { FileSpreadsheet, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
+import { FileSpreadsheet, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Segmentado } from '@/components/ui/segmentado'
 import { TabPill } from '@/components/ui/TabPill'
 import { downloadBlob } from '@/lib/files/download'
-import { cn } from '@/lib/utils'
 import { HORA } from '../../visoes/eixo'
 import { montarHistograma, type UnidadeTempo } from '../../visoes/histograma'
 import { gerarHistogramaRecursosXlsx } from '../../visoes/histograma-xlsx'
 import { jornadaReferencia } from '../../motor/calendario'
 import { useComposicoesServicos } from '../../hooks/composicoes'
+import { ZoomPar } from '../BarraPlano'
 import { PaginaPlano, type ContextoPlano } from '../PaginaPlano'
 import { useDialogos } from '../useDialogos'
 import { RecursosVista } from './RecursosVista'
@@ -116,7 +117,9 @@ function Histograma({
       downloadBlob(blob, `Histograma planejado - ${obraNome || 'obra'}.xlsx`)
       toast.success('Histograma exportado.')
     } catch (x) {
-      toast.error(x instanceof Error ? x.message : 'Falha ao exportar.')
+      toast.error(
+        `Não foi possível exportar o histograma.${x instanceof Error ? ` ${x.message}` : ''}`
+      )
     } finally {
       setExportando(false)
     }
@@ -124,36 +127,32 @@ function Histograma({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-      <div className="flex shrink-0 items-center justify-between gap-3">
-        <p className="text-xs text-text-muted">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-text-muted">
           Demanda de recursos por semana, conforme o cronograma calculado (composição × equipes).
         </p>
         <div className="flex items-center gap-2">
-          <div
-            className="inline-flex overflow-hidden rounded border border-border"
-            title="Métrica de mão de obra e equipamentos"
-          >
-            {(['recursos', 'dias', 'horas'] as UnidadeTempo[]).map((u) => (
-              <button
-                key={u}
-                type="button"
-                onClick={() => setUnidadeTempo(u)}
-                className={cn(
-                  'px-2.5 py-1 text-2xs font-mono transition-colors',
-                  u === unidadeTempo
-                    ? 'bg-accent text-[color:var(--primary-foreground)]'
-                    : 'bg-bg-panel text-text-dim hover:text-text'
-                )}
-              >
-                {u === 'recursos' ? 'Recursos' : u === 'dias' ? 'Dias' : 'Horas'}
-              </button>
-            ))}
-          </div>
+          <Segmentado
+            rotulo="Medida de mão de obra e equipamentos"
+            tamanho="sm"
+            valor={unidadeTempo}
+            aoMudar={setUnidadeTempo}
+            opcoes={[
+              { valor: 'recursos', rotulo: 'Recursos', titulo: 'Quantos recursos trabalham na semana' },
+              { valor: 'dias', rotulo: 'Dias', titulo: 'Dias de trabalho na semana' },
+              { valor: 'horas', rotulo: 'Horas', titulo: 'Horas de trabalho na semana' }
+            ]}
+          />
           <Button
             variant="secondary"
             size="sm"
             onClick={() => void exportar()}
             disabled={exportando || !resultado.recursos.length}
+            title={
+              resultado.recursos.length
+                ? 'Baixar a planilha recurso × semana'
+                : 'Não há recursos planejados para exportar'
+            }
           >
             <FileSpreadsheet size={12} /> {exportando ? 'Exportando…' : 'Exportar Excel'}
           </Button>
@@ -193,26 +192,20 @@ function UsoContinuo({
   return (
     <>
       <div className="flex shrink-0 items-center gap-1 border-b border-border bg-bg-panel px-3 py-1.5">
+        <ZoomPar
+          rotulo="Tempo"
+          aoDiminuir={() => setPx(escalaAtual() / 1.5)}
+          aoAumentar={() => setPx(escalaAtual() * 1.5)}
+        />
         <Button
           variant="ghost"
-          size="icon"
-          onClick={() => setPx(escalaAtual() / 1.5)}
-          title="Diminuir zoom"
+          size="sm"
+          onClick={() => setPx(null)}
+          title="Ajustar o período do plano à largura da tela"
         >
-          <ZoomOut size={14} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setPx(escalaAtual() * 1.5)}
-          title="Aumentar zoom"
-        >
-          <ZoomIn size={14} />
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => setPx(null)}>
           <Maximize2 size={12} /> Ajustar
         </Button>
-        <span className="ml-3 text-xs text-text-muted">
+        <span className="ml-3 min-w-0 text-xs text-text-muted">
           Uso dos recursos das composições pelas tarefas, com o nivelamento do motor. Limite: no
           máximo tantas unidades ao mesmo tempo: o cálculo atrasa tarefas para respeitá-lo.
         </span>

@@ -29,6 +29,7 @@ import { useStatusMcp } from '@/features/gerencial/hooks/mcp'
 export function TitleBar(): ReactNode {
   const openModal = useUIStore((s) => s.openModal)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen)
 
   return (
     <header
@@ -37,6 +38,7 @@ export function TitleBar(): ReactNode {
     >
       <IconButton
         aria-label="Mostrar ou ocultar o menu"
+        aria-expanded={sidebarOpen}
         title="Menu (Ctrl B)"
         onClick={toggleSidebar}
       >
@@ -70,6 +72,13 @@ export function TitleBar(): ReactNode {
 
       <div className="flex-1 min-w-0" />
 
+      <IconButton
+        aria-label="Buscar páginas, obras e ações"
+        className="sm:hidden"
+        onClick={() => openModal('commandPalette')}
+      >
+        <Search size={15} strokeWidth={1.8} />
+      </IconButton>
       <BotaoTema />
       <UserMenu />
     </header>

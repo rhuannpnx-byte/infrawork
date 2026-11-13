@@ -13,7 +13,9 @@ import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
+import { hojeLocalISO } from '@/lib/format/local-date'
 import { useAddRecursoPreco } from '../hooks/recursos'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
@@ -34,7 +36,7 @@ export function NewRecursoPrecoDialog({
   recursoNome
 }: Props): ReactNode {
   const add = useAddRecursoPreco()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = hojeLocalISO()
   const [custo, setCusto] = useState('')
   const [vigenciaInicio, setVigenciaInicio] = useState(today)
   const [origem, setOrigem] = useState('')
@@ -90,9 +92,7 @@ export function NewRecursoPrecoDialog({
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível registrar o preço. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível registrar o preço. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -112,7 +112,7 @@ export function NewRecursoPrecoDialog({
                 onChange={(e) => setCusto(e.target.value)}
                 inputMode="decimal"
                 autoComplete="off"
-                autoFocus
+                data-foco-inicial=""
                 placeholder="Ex.: 6,40"
                 className="tabular text-right"
               />

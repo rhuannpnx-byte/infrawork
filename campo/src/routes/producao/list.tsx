@@ -40,7 +40,9 @@ export function ProducaoListRoute() {
   const rascunhoEncarregadoNome = useProducaoStore((s) => s.encarregadoNome)
   const rascunhoEquipeNome = useProducaoStore((s) => s.equipeNome)
   const rascunhoDt = useProducaoStore((s) => s.dt)
-  const rascunhoIsAtual = rascunhoItens.length > 0 && rascunhoObraId === session?.obraAtualId
+  // só o que é novo ou foi alterado conta como "em construção": abrir uma sessão já gravada para olhar não conta
+  const rascunhoNovos = rascunhoItens.filter((i) => i.syncStatus == null).length
+  const rascunhoIsAtual = rascunhoNovos > 0 && rascunhoObraId === session?.obraAtualId
 
   const [opening, setOpening] = useState(false)
 
@@ -61,7 +63,7 @@ export function ProducaoListRoute() {
   function handleDescartarRascunho() {
     if (
       !window.confirm(
-        `Descartar ${contar(rascunhoItens.length, 'lançamento', 'lançamentos')} da sessão em construção? Esta ação não pode ser desfeita.`,
+        `Descartar ${contar(rascunhoNovos, 'lançamento', 'lançamentos')} da sessão em construção? Esta ação não pode ser desfeita.`,
       )
     ) {
       return
@@ -100,7 +102,7 @@ export function ProducaoListRoute() {
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Voltar">
             <ArrowLeft className="h-5 w-5" />
@@ -108,8 +110,8 @@ export function ProducaoListRoute() {
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold text-on-surface">Produção</h1>
             <p className="truncate text-xs text-on-surface-dim">
-              {obra?.codigo ?? '—'} · {contar(sessoes?.length ?? 0, 'sessão', 'sessões')}
-              {totalPendentes > 0 && ` · ${totalPendentes} a enviar`}
+              {contar(sessoes?.length ?? 0, 'sessão', 'sessões')}
+              {totalPendentes > 0 && ` · ${totalPendentes} a enviar`} · {obra?.codigo ?? '—'}
             </p>
           </div>
           <SyncStatusIndicator />
@@ -121,11 +123,12 @@ export function ProducaoListRoute() {
           <div className="mb-4 rounded-md border border-accent-line bg-accent/10 p-4">
             <p className="rotulo text-accent">Sessão em construção</p>
             <p className="mt-1 text-on-surface">
-              <strong>{contar(rascunhoItens.length, 'lançamento', 'lançamentos')}</strong>{' '}
-              {plural(rascunhoItens.length, 'não finalizado', 'não finalizados')}
-              {rascunhoEncarregadoNome &&
-                ` · ${rascunhoEncarregadoNome}${rascunhoEquipeNome ? ` / ${rascunhoEquipeNome}` : ''}`}
-              {rascunhoDt && ` · ${formatBR(rascunhoDt)}`}
+              <strong>{contar(rascunhoNovos, 'lançamento', 'lançamentos')}</strong>{' '}
+              {plural(rascunhoNovos, 'não finalizado', 'não finalizados')}
+              {[rascunhoDt && formatBR(rascunhoDt), rascunhoEncarregadoNome, rascunhoEquipeNome]
+                .filter(Boolean)
+                .map((t) => ` · ${t}`)
+                .join('')}
             </p>
             <div className="mt-3 flex gap-2">
               <Button
@@ -171,7 +174,7 @@ export function ProducaoListRoute() {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+      <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button variant="primary" size="lg" onClick={handleNovaSessao} className="w-full gap-2">
           <Plus className="h-5 w-5" />
           Nova sessão
@@ -217,14 +220,14 @@ function SessaoCard({
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium text-on-surface tabular">{formatBR(sessao.dt)}</p>
+          <p className="tabular font-medium text-on-surface">{formatBR(sessao.dt)}</p>
           <SeloEnvio status={sessao.statusDominante} />
         </div>
         <p className="mt-1 truncate text-sm text-on-surface-dim">
           {[sessao.encarregadoNome, sessao.equipeNome].filter(Boolean).join(' · ') ||
             'Sem encarregado nem equipe'}
         </p>
-        <p className="mt-2 text-sm text-on-surface tabular">
+        <p className="tabular mt-2 text-sm text-on-surface">
           {contar(sessao.total, 'lançamento', 'lançamentos')}
           {sessao.pendentes > 0 && sessao.pendentes !== sessao.total && (
             <span className="text-warn"> · {sessao.pendentes} a enviar</span>

@@ -7,6 +7,7 @@ import { gerarProgramacaoMensalXlsx } from '@/features/acompanhamento/lib/progra
 import { contar } from '@/lib/rotulos'
 import type { ServicoInfo } from './CalendarioPrevExec'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 
 export interface MesOpcao {
   ano: number
@@ -213,9 +214,7 @@ export function ExportProgramacaoDialog({
       toast.success('Programação exportada.')
       onOpenChange(false)
     } catch (e) {
-      toast.error(
-        `Não foi possível exportar a programação.${e instanceof Error ? ` ${e.message}` : ''}`
-      )
+      toast.error(`Não foi possível exportar a programação.${motivoDoErro(e)}`)
     } finally {
       setExporting(false)
     }

@@ -106,8 +106,8 @@ function toBlobWithRetry(canvas: HTMLCanvasElement): Promise<Blob> {
             if (b2) return resolve(b2)
             reject(
               new Error(
-                'Falha ao gerar JPEG: canvas.toBlob retornou null mesmo com qualidade reduzida. ' +
-                  'Pode ser memória insuficiente — feche outras abas e tente novamente.',
+                'Não foi possível gerar a imagem. Pode ser falta de memória: feche outros ' +
+                  'aplicativos e tente de novo.',
               ),
             )
           },

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { AlertTriangle, Copy, Plus, Trash2, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -45,7 +45,7 @@ function Inner(): ReactNode {
   const scope = useCurrentScope()
   const empresaId = scope.empresaId
   const role = useAuthStore((s) => s.profile?.role)
-  const { data: frota = [], isLoading, error, refetch } = useFrota(empresaId)
+  const { data: frota = [], isLoading, error, refetch, dataUpdatedAt } = useFrota(empresaId)
   const { data: fleetObras = [] } = useFleetObras(empresaId)
   const salvar = useSalvarVeiculo()
   const excluir = useExcluirVeiculo()
@@ -56,6 +56,17 @@ function Inner(): ReactNode {
   const [incluindo, setIncluindo] = useState(false)
   // linhas com gravação em andamento
   const [ocupados, setOcupados] = useState<ReadonlySet<string>>(new Set())
+  const ocupadosAgora = useRef(ocupados)
+  ocupadosAgora.current = ocupados
+  // tipo, propriedade e ativo mostram a escolha na hora; a lista relida (ou a falha) tira a marcação
+  const [escolhidos, setEscolhidos] = useState<ReadonlyMap<string, Partial<Veiculo>>>(new Map())
+  useEffect(() => {
+    setEscolhidos((m) => {
+      const n = new Map([...m].filter(([id]) => ocupadosAgora.current.has(id)))
+      return n.size === m.size ? m : n
+    })
+  }, [dataUpdatedAt])
+  const codigoNovo = useRef<HTMLInputElement>(null)
   const [filtroObra, setFiltroObra] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [semCapacidade, setSemCapacidade] = useState(false)
@@ -86,9 +97,24 @@ function Inner(): ReactNode {
       else n.delete(id)
       return n
     })
+  const esquecer = (id: string): void =>
+    setEscolhidos((m) => {
+      if (!m.has(id)) return m
+      const n = new Map(m)
+      n.delete(id)
+      return n
+    })
+  const codigoEmUso = (codigo: string, menosId?: string): boolean =>
+    frota.some((x) => x.id !== menosId && x.prefixo.toLowerCase() === codigo.toLowerCase())
   // grava ao sair do campo; se a gravação falhar, o campo de texto volta ao valor gravado
   const set = (v: Veiculo, patch: Partial<Veiculo>, campo?: HTMLInputElement): void => {
+    if (patch.prefixo !== undefined && codigoEmUso(patch.prefixo, v.id)) {
+      toast.error(`Já existe um veículo com o código ${patch.prefixo}. Use outro código.`)
+      if (campo) campo.value = campo.defaultValue
+      return
+    }
     ocupar(v.id, true)
+    if (!campo) setEscolhidos((m) => new Map(m).set(v.id, { ...m.get(v.id), ...patch }))
     void salvar
       .mutateAsync({
         ...patch,
@@ -97,8 +123,11 @@ function Inner(): ReactNode {
         prefixo: patch.prefixo ?? v.prefixo
       })
       .catch((e: Error) => {
-        toast.error(`Não foi possível salvar o veículo ${v.prefixo}. ${e.message}`)
+        toast.error(
+          `Não foi possível salvar o veículo ${v.prefixo}. ${e.message.replace('com o prefixo', 'com o código')}`
+        )
         if (campo) campo.value = campo.defaultValue
+        else esquecer(v.id)
       })
       .finally(() => ocupar(v.id, false))
   }
@@ -127,6 +156,7 @@ function Inner(): ReactNode {
     ocupar(v.id, true)
     void excluir
       .mutateAsync(v.id)
+      .then(() => toast.success(`Veículo ${v.prefixo} excluído.`))
       .catch((e: Error) =>
         toast.error(`Não foi possível excluir o veículo ${v.prefixo}. ${e.message}`)
       )
@@ -135,7 +165,16 @@ function Inner(): ReactNode {
   const incluir = (e: FormEvent): void => {
     e.preventDefault()
     const prefixo = novo.prefixo.trim()
-    if (!prefixo) return setErroCodigo('Informe o código do veículo.')
+    const erro = !prefixo
+      ? 'Informe o código do veículo.'
+      : codigoEmUso(prefixo)
+        ? `Já existe um veículo com o código ${prefixo}. Use outro código.`
+        : null
+    if (erro) {
+      setErroCodigo(erro)
+      codigoNovo.current?.focus()
+      return
+    }
     setErroCodigo(null)
     setIncluindo(true)
     void salvar
@@ -145,10 +184,15 @@ function Inner(): ReactNode {
         placa: novo.placa.trim() || null,
         tipo: novo.tipo
       })
-      .then(() => setNovo((n) => ({ ...n, prefixo: '', placa: '' })))
+      .then(() => {
+        setNovo((n) => ({ ...n, prefixo: '', placa: '' }))
+        toast.success(`Veículo ${prefixo} incluído.`)
+      })
       .catch((err: Error) => {
-        if (err.message.startsWith('Já existe')) setErroCodigo(err.message)
-        else toast.error(`Não foi possível incluir o veículo ${prefixo}. ${err.message}`)
+        if (err.message.startsWith('Já existe')) {
+          setErroCodigo(`Já existe um veículo com o código ${prefixo}. Use outro código.`)
+          codigoNovo.current?.focus()
+        } else toast.error(`Não foi possível incluir o veículo ${prefixo}. ${err.message}`)
       })
       .finally(() => setIncluindo(false))
   }
@@ -163,7 +207,7 @@ function Inner(): ReactNode {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
       <PageHeader
         title="Frota"
         subtitle="Caminhões e máquinas de carga usados no registro de viagens."
@@ -183,21 +227,23 @@ function Inner(): ReactNode {
             aria-label="Buscar veículo por código, placa ou modelo"
             className="w-64"
           />
-          <div className="w-56">
-            <Select
-              value={filtroObra}
-              onChange={(e) => setFiltroObra(e.target.value)}
-              aria-label="Filtrar por obra da FleetHub"
-            >
-              <option value="">Todas as obras FleetHub</option>
-              {obrasComVeiculo.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.nome}
-                </option>
-              ))}
-              <option value="manual">Cadastrados no InfraWork</option>
-            </Select>
-          </div>
+          {obrasComVeiculo.length > 0 || frota.some((v) => v.origem === 'fleethub') ? (
+            <div className="w-56">
+              <Select
+                value={filtroObra}
+                onChange={(e) => setFiltroObra(e.target.value)}
+                aria-label="Filtrar por obra da FleetHub"
+              >
+                <option value="">Todas as obras FleetHub</option>
+                {obrasComVeiculo.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.nome}
+                  </option>
+                ))}
+                <option value="manual">Cadastrados no InfraWork</option>
+              </Select>
+            </div>
+          ) : null}
           <div className="w-44">
             <Select
               value={filtroTipo}
@@ -239,15 +285,17 @@ function Inner(): ReactNode {
             <span role="status" aria-live="polite">
               {ocupados.size > 0 ? 'Salvando…' : ''}
             </span>
-            <span className="tabular">
-              {lista.length.toLocaleString('pt-BR')} de{' '}
-              {contar(frota.length, 'veículo', 'veículos')}
-            </span>
+            {isLoading || error ? null : (
+              <span className="tabular">
+                {lista.length.toLocaleString('pt-BR')} de{' '}
+                {contar(frota.length, 'veículo', 'veículos')}
+              </span>
+            )}
           </span>
         </div>
       </div>
 
-      <div className="mx-4 min-h-0 flex-1 overflow-auto rounded border border-border bg-bg-panel">
+      <div className="mx-4 min-h-[16rem] flex-1 overflow-auto rounded border border-border bg-bg-panel">
         {isLoading ? (
           <Carregando texto="Carregando a frota…" className="px-4" />
         ) : error ? (
@@ -259,7 +307,7 @@ function Inner(): ReactNode {
           />
         ) : (
           <table
-            className="w-full min-w-[1160px] border-collapse text-sm"
+            className="w-full min-w-[1140px] border-collapse text-sm"
             data-testid="tabela-frota"
           >
             <thead className="sticky top-0 z-10 bg-bg-elevated shadow-[inset_0_-1px_0_var(--border-strong)]">
@@ -273,13 +321,12 @@ function Inner(): ReactNode {
                 <th className="px-2 py-2 font-semibold">Fornecedor</th>
                 <th className="px-2 py-2 text-right font-semibold">Capacidade (m³)</th>
                 <th className="px-2 py-2 text-center font-semibold">Ativo</th>
-                <th className="w-16">
-                  <span className="sr-only">Ações</span>
-                </th>
+                <th className="w-16 px-1 py-2 text-right font-semibold">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {lista.map((v) => {
+              {lista.map((gravado) => {
+                const v = { ...gravado, ...escolhidos.get(gravado.id) }
                 const fh = v.origem === 'fleethub'
                 const ocupado = ocupados.has(v.id)
                 return (
@@ -343,7 +390,7 @@ function Inner(): ReactNode {
                         ))}
                       </Select>
                     </td>
-                    <td className="max-w-[15rem] px-2 py-1">
+                    <td className="max-w-[13rem] px-2 py-1">
                       {fh ? (
                         <span
                           className="block truncate px-1"
@@ -393,7 +440,7 @@ function Inner(): ReactNode {
                           e.target.value.trim() !== (v.fornecedor ?? '') &&
                           set(v, { fornecedor: e.target.value.trim() || null }, e.currentTarget)
                         }
-                        className="h-7 min-w-[6.5rem]"
+                        className="h-7 min-w-[6rem]"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -427,7 +474,7 @@ function Inner(): ReactNode {
                               const x = parseQtd(e.target.value)
                               if (e.target.value.trim() && (x === null || x < 0)) {
                                 toast.error(
-                                  `Informe a capacidade do veículo ${v.prefixo} em m³, só com número.`
+                                  `A capacidade do veículo ${v.prefixo} precisa ser um número em m³, como 12,5.`
                                 )
                                 e.currentTarget.value = txt(v.capacidade_m3)
                                 return
@@ -506,6 +553,7 @@ function Inner(): ReactNode {
         <form className="mt-2 flex flex-wrap items-start gap-3" noValidate onSubmit={incluir}>
           <Campo rotulo="Código" obrigatorio erro={erroCodigo} className="w-44">
             <Input
+              ref={codigoNovo}
               value={novo.prefixo}
               onChange={(e) => {
                 setNovo({ ...novo, prefixo: e.target.value })

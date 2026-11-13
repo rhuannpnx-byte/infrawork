@@ -20,6 +20,8 @@ import { fmtDataMonoBR } from '@/features/planejamento/lib/dates'
 import { formatNumber } from '@/lib/format'
 import { CHART_THEME, axisStyle } from '@/components/charts/theme'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
+import { Segmentado } from '@/components/ui/segmentado'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 type Visao = 'semanal' | 'geral'
@@ -159,8 +161,14 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
     )
   }
 
-  const unidadeGrupo = grupoSel ? rotuloUnidadeGrupo(grupoSel, unidadeTempo) : ''
-  const materialNaGeral = grupoSel === 'MATERIAL' && visao === 'geral'
+  // só se soma o que tem a mesma unidade: grupo com unidades diferentes não tem total por semana
+  const unidades = [...new Set(recursosG.map((r) => unidadeEfetiva(r, unidadeTempo)))]
+  const somaSemSentido = visao === 'geral' && unidades.length > 1
+  const unidadeGrupo = grupoSel
+    ? unidades.length === 1 && (grupoSel === 'MATERIAL' || grupoSel === 'ADM')
+      ? unidades[0]!
+      : rotuloUnidadeGrupo(grupoSel, unidadeTempo)
+    : ''
   // Para 'recursos' (efetivo), somar entre semanas não faz sentido → mostra o pico.
   const resumoComoPico =
     unidadeTempo === 'recursos' && grupoSel != null && (grupoSel === 'MO' || grupoSel === 'MVE')
@@ -177,7 +185,7 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
     const p = payload[0]?.payload
     if (!p) return null
     return (
-      <div className="rounded border border-border-strong bg-bg-elevated px-2 py-1.5 shadow-lg text-xs font-mono">
+      <div className="rounded border border-border-strong bg-[color:var(--popover)] px-2 py-1.5 text-xs tabular shadow-[var(--sombra-flutuante)]">
         <div className="text-text font-semibold">{p.nome}</div>
         <div className="mt-0.5 text-accent">
           {fmtQtd(p.valor)} {p.unidade}
@@ -197,7 +205,7 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
     const p = payload[0]?.payload
     if (!p) return null
     return (
-      <div className="rounded border border-border-strong bg-bg-elevated px-2 py-1.5 shadow-lg text-xs font-mono">
+      <div className="rounded border border-border-strong bg-[color:var(--popover)] px-2 py-1.5 text-xs tabular shadow-[var(--sombra-flutuante)]">
         <div className="text-text font-semibold">
           Semana de {fmtDataMonoBR(p.periodo)}
           {p.periodo === semanaAtual ? ' (atual)' : ''}
@@ -213,69 +221,64 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
     <div className="flex flex-col min-h-0 h-full gap-3">
       {/* Controles: grupo + visão */}
       <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
-        <div className="flex items-center gap-1 flex-wrap">
-          {gruposPresentes.map((g) => (
-            <button
-              key={g}
-              onClick={() => setGrupo(g)}
-              className={cn(
-                'px-2.5 py-1 rounded text-2xs font-mono border transition-colors',
-                g === grupoSel
-                  ? 'bg-accent text-[color:var(--on-accent)] border-accent'
-                  : 'bg-bg-panel text-text-dim border-border hover:text-text hover:border-border-strong'
-              )}
-            >
-              {RECURSO_GRUPO_LABEL[g]}
-            </button>
-          ))}
-        </div>
-        <div className="inline-flex rounded border border-border overflow-hidden">
-          {(['semanal', 'geral'] as Visao[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setVisao(v)}
-              className={cn(
-                'px-2.5 py-1 text-2xs font-mono transition-colors',
-                v === visao
-                  ? 'bg-accent text-[color:var(--on-accent)]'
-                  : 'bg-bg-panel text-text-dim hover:text-text'
-              )}
-            >
-              {v === 'semanal' ? 'Semanal' : 'Visão geral'}
-            </button>
-          ))}
-        </div>
+        <Segmentado
+          rotulo="Grupo de recursos"
+          tamanho="sm"
+          valor={grupoSel}
+          aoMudar={setGrupo}
+          opcoes={gruposPresentes.map((g) => ({ valor: g, rotulo: RECURSO_GRUPO_LABEL[g] }))}
+        />
+        <Segmentado
+          rotulo="Período do gráfico"
+          tamanho="sm"
+          valor={visao}
+          aoMudar={setVisao}
+          opcoes={[
+            { valor: 'semanal', rotulo: 'Semanal', titulo: 'Uma barra por recurso, na semana escolhida' },
+            { valor: 'geral', rotulo: 'Visão geral', titulo: 'Uma barra por semana, com o total do grupo' }
+          ]}
+        />
       </div>
 
       {/* Navegação de semana (só na visão semanal) */}
       {visao === 'semanal' ? (
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => irSemana(-1)}
             disabled={idxSemana <= 0}
-            className="size-6 rounded flex items-center justify-center text-text-dim hover:text-text hover:bg-bg-hover disabled:opacity-40"
+            className="flex size-7 items-center justify-center rounded text-text-muted hover:bg-bg-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Semana anterior"
+            title={idxSemana <= 0 ? 'Esta é a primeira semana do plano' : 'Semana anterior'}
           >
             <ChevronLeft size={14} />
           </button>
-          <select
-            aria-label="Semana"
-            value={semanaEfetiva}
-            onChange={(e) => setSemanaSel(e.target.value)}
-            className="h-7 bg-bg-panel border border-border-strong rounded px-2 text-sm tabular text-text"
-          >
-            {result.semanas.map((s) => (
-              <option key={s} value={s}>
-                Semana de {fmtDataMonoBR(s)}
-                {s === semanaAtual ? ' (atual)' : ''}
-              </option>
-            ))}
-          </select>
+          <div className="w-56">
+            <Select
+              aria-label="Semana"
+              value={semanaEfetiva}
+              onChange={(e) => setSemanaSel(e.target.value)}
+              className="h-7 tabular"
+            >
+              {result.semanas.map((s) => (
+                <option key={s} value={s}>
+                  Semana de {fmtDataMonoBR(s)}
+                  {s === semanaAtual ? ' (atual)' : ''}
+                </option>
+              ))}
+            </Select>
+          </div>
           <button
+            type="button"
             onClick={() => irSemana(1)}
             disabled={idxSemana >= result.semanas.length - 1}
-            className="size-6 rounded flex items-center justify-center text-text-dim hover:text-text hover:bg-bg-hover disabled:opacity-40"
+            className="flex size-7 items-center justify-center rounded text-text-muted hover:bg-bg-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Próxima semana"
+            title={
+              idxSemana >= result.semanas.length - 1
+                ? 'Esta é a última semana do plano'
+                : 'Próxima semana'
+            }
           >
             <ChevronRight size={14} />
           </button>
@@ -288,6 +291,17 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
         className="rounded border border-border bg-bg-panel p-3 shrink-0"
         style={{ height: `clamp(170px, 34vh, ${height}px)` }}
       >
+        {somaSemSentido ? (
+          <p className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
+            Os recursos deste grupo têm unidades diferentes ({unidades.join(', ')}), por isso não há
+            total por semana. Veja cada recurso na visão Semanal ou na tabela abaixo.
+          </p>
+        ) : visao === 'semanal' && dataSemanal.length === 0 ? (
+          <p className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
+            Nenhum recurso deste grupo trabalha na semana escolhida. Use as setas ou escolha outra
+            semana.
+          </p>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           {visao === 'semanal' ? (
             <BarChart data={dataSemanal} margin={{ top: 18, right: 16, bottom: 8, left: 8 }}>
@@ -371,10 +385,11 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
             </BarChart>
           )}
         </ResponsiveContainer>
+        )}
       </div>
 
-      {visao === 'geral' ? (
-        <div className="flex items-center gap-4 text-2xs font-mono text-text-dim shrink-0">
+      {visao === 'geral' && !somaSemSentido ? (
+        <div className="flex shrink-0 items-center gap-4 text-xs text-text-muted">
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-sm" style={{ background: AZUL }} /> Semana atual
           </span>
@@ -385,18 +400,12 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
         </div>
       ) : null}
 
-      {materialNaGeral ? (
-        <p className="text-2xs font-mono text-warn shrink-0">
-          ⚠ Em Material, a “Visão geral” soma quantidades de recursos com unidades diferentes (kg,
-          m³, un). Use a visão Semanal para leitura por recurso.
-        </p>
-      ) : null}
-
       {/* Tabela matriz (grupo selecionado) — única área com rolagem */}
       {grupoSel && recursosG.length > 0 ? (
         <div className="rounded border border-border bg-bg-panel overflow-hidden flex-1 min-h-[220px] flex flex-col">
           <div className="px-3 py-2 border-b border-border text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim shrink-0">
-            {RECURSO_GRUPO_LABEL[grupoSel]}: distribuição semanal ({unidadeGrupo})
+            {RECURSO_GRUPO_LABEL[grupoSel]}: distribuição semanal
+            {unidades.length > 1 ? '' : ` (${unidadeGrupo})`}
           </div>
           <div
             tabIndex={0}
@@ -404,7 +413,7 @@ export function HistogramaRecursosChart({ result, unidadeTempo, height = 360 }: 
             aria-label="Distribuição dos recursos por período"
             className="overflow-auto flex-1 min-h-0"
           >
-            <table className="text-2xs font-mono border-collapse">
+            <table className="border-collapse text-xs tabular">
               <thead>
                 <tr>
                   {/* Canto: fixo no topo E à esquerda (z mais alto que os demais). */}

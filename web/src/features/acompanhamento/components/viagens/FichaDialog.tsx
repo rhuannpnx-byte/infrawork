@@ -25,6 +25,7 @@ import { formatMarcador, parseMarcador } from '@/lib/format/posicao'
 import { formatNumber } from '@/lib/format/number'
 import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
@@ -307,11 +308,25 @@ function Form({
       const pd = lerEstaca(l.estacaDescarga, ed)
       const faltaCarga = !!ec && pc === null
       const faltaDescarga = !!ed && pd === null
-      if (faltaCarga) marcar('estacaCarga', 'Informe a estaca de carga.')
-      if (faltaDescarga) marcar('estacaDescarga', 'Informe a estaca de descarga.')
+      if (faltaCarga)
+        marcar(
+          'estacaCarga',
+          l.estacaCarga.trim()
+            ? `A estaca "${l.estacaCarga.trim()}" não é válida para este trecho.`
+            : 'Informe a estaca de carga.'
+        )
+      if (faltaDescarga)
+        marcar(
+          'estacaDescarga',
+          l.estacaDescarga.trim()
+            ? `A estaca "${l.estacaDescarga.trim()}" não é válida para este trecho.`
+            : 'Informe a estaca de descarga.'
+        )
       const { dmt, par } = calculo(l)
       const q = parseQtd(l.qtd)
-      if (q === null || q <= 0) marcar('qtd', 'Informe a quantidade.')
+      if (q === null)
+        marcar('qtd', l.qtd.trim() ? 'Digite um número, como 12,5.' : 'Informe a quantidade.')
+      else if (q <= 0) marcar('qtd', 'A quantidade tem de ser maior que zero.')
       if (par.medicao_viagem === 'peso' && !l.nf.trim())
         marcar('nf', 'Informe o ticket da balança.')
       const manual = l.dmtManual ? parseQtd(l.dmt) : null
@@ -364,7 +379,10 @@ function Form({
     const conferida = conferir()
     if (Object.keys(conferida.erros).length > 0) {
       requestAnimationFrame(() =>
-        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+        (
+          formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+          formRef.current?.querySelector<HTMLElement>('[data-adicionar-viagem]')
+        )?.focus()
       )
       return
     }
@@ -385,9 +403,7 @@ function Form({
       toast.success(`Ficha gravada: ${contar(viagens.length, 'viagem', 'viagens')}.`)
       onOpenChange(false)
     } catch (err) {
-      setErro(
-        `Não foi possível gravar a ficha.${err instanceof Error && err.message ? ` ${err.message}` : ''}`
-      )
+      setErro(`Não foi possível gravar a ficha.${motivoDoErro(err)}`)
     }
   }
 
@@ -811,7 +827,13 @@ function Form({
               </table>
             </div>
             <div className="flex flex-wrap items-center gap-3 border-t border-border px-2 py-2">
-              <Button type="button" size="sm" variant="secondary" onClick={nova}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={nova}
+                data-adicionar-viagem
+              >
                 <Plus size={13} /> Adicionar viagem
               </Button>
               <span className="ml-auto text-sm text-text-muted tabular">

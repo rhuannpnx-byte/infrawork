@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 import { useSalvarDefinicoes, type CalendarioRow, type DefinicaoRow } from '../../hooks/calendarios'
 import type { DiaSemana, TipoDefinicao } from '../../motor/tipos'
 import { lerNumero } from '../campos-util'
-import { Caixa, Campo } from '../campos'
+import { Caixa, Campo, enterEnvia, useErroForm } from '../campos'
 import { NOME_DIA } from './texto'
 
 export interface AlvoDefinicao {
@@ -77,17 +77,21 @@ function Conteudo({
   const [semana, setSemana] = useState<DiaSemana[]>(
     d?.semana ?? alvo.calendario.semana.map((x) => ({ inicio: x.inicio, horas: Number(x.horas) }))
   )
-  const [erro, setErro] = useState<string | null>(null)
+  const erro = useErroForm()
   const salvar = useSalvarDefinicoes(obraId)
 
   const gravar = (): void => {
-    setErro(null)
+    erro.limpar()
     const t = alvo.tipo
-    if (t !== 'pascoa' && !nome.trim()) return setErro('Informe o nome.')
-    if ((t === 'feriado' || t === 'horario_excecao') && (!ini || !fim || fim < ini))
-      return setErro('O fim do período não pode ser antes do início.')
+    if (t !== 'pascoa' && !nome.trim()) return erro.falhar('Informe o nome.', 'nome')
+    if (t !== 'pascoa' && !ini)
+      return erro.falhar(t === 'folga_semana' ? 'Informe a data.' : 'Informe o início.', 'ini')
+    if ((t === 'feriado' || t === 'horario_excecao') && !fim)
+      return erro.falhar('Informe o fim do período.', 'fim')
+    if ((t === 'feriado' || t === 'horario_excecao') && fim < ini)
+      return erro.falhar('O fim do período não pode ser antes do início.', 'fim')
     if (t === 'horario_excecao' && semana.some((x) => !(x.horas >= 0 && x.horas <= 24)))
-      return setErro('As horas de cada dia vão de 0 a 24.')
+      return erro.falhar('As horas de cada dia vão de 0 a 24.')
     salvar.mutate(
       [
         {
@@ -103,7 +107,10 @@ function Conteudo({
           ordem: d?.ordem ?? alvo.calendario.definicoes.length
         }
       ],
-      { onSuccess: onFechar, onError: (e) => setErro(e.message) }
+      {
+        onSuccess: onFechar,
+        onError: (e) => erro.falhar(`Não foi possível salvar. ${e.message}`)
+      }
     )
   }
 
@@ -113,14 +120,15 @@ function Conteudo({
         <DialogTitle>{TITULO[alvo.tipo]}</DialogTitle>
         <DialogDescription>Calendário {alvo.calendario.nome}</DialogDescription>
       </DialogHeader>
-      <DialogBody className="space-y-3">
-        <DialogErrorBanner message={erro} />
-        <Campo rotulo="Nome">
+      <DialogBody>
+        <div ref={erro.caixa} className="space-y-3" onKeyDown={enterEnvia(gravar)}>
+        <DialogErrorBanner message={erro.geral} />
+        <Campo rotulo="Nome" erro={erro.de('nome')}>
           <Input
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            autoFocus
-            placeholder={alvo.tipo === 'feriado' ? 'ex.: Aniversário da cidade' : ''}
+            data-foco-inicial
+            placeholder={alvo.tipo === 'feriado' ? 'Ex.: Aniversário da cidade' : ''}
           />
         </Campo>
         {alvo.tipo === 'pascoa' ? (
@@ -131,11 +139,11 @@ function Conteudo({
           </p>
         ) : null}
         {alvo.tipo === 'feriado' || alvo.tipo === 'horario_excecao' ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Campo rotulo="De">
+          <div className="grid grid-cols-2 items-start gap-3">
+            <Campo rotulo="De" erro={erro.de('ini')}>
               <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
             </Campo>
-            <Campo rotulo="Até (inclusive)">
+            <Campo rotulo="Até (inclusive)" erro={erro.de('fim')}>
               <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
             </Campo>
           </div>
@@ -146,7 +154,7 @@ function Conteudo({
           </Caixa>
         ) : null}
         {alvo.tipo === 'folga_semana' ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 items-start gap-3">
             <Campo rotulo="Dia da semana">
               <Select
                 value={String(diaSemana)}
@@ -162,6 +170,7 @@ function Conteudo({
             <Campo
               rotulo="A partir de (dia e mês)"
               dica="Todo ano, o primeiro dia da semana escolhido a partir desta data"
+              erro={erro.de('ini')}
             >
               <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
             </Campo>
@@ -181,9 +190,10 @@ function Conteudo({
                     x.horas > 0 ? 'border-border-strong bg-bg-elevated' : 'border-border'
                   )}
                 >
-                  <div className="mb-1 text-2xs text-text">{NOME_DIA[i]!.slice(0, 3)}</div>
+                  <div className="mb-1 text-xs text-text">{NOME_DIA[i]!.slice(0, 3)}</div>
                   <Input
                     type="time"
+                    aria-label={`Início ${NOME_DIA[i]}`}
                     value={x.inicio}
                     onChange={(e) =>
                       setSemana(
@@ -192,11 +202,12 @@ function Conteudo({
                         )
                       )
                     }
-                    className="mb-1 h-6 px-1 text-2xs"
+                    className="mb-1 h-7 px-1 text-xs [&::-webkit-calendar-picker-indicator]:hidden"
                   />
                   <Input
                     value={String(x.horas).replace('.', ',')}
                     inputMode="decimal"
+                    aria-label={`Horas ${NOME_DIA[i]}`}
                     onChange={(e) => {
                       const v = lerNumero(e.target.value)
                       setSemana(
@@ -207,20 +218,21 @@ function Conteudo({
                         )
                       )
                     }}
-                    className="h-6 px-1 text-right text-2xs"
+                    className="h-7 px-1 text-right text-xs tabular"
                   />
                 </div>
               ))}
             </div>
           </div>
         ) : null}
+        </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onFechar} disabled={salvar.isPending}>
           Cancelar
         </Button>
         <Button onClick={gravar} disabled={salvar.isPending}>
-          {d ? 'Salvar' : 'Incluir'}
+          {salvar.isPending ? 'Salvando…' : d ? 'Salvar' : 'Incluir'}
         </Button>
       </DialogFooter>
     </>

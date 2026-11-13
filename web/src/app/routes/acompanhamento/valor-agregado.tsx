@@ -9,7 +9,9 @@ import { RequireRole } from '@/components/layout/RequireRole'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { PulseBlock } from '@/components/ui/PulseBlock'
+import { ErroConsulta } from '@/components/ui/estado'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { fmtBRL, fmtQtd } from '@/lib/money'
 import { useValorAgregado } from '@/features/acompanhamento/hooks/valor-agregado'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
@@ -63,7 +65,9 @@ function ValorAgregadoInner(): ReactNode {
     prateleira,
     referenciaProvisoria,
     isLoading,
-    semBaseline
+    semBaseline,
+    error,
+    refetch
   } = useValorAgregado(obraId, { de, ate, servicoItemId })
 
   // Produção dia-a-dia do período — base das memórias de cálculo no export.
@@ -117,7 +121,7 @@ function ValorAgregadoInner(): ReactNode {
       downloadBlob(blob, `Medição ${scope.obra?.nome ?? 'Obra'} ${dmy(de)} - ${dmy(ate)}.xlsx`)
       toast.success('Planilha exportada.')
     } catch (err) {
-      toast.error(`Não foi possível exportar: ${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`Não foi possível exportar a medição.${motivoDoErro(err)}`)
     } finally {
       setExportando(false)
     }
@@ -151,7 +155,9 @@ function ValorAgregadoInner(): ReactNode {
         </BarraFiltros>
 
         <div className="p-5 space-y-4">
-          {semBaseline ? (
+          {error ? (
+            <ErroConsulta erro={error} oQue="o valor agregado" aoTentar={refetch} />
+          ) : semBaseline ? (
             <EmptyState
               icon="trending-up"
               title="Sem linha de base vigente"

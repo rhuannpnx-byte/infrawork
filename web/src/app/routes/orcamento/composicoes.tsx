@@ -26,6 +26,7 @@ import { contar } from '@/lib/rotulos'
 import type { CpuComServico } from '@/types/orcamento'
 import { nomeDaCpu } from '@/features/orcamento/lib/nomeDaCpu'
 import { ImportComposicoesDialog } from '@/features/orcamento/modals/ImportComposicoesDialog'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 export function ComposicoesPage(): ReactNode {
   return (
@@ -47,8 +48,9 @@ function ComposicoesInner(): ReactNode {
   const [openImport, setOpenImport] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
 
-  const { data: cadeiaTrava } = useCadeiaTrava(obraId)
-  const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
+  const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
+  const podeEditar =
+    (role === 'god' || role === 'adm' || role === 'engenheiro') && !travaCarregando && !cadeiaTrava
 
   const handleBulkDelete = async (rows: CpuComServico[], clear: () => void): Promise<void> => {
     if (rows.length === 0) return
@@ -57,7 +59,7 @@ function ComposicoesInner(): ReactNode {
       preview = await previewCascadeCpus(rows.map((r) => r.id))
     } catch (err) {
       toast.error(
-        `Não foi possível conferir onde as composições são usadas. ${err instanceof Error ? err.message : ''}`.trim()
+        `Não foi possível conferir onde as composições são usadas. ${detalheDoErro(err) ?? ''}`.trim()
       )
       return
     }

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Carregando, ErroConsulta, Vazio } from '@/components/ui/estado'
 import { supabase } from '@/lib/supabase/client'
 import { useGrantPermissao, useObras, useRevokePermissao } from '../hooks'
+import { falhaDoServidor } from '../lib/falha-servidor'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
 interface Props {
@@ -63,7 +64,7 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
       marcar(obraId, null)
       toast.error(
         liberada ? 'Não foi possível retirar o acesso à obra.' : 'Não foi possível liberar a obra.',
-        { description: e.message }
+        { description: falhaDoServidor(e) }
       )
     }
     if (liberada)
@@ -115,7 +116,9 @@ export function ObrasDoUsuarioDialog({ open, onOpenChange, usuario }: Props): Re
                       disabled={desejado.has(o.id)}
                       onChange={() => alternar(o.id, liberada)}
                     />
-                    <span className="w-24 shrink-0 truncate text-text-muted">{o.codigo}</span>
+                    <span className="w-32 shrink-0 truncate text-text-muted" title={o.codigo}>
+                      {o.codigo}
+                    </span>
                     <span className="min-w-0 flex-1 truncate text-text">{o.nome}</span>
                     {desejado.has(o.id) ? (
                       <span className="shrink-0 text-xs text-text-muted" role="status">

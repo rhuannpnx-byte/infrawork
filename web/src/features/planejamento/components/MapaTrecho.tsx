@@ -68,7 +68,7 @@ export function MapaTrecho({
       }
 
       const map = L.map(ref.current, {
-        zoomControl: interactive,
+        zoomControl: false,
         attributionControl: false,
         dragging: interactive,
         scrollWheelZoom: interactive,
@@ -77,6 +77,8 @@ export function MapaTrecho({
         touchZoom: interactive,
         maxZoom: 18
       })
+      if (interactive)
+        L.control.zoom({ zoomInTitle: 'Aproximar', zoomOutTitle: 'Afastar' }).addTo(map)
       addBaseMapEsri(map, L)
       mapRef.current = map
 
@@ -202,31 +204,35 @@ export function MapaTrecho({
         const seta = L.marker(inicio, { icon: setaIcon, interactive: false }).addTo(map)
         setaRef.current = seta
 
+        // um pouco antes do fim: no comprimento exato o `along` passa do último vértice e lança erro,
+        // o que parava a animação no fim do primeiro ciclo
+        const fimSeguro = Math.max(0, comprimentoM - 0.05)
         const tick = (now: number): void => {
           const elapsed = (now - startTime) % duracaoCicloMs
           const progress = elapsed / duracaoCicloMs
-          const distM = comprimentoM * progress
+          const distM = Math.min(comprimentoM * progress, fimSeguro)
 
-          const ptAtual = along(lineFeature, distM, { units: 'meters' })
-          const [lngA, latA] = ptAtual.geometry.coordinates
+          try {
+            const ptAtual = along(lineFeature, distM, { units: 'meters' })
+            const [lngA, latA] = ptAtual.geometry.coordinates
 
-          // Vetor de direcao: ponto a +10m vs atual (com clamp no fim).
-          const distLookahead = Math.min(distM + 10, comprimentoM)
-          const ptNext = along(lineFeature, distLookahead, { units: 'meters' })
-          const [lngN, latN] = ptNext.geometry.coordinates
-          const dx = lngN - lngA
-          const dy = latN - latA
-          // atan2 retorna em radianos; converte pra deg. Inverte sinal porque
-          // o triangle aponta pra cima (norte) por default; rotaciona pra
-          // alinhar com o vetor tangente.
-          const angleRad = Math.atan2(dx, dy) // 0 = norte; cresce no sentido horario
-          const angleDeg = (angleRad * 180) / Math.PI
+            // Vetor de direcao: ponto a +10m vs atual (com clamp no fim).
+            const distLookahead = Math.min(distM + 10, fimSeguro)
+            const ptNext = along(lineFeature, distLookahead, { units: 'meters' })
+            const [lngN, latN] = ptNext.geometry.coordinates
+            const dx = lngN - lngA
+            const dy = latN - latA
 
-          seta.setLatLng([latA, lngA])
-          const el = seta.getElement()
-          if (el) {
-            const arrow = el.querySelector('[data-arrow]') as HTMLElement | null
-            if (arrow) arrow.style.transform = `rotate(${angleDeg}deg)`
+            seta.setLatLng([latA, lngA])
+            // no último trecho o ponto à frente coincide com o atual: mantém o ângulo anterior
+            if (dx !== 0 || dy !== 0) {
+              // 0 = norte; cresce no sentido horario (o triângulo aponta para cima por padrão)
+              const angleDeg = (Math.atan2(dx, dy) * 180) / Math.PI
+              const arrow = seta.getElement()?.querySelector('[data-arrow]') as HTMLElement | null
+              if (arrow) arrow.style.transform = `rotate(${angleDeg}deg)`
+            }
+          } catch {
+            // geometria degenerada num quadro: segue para o próximo
           }
 
           rafRef.current = requestAnimationFrame(tick)

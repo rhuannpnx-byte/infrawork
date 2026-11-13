@@ -1,11 +1,20 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Pencil, X } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
-import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
+import {
+  LabeledInput,
+  NumericField,
+  PickerField,
+  ReadOnlyRow,
+  TimeField,
+} from '@/features/common/fields'
+import { focarPrimeiroInvalido, useFolha } from '@/features/common/useFolha'
 import { parseNum } from '@/lib/numero'
 import {
-  estacaFinalTexto,
+  erroPosicaoFora,
+  erroPosicaoVazia,
   estacaInicialTexto,
   estacaParaMetros,
   nomePosicao,
@@ -39,6 +48,18 @@ interface Props {
   onDismiss: () => void
 }
 
+type Campo =
+  | 'servico'
+  | 'origem'
+  | 'destino'
+  | 'estacaCarga'
+  | 'estacaDescarga'
+  | 'qtd'
+  | 'material'
+  | 'dmt'
+  | 'nf'
+type Erros = Partial<Record<Campo, string>>
+
 const txt = (n: number | null | undefined): string => (n != null ? String(n) : '')
 
 /**
@@ -65,7 +86,16 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   const maquinas = catalogo.veiculos.filter(ehMaquinaDeCarga)
   const carregador = maquinas.find((v) => v.id === carregadorId) ?? null
   const [picker, setPicker] = useState<'servico' | 'origem' | 'destino' | 'carregador' | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
+  // erro de cada campo, mostrado embaixo dele depois de tentar salvar; some quando o campo muda
+  const [erros, setErros] = useState<Erros>({})
+  const limpar = (...campos: Campo[]) =>
+    setErros((e) =>
+      campos.some((c) => e[c])
+        ? { ...e, ...Object.fromEntries(campos.map((c) => [c, undefined])) }
+        : e,
+    )
+  const folhaRef = useFolha<HTMLFormElement>(true, onDismiss)
+  const tituloId = useId()
 
   const servico: ServicoDto | undefined = servicos.find((s) => s.id === servicoId)
   const porPeso = servico?.medicao_viagem === 'peso'
@@ -107,32 +137,39 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
     (servico.material?.unidade ?? '').toLowerCase() !== (servico.unidade ?? '').toLowerCase()
 
   function salvar() {
-    setErro(null)
-    if (!servico) return setErro('Escolha o serviço.')
-    if (!origem || !destino) return setErro('Escolha a origem e o destino.')
-    const faixa = (e: LocalDto): string => `${estacaInicialTexto(e)} – ${estacaFinalTexto(e)}`
-    if (eixoCarga && pc == null)
-      return setErro(
-        estacaCarga.trim()
-          ? `${nomePosicao(eixoCarga)} de carga "${estacaCarga}" inválido (${faixa(eixoCarga)}).`
-          : `Informe ${nomePosicao(eixoCarga).toLowerCase()} de carga.`,
-      )
-    if (eixoDescarga && pd == null)
-      return setErro(
-        estacaDescarga.trim()
-          ? `${nomePosicao(eixoDescarga)} de descarga "${estacaDescarga}" inválido (${faixa(eixoDescarga)}).`
-          : `Informe ${nomePosicao(eixoDescarga).toLowerCase()} de descarga.`,
-      )
     const q = parseNum(qtd)
-    if (q == null || q <= 0) return setErro('Informe a quantidade da viagem.')
-    if (porPeso && !nf.trim()) return setErro('Informe o ticket da balança.')
     const ajustada = parseNum(dmt)
-    if (dmtManual && (ajustada == null || ajustada < 0))
-      return setErro('Informe a DMT ajustada (km).')
-    if (!dmtManual && calc.km == null) return setErro(calc.motivo ?? 'Sem DMT.')
     const m = parseNum(matQtd)
-    if (pedeMaterial && servico.material_obrigatorio && m == null)
-      return setErro(`Informe a quantidade de ${servico.material?.nome ?? 'material'}.`)
+    const novos: Erros = {}
+    if (!servico) novos.servico = 'Escolha o serviço.'
+    if (!origem) novos.origem = 'Escolha a origem.'
+    if (!destino) novos.destino = 'Escolha o destino.'
+    if (eixoCarga && pc == null)
+      novos.estacaCarga = estacaCarga.trim()
+        ? erroPosicaoFora(eixoCarga)
+        : erroPosicaoVazia(eixoCarga)
+    if (eixoDescarga && pd == null)
+      novos.estacaDescarga = estacaDescarga.trim()
+        ? erroPosicaoFora(eixoDescarga)
+        : erroPosicaoVazia(eixoDescarga)
+    if (q == null || q <= 0) novos.qtd = 'Informe a quantidade da viagem.'
+    if (porPeso && !nf.trim()) novos.nf = 'Informe o ticket da balança.'
+    if (dmtManual && (ajustada == null || ajustada < 0)) novos.dmt = 'Informe a DMT ajustada (km).'
+    // sem origem, destino ou estaca o próprio campo já acusa; a DMT só acusa quando falta o cadastro
+    if (
+      !dmtManual &&
+      calc.km == null &&
+      !novos.origem &&
+      !novos.destino &&
+      !novos.estacaCarga &&
+      !novos.estacaDescarga
+    )
+      novos.dmt = calc.motivo ?? 'Sem DMT.'
+    if (servico && pedeMaterial && servico.material_obrigatorio && m == null)
+      novos.material = `Informe a quantidade de ${servico.material?.nome ?? 'material'}.`
+    flushSync(() => setErros(novos))
+    if (!servico || !origem || !destino || q == null || Object.values(novos).some(Boolean))
+      return focarPrimeiroInvalido(folhaRef.current)
     onSave({
       ...inicial,
       servicoId: servico.id,
@@ -168,8 +205,19 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
       className="fixed inset-0 z-50 flex items-end bg-veu sm:items-center sm:justify-center"
       onClick={onDismiss}
     >
-      <div
-        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl sm:max-w-md sm:rounded-lg"
+      {/* formulário: o Enter (ou o "Ir" do teclado do celular) num campo grava */}
+      <form
+        ref={folhaRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        tabIndex={-1}
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          salvar()
+        }}
+        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl focus-visible:ring-0 sm:max-w-md sm:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-center pb-1 pt-3 sm:hidden">
@@ -178,11 +226,11 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
         <div className="flex items-start justify-between border-b border-border px-4 pb-3 pt-4">
           <div className="min-w-0 flex-1 pr-2">
             <p className="rotulo">{nova ? 'Nova viagem' : 'Editar viagem'}</p>
-            <h2 className="mt-1 truncate text-lg font-semibold text-on-surface">
+            <h2 id={tituloId} className="mt-1 truncate text-lg font-semibold text-on-surface">
               {servico?.descricao ?? 'Escolha o serviço'}
             </h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={onDismiss} aria-label="Fechar">
+          <Button type="button" variant="ghost" size="icon" onClick={onDismiss} aria-label="Fechar">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -193,6 +241,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
             value={servico ? `${servico.codigo} ${servico.descricao}` : 'Selecionar…'}
             onClick={() => setPicker('servico')}
             empty={!servico}
+            erro={erros.servico}
           />
           <div className="grid grid-cols-2 gap-3">
             <PickerField
@@ -200,12 +249,14 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
               value={origem?.nome ?? 'Selecionar…'}
               onClick={() => setPicker('origem')}
               empty={!origem}
+              erro={erros.origem}
             />
             <PickerField
               label="Destino *"
               value={destino?.nome ?? 'Selecionar…'}
               onClick={() => setPicker('destino')}
               empty={!destino}
+              erro={erros.destino}
             />
           </div>
           {(eixoCarga || eixoDescarga) && (
@@ -214,9 +265,13 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
                 <LabeledInput
                   label={`${nomePosicao(eixoCarga)} de carga *`}
                   value={estacaCarga}
-                  onChange={setEstacaCarga}
+                  onChange={(v) => {
+                    setEstacaCarga(v)
+                    limpar('estacaCarga', 'dmt')
+                  }}
                   placeholder={estacaInicialTexto(eixoCarga)}
                   inputMode={tecladoPosicao(eixoCarga)}
+                  erro={erros.estacaCarga}
                 />
               ) : (
                 <div />
@@ -225,9 +280,13 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
                 <LabeledInput
                   label={`${nomePosicao(eixoDescarga)} de descarga *`}
                   value={estacaDescarga}
-                  onChange={setEstacaDescarga}
+                  onChange={(v) => {
+                    setEstacaDescarga(v)
+                    limpar('estacaDescarga', 'dmt')
+                  }}
                   placeholder={estacaInicialTexto(eixoDescarga)}
                   inputMode={tecladoPosicao(eixoDescarga)}
+                  erro={erros.estacaDescarga}
                 />
               ) : null}
             </div>
@@ -241,20 +300,33 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
             />
           )}
           <div className="grid grid-cols-2 gap-3">
-            <TimeField label="Hora carga" value={horaCarga} onChange={setHoraCarga} />
-            <TimeField label="Hora descarga" value={horaDescarga} onChange={setHoraDescarga} />
+            <TimeField label="Hora da carga" value={horaCarga} onChange={setHoraCarga} />
+            <TimeField label="Hora da descarga" value={horaDescarga} onChange={setHoraDescarga} />
           </div>
           <NumericField
-            label={`Quantidade (${unidadeServico}) *${capacidade != null && !porPeso ? ` (caçamba de ${formatNumero(capacidade, 1)} m³)` : ''}`}
+            label={`Quantidade (${unidadeServico}) *`}
             value={qtd}
-            onChange={setQtd}
+            onChange={(v) => {
+              setQtd(v)
+              limpar('qtd')
+            }}
+            erro={erros.qtd}
+            hint={
+              capacidade != null && !porPeso
+                ? `Caçamba de ${formatNumero(capacidade, 1)} m³`
+                : undefined
+            }
           />
           {servico?.controla_material &&
             (pedeMaterial ? (
               <NumericField
                 label={`${servico.material?.nome ?? 'Material'} (${servico.material?.unidade ?? ''})${servico.material_obrigatorio ? ' *' : ''}`}
                 value={matQtd}
-                onChange={setMatQtd}
+                onChange={(v) => {
+                  setMatQtd(v)
+                  limpar('material')
+                }}
+                erro={erros.material}
               />
             ) : (
               <ReadOnlyRow
@@ -263,62 +335,76 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
               />
             ))}
           <div>
-            <div className="flex items-end gap-2">
+            <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 {dmtManual ? (
-                  <NumericField label="DMT ajustada (km) *" value={dmt} onChange={setDmt} />
+                  <NumericField
+                    label="DMT ajustada (km) *"
+                    value={dmt}
+                    onChange={(v) => {
+                      setDmt(v)
+                      limpar('dmt')
+                    }}
+                    erro={erros.dmt}
+                    hint={calc.km != null ? `Calculada: ${formatNumero(calc.km, 3)} km` : undefined}
+                  />
                 ) : (
                   <ReadOnlyRow
                     label="DMT (km)"
                     value={
                       calc.km != null
                         ? `${formatNumero(calc.km, 3)} · ${calc.via === 'rota' ? 'distância fixa' : 'pelo eixo'}`
-                        : 'sem DMT'
+                        : 'Sem DMT'
                     }
                   />
                 )}
               </div>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 aria-label={dmtManual ? 'Voltar à DMT calculada' : 'Ajustar a DMT'}
+                aria-pressed={dmtManual}
+                aria-describedby={!dmtManual && erros.dmt ? `${tituloId}-dmt` : undefined}
+                data-invalido={!dmtManual && erros.dmt ? 'true' : undefined}
                 onClick={() => {
                   setDmt(dmtManual ? '' : txt(calc.km))
                   setDmtManual(!dmtManual)
+                  limpar('dmt')
                 }}
-                className={dmtManual ? 'text-accent' : ''}
+                className={dmtManual ? 'mt-5 text-accent' : 'mt-1.5'}
               >
                 <Pencil className="h-5 w-5" />
               </Button>
             </div>
-            {!dmtManual && calc.km == null && calc.motivo && (
-              <p className="mt-1 text-xs text-warn">{calc.motivo}</p>
-            )}
-            {dmtManual && calc.km != null && (
-              <p className="mt-1 text-xs text-on-surface-dim">
-                Calculada: {formatNumero(calc.km, 3)} km
-              </p>
-            )}
+            {!dmtManual &&
+              calc.km == null &&
+              (erros.dmt ? (
+                <p id={`${tituloId}-dmt`} role="alert" className="mt-1 text-xs text-bad">
+                  {erros.dmt} Toque no lápis para informar a DMT.
+                </p>
+              ) : (
+                calc.motivo && <p className="mt-1 text-xs text-warn">{calc.motivo}</p>
+              ))}
           </div>
           <LabeledInput
             label={porPeso ? 'Ticket da balança *' : 'NF / ticket'}
             value={nf}
-            onChange={setNf}
+            onChange={(v) => {
+              setNf(v)
+              limpar('nf')
+            }}
             placeholder={porPeso ? '' : 'Opcional'}
+            erro={erros.nf}
           />
-          {erro && (
-            <p role="alert" className="text-sm text-bad">
-              {erro}
-            </p>
-          )}
         </div>
 
         <div className="border-t border-border p-4 pb-safe-plus-4">
-          <Button variant="primary" size="lg" onClick={salvar} className="w-full">
+          <Button type="submit" variant="primary" size="lg" className="w-full">
             {nova ? 'Adicionar viagem' : 'Atualizar viagem'}
           </Button>
         </div>
-      </div>
+      </form>
 
       {picker === 'servico' && (
         <PickerSheet
@@ -331,6 +417,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           }
           onPick={(s) => {
             setServicoId(s.id)
+            limpar('servico', 'nf', 'material')
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}
@@ -363,38 +450,18 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
             if (picker === 'origem') {
               if (l.id !== origemId) setEstacaCarga('')
               setOrigemId(l.id)
+              limpar('origem', 'estacaCarga', 'dmt')
             } else {
               if (l.id !== destinoId) setEstacaDescarga('')
               setDestinoId(l.id)
+              limpar('destino', 'estacaDescarga', 'dmt')
             }
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}
-          emptyMessage="Nenhuma origem/destino cadastrado (Acompanhamento › Origens e destinos)."
+          emptyMessage="Nenhuma origem ou destino cadastrado. Peça ao escritório para cadastrar em Acompanhamento › Origens e destinos."
         />
       )}
-    </div>
-  )
-}
-
-function TimeField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div>
-      <label className="rotulo block">{label}</label>
-      <input
-        type="time"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 block min-h-touch w-full rounded-md border border-border-strong bg-bg-panel px-3 text-base text-on-surface tabular focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0"
-      />
     </div>
   )
 }

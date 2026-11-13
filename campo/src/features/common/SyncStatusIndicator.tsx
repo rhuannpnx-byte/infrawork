@@ -7,12 +7,14 @@ import { ROTULO_ENVIO, TOM_ENVIO, rotuloFila, type TomEnvio } from './rotulosEnv
 
 /**
  * Indicador da fila de envio no cabeçalho das telas: girando = enviando; cinza = sem rede; âmbar com número = itens
- * aguardando; verde = tudo enviado. Tocar força um ciclo de envio.
+ * aguardando; vermelho com número = recusados a corrigir; verde = tudo enviado. Tocar força um ciclo de envio.
  */
 export function SyncStatusIndicator({ className }: { className?: string }) {
-  const { online, syncing, outboxPending } = useSyncStatus()
-  const label = rotuloFila({ online, syncing, outboxPending })
-  const tom = tomDaFila({ online, syncing, outboxPending })
+  const { online, syncing, outboxPending, recusados } = useSyncStatus()
+  const label = rotuloFila({ online, syncing, outboxPending, recusados })
+  const tom = tomDaFila({ online, syncing, outboxPending, recusados })
+  // o número do selo: o que espera envio; sem nada na fila, o que foi recusado
+  const numero = outboxPending > 0 ? outboxPending : recusados
 
   return (
     <button
@@ -29,7 +31,7 @@ export function SyncStatusIndicator({ className }: { className?: string }) {
     >
       <span
         className={cn(
-          'inline-flex h-7 items-center gap-1.5 rounded px-2 text-2xs font-semibold tabular',
+          'tabular inline-flex h-7 items-center gap-1.5 rounded px-2 text-2xs font-semibold',
           'transition-colors duration-150',
           tom.selo,
         )}
@@ -39,19 +41,27 @@ export function SyncStatusIndicator({ className }: { className?: string }) {
         ) : (
           <span className={cn('h-2 w-2 rounded-full', tom.ponto)} />
         )}
-        {outboxPending > 0 && <span>{outboxPending > 99 ? '99+' : outboxPending}</span>}
+        {numero > 0 && <span>{numero > 99 ? '99+' : numero}</span>}
       </span>
     </button>
   )
 }
 
-function tomDaFila(s: { online: boolean; syncing: boolean; outboxPending: number }): {
+function tomDaFila(s: {
+  online: boolean
+  syncing: boolean
+  outboxPending: number
+  recusados: number
+}): {
   selo: string
   ponto: string
 } {
   if (s.syncing) return TOM_ENVIO.info
-  if (!s.online) return { selo: 'bg-on-surface/10 text-on-surface-dim', ponto: 'bg-on-surface-muted' }
+  if (!s.online)
+    return { selo: 'bg-on-surface/10 text-on-surface-dim', ponto: 'bg-on-surface-muted' }
   if (s.outboxPending > 0) return TOM_ENVIO.warn
+  // nada esperando rede, mas há recusa a corrigir: não é "tudo enviado"
+  if (s.recusados > 0) return TOM_ENVIO.bad
   return TOM_ENVIO.ok
 }
 

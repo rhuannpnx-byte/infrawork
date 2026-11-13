@@ -1,27 +1,55 @@
-import type { InputHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { Input } from '@/core/ui/Input'
 import { cn } from '@/lib/cn'
 import { formatNumberBR, parseNumberBR } from '@/lib/numero'
 
-/** Campos dos formulários de campo (herdados do Monito): número com máscara BR, texto, leitura e seletor. */
+/**
+ * Campos dos formulários de campo: número com máscara BR, texto, hora, leitura e seletor. Todo campo tem o rótulo
+ * ligado, e o erro de validação aparece embaixo dele (`erro`), com `aria-invalid` para o foco ir ao primeiro errado.
+ */
 
-/** Rótulo em caixa alta; o que vem entre parênteses (unidade: m³, t, km) fica como foi escrito. */
-export function RotuloCampo({ children, htmlFor }: { children: string; htmlFor?: string }) {
+/** O que vem entre parênteses (unidade: m³, t, km) fica como foi escrito, fora da caixa alta do rótulo. */
+function comUnidade(texto: string) {
+  return texto.split(/(\([^)]*\))/).map((parte, i) =>
+    parte.startsWith('(') ? (
+      <span key={i} className="normal-case">
+        {parte}
+      </span>
+    ) : (
+      parte
+    ),
+  )
+}
+
+/** Rótulo de campo em caixa alta. */
+export function RotuloCampo({ children, htmlFor }: { children: string; htmlFor: string }) {
   return (
     <label className="rotulo block" htmlFor={htmlFor}>
-      {children.split(/(\([^)]*\))/).map((parte, i) =>
-        parte.startsWith('(') ? (
-          <span key={i} className="normal-case">
-            {parte}
-          </span>
-        ) : (
-          parte
-        ),
-      )}
+      {comUnidade(children)}
     </label>
   )
 }
+
+/** Frase de erro (ou de apoio) embaixo do campo. */
+function Apoio({ id, erro, hint }: { id: string; erro?: string | null; hint?: string }) {
+  if (erro)
+    return (
+      <p id={id} role="alert" className="mt-1 text-xs text-bad">
+        {erro}
+      </p>
+    )
+  if (hint)
+    return (
+      <p id={id} className="mt-1 text-xs text-on-surface-dim">
+        {hint}
+      </p>
+    )
+  return null
+}
+
+const obrigatorio = (label: string): boolean => label.trimEnd().endsWith('*')
+const BORDA_ERRO = 'border-bad focus-visible:border-bad'
 
 /**
  * Input numérico com máscara brasileira:
@@ -35,25 +63,36 @@ export function NumericField({
   label,
   value,
   onChange,
+  erro,
+  hint,
 }: {
   label: string
   value: string
   onChange: (s: string) => void
+  erro?: string | null
+  hint?: string
 }) {
+  const id = useId()
   const display = value === '' ? '' : formatNumberBR(value.replace('.', ','))
   return (
     <div>
-      <RotuloCampo>{label}</RotuloCampo>
+      <RotuloCampo htmlFor={id}>{label}</RotuloCampo>
       <Input
+        id={id}
         type="text"
         inputMode="decimal"
+        autoComplete="off"
         value={display}
         onChange={(e) => {
           const formatted = formatNumberBR(e.target.value)
           onChange(parseNumberBR(formatted))
         }}
-        className="mt-1"
+        aria-required={obrigatorio(label) || undefined}
+        aria-invalid={erro ? true : undefined}
+        aria-describedby={erro || hint ? `${id}-apoio` : undefined}
+        className={cn('mt-1', erro && BORDA_ERRO)}
       />
+      <Apoio id={`${id}-apoio`} erro={erro} hint={hint} />
     </div>
   )
 }
@@ -65,6 +104,8 @@ export function LabeledInput({
   placeholder,
   inputMode,
   autoComplete,
+  erro,
+  hint,
 }: {
   label: string
   value: string
@@ -73,18 +114,50 @@ export function LabeledInput({
   /** teclado do celular; estaca e km usam `tecladoPosicao` (lib/estaca) */
   inputMode?: InputHTMLAttributes<HTMLInputElement>['inputMode']
   autoComplete?: string
+  erro?: string | null
+  hint?: string
 }) {
+  const id = useId()
   return (
     <div>
-      <RotuloCampo>{label}</RotuloCampo>
+      <RotuloCampo htmlFor={id}>{label}</RotuloCampo>
       <Input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode={inputMode}
         autoComplete={autoComplete}
         {...(inputMode ? { autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false } : {})}
-        className="mt-1"
+        aria-required={obrigatorio(label) || undefined}
+        aria-invalid={erro ? true : undefined}
+        aria-describedby={erro || hint ? `${id}-apoio` : undefined}
+        className={cn('mt-1', erro && BORDA_ERRO)}
+      />
+      <Apoio id={`${id}-apoio`} erro={erro} hint={hint} />
+    </div>
+  )
+}
+
+export function TimeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  const id = useId()
+  return (
+    <div>
+      <RotuloCampo htmlFor={id}>{label}</RotuloCampo>
+      <input
+        id={id}
+        type="time"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="tabular mt-1 block min-h-touch w-full rounded-md border border-border-strong bg-bg-panel px-3 text-base text-on-surface focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0"
       />
     </div>
   )
@@ -98,7 +171,7 @@ export function LabeledInput({
 export function ReadOnlyRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="card-surface-variant px-3 py-2">
-      <RotuloCampo>{label}</RotuloCampo>
+      <p className="rotulo">{comUnidade(label)}</p>
       <p className="mt-0.5 text-on-surface">{value}</p>
     </div>
   )
@@ -111,6 +184,7 @@ export function PickerField({
   empty,
   opcional,
   hint,
+  erro,
 }: {
   label: string
   value: string
@@ -120,30 +194,46 @@ export function PickerField({
   /** opcional e ainda sem valor: só o texto mais claro */
   opcional?: boolean
   hint?: string
+  erro?: string | null
 }) {
+  const id = useId()
   return (
     <div>
-      <RotuloCampo>{label}</RotuloCampo>
+      <p id={`${id}-rotulo`} className="rotulo">
+        {comUnidade(label)}
+      </p>
       <div className="mt-1">
         <button
           type="button"
           onClick={onClick}
+          aria-labelledby={`${id}-rotulo ${id}-valor`}
+          aria-describedby={erro || hint ? `${id}-apoio` : undefined}
+          aria-haspopup="dialog"
+          data-invalido={erro ? 'true' : undefined}
           className={cn(
             'w-full rounded-md border bg-bg-panel px-3 text-left text-base',
             'flex min-h-touch items-center justify-between gap-2',
             'transition-colors',
-            empty ? 'border-warn hover:border-warn' : 'border-border-strong hover:border-accent',
+            erro
+              ? 'border-bad hover:border-bad'
+              : empty
+                ? 'border-warn hover:border-warn'
+                : 'border-border-strong hover:border-accent',
           )}
         >
           <span
-            className={cn('truncate', empty || opcional ? 'text-on-surface-dim' : 'text-on-surface')}
+            id={`${id}-valor`}
+            className={cn(
+              'truncate',
+              empty || opcional ? 'text-on-surface-dim' : 'text-on-surface',
+            )}
           >
             {value}
           </span>
-          <ChevronRight className="h-4 w-4 flex-shrink-0 text-on-surface-dim" />
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-on-surface-dim" aria-hidden />
         </button>
       </div>
-      {hint && <p className="mt-1 text-xs text-on-surface-dim">{hint}</p>}
+      <Apoio id={`${id}-apoio`} erro={erro} hint={hint} />
     </div>
   )
 }

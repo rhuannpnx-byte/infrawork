@@ -10,6 +10,7 @@ import { PulseBlock } from '@/components/ui/PulseBlock'
 import { FiltroChips } from '@/components/ui/filtro-chips'
 import { ErroConsulta, Vazio } from '@/components/ui/estado'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import { useAlertas, useRecalcularAlertas } from '@/features/acompanhamento/hooks/alertas'
 import { AlertaCard } from '@/features/acompanhamento/components/alertas/AlertaCard'
 import type { AlertaSeveridade, AlertaStatus } from '@/types/acompanhamento'
@@ -51,7 +52,13 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Alertas"
-        subtitle={`${contar(alertas.length, 'alerta', 'alertas')} (${statusFiltro.map(rotuloAlertaStatusPlural).join(', ')})`}
+        subtitle={
+          isLoading
+            ? 'Carregando os alertas…'
+            : error
+              ? undefined
+              : `${contar(alertas.length, 'alerta', 'alertas')} (${statusFiltro.map(rotuloAlertaStatusPlural).join(', ')})`
+        }
         actions={
           <Button
             size="sm"
@@ -61,15 +68,14 @@ function Inner(): ReactNode {
               try {
                 const r = await recalc.mutateAsync({ obra_id: obraId })
                 const item = r.resultados[0]
-                if (item?.erros.length) toast.error(item.erros.join('; '))
+                if (item?.erros.length)
+                  toast.error(`Não foi possível recalcular os alertas. ${item.erros.join('; ')}`)
                 else if (item)
                   toast.success(
-                    `${contar(item.abertos, 'alerta aberto', 'alertas abertos')}: ${contar(item.inseridos, 'novo', 'novos')} e ${contar(item.resolvidos, 'resolvido', 'resolvidos')} automaticamente`
+                    `${contar(item.abertos, 'alerta aberto', 'alertas abertos')}: ${contar(item.inseridos, 'novo', 'novos')} e ${contar(item.resolvidos, 'resolvido', 'resolvidos')} automaticamente.`
                   )
               } catch (e) {
-                toast.error(
-                  e instanceof Error ? e.message : 'Não foi possível recalcular os alertas.'
-                )
+                toast.error(`Não foi possível recalcular os alertas.${motivoDoErro(e)}`)
               }
             }}
           >
@@ -88,7 +94,8 @@ function Inner(): ReactNode {
             { valor: 'resolvido', rotulo: 'Resolvidos' }
           ]}
           valores={statusFiltro}
-          aoMudar={setStatusFiltro}
+          // sem nenhuma situação marcada a lista volta para os abertos
+          aoMudar={(v) => setStatusFiltro(v.length ? v : ['aberto'])}
         />
         <FiltroChips
           rotulo="Gravidade"
@@ -109,8 +116,8 @@ function Inner(): ReactNode {
         ) : null}
         {!isLoading && !error && alertas.length === 0 && (
           <Vazio className="px-1">
-            {statusFiltro.length === 0
-              ? 'Escolha ao menos uma situação para listar os alertas.'
+            {statusFiltro.length === 1 && statusFiltro[0] === 'aberto' && !severidadeFiltro.length
+              ? 'Nenhum alerta aberto. Use Recalcular para conferir a obra de novo.'
               : 'Nenhum alerta neste filtro.'}
           </Vazio>
         )}

@@ -6,7 +6,11 @@ export interface ModuleCardProps {
   title: string
   subtitle: string
   badge: number
+  /** recusados pelo servidor neste módulo (selo vermelho) */
+  recusados?: number
   enabled: boolean
+  /** por que está desabilitado (vira a dica do cartão) */
+  motivo?: string
   onClick: () => void
   testId?: string
 }
@@ -16,7 +20,9 @@ export function ModuleCard({
   title,
   subtitle,
   badge,
+  recusados = 0,
   enabled,
+  motivo,
   onClick,
   testId,
 }: ModuleCardProps) {
@@ -25,6 +31,7 @@ export function ModuleCard({
       type="button"
       onClick={onClick}
       disabled={!enabled}
+      title={!enabled ? motivo : undefined}
       data-testid={testId}
       className={cn(
         'group w-full rounded-md text-left',
@@ -41,13 +48,21 @@ export function ModuleCard({
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-center py-3 pr-3">
         <div className="flex items-center gap-2">
-          <h3 className="truncate text-base font-semibold text-on-surface">{title}</h3>
+          <h2 className="truncate text-base font-semibold text-on-surface">{title}</h2>
           {badge > 0 && (
             <span
-              className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-warn px-1.5 text-2xs font-bold text-on-status tabular"
+              className="tabular inline-flex h-5 min-w-5 items-center justify-center rounded bg-warn px-1.5 text-2xs font-bold text-on-status"
               aria-label={`${badge} aguardando envio`}
             >
               {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+          {recusados > 0 && (
+            <span
+              className="tabular inline-flex h-5 min-w-5 items-center justify-center rounded bg-bad px-1.5 text-2xs font-bold text-on-status"
+              aria-label={`${recusados} ${recusados === 1 ? 'recusado' : 'recusados'}`}
+            >
+              {recusados > 99 ? '99+' : recusados}
             </span>
           )}
         </div>

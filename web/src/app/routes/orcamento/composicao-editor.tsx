@@ -37,6 +37,7 @@ import {
   type ComposicaoItemInput
 } from '@/features/orcamento/hooks/composicoes'
 import { NewRecursoDialog } from '@/features/orcamento/modals/NewRecursoDialog'
+import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { fmtBRL, fmtBRL4, fmtQtd, parseBR } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import {
@@ -45,6 +46,7 @@ import {
   type CpuItemGrupo,
   type Recurso
 } from '@/types/orcamento'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface ItemLocal {
   key: string
@@ -111,8 +113,9 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!
   const role = useAuthStore((s) => s.profile?.role)
-  const { data: cadeiaTrava } = useCadeiaTrava(obraId)
-  const podeEditar = (role === 'god' || role === 'adm' || role === 'engenheiro') && !cadeiaTrava
+  const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
+  const podeEditar =
+    (role === 'god' || role === 'adm' || role === 'engenheiro') && !travaCarregando && !cadeiaTrava
   const isNew = !cpuId
 
   const { data: cpu, isLoading, error, refetch } = useCpu(cpuId)
@@ -121,6 +124,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
   const { data: versoes = [] } = useCpus(obraId, cpu?.servico_id ?? null)
   const salvar = useSalvarComposicao()
   const publish = usePublishCpu()
+  const confirm = useConfirm()
 
   const [codigo, setCodigo] = useState('')
   const [nome, setNome] = useState('')
@@ -302,6 +306,9 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
     if (pendentes.length > 0) {
       setTentouSalvar(true)
       toast.error(pendentes[0])
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>('main [aria-invalid="true"]')?.focus()
+      )
       return
     }
     try {
@@ -325,9 +332,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
         navigate({ to: '/orcamento/composicoes/$id', params: { id: res.cpu_id } })
       }
     } catch (e) {
-      toast.error(
-        `Não foi possível salvar a composição. ${e instanceof Error ? e.message : ''}`.trim()
-      )
+      toast.error(`Não foi possível salvar a composição. ${detalheDoErro(e) ?? ''}`.trim())
     }
   }
 
@@ -337,14 +342,28 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
       await publish.mutateAsync({ id: cpu.id })
       toast.success('Esta versão passou a ser a vigente.')
     } catch (e) {
-      toast.error(
-        `Não foi possível tornar esta versão a vigente. ${e instanceof Error ? e.message : ''}`.trim()
-      )
+      toast.error(`Não foi possível tornar esta versão a vigente. ${detalheDoErro(e) ?? ''}`.trim())
     }
   }
 
+  // sair pela tela com alteração por salvar pede confirmação
+  const podeSair = async (): Promise<boolean> =>
+    !dirty ||
+    (await confirm({
+      title: 'Descartar as alterações?',
+      description: 'A composição tem alterações que ainda não foram salvas.',
+      confirmLabel: 'Descartar',
+      variant: 'danger'
+    }))
+
   const voltar = (
-    <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/orcamento/composicoes' })}>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={async () => {
+        if (await podeSair()) void navigate({ to: '/orcamento/composicoes' })
+      }}
+    >
       <ArrowLeft size={12} aria-hidden /> Voltar para composições
     </Button>
   )
@@ -388,6 +407,12 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
   }
 
   const readOnly = !podeEditar
+  const motivoLeitura =
+    !readOnly || travaCarregando
+      ? undefined
+      : cadeiaTrava
+        ? `Somente leitura: ${cadeiaTrava.replace(/\s+[—–]\s+/g, ', ').replace(/\.$/, '')}.`
+        : 'Seu perfil não permite editar composições.'
   const titulo = isNew ? 'Nova composição' : `${codigo} ${nome}`.trim() || 'Composição'
   const semAlteracao = !isNew && !dirty
 
@@ -468,6 +493,9 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                     marcar()
                   }}
                   readOnly={readOnly || !isNew}
+                  title={
+                    motivoLeitura ?? (!isNew ? 'O código não muda depois de criado.' : undefined)
+                  }
                   className="tabular"
                   placeholder="01.02"
                   aria-invalid={erros.codigo ? true : undefined}
@@ -503,6 +531,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   marcar()
                 }}
                 readOnly={readOnly}
+                title={motivoLeitura}
                 placeholder="Ex.: Base de brita graduada"
               />
             </Campo>
@@ -515,6 +544,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   marcar()
                 }}
                 readOnly={readOnly}
+                title={motivoLeitura}
                 placeholder="m³, m², t, un"
               />
             </Campo>
@@ -529,6 +559,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                     marcar()
                   }}
                   readOnly={readOnly}
+                  title={motivoLeitura}
                   inputMode="decimal"
                   className="tabular text-right"
                   aria-invalid={erros.producao ? true : undefined}
@@ -549,6 +580,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   marcar()
                 }}
                 readOnly={readOnly}
+                title={motivoLeitura}
                 placeholder="Notas da composição (opcional)"
               />
             </Campo>
@@ -608,7 +640,12 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
             ) : null
           }
         >
-          <div className="overflow-x-auto border-t border-border">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Tabela de insumos da composição"
+            className="overflow-x-auto border-t border-border"
+          >
             <table className="w-full min-w-[980px] text-sm tabular">
               <thead className="bg-bg-elevated border-b border-border-strong">
                 <tr>
@@ -658,9 +695,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   <th scope="col" className={cn(TH, 'text-right w-28')}>
                     Custo/dia
                   </th>
-                  <th scope="col" className="w-10">
-                    <span className="sr-only">Ações</span>
-                  </th>
+                  <th scope="col" className="w-10" aria-label="Ações" />
                 </tr>
               </thead>
               <tbody>
@@ -682,6 +717,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                       custo={custos.porItem.get(it.key) ?? 0}
                       producao={prod}
                       readOnly={readOnly}
+                      motivoLeitura={motivoLeitura}
                       semRecurso={tentouSalvar && !it.recurso_id}
                       onPatch={(p) => patchItem(it.key, p)}
                       onRemove={() => removeItem(it.key)}
@@ -710,6 +746,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   marcar()
                 }}
                 disabled={readOnly}
+                title={motivoLeitura}
               >
                 <option value="">Sem combustível</option>
                 {combustiveis.map((c) => (
@@ -731,6 +768,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                       marcar()
                     }}
                     disabled={readOnly}
+                    title={motivoLeitura}
                     className="accent-[var(--accent)]"
                   />
                   Informar os litros por dia
@@ -780,9 +818,10 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   key={v.id}
                   type="button"
                   aria-current={v.id === cpuId ? 'true' : undefined}
-                  onClick={() =>
-                    navigate({ to: '/orcamento/composicoes/$id', params: { id: v.id } })
-                  }
+                  onClick={async () => {
+                    if (v.id !== cpuId && (await podeSair()))
+                      void navigate({ to: '/orcamento/composicoes/$id', params: { id: v.id } })
+                  }}
                   className={cn(
                     'h-8 rounded border px-2.5 text-sm tabular',
                     v.id === cpuId
@@ -820,6 +859,7 @@ function ItemRow({
   custo,
   producao,
   readOnly,
+  motivoLeitura,
   semRecurso,
   onPatch,
   onRemove
@@ -830,6 +870,7 @@ function ItemRow({
   custo: number
   producao: number
   readOnly: boolean
+  motivoLeitura?: string
   semRecurso: boolean
   onPatch: (p: Partial<ItemLocal>) => void
   onRemove: () => void
@@ -860,6 +901,7 @@ function ItemRow({
           value={item.recurso_id}
           onChange={(e) => onPatch({ recurso_id: e.target.value })}
           disabled={readOnly}
+          title={motivoLeitura}
           className="h-7"
           aria-label={`Recurso (${CPU_ITEM_GRUPO_LABEL[item.grupo].toLowerCase()})`}
           aria-invalid={semRecurso ? true : undefined}

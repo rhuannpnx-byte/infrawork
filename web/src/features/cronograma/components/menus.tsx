@@ -30,7 +30,8 @@ import {
   useMoverTarefas,
   useMudarTrecho,
   useRenomearAuto,
-  useSalvarMarco
+  useSalvarMarco,
+  traduzirErro
 } from '../hooks/edicao'
 import type { ComandoEdicao } from '../motor/edicao'
 import type { TarefaEntrada, TipoDependencia } from '../motor/tipos'
@@ -116,7 +117,7 @@ export function useMenusCronograma(
       }
       if (avisos.length) toast.warning(avisos.slice(0, 4).join(' · '))
     } catch (x) {
-      toast.error((x as Error).message)
+      erro(x as Error)
     }
   }
   const renomearTudo = (): void =>
@@ -127,7 +128,7 @@ export function useMenusCronograma(
           toast.success(
             n ? `${contar(n, 'tarefa renomeada', 'tarefas renomeadas')}.` : 'Nada a renomear.'
           ),
-        onError: (x) => toast.error(x.message)
+        onError: (x) => erro(x)
       }
     )
   const caminho = (id: string): string[] => {
@@ -139,7 +140,8 @@ export function useMenusCronograma(
     caminho(g.id)
       .map((x) => porId.get(x)?.nome ?? '')
       .join(' › ')
-  const erro = (x: Error): void => void toast.error(x.message)
+  const erro = (x: Error): void =>
+    void toast.error(`Não foi possível concluir a alteração no plano. ${traduzirErro(x.message)}`)
 
   /** Executa o comando; a promessa termina com a prévia aplicada (ou o aviso/erro mostrado) e nunca rejeita. */
   const executar = async (cmd: ComandoEdicao): Promise<void> => {
@@ -155,7 +157,10 @@ export function useMenusCronograma(
   const remover = async (ids: string[]): Promise<void> => {
     const grs = ids.filter((x) => porId.get(x)?.tipo_no === 'grupo')
     const ok = await confirmar({
-      title: ids.length === 1 ? 'Remover do plano?' : `Remover ${ids.length} itens do plano?`,
+      title:
+        ids.length === 1
+          ? `Remover "${porId.get(ids[0]!)?.nome ?? 'item'}" do plano?`
+          : `Remover ${ids.length} itens do plano?`,
       description: grs.length
         ? 'Remover uma tarefa-resumo remove tudo o que está dentro dela.'
         : 'As dependências das tarefas removidas também saem.',
@@ -165,7 +170,15 @@ export function useMenusCronograma(
     if (!ok) return
     excluir.mutate(
       { planejamentoId: planoId, ids },
-      { onSuccess: () => aoRemover?.(), onError: erro }
+      {
+        onSuccess: () => {
+          toast.success(
+            ids.length === 1 ? 'Item removido do plano.' : `${ids.length} itens removidos do plano.`
+          )
+          aoRemover?.()
+        },
+        onError: erro
+      }
     )
   }
 

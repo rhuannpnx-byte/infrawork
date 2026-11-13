@@ -64,7 +64,7 @@ export function ProducaoSessionRoute() {
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
       {/* Top bar — Voltar vai pra LISTA, não pro Setup. Setup é só pra criar nova. */}
-      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pl-safe pr-safe pt-safe">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg-base pt-safe pl-safe pr-safe">
         <div className="flex items-center gap-2 px-2 py-2">
           <Button
             variant="ghost"
@@ -76,20 +76,25 @@ export function ProducaoSessionRoute() {
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-on-surface">Sessão de produção</h1>
+            {/* a data e a contagem primeiro: o fim da linha é o que o corte esconde em tela estreita */}
             <p className="truncate text-xs text-on-surface-dim">
-              {[store.obraCodigo, store.encarregadoNome, store.equipeNome, formatBR(store.dt)]
+              {[
+                formatBR(store.dt),
+                contar(store.itens.length, 'lançamento', 'lançamentos'),
+                store.encarregadoNome,
+                store.equipeNome,
+              ]
                 .filter(Boolean)
-                .join(' · ')}{' '}
-              · {contar(store.itens.length, 'lançamento', 'lançamentos')}
+                .join(' · ')}
             </p>
           </div>
         </div>
       </header>
 
       {/* Lista de itens (ou estado vazio) */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex flex-1 flex-col overflow-y-auto">
         {store.itens.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-8">
+          <div className="flex flex-1 items-center justify-center p-8 pb-28">
             <div className="text-center">
               <p className="font-medium text-on-surface">Nenhum serviço lançado ainda</p>
               <p className="mt-2 text-sm text-on-surface-dim">
@@ -98,7 +103,7 @@ export function ProducaoSessionRoute() {
             </div>
           </div>
         ) : (
-          <ul className="mx-auto max-w-2xl space-y-3 p-4">
+          <ul className="mx-auto w-full max-w-2xl space-y-3 p-4">
             {store.itens.map((item) => (
               <li key={item.id}>
                 <ApontamentoCard
@@ -154,7 +159,7 @@ export function ProducaoSessionRoute() {
 
       {/* Bottom action */}
       {store.itens.length > 0 && (
-        <div className="sticky bottom-0 space-y-2 border-t border-border bg-bg-base px-safe-4 pb-safe-plus-4 pt-4">
+        <div className="sticky bottom-0 space-y-2 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
           {finalizeError && (
             <p role="alert" className="text-center text-sm text-bad">
               {finalizeError}
@@ -253,22 +258,17 @@ function ApontamentoCard({
   return (
     <div className="card-surface flex items-stretch overflow-hidden">
       <button type="button" onClick={onClick} className="min-w-0 flex-1 p-4 text-left">
-        <div className="flex items-start gap-2">
-          <p className="min-w-0 flex-1 truncate font-medium text-on-surface">
-            {item.servico.descricao}
-          </p>
-          <Situacao item={item} />
-        </div>
-        <div className="mt-1 flex flex-wrap items-baseline gap-3">
+        {/* o nome inteiro na primeira linha; a situação do envio ao lado da quantidade */}
+        <p className="font-medium text-on-surface">{item.servico.descricao}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
           {item.qtd != null && (
-            <span className="text-lg font-semibold text-accent tabular">
+            <span className="tabular text-lg font-semibold text-accent">
               {formatNumero(item.qtd)} {item.servico.unidade ?? ''}
             </span>
           )}
-          {tags.length > 0 && (
-            <span className="text-xs text-on-surface-dim">{tags.join('  ·  ')}</span>
-          )}
+          <Situacao item={item} />
         </div>
+        {tags.length > 0 && <p className="mt-1 text-xs text-on-surface-dim">{tags.join(' · ')}</p>}
         {item.syncStatus === 'REJEITADA' && item.failureReason ? (
           <p className="mt-2 rounded-md bg-bad/10 px-3 py-2 text-sm text-bad">
             Motivo: {item.failureReason}
@@ -280,17 +280,17 @@ function ApontamentoCard({
         type="button"
         onClick={onFoto}
         className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-accent transition-colors hover:bg-accent/10"
-        aria-label="Foto deste lançamento"
+        aria-label={`Foto do lançamento de ${item.servico.descricao}`}
       >
-        <Camera className="h-5 w-5" />
+        <Camera className="h-5 w-5" aria-hidden />
       </button>
       <button
         type="button"
         onClick={onDelete}
         className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-bad transition-colors hover:bg-bad/10"
-        aria-label="Excluir lançamento"
+        aria-label={`Excluir o lançamento de ${item.servico.descricao}`}
       >
-        <X className="h-5 w-5" />
+        <X className="h-5 w-5" aria-hidden />
       </button>
     </div>
   )

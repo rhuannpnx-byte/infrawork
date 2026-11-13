@@ -124,7 +124,7 @@ function Conteudo({
                   <td className="px-2 py-1 text-text">
                     {l.rotulo}
                     {!l.manual ? (
-                      <span className="ml-2 rounded bg-bg-elevated px-1 text-2xs text-text-muted">
+                      <span className="ml-2 rounded bg-bg-elevated px-1 text-xs text-text-muted">
                         do template
                       </span>
                     ) : null}
@@ -137,7 +137,8 @@ function Conteudo({
                       value={partes[i] ?? ''}
                       disabled={!l.manual}
                       inputMode="decimal"
-                      className="h-6 text-right"
+                      aria-label={`Quantidade de ${l.rotulo} para a tarefa nova`}
+                      className="h-7 px-1.5 text-right text-xs tabular"
                       onChange={(x) =>
                         setPartes(partes.map((p, j) => (j === i ? x.target.value : p)))
                       }

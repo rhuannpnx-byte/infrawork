@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useCreateTaxa } from '../hooks/taxas'
 import { fmtPct2, parseBR } from '@/lib/money'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
@@ -115,9 +116,7 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(
-        `Não foi possível criar a taxa. ${err instanceof Error ? err.message : 'Tente de novo.'}`
-      )
+      setError(`Não foi possível criar a taxa. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
     }
   }
 
@@ -154,7 +153,7 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               autoComplete="off"
-              autoFocus
+              data-foco-inicial=""
               placeholder="Ex.: Padrão, Lucro real 2026"
             />
           </Campo>
