@@ -12,17 +12,24 @@ interface Props {
   mostrarFotos: boolean
   mostrarSeq: boolean
   fotos: LegendaItem[]
+  trechos?: LegendaItem[]
 }
 
 /**
  * Legenda flutuante (canto inferior esquerdo) que acompanha as camadas ativas: a cor dos marcadores (por equipe
- * ou por serviço) e a seta da sequência de ataque.
+ * ou por serviço), os trechos da obra e a seta da sequência de ataque.
  */
-export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props): ReactNode {
+export function MapaLegenda({
+  corPor,
+  mostrarFotos,
+  mostrarSeq,
+  fotos,
+  trechos = []
+}: Props): ReactNode {
   const [aberto, setAberto] = useState(true)
 
   const temFotos = mostrarFotos && fotos.length > 0
-  if (!temFotos && !mostrarSeq) return null
+  if (!temFotos && !mostrarSeq && trechos.length === 0) return null
 
   return (
     <div className="rounded border border-border-strong bg-[color:var(--popover)] shadow-[var(--sombra-flutuante)] overflow-hidden w-[220px]">
@@ -53,6 +60,19 @@ export function MapaLegenda({ corPor, mostrarFotos, mostrarSeq, fotos }: Props):
                 <Linha key={`f${i}`} label={it.label}>
                   <span
                     className="size-2.5 rounded-full border border-border-strong shrink-0"
+                    style={{ background: it.cor }}
+                  />
+                </Linha>
+              ))}
+            </Grupo>
+          )}
+
+          {trechos.length > 0 && (
+            <Grupo titulo="Trechos">
+              {trechos.map((it, i) => (
+                <Linha key={`t${i}`} label={it.label}>
+                  <span
+                    className="w-4 h-[3px] rounded-sm shrink-0"
                     style={{ background: it.cor }}
                   />
                 </Linha>

@@ -12,6 +12,9 @@ import { addBaseMapEsri, aplicarVisibilidadeBase, type BaseMapLayers } from '@/l
 import { useMapaPrefsStore } from '../../stores/mapa-prefs'
 import { useTabVisible } from '@/app/tab-visible'
 import { loadLeaflet } from '@/lib/leaflet/carregar'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
+import type { ObraTrecho } from '@/types/gerencial'
 
 interface Props {
   fotos: FotoEnriquecida[]
@@ -74,6 +77,7 @@ interface PointProps {
   cores?: Record<string, number>
 }
 type Valida = Omit<FotoEnriquecida, 'lat' | 'lng'> & { lat: number; lng: number; _idx: number }
+type TrechoGeo = ObraTrecho & { geometry_geojson: GeoJSON.LineString }
 
 /** Fundo do cluster: pizza (conic-gradient) com fatias proporcionais por serviço.
  *  Antes usávamos só a cor DOMINANTE — ao diminuir o zoom, um cluster com CBUQ +
@@ -111,6 +115,8 @@ export function MapaFotosSatelite({
   const baseLayersRef = useRef<BaseMapLayers | null>(null)
   const fotosLayerRef = useRef<import('leaflet').LayerGroup | null>(null)
   const seqLayerRef = useRef<import('leaflet').LayerGroup | null>(null)
+  const trechosLayerRef = useRef<import('leaflet').LayerGroup | null>(null)
+  const trechosRendererRef = useRef<import('leaflet').Renderer | null>(null)
   const supRef = useRef<Supercluster<PointProps> | null>(null)
   const supSigRef = useRef<string>('')
   const seqRendererRef = useRef<import('leaflet').Renderer | null>(null)
@@ -124,11 +130,27 @@ export function MapaFotosSatelite({
 
   const corPor = useMapaPrefsStore((s) => s.corPor)
   const mostrarFotos = useMapaPrefsStore((s) => s.mostrarFotos)
+  const mostrarTrechos = useMapaPrefsStore((s) => s.mostrarTrechos)
   const mostrarSequenciaAtaque = useMapaPrefsStore((s) => s.mostrarSequenciaAtaque)
   const mostrarLegenda = useMapaPrefsStore((s) => s.mostrarLegenda)
   const camadaSatelite = useMapaPrefsStore((s) => s.camadaSatelite)
   const camadaFronteiras = useMapaPrefsStore((s) => s.camadaFronteiras)
   const camadaRodovias = useMapaPrefsStore((s) => s.camadaRodovias)
+
+  // Linhas importadas do KML/KMZ em Planejamento › Locais (trecho sem geometria não entra).
+  const { obraId } = useCurrentScope()
+  const { data: trechosObra } = useObraTrechos(obraId)
+  const trechos = useMemo<TrechoGeo[]>(
+    () =>
+      (trechosObra ?? []).filter(
+        (t): t is TrechoGeo => (t.geometry_geojson?.coordinates?.length ?? 0) >= 2
+      ),
+    [trechosObra]
+  )
+  const legendaTrechos = useMemo<LegendaItem[]>(
+    () => (mostrarTrechos ? trechos.map((t) => ({ label: t.nome, cor: t.cor })) : []),
+    [trechos, mostrarTrechos]
+  )
 
   const validas = useMemo<Valida[]>(
     () =>
@@ -332,6 +354,40 @@ export function MapaFotosSatelite({
     }
   }
 
+  // ── Render: TRECHOS (linha do KML/KMZ com casca escura, nome ao passar o mouse) ──
+  const renderTrechos = (): void => {
+    const L = LRef.current,
+      lay = trechosLayerRef.current
+    if (!L || !lay) return
+    lay.clearLayers()
+    if (!mostrarTrechos) return
+    const rnd = trechosRendererRef.current ?? undefined
+    for (const t of trechos) {
+      const latLngs = t.geometry_geojson.coordinates.map((c) => [c[1], c[0]] as [number, number])
+      L.polyline(latLngs, {
+        pane: 'trechos',
+        renderer: rnd,
+        interactive: false,
+        color: '#0b1726',
+        weight: 8,
+        opacity: 0.55,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(lay)
+      L.polyline(latLngs, {
+        pane: 'trechos',
+        renderer: rnd,
+        color: t.cor,
+        weight: 4,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round'
+      })
+        .bindTooltip(esc(t.nome), { sticky: true, direction: 'top' })
+        .addTo(lay)
+    }
+  }
+
   // ── Render: SEQUÊNCIA DE ATAQUE ──
   const renderSeq = (): void => {
     const L = LRef.current,
@@ -472,6 +528,12 @@ export function MapaFotosSatelite({
           cp.style.pointerEvents = 'none'
         }
         seqRendererRef.current = L.svg({ pane: 'seqAtaque' })
+        // Trechos entre os tiles (200) e as fotos (600): a linha fica sob os marcadores.
+        map.createPane('trechos')
+        const tp = map.getPane('trechos')
+        if (tp) tp.style.zIndex = '350'
+        trechosRendererRef.current = L.svg({ pane: 'trechos' })
+        trechosLayerRef.current = L.layerGroup().addTo(map)
         seqLayerRef.current = L.layerGroup().addTo(map)
         fotosLayerRef.current = L.layerGroup().addTo(map)
         // Re-render do que depende de zoom/pan (clusters + decimação de marcadores).
@@ -493,6 +555,7 @@ export function MapaFotosSatelite({
       camadaFronteiras,
       camadaRodovias
     })
+    renderTrechos()
     renderSeq()
     renderFotos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -500,20 +563,25 @@ export function MapaFotosSatelite({
     ready,
     validas,
     sequencias,
+    trechos,
     corPor,
     mostrarFotos,
+    mostrarTrechos,
     mostrarSequenciaAtaque,
     camadaSatelite,
     camadaFronteiras,
     camadaRodovias
   ])
 
-  // ── Auto-fit: só quando o conjunto de fotos muda ──
+  // ── Auto-fit: quando o conjunto de fotos ou de trechos muda (enquadra os dois) ──
   useEffect(() => {
     if (!ready) return
     const map = mapRef.current
     if (!map) return
     const pts: Array<[number, number]> = validas.map((v) => [v.lat, v.lng])
+    if (mostrarTrechos)
+      for (const t of trechos)
+        for (const c of t.geometry_geojson.coordinates) pts.push([c[1], c[0]])
     if (pts.length === 0) {
       map.setView([-15.78, -47.93], 4, { animate: false })
       return
@@ -534,7 +602,7 @@ export function MapaFotosSatelite({
         ],
         { padding: [40, 40], maxZoom: 16, animate: false }
       )
-  }, [ready, validas])
+  }, [ready, validas, trechos, mostrarTrechos])
 
   // ResizeObserver — invalida tamanho quando o container muda.
   useEffect(() => {
@@ -632,6 +700,7 @@ export function MapaFotosSatelite({
             mostrarFotos={mostrarFotos}
             mostrarSeq={mostrarSequenciaAtaque}
             fotos={legendaFotos}
+            trechos={legendaTrechos}
           />
         </div>
       )}

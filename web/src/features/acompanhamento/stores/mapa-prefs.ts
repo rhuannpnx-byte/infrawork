@@ -15,6 +15,7 @@ export interface MapaPrefs {
   camadaRodovias: boolean
   // Camadas de dados
   mostrarFotos: boolean
+  mostrarTrechos: boolean
   mostrarSequenciaAtaque: boolean
   mostrarLegenda: boolean
   // Cor dos marcadores de foto
@@ -32,6 +33,7 @@ export const MAPA_PREFS_PADRAO: MapaPrefs = {
   camadaFronteiras: true,
   camadaRodovias: true,
   mostrarFotos: true,
+  mostrarTrechos: true,
   mostrarSequenciaAtaque: false,
   mostrarLegenda: true,
   corPor: 'equipe'
@@ -53,6 +55,7 @@ export const useMapaPrefsStore = create<MapaPrefsStore>()(
         camadaFronteiras: s.camadaFronteiras,
         camadaRodovias: s.camadaRodovias,
         mostrarFotos: s.mostrarFotos,
+        mostrarTrechos: s.mostrarTrechos,
         mostrarSequenciaAtaque: s.mostrarSequenciaAtaque,
         mostrarLegenda: s.mostrarLegenda,
         corPor: s.corPor

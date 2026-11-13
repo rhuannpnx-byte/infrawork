@@ -46,6 +46,7 @@ export function MapaConfigPopover(): ReactNode {
         </Grupo>
         <Grupo titulo="Dados">
           <Toggle k="mostrarFotos" label="Fotos" prefs={prefs} />
+          <Toggle k="mostrarTrechos" label="Trechos da obra" prefs={prefs} />
           <Toggle k="mostrarSequenciaAtaque" label="Sequência de ataque" prefs={prefs} />
           <Toggle k="mostrarLegenda" label="Legenda" prefs={prefs} />
         </Grupo>
