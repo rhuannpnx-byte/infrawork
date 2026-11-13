@@ -83,7 +83,7 @@ export function ProjectSwitcher(): ReactNode {
           {step === 'empresa' ? 'Selecionar empresa' : 'Selecionar obra'}
           {step === 'obra' && scope.empresaId ? (
             <Badge variant="default" className="ml-1">
-              <Building2 size={9} /> {empresaLabel}
+              <Building2 size={12} /> {empresaLabel}
             </Badge>
           ) : null}
         </DialogTitle>
@@ -91,7 +91,7 @@ export function ProjectSwitcher(): ReactNode {
 
       <DialogBody className="pt-0">
         <div className="relative mb-3">
-          <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim" />
+          <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim" />
           <Input
             placeholder={step === 'empresa' ? 'Buscar empresa…' : 'Buscar obra…'}
             value={query}
@@ -200,9 +200,9 @@ function EmpresasList({
           >
             <div className="flex items-center gap-2 min-w-0">
               {isActive ? (
-                <Star size={11} className="text-warn fill-warn shrink-0" />
+                <Star size={12} className="text-warn fill-warn shrink-0" />
               ) : (
-                <Building2 size={11} className="text-text-muted shrink-0" />
+                <Building2 size={12} className="text-text-muted shrink-0" />
               )}
               <span className="text-sm text-text font-medium truncate">{it.nome}</span>
             </div>
@@ -272,9 +272,9 @@ function ObrasList({
           >
             <div className="flex items-center gap-2 mb-1">
               {isActive ? (
-                <Star size={11} className="text-warn fill-warn" />
+                <Star size={12} className="text-warn fill-warn" />
               ) : (
-                <Folder size={11} className="text-text-muted" />
+                <Folder size={12} className="text-text-muted" />
               )}
               <span className="font-mono text-accent text-xs">{o.codigo}</span>
               <Badge>{o.status.replace('_', ' ')}</Badge>

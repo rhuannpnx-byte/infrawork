@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import {
   MCP_URL,
   useCriarTokenIA,
@@ -63,7 +64,7 @@ function Trecho({ texto, testId }: { texto: string; testId?: string }): ReactNod
         {texto}
       </pre>
       <Button type="button" size="sm" variant="secondary" onClick={() => copiar(texto)}>
-        <Copy size={11} />
+        <Copy size={12} />
       </Button>
     </div>
   )
@@ -228,7 +229,7 @@ export function TokensIADialog({
       icone: <KeyRound size={12} />,
       titulo: 'Seus tokens',
       estado: status.ativos.length > 0 ? 'ok' : 'off',
-      texto: `${status.ativos.length} ativo(s) · último uso ${dataBR(status.ultimoUso)}`
+      texto: `${contar(status.ativos.length, 'ativo', 'ativos')} · último uso ${dataBR(status.ultimoUso)}`
     }
   ]
 
@@ -264,7 +265,7 @@ export function TokensIADialog({
             {MCP_URL}
           </button>
           <Button type="button" size="sm" variant="ghost" className="ml-auto" onClick={recarregar}>
-            <RefreshCw size={11} /> Verificar
+            <RefreshCw size={12} /> Verificar
           </Button>
         </div>
         <p className="text-text-muted">
@@ -337,7 +338,7 @@ export function TokensIADialog({
                   {novo}
                 </code>
                 <Button type="button" size="sm" variant="secondary" onClick={() => copiar(novo)}>
-                  <Copy size={11} /> Copiar
+                  <Copy size={12} /> Copiar
                 </Button>
               </div>
             </div>

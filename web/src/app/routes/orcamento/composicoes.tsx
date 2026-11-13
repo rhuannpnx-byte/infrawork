@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase/client'
 import { formatNumber } from '@/lib/format'
 import { fmtBRL4 } from '@/lib/money'
 import { formatDate } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import type { CpuComServico } from '@/types/orcamento'
 import { nomeDaCpu } from '@/features/orcamento/lib/nomeDaCpu'
 import { ImportComposicoesDialog } from '@/features/orcamento/modals/ImportComposicoesDialog'
@@ -58,7 +59,7 @@ function ComposicoesInner(): ReactNode {
       return
     }
     const ok = await confirm({
-      title: `Excluir ${rows.length} composição(ões)?`,
+      title: `Excluir ${contar(rows.length, 'composição', 'composições')}?`,
       description: (
         <div className="space-y-2">
           <p>
@@ -68,9 +69,12 @@ function ComposicoesInner(): ReactNode {
           {preview.itensOrcamentoComCpuOrigem > 0 ? (
             <p>
               <span className="text-text-dim">
-                {preview.itensOrcamentoComCpuOrigem} serviço(s) do orçamento
+                {contar(preview.itensOrcamentoComCpuOrigem, 'serviço', 'serviços')} do orçamento
               </span>{' '}
-              usam essas composições e ficam sem custo (o orçamento é recalculado na hora).
+              {preview.itensOrcamentoComCpuOrigem === 1
+                ? 'usa essas composições e fica'
+                : 'usam essas composições e ficam'}{' '}
+              sem custo (o orçamento é recalculado na hora).
             </p>
           ) : null}
         </div>
@@ -93,7 +97,7 @@ function ComposicoesInner(): ReactNode {
         toast.error(`Falha ao excluir: ${errCpu.message}`)
         return
       }
-      toast.success(`${rows.length} composição(ões) excluída(s).`)
+      toast.success(`${contar(rows.length, 'composição excluída', 'composições excluídas')}.`)
     } finally {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
       void qc.invalidateQueries({ queryKey: ['orcamento', 'cpu'] })
@@ -193,14 +197,14 @@ function ComposicoesInner(): ReactNode {
           podeEditar ? (
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                <FileUp size={11} /> Importar
+                <FileUp size={12} /> Importar
               </Button>
               <Button
                 variant="default"
                 size="sm"
                 onClick={() => navigate({ to: '/orcamento/composicoes/nova' })}
               >
-                <Plus size={11} /> Nova composição
+                <Plus size={12} /> Nova composição
               </Button>
             </div>
           ) : null
@@ -222,14 +226,14 @@ function ComposicoesInner(): ReactNode {
               podeEditar ? (
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                    <FileUp size={11} /> Importar modelo
+                    <FileUp size={12} /> Importar modelo
                   </Button>
                   <Button
                     variant="default"
                     size="sm"
                     onClick={() => navigate({ to: '/orcamento/composicoes/nova' })}
                   >
-                    <Plus size={11} /> Nova composição
+                    <Plus size={12} /> Nova composição
                   </Button>
                 </div>
               ) : null
@@ -258,7 +262,7 @@ function ComposicoesInner(): ReactNode {
                     className="text-danger hover:bg-danger/10"
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={11} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
+                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
                   </Button>
                 )
               : undefined

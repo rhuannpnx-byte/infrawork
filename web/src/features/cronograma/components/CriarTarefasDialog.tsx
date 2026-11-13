@@ -35,6 +35,7 @@ import {
   type SegmentoValores
 } from '@/lib/quantidades/segmentos'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import { invalidarCronograma } from '../hooks/calculo'
 import {
@@ -811,10 +812,10 @@ function Conteudo({
         <span className="mr-auto text-2xs text-text-dim">
           {aba === 'quantidades'
             ? celulas.size
-              ? `${celulas.size} célula(s) marcada(s)`
+              ? contar(celulas.size, 'célula marcada', 'células marcadas')
               : ''
             : sel.size
-              ? `${sel.size} selecionado(s)`
+              ? contar(sel.size, 'selecionado', 'selecionados')
               : ''}
         </span>
         <Button variant="ghost" onClick={onFechar} disabled={salvando}>

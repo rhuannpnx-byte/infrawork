@@ -461,7 +461,7 @@ function SentidoStep({
             Trocar arquivo
           </Button>
           <Button variant="ghost" size="sm" onClick={onInverter}>
-            <ArrowLeftRight size={11} /> Inverter orientação
+            <ArrowLeftRight size={12} /> Inverter orientação
           </Button>
         </div>
       </div>

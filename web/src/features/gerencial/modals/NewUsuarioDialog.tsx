@@ -16,6 +16,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useCreateUsuario, useEmpresas, useEngenheiros } from '../hooks'
 import { maskWhatsappBR } from '@/lib/format'
 import { gerarSenha } from './RedefinirSenhaDialog'
+import { ROTULO_PAPEL } from '@/lib/rotulos'
 import type { Role } from '@/types/auth'
 
 interface Props {
@@ -39,11 +40,7 @@ function rolesAllowedFor(caller: Role | undefined): Role[] {
 }
 
 const ROLE_LABEL: Record<Role, string> = {
-  god: 'God',
-  adm: 'Administrador',
-  engenheiro: 'Engenheiro',
-  apoio: 'Apoio',
-  cliente: 'Cliente',
+  ...ROTULO_PAPEL,
   apontador: 'Apontador (app de campo)'
 }
 

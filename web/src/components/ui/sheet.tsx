@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode, type HTMLAttributes } from 'react'
+import { useRef, type ReactNode, type HTMLAttributes } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { IconButton } from './IconButton'
+import { useCamadaModal } from './camada-modal'
 
 interface SheetProps {
   open: boolean
@@ -18,14 +19,8 @@ export function Sheet({
   side = 'right',
   className
 }: SheetProps): ReactNode {
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onOpenChange(false)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onOpenChange])
+  const ref = useRef<HTMLDivElement>(null)
+  useCamadaModal(open, ref, { aoFechar: () => onOpenChange(false) })
 
   if (!open) return null
 
@@ -38,10 +33,15 @@ export function Sheet({
         if (e.target === e.currentTarget) onOpenChange(false)
       }}
     >
-      <div className="absolute inset-0 bg-[color:var(--veu)] animate-fade-in" />
       <div
+        className="absolute inset-0 bg-[color:var(--veu)] animate-fade-in"
+        onClick={() => onOpenChange(false)}
+      />
+      <div
+        ref={ref}
+        tabIndex={-1}
         className={cn(
-          'absolute top-0 bottom-0 w-[420px] bg-bg-panel border-border-strong shadow-2xl flex flex-col',
+          'absolute top-0 bottom-0 w-[420px] max-w-full bg-bg-panel border-border-strong shadow-[var(--sombra-flutuante)] flex flex-col focus:outline-none',
           side === 'right' ? 'right-0 border-l' : 'left-0 border-r',
           className
         )}
@@ -49,6 +49,7 @@ export function Sheet({
         <IconButton
           size="sm"
           aria-label="Fechar"
+          data-fechar=""
           onClick={() => onOpenChange(false)}
           className="absolute top-2 right-2 z-10"
         >
@@ -65,7 +66,7 @@ export function SheetHeader({ className, ...props }: HTMLAttributes<HTMLDivEleme
 }
 
 export function SheetTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>): ReactNode {
-  return <h2 className={cn('text-md font-semibold text-text', className)} {...props} />
+  return <h2 className={cn('text-lg font-semibold text-text pr-8', className)} {...props} />
 }
 
 export function SheetBody({ className, ...props }: HTMLAttributes<HTMLDivElement>): ReactNode {

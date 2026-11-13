@@ -43,6 +43,7 @@ import { Dropdown, DropdownItem, DropdownSeparator } from '@/components/ui/dropd
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import {
   useCalendariosObra,
   useExcluirCalendario,
@@ -134,13 +135,7 @@ const ddmm = (d: number): string => {
   return `${x.slice(8, 10)}/${x.slice(5, 7)}`
 }
 
-export function CalendariosPagina({
-  obraId,
-  obraNome
-}: {
-  obraId: string
-  obraNome: string
-}): ReactNode {
+export function CalendariosPagina({ obraId }: { obraId: string }): ReactNode {
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const ro = role === 'apoio' || role === 'cliente'
   const q = useCalendariosObra(obraId)
@@ -166,7 +161,7 @@ export function CalendariosPagina({
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Calendários"
-        subtitle={`${obraNome} · expediente, feriados e fatores de produtividade usados pelo cronograma`}
+        subtitle="Expediente, feriados e fatores de produtividade usados pelo cronograma"
         actions={
           !ro ? (
             <Button size="sm" onClick={() => novo(null)} disabled={salvar.isPending}>
@@ -262,7 +257,7 @@ function SeletorCalendario({
       )}
       {c.padrao ? (
         <span className="flex shrink-0 items-center gap-1 text-2xs text-warn">
-          <Star size={11} className="fill-[var(--warn)]" /> padrão
+          <Star size={12} className="fill-[var(--warn)]" /> padrão
         </span>
       ) : null}
       {!ro ? (
@@ -389,7 +384,8 @@ function EditorCalendario({
       })
     if (!novos.length) return void toast.info('Os feriados nacionais já estão no calendário.')
     salvarDefs.mutate(novos, {
-      onSuccess: () => toast.success(`${novos.length} feriado(s) incluído(s).`),
+      onSuccess: () =>
+        toast.success(`${contar(novos.length, 'feriado incluído', 'feriados incluídos')}.`),
       onError: erro
     })
   }

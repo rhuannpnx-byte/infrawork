@@ -28,7 +28,7 @@ export function MedicaoTable({ rows, onExportar, exportando }: Props): ReactNode
           onClick={onExportar}
           disabled={exportando || rows.length === 0}
         >
-          <Download size={11} /> {exportando ? 'Exportando…' : 'Exportar .xlsx'}
+          <Download size={12} /> {exportando ? 'Exportando…' : 'Exportar .xlsx'}
         </Button>
       </div>
 

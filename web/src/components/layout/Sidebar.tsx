@@ -175,7 +175,7 @@ function ItemMenu({
     >
       {icone}
       <span className="flex-1 truncate">{rotulo}</span>
-      {bloqueado ? <Lock size={11} className="shrink-0" /> : null}
+      {bloqueado ? <Lock size={12} className="shrink-0" /> : null}
     </button>
   )
 }

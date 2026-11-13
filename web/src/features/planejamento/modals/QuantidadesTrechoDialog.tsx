@@ -397,7 +397,7 @@ export function QuantidadesTrechoDialog({
                 ) : null}
                 {passoTipo === 'livre' && editavel ? (
                   <Button size="sm" variant="secondary" onClick={addFaixa}>
-                    <Plus size={11} /> Faixa
+                    <Plus size={12} /> Faixa
                   </Button>
                 ) : null}
               </>
@@ -410,14 +410,14 @@ export function QuantidadesTrechoDialog({
             </span>
             <div className="ml-auto flex gap-1.5">
               <Button size="sm" variant="ghost" onClick={() => setVerHistorico((v) => !v)}>
-                <History size={11} /> Versões ({versoes.length})
+                <History size={12} /> Versões ({versoes.length})
               </Button>
               <Button size="sm" variant="secondary" onClick={() => void exportar()}>
-                <Download size={11} /> Exportar
+                <Download size={12} /> Exportar
               </Button>
               {editavel ? (
                 <Button size="sm" variant="secondary" onClick={() => setImportarOpen(true)}>
-                  <Upload size={11} /> Importar planilha…
+                  <Upload size={12} /> Importar planilha…
                 </Button>
               ) : null}
             </div>
@@ -461,7 +461,7 @@ export function QuantidadesTrechoDialog({
                           )
                       }}
                     >
-                      <RotateCcw size={11} /> Restaurar
+                      <RotateCcw size={12} /> Restaurar
                     </Button>
                   ) : null}
                 </div>
@@ -524,7 +524,7 @@ export function QuantidadesTrechoDialog({
         </Button>
         {editavel ? (
           <Button disabled={salvar.isPending} onClick={() => void gravar()}>
-            <Save size={11} /> Salvar quantidades
+            <Save size={12} /> Salvar quantidades
           </Button>
         ) : null}
       </DialogFooter>

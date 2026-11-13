@@ -567,7 +567,7 @@ export function ImportarQuantidadesDialog({
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <Button variant="secondary" onClick={() => void escolherArquivo()} disabled={!!trava}>
-                <Upload size={11} /> Escolher planilha…
+                <Upload size={12} /> Escolher planilha…
               </Button>
               {arquivo ? (
                 <span className="text-xs text-text-muted inline-flex items-center gap-1.5">
@@ -931,7 +931,7 @@ export function ImportarQuantidadesDialog({
             onClick={() => setPasso((p) => (p === 3 ? 2 : 1))}
             disabled={gravando}
           >
-            <ArrowLeft size={11} /> Voltar
+            <ArrowLeft size={12} /> Voltar
           </Button>
         ) : null}
         {passo < 3 ? (
@@ -939,14 +939,14 @@ export function ImportarQuantidadesDialog({
             onClick={() => setPasso((p) => (p === 1 ? 2 : 3))}
             disabled={(passo === 1 && !podeAvancar1) || (passo === 2 && !podeAvancar2)}
           >
-            Continuar <ArrowRight size={11} />
+            Continuar <ArrowRight size={12} />
           </Button>
         ) : (
           <Button
             onClick={() => void gravar()}
             disabled={gravando || !!trava || bloqueios.length > 0 || ativos.length === 0}
           >
-            <Save size={11} />{' '}
+            <Save size={12} />{' '}
             {gravando
               ? 'Gravando…'
               : `Gravar em ${ativos.length} ${ativos.length === 1 ? 'local' : 'locais'}`}

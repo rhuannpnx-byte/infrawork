@@ -71,7 +71,6 @@ function PlanilhaInicialInner(): ReactNode {
         <PageHeader
           title="Planilha Inicial"
           breadcrumb={['Orçamento', 'Planilha Orçamentária', 'Planilha Inicial']}
-          subtitle={scope.obra?.nome ?? ''}
           actions={<VoltarPlanilhaButton />}
         />
         <EmptyState
@@ -97,7 +96,7 @@ function PlanilhaInicialInner(): ReactNode {
       <PageHeader
         title="Planilha Inicial"
         breadcrumb={['Orçamento', 'Planilha Orçamentária', 'Planilha Inicial']}
-        subtitle={`${scope.obra?.nome ?? ''} — arquivada em ${fmtDataBR(inicial.criada_em.slice(0, 10))} (antes do 1º aditivo)`}
+        subtitle={`Arquivada em ${fmtDataBR(inicial.criada_em.slice(0, 10))} (antes do 1º aditivo)`}
         actions={
           <div className="flex items-center gap-3">
             <VoltarPlanilhaButton />

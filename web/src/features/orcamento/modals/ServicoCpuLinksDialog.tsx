@@ -401,7 +401,7 @@ function ServicoCpuLinksDialogContent({
                                 className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed"
                                 title="Subir"
                               >
-                                <ArrowUp size={11} />
+                                <ArrowUp size={12} />
                               </button>
                               <button
                                 type="button"
@@ -410,7 +410,7 @@ function ServicoCpuLinksDialogContent({
                                 className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed"
                                 title="Descer"
                               >
-                                <ArrowDown size={11} />
+                                <ArrowDown size={12} />
                               </button>
                               <button
                                 type="button"
@@ -420,7 +420,7 @@ function ServicoCpuLinksDialogContent({
                                 className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
                                 title="Remover vínculo"
                               >
-                                <Trash2 size={11} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           </td>
@@ -482,7 +482,7 @@ function ServicoCpuLinksDialogContent({
                   disabled={upsertLink.isPending || !novoCpuId}
                   className="w-full"
                 >
-                  <Plus size={11} /> Vincular
+                  <Plus size={12} /> Vincular
                 </Button>
               </div>
             </div>

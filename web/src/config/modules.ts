@@ -217,7 +217,7 @@ export const MODULES: ModuleConfig[] = [
           },
           {
             icon: 'git-compare',
-            label: 'Comparar baseline',
+            label: 'Comparar planos',
             route: '/planejamento/comparar',
             requiresObra: true
           }

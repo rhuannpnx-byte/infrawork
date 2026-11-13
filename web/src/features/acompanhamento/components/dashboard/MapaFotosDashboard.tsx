@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { MapPin, ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { MapaFotosSatelite } from '../fotos/MapaFotosSatelite'
 import type { FotoEnriquecida, SequenciaAtaque } from '@/types/acompanhamento'
@@ -30,15 +30,13 @@ export function MapaFotosDashboard({
       className="rounded border border-border bg-bg-panel overflow-hidden flex flex-col"
       style={{ height: altura }}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
-        <h4 className="text-xs font-semibold text-text flex items-center gap-1.5">
-          <MapPin size={11} /> Mapa de fotos
-        </h4>
+      <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3 shrink-0">
+        <h4 className="text-md font-semibold text-text flex items-center gap-1.5">Mapa de fotos</h4>
         <button
           onClick={() => navigate({ to: '/acompanhamento/fotos' })}
-          className="text-2xs font-mono text-text-dim hover:text-text inline-flex items-center gap-1"
+          className="text-sm font-semibold text-accent hover:underline inline-flex items-center gap-1"
         >
-          ver tudo <ArrowUpRight size={9} />
+          Abrir fotos e mapa <ArrowUpRight size={12} />
         </button>
       </div>
       <div className="relative flex-1">

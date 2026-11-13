@@ -27,6 +27,7 @@ import { useAditivos } from '@/features/orcamento/hooks/aditivos'
 import { useNavigate } from '@tanstack/react-router'
 import { MoveItemDialog } from '@/features/orcamento/modals/MoveItemDialog'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
+import { contar } from '@/lib/rotulos'
 import type { AlocStatus, ItemTreeNode } from '@/types/orcamento'
 
 export function PlanOrcPage(): ReactNode {
@@ -183,7 +184,7 @@ function PlanilhaOrcamentaria(): ReactNode {
     })
     if (bloqueadas.length > 0) {
       toast.error(
-        `${bloqueadas.length} receita(s) estão alocadas em serviços (${bloqueadas
+        `${contar(bloqueadas.length, 'receita está alocada', 'receitas estão alocadas')} em serviços (${bloqueadas
           .slice(0, 4)
           .map((n) => n.codigo)
           .join(', ')}${bloqueadas.length > 4 ? '…' : ''}) — remova a alocação antes de excluir.`
@@ -203,7 +204,7 @@ function PlanilhaOrcamentaria(): ReactNode {
     }
 
     const ok = await confirm({
-      title: `Excluir ${itensSelecionados.length} item(ns)?`,
+      title: `Excluir ${contar(itensSelecionados.length, 'item', 'itens')}?`,
       description: (
         <div className="space-y-2">
           <p>
@@ -211,22 +212,29 @@ function PlanilhaOrcamentaria(): ReactNode {
           </p>
           {preview.descendentesEmCascata > 0 ? (
             <p>
-              <span className="text-warn">{preview.descendentesEmCascata} descendente(s)</span>{' '}
-              serão apagados em cascata (índices com filhos arrastam tudo).
+              <span className="text-warn">
+                {contar(preview.descendentesEmCascata, 'descendente', 'descendentes')}
+              </span>{' '}
+              {preview.descendentesEmCascata === 1 ? 'será apagado' : 'serão apagados'} em cascata
+              (índices com filhos arrastam tudo).
             </p>
           ) : null}
           {preview.tarefasQueFicarOrfas > 0 ? (
             <p>
               <span className="text-warn">
-                {preview.tarefasQueFicarOrfas} tarefa(s) de planejamento
+                {contar(preview.tarefasQueFicarOrfas, 'tarefa', 'tarefas')} de planejamento
               </span>{' '}
-              ficarão órfãs (perdem o vínculo com o item, inclusive em linha de base). As tarefas{' '}
-              <strong>não</strong> serão apagadas — só desvinculadas. Você pode re-vinculá-las ou
-              apagá-las depois pelo módulo de Planejamento.
+              {preview.tarefasQueFicarOrfas === 1
+                ? 'ficará órfã (perde o vínculo'
+                : 'ficarão órfãs (perdem o vínculo'}{' '}
+              com o item, inclusive em linha de base). As tarefas <strong>não</strong> serão
+              apagadas — só desvinculadas. Você pode re-vinculá-las ou apagá-las depois pelo módulo
+              de Planejamento.
             </p>
           ) : null}
           <p className="text-text-dim">
-            Total a apagar: <strong>{preview.totalParaApagar}</strong> item(ns).
+            Total a apagar: <strong>{preview.totalParaApagar}</strong>{' '}
+            {preview.totalParaApagar === 1 ? 'item' : 'itens'}.
           </p>
         </div>
       ),
@@ -266,7 +274,7 @@ function PlanilhaOrcamentaria(): ReactNode {
         total += ids.length
       }
       const ms = Math.round(performance.now() - t0)
-      toast.success(`${total} item(ns) excluído(s) em ${ms}ms.`)
+      toast.success(`${contar(total, 'item excluído', 'itens excluídos')} em ${ms}ms.`)
     } finally {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'plan-orc', obraId] })
       void qc.invalidateQueries({ queryKey: ['orcamento', 'lucratividade', obraId] })
@@ -278,7 +286,7 @@ function PlanilhaOrcamentaria(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Planilha Orçamentária"
-        subtitle={`${scope.obra?.nome ?? ''} — planilha de venda e serviços`}
+        subtitle="Planilha de venda e serviços"
         actions={
           podeRole ? (
             <div className="flex items-center gap-2">
@@ -290,7 +298,8 @@ function PlanilhaOrcamentaria(): ReactNode {
                     onClick={() => setSelectedIds(new Set())}
                     title="Limpar seleção"
                   >
-                    <X size={11} /> {itensSelecionados.length} selecionado(s)
+                    <X size={12} />{' '}
+                    {contar(itensSelecionados.length, 'selecionado', 'selecionados')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -299,7 +308,7 @@ function PlanilhaOrcamentaria(): ReactNode {
                     onClick={() => void handleBulkDelete()}
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={11} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
+                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
                   </Button>
                 </>
               ) : null}
@@ -321,7 +330,7 @@ function PlanilhaOrcamentaria(): ReactNode {
                   onClick={() => navigate({ to: '/orcamento/obra/aditivos' })}
                   title="Aditivos de contrato (acréscimo, supressão, exclusão, itens novos)"
                 >
-                  <FilePlus2 size={11} /> Aditivos
+                  <FilePlus2 size={12} /> Aditivos
                 </Button>
                 <Button
                   variant="ghost"
@@ -330,7 +339,7 @@ function PlanilhaOrcamentaria(): ReactNode {
                   onClick={() => navigate({ to: '/orcamento/obra/reajustes' })}
                   title="Reajustes anuais por grupos de índices"
                 >
-                  <Percent size={11} /> Reajustes
+                  <Percent size={12} /> Reajustes
                 </Button>
                 {temAditivo ? (
                   <Button
@@ -340,17 +349,17 @@ function PlanilhaOrcamentaria(): ReactNode {
                     onClick={() => navigate({ to: '/orcamento/obra/planilha-inicial' })}
                     title="Planilha do contrato original, arquivada no 1º aditivo"
                   >
-                    <Archive size={11} /> Planilha Inicial
+                    <Archive size={12} /> Planilha Inicial
                   </Button>
                 ) : null}
               </div>
               {podePlanilha ? (
                 <>
                   <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
-                    <FileUp size={11} /> Importar modelo
+                    <FileUp size={12} /> Importar modelo
                   </Button>
                   <Button variant="default" size="sm" onClick={() => handleNewChild(null)}>
-                    <Plus size={11} /> Novo item raiz
+                    <Plus size={12} /> Novo item raiz
                   </Button>
                 </>
               ) : null}
@@ -442,8 +451,11 @@ function PlanilhaOrcamentaria(): ReactNode {
       {/* Footer com totais — lucro inclui impostos da taxa vigente como deflator */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-bg-panel text-2xs font-mono">
         <div className="text-text-dim">
-          {plan?.flat.length ?? 0} item(s){isLoading ? ' · carregando…' : ''}
-          {selectedIds.size > 0 ? ` · ${selectedIds.size} selecionado(s)` : ''}
+          {contar(plan?.flat.length ?? 0, 'item', 'itens')}
+          {isLoading ? ' · carregando…' : ''}
+          {selectedIds.size > 0
+            ? ` · ${contar(selectedIds.size, 'selecionado', 'selecionados')}`
+            : ''}
           {taxaVigente ? (
             <span>
               {' · '}

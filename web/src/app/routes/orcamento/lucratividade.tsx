@@ -6,6 +6,7 @@ import { useLucratividade } from '@/features/orcamento/hooks/lucratividade'
 import { usePlanOrc } from '@/features/orcamento/hooks/plan-orc'
 import { LucratividadeCards } from '@/features/orcamento/components/LucratividadeCards'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
+import { EstadoConsulta } from '@/components/ui/estado'
 
 export function LucratividadePage(): ReactNode {
   return (
@@ -18,18 +19,21 @@ export function LucratividadePage(): ReactNode {
 function Lucratividade(): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!
-  const { data: lucr, isLoading } = useLucratividade(obraId)
+  const consulta = useLucratividade(obraId)
+  const lucr = consulta.data
   const { data: plan } = usePlanOrc(obraId)
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Lucratividade"
-        subtitle={`${scope.obra?.nome ?? ''} — visão financeira consolidada (Planilha Orçamentária + Indireto)`}
+        subtitle="Venda, custo, taxas e lucro da planilha orçamentária e do indireto"
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
-        {isLoading || !lucr ? (
-          <div className="text-xs text-text-muted font-mono">Carregando…</div>
+        {!lucr ? (
+          <EstadoConsulta consulta={consulta} oQue="a lucratividade" vazio>
+            {null}
+          </EstadoConsulta>
         ) : (
           <>
             <LucratividadeCards data={lucr} />
@@ -95,7 +99,7 @@ function Lucratividade(): ReactNode {
                   {(plan?.tree ?? []).length === 0 ? (
                     <tr>
                       <td colSpan={7} className="p-6 text-center text-text-muted">
-                        Nenhum item no Planilha Orçamentária ainda.
+                        A planilha orçamentária ainda não tem itens.
                       </td>
                     </tr>
                   ) : null}

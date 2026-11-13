@@ -80,10 +80,10 @@ export function EmpresasPage(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Empresas"
-        subtitle="Cadastro das empresas do sistema. Cada empresa é um tenant isolado."
+        subtitle="Cada empresa tem os seus dados separados das demais."
         actions={
           <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-            <Plus size={11} /> Nova empresa
+            <Plus size={12} /> Nova empresa
           </Button>
         }
       />
@@ -100,7 +100,7 @@ export function EmpresasPage(): ReactNode {
             description="Cadastre a primeira empresa para começar a usar o sistema."
             action={
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={11} /> Nova empresa
+                <Plus size={12} /> Nova empresa
               </Button>
             }
           />

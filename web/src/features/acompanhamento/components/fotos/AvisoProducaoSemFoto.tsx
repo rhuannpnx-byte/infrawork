@@ -40,7 +40,7 @@ export function AvisoProducaoSemFoto({ avisos }: Props): ReactNode {
       {open && (
         <div className="absolute top-full right-0 mt-1 w-[300px] max-h-[320px] overflow-auto rounded-md border border-border-strong bg-bg-elevated shadow-2xl z-[60]">
           <div className="px-2.5 py-1.5 border-b border-border bg-bg-panel flex items-center gap-1.5">
-            <AlertTriangle size={11} className="text-amber-300" />
+            <AlertTriangle size={12} className="text-amber-300" />
             <span className="text-2xs font-mono uppercase text-text-dim">
               {avisos.length} {avisos.length === 1 ? 'produção sem foto' : 'produções sem foto'}
             </span>

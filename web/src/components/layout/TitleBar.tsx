@@ -199,11 +199,11 @@ export function UserMenu(): ReactNode {
         <DropdownLabel>IA (MCP)</DropdownLabel>
         <StatusMcpMenu />
         <DropdownItem onClick={() => setTokensAberto(true)}>
-          <Bot size={11} /> Conectar IA, tokens e status…
+          <Bot size={12} /> Conectar IA, tokens e status…
         </DropdownItem>
         <DropdownSeparator />
         <DropdownItem variant="danger" onClick={() => void signOut()}>
-          <LogOut size={11} /> Sair
+          <LogOut size={12} /> Sair
         </DropdownItem>
       </Dropdown>
       <TokensIADialog open={tokensAberto} onOpenChange={setTokensAberto} />
@@ -231,7 +231,7 @@ function StatusMcpMenu(): ReactNode {
       </div>
       <div className="flex items-center gap-1.5">
         <PontoEstado estado={status.ativos.length > 0 ? 'ok' : 'off'} /> {status.ativos.length}{' '}
-        token(s) ativo(s)
+        {status.ativos.length === 1 ? 'token ativo' : 'tokens ativos'}
       </div>
     </div>
   )

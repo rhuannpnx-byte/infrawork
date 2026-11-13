@@ -70,8 +70,8 @@ self.onmessage = (ev: MessageEvent<Pedido>) => {
               dependencias: [],
               aviso:
                 n === MAX_EQUIPES || n === 1
-                  ? `A tarefa já está com ${atual} equipe(s): a duração vem da produção da composição × equipes (entre 1 e ${MAX_EQUIPES}).`
-                  : `Esse término ainda dá ${atual} equipe(s): a duração vem da produção da composição × equipes. Arraste mais para mudar o número de equipes.`
+                  ? `A tarefa já está com ${atual} ${atual === 1 ? 'equipe' : 'equipes'}: a duração vem da produção da composição × equipes (entre 1 e ${MAX_EQUIPES}).`
+                  : `Esse término ainda dá ${atual} ${atual === 1 ? 'equipe' : 'equipes'}: a duração vem da produção da composição × equipes. Arraste mais para mudar o número de equipes.`
             }
           })
           return

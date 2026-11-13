@@ -76,17 +76,17 @@ export function EquipesEncarregados(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Equipes & Encarregados"
-        subtitle={`${scope.obra?.nome ?? ''} — quem executa e quem responde pelo lançamento. A ordem é a prioridade no cronograma: a mesma equipe não trabalha em duas tarefas ao mesmo tempo.`}
+        subtitle="Quem executa e quem responde pelo lançamento. A ordem é a prioridade no cronograma: a mesma equipe não trabalha em duas tarefas ao mesmo tempo."
       />
       <div className="flex-1 overflow-auto p-5 space-y-5">
         <section className="min-w-0 rounded border border-border bg-bg-panel overflow-x-auto">
           <header className="px-3 py-2 border-b border-border flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-text inline-flex items-center gap-1.5">
+            <h3 className="text-md font-semibold text-text inline-flex items-center gap-1.5">
               <Users size={12} /> Equipes
             </h3>
             {!readOnlyEquipes ? (
               <Button size="sm" variant="secondary" onClick={() => setNovaEquipe(true)}>
-                <Plus size={11} /> Nova equipe
+                <Plus size={12} /> Nova equipe
               </Button>
             ) : null}
           </header>
@@ -126,7 +126,7 @@ export function EquipesEncarregados(): ReactNode {
                                 onClick={() => void mover(idx, -1)}
                                 title="Subir"
                               >
-                                <ArrowUp size={11} />
+                                <ArrowUp size={12} />
                               </button>
                               <button
                                 type="button"
@@ -135,7 +135,7 @@ export function EquipesEncarregados(): ReactNode {
                                 onClick={() => void mover(idx, 1)}
                                 title="Descer"
                               >
-                                <ArrowDown size={11} />
+                                <ArrowDown size={12} />
                               </button>
                             </>
                           ) : null}
@@ -179,7 +179,7 @@ export function EquipesEncarregados(): ReactNode {
                             className="text-text-dim hover:text-accent"
                             title="Editar"
                           >
-                            <Pencil size={11} />
+                            <Pencil size={12} />
                           </button>
                         ) : null}
                       </td>
@@ -193,11 +193,11 @@ export function EquipesEncarregados(): ReactNode {
 
         <section className="min-w-0 rounded border border-border bg-bg-panel overflow-x-auto">
           <header className="px-3 py-2 border-b border-border flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-text inline-flex items-center gap-1.5">
+            <h3 className="text-md font-semibold text-text inline-flex items-center gap-1.5">
               <HardHat size={12} /> Encarregados
             </h3>
             <Button size="sm" variant="secondary" onClick={() => setNovoEnc(true)}>
-              <Plus size={11} /> Novo encarregado
+              <Plus size={12} /> Novo encarregado
             </Button>
           </header>
           {encarregados.length === 0 ? (
@@ -244,7 +244,7 @@ export function EquipesEncarregados(): ReactNode {
                         className="text-text-dim hover:text-accent"
                         title="Editar"
                       >
-                        <Pencil size={11} />
+                        <Pencil size={12} />
                       </button>
                     </td>
                   </tr>

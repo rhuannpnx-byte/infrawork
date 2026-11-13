@@ -9,6 +9,7 @@ import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { rotuloLocalProducao } from '../../lib/local-producao'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { formatNumber } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import { normalizeTxt } from '@/lib/xlsx/parse-sheet'
 import type { ImportResultado } from '@/lib/xlsx/types'
 import {
@@ -90,7 +91,9 @@ export function ImportarProducaoDialog({
     } else {
       const semId = rows.filter((r) => r.data.encarregado_nome && !r.data.encarregado_id).length
       if (semId > 0)
-        avisos.push(`${semId} linha(s) com encarregado desconhecido importadas sem encarregado.`)
+        avisos.push(
+          `${contar(semId, 'linha com encarregado desconhecido importada', 'linhas com encarregado desconhecido importadas')} sem encarregado.`
+        )
     }
     // 2) Lançamentos (lote único com importacao_id para desfazer).
     // parametrização: serviço por viagens não recebe quantidade; local obrigatório sem local não entra
@@ -103,25 +106,27 @@ export function ImportarProducaoDialog({
     )
     if (porViagens.length)
       avisos.push(
-        `${porViagens.length} linha(s) de serviços alimentados por viagens foram ignoradas (lance as viagens).`
+        `${contar(porViagens.length, 'linha de serviço alimentado por viagens foi ignorada', 'linhas de serviços alimentados por viagens foram ignoradas')} (lance as viagens).`
       )
     if (semLocal.length)
       avisos.push(
-        `${semLocal.length} linha(s) sem local foram ignoradas (o serviço exige local e estacas).`
+        `${contar(semLocal.length, 'linha sem local foi ignorada', 'linhas sem local foram ignoradas')} (o serviço exige local e estacas).`
       )
     const linhas = todas.filter((l) => !porViagens.includes(l) && !semLocal.includes(l))
     const r = await lote.mutateAsync({ linhas, origem: 'importacao' })
     onImportado?.(r.importacao_id, r.inseridos)
     if (r.importacao_id) {
       const id = r.importacao_id
-      toast.success(`${r.inseridos} lançamento(s) importado(s).`, {
+      toast.success(`${contar(r.inseridos, 'lançamento importado', 'lançamentos importados')}.`, {
         duration: 15000,
         action: {
           label: 'Desfazer',
           onClick: () => {
             void desfazer
               .mutateAsync({ importacao_id: id })
-              .then((n) => toast.info(`${n} lançamento(s) removido(s).`))
+              .then((n) =>
+                toast.info(`${contar(n, 'lançamento removido', 'lançamentos removidos')}.`)
+              )
           }
         }
       })

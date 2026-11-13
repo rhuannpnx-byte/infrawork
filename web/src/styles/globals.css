@@ -21,7 +21,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'Archivo Variable', Archivo, system-ui, sans-serif;
-    font-size: 13px;
+    font-size: var(--fs-base);
     line-height: 1.45;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;

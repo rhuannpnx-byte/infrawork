@@ -8,6 +8,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { Palette, User, Info, Sun, Moon, Monitor } from 'lucide-react'
 import { useThemeStore, type TemaPreferencia } from '@/stores/theme-store'
 import { cn } from '@/lib/utils'
+import { rotuloPapel } from '@/lib/rotulos'
+import { Segmentado } from '@/components/ui/segmentado'
 
 type Tab = 'aparencia' | 'conta' | 'sobre'
 
@@ -23,6 +25,8 @@ export function SettingsDialog(): ReactNode {
   const [tab, setTab] = useState<Tab>('aparencia')
   const preferencia = useThemeStore((s) => s.preferencia)
   const setPreferencia = useThemeStore((s) => s.setPreferencia)
+  const densidade = useUIStore((s) => s.density)
+  const setDensidade = useUIStore((s) => s.setDensity)
   const profile = useAuthStore((s) => s.profile)
   const empresa = useAuthStore((s) => s.empresa)
 
@@ -54,33 +58,53 @@ export function SettingsDialog(): ReactNode {
         </nav>
         <div className="flex-1 overflow-auto p-4">
           {tab === 'aparencia' ? (
-            <fieldset>
-              <legend className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
-                Tema
-              </legend>
-              <div className="flex flex-col gap-1.5">
-                {TEMAS.map((t) => (
-                  <label
-                    key={t.valor}
-                    className={cn(
-                      'flex items-center gap-2.5 h-10 px-3 rounded border cursor-pointer text-sm',
-                      preferencia === t.valor
-                        ? 'border-accent bg-accent-glow text-accent font-semibold'
-                        : 'border-border-strong text-text hover:bg-bg-hover'
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="tema"
-                      className="sr-only"
-                      checked={preferencia === t.valor}
-                      onChange={() => setPreferencia(t.valor)}
-                    />
-                    {t.icone} {t.rotulo}
-                  </label>
-                ))}
+            <>
+              <fieldset>
+                <legend className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
+                  Tema
+                </legend>
+                <div className="flex flex-col gap-1.5">
+                  {TEMAS.map((t) => (
+                    <label
+                      key={t.valor}
+                      className={cn(
+                        'flex items-center gap-2.5 h-10 px-3 rounded border cursor-pointer text-sm',
+                        preferencia === t.valor
+                          ? 'border-accent bg-accent-glow text-accent font-semibold'
+                          : 'border-border-strong text-text hover:bg-bg-hover'
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="tema"
+                        className="sr-only"
+                        checked={preferencia === t.valor}
+                        onChange={() => setPreferencia(t.valor)}
+                      />
+                      {t.icone} {t.rotulo}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="mt-5">
+                <div className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim mb-2">
+                  Tamanho do texto
+                </div>
+                <Segmentado
+                  rotulo="Tamanho do texto"
+                  valor={densidade}
+                  aoMudar={setDensidade}
+                  opcoes={[
+                    { valor: 'normal', rotulo: 'Confortável' },
+                    { valor: 'compact', rotulo: 'Compacto' }
+                  ]}
+                />
+                <p className="mt-2 text-sm text-text-muted">
+                  O compacto mostra mais linhas por tela. Cronograma, tempo-caminho e planilha
+                  orçamentária usam sempre o compacto.
+                </p>
               </div>
-            </fieldset>
+            </>
           ) : tab === 'conta' ? (
             <div className="space-y-3">
               <div>
@@ -89,11 +113,11 @@ export function SettingsDialog(): ReactNode {
               </div>
               <div>
                 <Label>Email</Label>
-                <Input readOnly value={profile?.email ?? ''} className="font-mono" />
+                <Input readOnly value={profile?.email ?? ''} />
               </div>
               <div>
                 <Label>Papel</Label>
-                <Input readOnly value={profile?.role ?? ''} className="font-mono" />
+                <Input readOnly value={rotuloPapel(profile?.role)} />
               </div>
               <div>
                 <Label>Empresa</Label>
@@ -101,19 +125,17 @@ export function SettingsDialog(): ReactNode {
               </div>
             </div>
           ) : (
-            <div className="space-y-1 text-xs text-text-muted">
+            <div className="space-y-1 text-sm text-text-muted">
               <div className="text-sm text-text font-semibold mb-2">InfraWork</div>
               <div>Versão {__APP_VERSION__}</div>
               <div>Web · React 19 · TypeScript · Supabase</div>
-              <div className="mt-3 text-text-dim font-mono text-2xs">
-                © 2026 TECPAV — todos os direitos reservados.
-              </div>
+              <div className="mt-3 text-text-dim">© 2026 TECPAV. Todos os direitos reservados.</div>
             </div>
           )}
         </div>
       </SheetBody>
       <SheetFooter>
-        <Button variant="ghost" onClick={close}>
+        <Button variant="secondary" onClick={close}>
           Fechar
         </Button>
       </SheetFooter>

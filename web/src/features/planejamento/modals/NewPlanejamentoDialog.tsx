@@ -18,6 +18,7 @@ import {
 } from '../hooks/planejamentos'
 import { useObra } from '@/features/gerencial/hooks'
 import { hojeLocalISO } from '@/lib/format/local-date'
+import { contar } from '@/lib/rotulos'
 
 interface Props {
   open: boolean
@@ -61,7 +62,9 @@ export function NewPlanejamentoDialog({ open, onOpenChange, obraId, onCreated }:
           obra_id: obraId
         })
         id = r.novo_id
-        toast.success(`Revisão "${nome}" criada copiando ${r.tarefas_copiadas} tarefa(s).`)
+        toast.success(
+          `Revisão "${nome}" criada copiando ${contar(r.tarefas_copiadas, 'tarefa', 'tarefas')}.`
+        )
       } else {
         const r = await create.mutateAsync({
           obra_id: obraId,

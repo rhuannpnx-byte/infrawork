@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { fmtBRL, fmtBRL4, fmtPct2, fmtQtd, parseBR } from '@/lib/money'
+import { contar } from '@/lib/rotulos'
 import {
   useItemDetalhe,
   usePlanOrc,
@@ -351,7 +352,7 @@ function GeralTab({
       title: `Excluir o serviço "${item.codigo} ${item.descricao}"?`,
       description:
         alocadas.length > 0
-          ? `${alocadas.length} receita(s) deixam de estar alocadas a ele (${fmtBRL(
+          ? `${contar(alocadas.length, 'receita deixa de estar alocada', 'receitas deixam de estar alocadas')} a ele (${fmtBRL(
               alocadas.reduce((s, a) => s + a.venda * a.fracao, 0)
             )} voltam a ficar sem agrupamento). A planilha de venda não muda.`
           : 'O serviço não tem receitas alocadas.',
@@ -652,7 +653,7 @@ function GeralTab({
                         title="Remover do serviço"
                         className="w-5 h-5 grid place-items-center rounded text-text-dim hover:text-danger hover:bg-bg-hover"
                       >
-                        <X size={11} />
+                        <X size={12} />
                       </button>
                     ) : null}
                   </div>
@@ -698,7 +699,7 @@ function GeralTab({
               onClick={() => void excluirServico()}
               disabled={excluir.isPending}
             >
-              <Trash2 size={11} /> Excluir serviço
+              <Trash2 size={12} /> Excluir serviço
             </Button>
           ) : (
             <span />

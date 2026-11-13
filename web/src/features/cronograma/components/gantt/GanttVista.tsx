@@ -686,7 +686,7 @@ export function GanttVista({
   if (!entrada || !dados) return null
 
   return (
-    <div ref={areaRef} className="flex h-full min-h-0 w-full">
+    <div ref={areaRef} data-density="compact" className="flex h-full min-h-0 w-full">
       <GanttGrade
         linhas={linhas}
         colunas={colunas}

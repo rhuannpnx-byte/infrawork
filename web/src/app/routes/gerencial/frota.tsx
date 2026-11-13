@@ -20,6 +20,7 @@ import {
   type Veiculo
 } from '@/features/acompanhamento/hooks/viagens'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import { FleethubIntegracao } from '@/features/frota/FleethubIntegracao'
 
 export function GerencialFrotaPage(): ReactNode {
@@ -82,7 +83,10 @@ function Inner(): ReactNode {
         capacidade_m3: v.capacidade_m3
       },
       {
-        onSuccess: (n) => void toast.success(`Capacidade aplicada a ${n} veículo(s) ${v.modelo}.`),
+        onSuccess: (n) =>
+          void toast.success(
+            `Capacidade aplicada a ${contar(n, 'veículo', 'veículos')} ${v.modelo}.`
+          ),
         onError: erro
       }
     )

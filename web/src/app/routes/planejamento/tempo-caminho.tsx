@@ -13,5 +13,5 @@ export function PlanejamentoTempoCaminhoPage(): ReactNode {
 
 function Inner(): ReactNode {
   const scope = useCurrentScope()
-  return <TempoCaminhoPagina obraId={scope.obraId!} obraNome={scope.obra?.nome ?? ''} />
+  return <TempoCaminhoPagina obraId={scope.obraId!} />
 }

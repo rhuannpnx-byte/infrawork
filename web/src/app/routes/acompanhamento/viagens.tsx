@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { PlusCircle, Truck } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { contar } from '@/lib/rotulos'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
@@ -228,7 +229,7 @@ function Inner(): ReactNode {
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Viagens"
-        subtitle={`${scope.obra?.nome ?? ''} — registro de viagens (carreteiros). A produção do dia dos serviços por viagens é a soma das viagens.`}
+        subtitle="Viagens dos carreteiros. Nos serviços lançados por viagens, a produção do dia é a soma delas."
         actions={
           role !== 'cliente' ? (
             <Button size="sm" onClick={() => setAberta({ ficha: null })}>
@@ -246,8 +247,9 @@ function Inner(): ReactNode {
             setAte(b ?? hojeLocalISO())
           }}
         />
-        <span className="font-mono text-2xs text-text-dim">
-          {fichas.data?.length ?? 0} ficha(s) · {linhas.length} viagem(ns)
+        <span className="text-sm text-text-muted">
+          {contar(fichas.data?.length ?? 0, 'ficha', 'fichas')} ·{' '}
+          {contar(linhas.length, 'viagem', 'viagens')}
         </span>
         <div className="ml-auto flex flex-wrap gap-2">
           {totais.map(([id, t]) => (
@@ -255,7 +257,7 @@ function Inner(): ReactNode {
               key={id}
               className="inline-flex items-center gap-1 rounded border border-border bg-bg-panel px-2 py-0.5 text-2xs"
             >
-              <Truck size={11} className="text-accent" />
+              <Truck size={12} className="text-accent" />
               <span className="text-text">{nomeServico(id)}</span>
               <span className="font-mono text-text-muted">
                 {formatNumber(t.qtd, 2)} {unidade(id)} · {t.n} vg

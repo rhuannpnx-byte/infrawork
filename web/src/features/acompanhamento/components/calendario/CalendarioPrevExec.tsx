@@ -166,7 +166,7 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
           >
             <ChevronLeft size={14} />
           </button>
-          <h3 className="text-sm font-semibold text-text min-w-[140px] text-center">
+          <h3 className="text-md font-semibold text-text min-w-[140px] text-center">
             {MESES[mes]} {ano}
           </h3>
           <button

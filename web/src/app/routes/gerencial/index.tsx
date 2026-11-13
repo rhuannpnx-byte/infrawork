@@ -65,7 +65,7 @@ export function GerencialIndex(): ReactNode {
               <Shield size={14} />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-text mb-1">
+              <h3 className="text-md font-semibold text-text mb-1">
                 Seu papel: {labelRole(profile?.role)}
               </h3>
               <p className="text-xs text-text-muted leading-relaxed">

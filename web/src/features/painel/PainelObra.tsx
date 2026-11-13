@@ -1,7 +1,12 @@
 import { useMemo, type ReactNode } from 'react'
-import { ArrowRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
+import { Secao } from '@/components/ui/secao'
+import { BarraAvanco, FaixaIndicadores, Indicador } from '@/components/ui/indicador'
+import { EstadoConsulta } from '@/components/ui/estado'
+import { CurvaS, reaisCurto } from '@/components/charts/CurvaS'
+import { contar } from '@/lib/rotulos'
 import { formatNumber } from '@/lib/format'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
@@ -14,6 +19,7 @@ import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { usePrevistoXRealizado } from '@/features/acompanhamento/hooks/comparativo'
 import { useDashboardResumo } from '@/features/acompanhamento/hooks/dashboard'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
+import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
 import {
   STATUS_COMP_LABEL,
   type PrevistoRealizadoItem,
@@ -63,6 +69,7 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
   const { data: servicos = [], isLoading: carregandoServicos } = usePrevistoXRealizado(obraId)
   const { data: painel } = useDashboardResumo(interno ? obraId : null, 30)
   const { data: producao = [] } = useProducao(obraId)
+  const valor = useCurvaSValor(interno ? obraId : null)
 
   const resumo = painel?.resumo ?? null
   const termino = useMemo(() => {
@@ -85,6 +92,7 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
     return c
   }, [servicos])
 
+  const previstoPct = valor.total > 0 ? valor.previstoHoje / valor.total : null
   const ultimo = resumo?.data_ultima_producao ?? producao[0]?.data ?? null
   const diasSemLancar = ultimo ? diasEntre(ultimo, hoje) : null
   const tabela = useMemo(
@@ -145,23 +153,33 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
           ))}
         </dl>
 
-        <section
-          aria-label="Situação da obra"
-          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 bg-bg-panel border border-border rounded"
-        >
+        <FaixaIndicadores rotulo="Situação da obra">
           {interno ? (
             <Indicador rotulo="Avanço físico" valor={pct(resumo?.avanco_pct)}>
-              <div className="h-1.5 bg-bg-elevated border border-border">
-                <div
-                  className="h-full bg-accent"
-                  style={{ width: `${Math.min(Number(resumo?.avanco_pct ?? 0), 1) * 100}%` }}
-                />
-              </div>
+              <BarraAvanco valor={Number(resumo?.avanco_pct ?? 0)} marca={previstoPct} />
               <span>
                 {resumo?.avanco_pct == null
                   ? 'sem linha de base vigente'
-                  : 'ponderado pela receita'}
+                  : previstoPct != null
+                    ? `previsto até hoje: ${pct(previstoPct)}`
+                    : 'ponderado pela receita'}
               </span>
+            </Indicador>
+          ) : null}
+          {interno ? (
+            <Indicador
+              rotulo="Valor executado"
+              carregando={valor.isLoading}
+              valor={valor.total > 0 ? reaisCurto(valor.executado) : '—'}
+            >
+              {valor.total > 0 ? (
+                <>
+                  <span>de {reaisCurto(valor.total)} previstos na linha de base</span>
+                  <span>previsto até hoje: {reaisCurto(valor.previstoHoje)}</span>
+                </>
+              ) : (
+                <span>sem linha de base vigente</span>
+              )}
             </Indicador>
           ) : null}
           <Indicador rotulo="Término previsto" valor={dataBR(termino)}>
@@ -177,7 +195,7 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
           <Indicador rotulo="Serviços" valor={formatNumber(servicos.length, 0)}>
             {contagem.atrasados > 0 ? (
               <span className="text-danger font-semibold">
-                {contagem.atrasados} atrasado{contagem.atrasados > 1 ? 's' : ''}
+                {contar(contagem.atrasados, 'atrasado', 'atrasados')}
                 {contagem.risco > 0 ? ` e ${contagem.risco} em risco` : ''}
               </span>
             ) : contagem.risco > 0 ? (
@@ -186,8 +204,8 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
               <span className="text-success font-semibold">nenhum atrasado</span>
             ) : null}
             <span>
-              {contagem.andamento} em andamento · {contagem.concluidos} concluído
-              {contagem.concluidos === 1 ? '' : 's'}
+              {contagem.andamento} em andamento ·{' '}
+              {contar(contagem.concluidos, 'concluído', 'concluídos')}
             </span>
           </Indicador>
           <Indicador rotulo="Último lançamento" valor={dataBR(ultimo)}>
@@ -202,28 +220,45 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
             )}
             {resumo ? (
               <span>
-                {formatNumber(resumo.lancamentos_total, 0)}{' '}
-                {resumo.lancamentos_total === 1 ? 'lançamento' : 'lançamentos'} em{' '}
-                {formatNumber(resumo.dias_com_apontamento, 0)}{' '}
-                {resumo.dias_com_apontamento === 1 ? 'dia' : 'dias'}
+                {contar(resumo.lancamentos_total, 'lançamento', 'lançamentos')} em{' '}
+                {contar(resumo.dias_com_apontamento, 'dia', 'dias')}
               </span>
             ) : null}
           </Indicador>
-        </section>
+        </FaixaIndicadores>
+
+        {interno ? (
+          <Secao
+            titulo="Curva S"
+            nota="valor previsto e executado, acumulados por semana"
+            verMais={{ rotulo: 'Ver valor agregado', rota: '/acompanhamento/valor-agregado' }}
+          >
+            <EstadoConsulta
+              consulta={valor}
+              oQue="a curva S"
+              vazio={valor.pontos.length === 0}
+              textoVazio="A curva S aparece quando a obra tem linha de base vigente com o cronograma calculado."
+            >
+              <CurvaS
+                pontos={valor.pontos}
+                formatar={reaisCurto}
+                rotuloRealizado="Executado"
+                altura={220}
+              />
+            </EstadoConsulta>
+          </Secao>
+        ) : null}
 
         {interno ? <FaixaObra producao={producao} trechos={trechos} /> : null}
 
         <div className="flex flex-wrap items-start gap-4">
-          <section
-            aria-label="Serviços"
-            className="flex-[3_1_520px] min-w-0 bg-bg-panel border border-border rounded"
+          <Secao
+            titulo="Serviços"
+            nota="a marca escura é o previsto até hoje"
+            verMais={{ rotulo: 'Ver previsto e realizado', rota: '/acompanhamento/comparativo' }}
+            semRecuo
+            className="flex-[3_1_520px]"
           >
-            <CabecalhoBloco
-              titulo="Serviços"
-              nota="a marca escura é o previsto até hoje"
-              acao="Ver previsto e realizado"
-              rota="/acompanhamento/comparativo"
-            />
             {tabela.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-text-muted">
                 {carregandoServicos
@@ -250,19 +285,15 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
                 </table>
               </div>
             )}
-          </section>
+          </Secao>
 
           {interno ? (
             <div className="flex-[2_1_320px] min-w-0 flex flex-col gap-4">
-              <section
-                aria-label="Pede atenção"
-                className="bg-bg-panel border border-border rounded"
+              <Secao
+                titulo="Pede atenção"
+                verMais={{ rotulo: 'Ver alertas', rota: '/acompanhamento/alertas' }}
+                semRecuo
               >
-                <CabecalhoBloco
-                  titulo="Pede atenção"
-                  acao="Ver alertas"
-                  rota="/acompanhamento/alertas"
-                />
                 {alertas.length === 0 ? (
                   <p className="px-4 pb-4 text-sm text-text-muted">Nenhum alerta crítico aberto.</p>
                 ) : (
@@ -277,17 +308,13 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
                     ))}
                   </ul>
                 )}
-              </section>
+              </Secao>
 
-              <section
-                aria-label="Últimos lançamentos"
-                className="bg-bg-panel border border-border rounded"
+              <Secao
+                titulo="Últimos lançamentos"
+                verMais={{ rotulo: 'Ver produção', rota: '/acompanhamento/producao' }}
+                semRecuo
               >
-                <CabecalhoBloco
-                  titulo="Últimos lançamentos"
-                  acao="Ver produção"
-                  rota="/acompanhamento/producao"
-                />
                 {ultimos.length === 0 ? (
                   <p className="px-4 pb-4 text-sm text-text-muted">Nenhuma produção lançada.</p>
                 ) : (
@@ -313,7 +340,7 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
                     ))}
                   </ul>
                 )}
-              </section>
+              </Secao>
             </div>
           ) : null}
         </div>
@@ -324,57 +351,8 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
   )
 }
 
-function Indicador({
-  rotulo,
-  valor,
-  children
-}: {
-  rotulo: string
-  valor: string
-  children?: ReactNode
-}): ReactNode {
-  return (
-    <div className="px-4 py-3 min-w-0 flex flex-col gap-1 border-b xl:border-b-0 border-r border-border last:border-r-0 text-sm text-text-muted">
-      <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-        {rotulo}
-      </span>
-      <span className="text-3xl font-semibold tabular leading-tight text-text">{valor}</span>
-      {children}
-    </div>
-  )
-}
-
-function CabecalhoBloco({
-  titulo,
-  nota,
-  acao,
-  rota
-}: {
-  titulo: string
-  nota?: string
-  acao: string
-  rota: string
-}): ReactNode {
-  return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3">
-      <div className="flex flex-wrap items-baseline gap-x-3">
-        <h2 className="text-lg font-semibold text-text">{titulo}</h2>
-        {nota ? <span className="text-sm text-text-muted">{nota}</span> : null}
-      </div>
-      <button
-        type="button"
-        onClick={() => navigateActiveTab(rota)}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline rounded"
-      >
-        {acao} <ArrowRight size={13} />
-      </button>
-    </div>
-  )
-}
-
 function LinhaServico({ s }: { s: PrevistoRealizadoItem }): ReactNode {
-  const real = Math.min(Number(s.pct_avanco ?? 0), 1) * 100
-  const esperado = s.pct_esperado_hoje == null ? null : Math.min(Number(s.pct_esperado_hoje), 1)
+  const real = Number(s.pct_avanco ?? 0)
   return (
     <tr className="border-b border-border last:border-b-0">
       <td className="px-4 py-2 max-w-0 w-[40%]">
@@ -386,15 +364,7 @@ function LinhaServico({ s }: { s: PrevistoRealizadoItem }): ReactNode {
         </span>
       </td>
       <td className="px-2 py-2">
-        <div className="relative h-2 bg-bg-elevated border border-border">
-          <div className="h-full bg-accent" style={{ width: `${real}%` }} />
-          {esperado != null ? (
-            <span
-              className="absolute -top-1 -bottom-1 w-0.5 bg-text"
-              style={{ left: `${esperado * 100}%` }}
-            />
-          ) : null}
-        </div>
+        <BarraAvanco valor={real} marca={s.pct_esperado_hoje} />
       </td>
       <td className="px-2 py-2 text-right tabular text-text-muted">{pct(s.pct_esperado_hoje)}</td>
       <td className="px-2 py-2 text-right tabular font-semibold text-text">{pct(s.pct_avanco)}</td>

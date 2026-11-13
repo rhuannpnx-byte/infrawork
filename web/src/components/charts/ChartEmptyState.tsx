@@ -25,12 +25,12 @@ export function ChartEmptyState({
     return (
       <div
         className={cn(
-          'absolute inset-0 flex flex-col items-center justify-center gap-1 text-text-dim text-2xs font-mono p-4 text-center pointer-events-none',
+          'absolute inset-0 flex flex-col items-center justify-center gap-1 text-text-muted text-sm p-4 text-center pointer-events-none',
           className
         )}
       >
         <div>{message}</div>
-        {hint ? <div className="text-text-faint">{hint}</div> : null}
+        {hint ? <div className="text-text-dim text-xs">{hint}</div> : null}
       </div>
     )
   }
@@ -38,13 +38,13 @@ export function ChartEmptyState({
   return (
     <div
       className={cn(
-        'rounded border border-border bg-bg-panel flex flex-col items-center justify-center gap-1 text-text-dim text-2xs font-mono p-4 text-center',
+        'rounded border border-border bg-bg-panel flex flex-col items-center justify-center gap-1 text-text-muted text-sm p-4 text-center',
         className
       )}
       style={height != null ? { height } : undefined}
     >
       <div>{message}</div>
-      {hint ? <div className="text-text-faint">{hint}</div> : null}
+      {hint ? <div className="text-text-dim text-xs">{hint}</div> : null}
     </div>
   )
 }

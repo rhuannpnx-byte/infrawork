@@ -1,5 +1,4 @@
 import { type ReactNode, useMemo } from 'react'
-import { Target } from 'lucide-react'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { STATUS_COMP_COR } from '@/types/acompanhamento'
 import { corAderenciaSobreAcumulado } from '@/lib/colors/aderencia'
@@ -79,21 +78,21 @@ export function AderenciaServicos({
       className="rounded border border-border bg-bg-panel flex flex-col"
       style={{ height: altura }}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
-        <h4 className="text-xs font-semibold text-text flex items-center gap-1.5">
-          <Target size={11} /> Aderência por serviço
+      <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3 shrink-0">
+        <h4 className="text-md font-semibold text-text flex items-center gap-1.5">
+          Aderência por serviço
         </h4>
         <span
-          className="text-2xs font-mono text-text-dim"
-          title="Real acumulado / Planejado acumulado até o fim do período"
+          className="text-xs text-text-muted"
+          title="Realizado acumulado dividido pelo previsto acumulado até o fim do período"
         >
-          real / plan acum. período
+          realizado sobre o previsto
         </span>
       </div>
-      <div className="flex-1 overflow-auto px-3 pb-3 space-y-1.5">
+      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
         {linhas.length === 0 && (
-          <div className="text-text-dim text-2xs font-mono flex items-center justify-center h-full">
-            Sem serviços com plano
+          <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
+            Nenhum serviço na linha de base.
           </div>
         )}
         {linhas.map((l) => {
@@ -103,13 +102,14 @@ export function AderenciaServicos({
             <button
               key={l.id}
               onClick={() => onPick?.(sel ? null : l.id)}
-              className={`w-full text-left rounded p-1.5 transition-colors ${
+              aria-pressed={sel}
+              className={`w-full text-left rounded px-2 py-1.5 transition-colors ${
                 sel
-                  ? 'bg-accent/10 border border-accent/40'
+                  ? 'bg-accent-glow-strong border border-accent'
                   : 'hover:bg-bg-hover border border-transparent'
               }`}
             >
-              <div className="flex items-center justify-between text-xs font-mono mb-1 gap-2">
+              <div className="flex items-center justify-between text-sm mb-1 gap-2">
                 <span className="text-text truncate flex items-center gap-1.5 min-w-0">
                   <span className="size-2 rounded-sm shrink-0" style={{ background: l.cor }} />
                   <span className="text-text-dim shrink-0">{l.codigo}</span>
@@ -121,13 +121,13 @@ export function AderenciaServicos({
                   {pct}%
                 </span>
               </div>
-              <div className="h-1 rounded bg-bg overflow-hidden">
+              <div className="h-1.5 bg-bg-elevated overflow-hidden">
                 <div
                   className="h-full transition-all"
                   style={{ width: `${Math.min(100, pct)}%`, background: l.cor }}
                 />
               </div>
-              <div className="flex items-center justify-between text-2xs font-mono text-text-dim mt-0.5">
+              <div className="flex items-center justify-between text-xs text-text-muted mt-0.5">
                 <span className="tabular-nums">
                   {fmt(l.real)} / {fmt(l.plan)} {l.unidade}
                 </span>

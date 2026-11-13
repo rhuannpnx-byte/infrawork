@@ -199,11 +199,11 @@ function TaxasInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Taxas"
-        subtitle="Impostos sobre receita (ISS, PIS, COFINS, CSLL, IRPJ, CPRB e outros) aplicados como deflator no cálculo de lucro."
+        subtitle="Impostos sobre a receita (ISS, PIS, COFINS, CSLL, IRPJ, CPRB e outros), descontados no cálculo do lucro."
         actions={
           podeEditar ? (
             <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-              <Plus size={11} /> Nova taxa
+              <Plus size={12} /> Nova taxa
             </Button>
           ) : null
         }
@@ -222,7 +222,7 @@ function TaxasInner(): ReactNode {
             action={
               podeEditar ? (
                 <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                  <Plus size={11} /> Nova taxa
+                  <Plus size={12} /> Nova taxa
                 </Button>
               ) : null
             }

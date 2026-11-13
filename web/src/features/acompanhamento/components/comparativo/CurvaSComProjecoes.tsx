@@ -335,7 +335,7 @@ export function CurvaSComProjecoes({
       style={{ height: altura }}
     >
       <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-        <h3 className="text-xs font-semibold text-text">
+        <h3 className="text-md font-semibold text-text">
           {ocultarProjecoes
             ? 'Curva-S — Realizado × Previsto'
             : 'Curva-S — Realizado × Previsto × Projeções'}

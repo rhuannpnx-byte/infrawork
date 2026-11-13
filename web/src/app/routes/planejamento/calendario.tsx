@@ -13,5 +13,5 @@ export function PlanejamentoCalendarioPage(): ReactNode {
 
 function Inner(): ReactNode {
   const scope = useCurrentScope()
-  return <CalendariosPagina obraId={scope.obraId!} obraNome={scope.obra?.nome ?? ''} />
+  return <CalendariosPagina obraId={scope.obraId!} />
 }

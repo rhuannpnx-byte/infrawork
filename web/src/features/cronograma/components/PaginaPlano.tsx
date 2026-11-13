@@ -27,12 +27,11 @@ export interface ContextoPlano {
 
 interface Props {
   obraId: string
-  obraNome: string
   titulo: string
   corpo: (c: ContextoPlano) => ReactNode
 }
 
-export function PaginaPlano({ obraId, obraNome, titulo, corpo }: Props): ReactNode {
+export function PaginaPlano({ obraId, titulo, corpo }: Props): ReactNode {
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const planoPorObra = useCronogramaUi((s) => s.planoPorObra)
   const escolherPlano = useCronogramaUi((s) => s.escolherPlano)
@@ -54,7 +53,7 @@ export function PaginaPlano({ obraId, obraNome, titulo, corpo }: Props): ReactNo
   if (!plano) {
     return (
       <div className="flex h-full flex-col">
-        <PageHeader title={titulo} subtitle={obraNome} />
+        <PageHeader title={titulo} />
         <div className="flex flex-1 items-center justify-center">
           <EmptyState
             icon="calendar"
@@ -81,7 +80,6 @@ export function PaginaPlano({ obraId, obraNome, titulo, corpo }: Props): ReactNo
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title={titulo}
-        subtitle={obraNome}
         actions={
           <div className="flex items-center gap-2">
             <EstadoCalculo calc={calc} />

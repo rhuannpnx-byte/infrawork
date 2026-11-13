@@ -13,7 +13,7 @@ export function VoltarPlanilhaButton(): ReactNode {
       onClick={() => navigate({ to: '/orcamento/obra/plan-orc' })}
       title="Voltar para a planilha orçamentária"
     >
-      <ArrowLeft size={11} /> Planilha
+      <ArrowLeft size={12} /> Planilha
     </Button>
   )
 }

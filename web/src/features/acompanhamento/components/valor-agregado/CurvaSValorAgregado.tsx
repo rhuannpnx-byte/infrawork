@@ -124,7 +124,7 @@ export function CurvaSValorAgregado({ dados, height = 400 }: Props): ReactNode {
     return (
       <ChartEmptyState
         height={height}
-        message="Sem dados. É necessário um baseline e produção sincronizada para o valor agregado."
+        message="O valor agregado aparece quando a obra tem linha de base vigente e produção lançada."
       />
     )
   }

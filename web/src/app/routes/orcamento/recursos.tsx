@@ -22,6 +22,7 @@ import { EditRecursoDialog } from '@/features/orcamento/modals/EditRecursoDialog
 import { ImportRecursosDialog } from '@/features/orcamento/modals/ImportRecursosDialog'
 import { RecursoPrecoHistoricoDialog } from '@/features/orcamento/modals/RecursoPrecoHistoricoDialog'
 import { fmtBRL4 } from '@/lib/money'
+import { contar } from '@/lib/rotulos'
 import { RECURSO_GRUPO_LABEL, type Recurso, type RecursoGrupo } from '@/types/orcamento'
 
 const GRUPO_VARIANT: Record<RecursoGrupo, 'accent' | 'success' | 'warn' | 'default'> = {
@@ -69,25 +70,37 @@ function RecursosInner(): ReactNode {
     }
 
     const ok = await confirm({
-      title: `Excluir ${rows.length} recurso(s)?`,
+      title: `Excluir ${contar(rows.length, 'recurso', 'recursos')}?`,
       description: (
         <div className="space-y-2">
           <p>O histórico de preços vai junto (cascade).</p>
           {preview.cpuItensAfetados > 0 ? (
             <p>
-              <span className="text-warn">{preview.cpuItensAfetados} linha(s) de CPU</span> dependem
-              desses recursos e serão <strong>excluídas em cascata</strong>, afetando{' '}
-              <span className="text-warn">{preview.cpusAfetadas} composição(ões)</span>. As
-              composições continuam existindo mas perdem esses insumos — custo unitário será
+              <span className="text-warn">
+                {contar(preview.cpuItensAfetados, 'linha', 'linhas')} de CPU
+              </span>{' '}
+              {preview.cpuItensAfetados === 1
+                ? 'depende desses recursos e será'
+                : 'dependem desses recursos e serão'}{' '}
+              <strong>
+                {preview.cpuItensAfetados === 1 ? 'excluída' : 'excluídas'} em cascata
+              </strong>
+              , afetando{' '}
+              <span className="text-warn">
+                {contar(preview.cpusAfetadas, 'composição', 'composições')}
+              </span>
+              . As composições continuam existindo mas perdem esses insumos — custo unitário será
               recalculado.
             </p>
           ) : null}
           {preview.itensOrcamentoComCpuOrigem > 0 ? (
             <p>
               <span className="text-text-dim">
-                {preview.itensOrcamentoComCpuOrigem} serviço(s) do orçamento
+                {contar(preview.itensOrcamentoComCpuOrigem, 'serviço', 'serviços')} do orçamento
               </span>{' '}
-              usam essas composições — o custo deles é recalculado na hora sem esses recursos.
+              {preview.itensOrcamentoComCpuOrigem === 1 ? 'usa' : 'usam'} essas composições — o
+              custo {preview.itensOrcamentoComCpuOrigem === 1 ? 'dele' : 'deles'} é recalculado na
+              hora sem esses recursos.
             </p>
           ) : null}
           {preview.cpuItensAfetados === 0 ? (
@@ -129,7 +142,7 @@ function RecursosInner(): ReactNode {
       }
 
       const ms = Math.round(performance.now() - t0)
-      toast.success(`${rows.length} recurso(s) excluído(s) em ${ms}ms.`)
+      toast.success(`${contar(rows.length, 'recurso excluído', 'recursos excluídos')} em ${ms}ms.`)
     } finally {
       // Invalida caches uma única vez no final.
       void qc.invalidateQueries({ queryKey: ['orcamento', 'recursos'] })
@@ -263,10 +276,10 @@ function RecursosInner(): ReactNode {
           podeEditar ? (
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                <FileUp size={11} /> Importar
+                <FileUp size={12} /> Importar
               </Button>
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={11} /> Novo recurso
+                <Plus size={12} /> Novo recurso
               </Button>
             </div>
           ) : null
@@ -288,10 +301,10 @@ function RecursosInner(): ReactNode {
               podeEditar ? (
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" size="sm" onClick={() => setOpenImport(true)}>
-                    <FileUp size={11} /> Importar modelo
+                    <FileUp size={12} /> Importar modelo
                   </Button>
                   <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                    <Plus size={11} /> Novo recurso
+                    <Plus size={12} /> Novo recurso
                   </Button>
                 </div>
               ) : null
@@ -317,7 +330,7 @@ function RecursosInner(): ReactNode {
                     className="text-danger hover:bg-danger/10"
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={11} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
+                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : `Excluir ${rows.length}`}
                   </Button>
                 )
               : undefined
@@ -326,12 +339,6 @@ function RecursosInner(): ReactNode {
       )}
 
       <NewRecursoDialog open={openNew} onOpenChange={setOpenNew} obraId={obraId} />
-      <ImportRecursosDialog open={openImport} onOpenChange={setOpenImport} obraId={obraId} />
-      <EditRecursoDialog
-        open={!!editando}
-        onOpenChange={(o) => !o && setEditando(null)}
-        recurso={editando}
-      />
       <ImportRecursosDialog open={openImport} onOpenChange={setOpenImport} obraId={obraId} />
       <EditRecursoDialog
         open={!!editando}

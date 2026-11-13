@@ -51,16 +51,17 @@ export default {
         'module-equipe': cor('module-equipe'),
         'module-documentos': cor('module-documentos')
       },
+      // os tamanhos vêm do tema: mudam com a densidade (`data-density` em theme.css)
       fontSize: {
-        '2xs': '11px',
-        xs: '11.5px',
-        sm: '12.5px',
-        base: '13px',
-        md: '14px',
-        lg: '15px',
-        xl: '17px',
-        '2xl': '20px',
-        '3xl': '24px'
+        '2xs': 'var(--fs-2xs)',
+        xs: 'var(--fs-xs)',
+        sm: 'var(--fs-sm)',
+        base: 'var(--fs-base)',
+        md: 'var(--fs-md)',
+        lg: 'var(--fs-lg)',
+        xl: 'var(--fs-xl)',
+        '2xl': 'var(--fs-2xl)',
+        '3xl': 'var(--fs-3xl)'
       },
       borderRadius: {
         sm: '1px',

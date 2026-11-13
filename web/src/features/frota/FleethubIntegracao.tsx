@@ -19,6 +19,7 @@ import {
   useUltimaSyncFleet
 } from '@/features/acompanhamento/hooks/viagens'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 
 const dataHora = (iso: string): string =>
   new Date(iso).toLocaleString('pt-BR', {
@@ -49,7 +50,7 @@ export function FleethubIntegracao({
       {
         onSuccess: (r) =>
           void toast.success(
-            `FleetHub: ${r.novos ?? 0} novo(s), ${r.atualizados ?? 0} atualizado(s), ${r.inativados ?? 0} inativado(s)${r.capacidades != null ? `, ${r.capacidades} com cubagem` : ''}.`
+            `FleetHub: ${contar(Number(r.novos ?? 0), 'novo', 'novos')}, ${contar(Number(r.atualizados ?? 0), 'atualizado', 'atualizados')}, ${contar(Number(r.inativados ?? 0), 'inativado', 'inativados')}${r.capacidades != null ? `, ${r.capacidades} com cubagem` : ''}.`
           ),
         onError: (e) => void toast.error(e.message)
       }
@@ -104,7 +105,7 @@ export function FleethubIntegracao({
               {ultima.ok === null
                 ? ' · em andamento'
                 : ultima.ok
-                  ? ` · ${ultima.novos} novo(s) · ${ultima.atualizados} atualizado(s) · ${ultima.inativados} inativado(s)${ultima.capacidades != null ? ` · ${ultima.capacidades} com cubagem` : ''}`
+                  ? ` · ${contar(Number(ultima.novos ?? 0), 'novo', 'novos')} · ${contar(Number(ultima.atualizados ?? 0), 'atualizado', 'atualizados')} · ${contar(Number(ultima.inativados ?? 0), 'inativado', 'inativados')}${ultima.capacidades != null ? ` · ${ultima.capacidades} com cubagem` : ''}`
                   : ` · falhou: ${ultima.mensagem ?? ''}`}
             </p>
           ) : null}

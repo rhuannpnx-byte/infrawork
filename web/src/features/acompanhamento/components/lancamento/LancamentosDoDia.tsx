@@ -67,7 +67,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
           {total === 1 ? '' : 's'} em {fmtBR(data)}
           {fotos > 0 ? (
             <span className="ml-2 inline-flex items-center gap-1 text-text-dim">
-              <Camera size={10} /> {fotos}
+              <Camera size={12} /> {fotos}
             </span>
           ) : null}
         </div>
@@ -135,7 +135,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
                       <div className="flex items-center justify-end gap-1.5 mt-0.5">
                         {Number(p.fotos_count ?? 0) > 0 ? (
                           <span className="inline-flex items-center gap-0.5 text-2xs font-mono text-accent">
-                            <Camera size={10} /> {p.fotos_count}
+                            <Camera size={12} /> {p.fotos_count}
                           </span>
                         ) : null}
                         {p.origem === 'importacao' ? (
@@ -156,7 +156,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
                         onClick={() => onEditar?.(p)}
                         className="inline-flex items-center gap-1 text-2xs text-text-muted hover:text-accent"
                       >
-                        <Pencil size={11} /> Editar
+                        <Pencil size={12} /> Editar
                       </button>
                       <button
                         type="button"
@@ -164,7 +164,7 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
                         className="inline-flex items-center gap-1 text-2xs text-text-muted hover:text-danger"
                         disabled={del.isPending}
                       >
-                        <Trash2 size={11} /> Excluir
+                        <Trash2 size={12} /> Excluir
                       </button>
                     </div>
                   ) : null}

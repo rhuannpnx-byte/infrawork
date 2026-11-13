@@ -34,7 +34,7 @@ export function OrcamentoIndex(): ReactNode {
             description="Tudo no módulo de orçamento é por obra. Recursos, composições, serviços, planilha orçamentária, aditivos e reajustes são isolados por obra."
             action={
               <Button variant="default" size="sm" onClick={() => openModal('projectSwitcher')}>
-                <Briefcase size={11} /> Selecionar obra
+                <Briefcase size={12} /> Selecionar obra
               </Button>
             }
           />
@@ -50,7 +50,7 @@ export function OrcamentoIndex(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Orçamento"
-        subtitle={`${scope.obra?.nome ?? ''} — catálogos da obra (vedados entre obras).`}
+        subtitle="Catálogos desta obra. Não são compartilhados com outras obras."
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
         <div className="grid grid-cols-4 gap-3">
@@ -85,7 +85,7 @@ export function OrcamentoIndex(): ReactNode {
         </div>
 
         <div className="rounded border border-border bg-bg-panel p-4">
-          <h3 className="text-sm font-semibold text-text mb-2">Próximos passos</h3>
+          <h3 className="text-md font-semibold text-text mb-2">Próximos passos</h3>
           <p className="text-xs text-text-muted leading-relaxed">
             Cadastre Recursos → monte Serviços → crie CPUs. Depois vá em{' '}
             <strong>Planilha Orçamentária</strong> e selecione receitas para agrupar como serviço

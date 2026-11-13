@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import { formatNumber } from '@/lib/format'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
@@ -179,6 +180,8 @@ function FormInner({
   const [progresso, setProgresso] = useState<{ feitas: number; total: number } | null>(null)
   const [encDialog, setEncDialog] = useState(false)
   const qtdRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const [tentou, setTentou] = useState(false)
 
   const item = useMemo(() => itens.find((i) => i.id === itemId) ?? null, [itens, itemId])
   // parametrização do serviço (Planejamento › Parametrização)
@@ -259,39 +262,32 @@ function FormInner({
     setMateriais([])
     setFotos([])
     setProgresso(null)
+    setTentou(false)
   }
+
+  // eixo: as estacas digitadas (no padrão do eixo) viram a faixa em metros internos; área: sem faixa
+  const loc = resolverLocalProducao(trecho, estacaIni, estacaFim)
+  const erros: Partial<Record<CampoComErro, string>> = {}
+  if (!itemId) erros.servico = 'Escolha o serviço.'
+  else if (porViagens)
+    erros.servico = 'Este serviço é lançado por viagens: registre as viagens do dia.'
+  if (qtdNum == null || qtdNum < 0)
+    erros.quantidade = quantidade ? 'Digite um número, como 1.250,5.' : 'Informe a quantidade.'
+  if (data > hojeLocalISO()) erros.data = 'A data não pode ser no futuro.'
+  if (par.exige_local && !trecho) erros.local = 'Este serviço exige o local do lançamento.'
+  else if (!loc.ok) erros.estacas = loc.erro
+  if (par.controla_material && par.material_obrigatorio && matQtdNum == null)
+    erros.material = `Informe a quantidade de ${matControlado?.nome ?? 'material'} aplicada.`
+  const erro = (c: CampoComErro): string | undefined => (tentou ? erros[c] : undefined)
 
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
-    if (!itemId) {
-      toast.error('Selecione o serviço.')
-      return
-    }
-    if (qtdNum == null || qtdNum < 0) {
-      toast.error('Informe a quantidade.')
-      qtdRef.current?.focus()
-      return
-    }
-    if (data > hojeLocalISO()) {
-      toast.error('A data não pode ser no futuro.')
-      return
-    }
-    if (porViagens) {
-      toast.error('Este serviço é alimentado por viagens: lance as viagens do dia.')
-      return
-    }
-    if (par.exige_local && !trecho) {
-      toast.error('Informe o local do lançamento (exigido para este serviço).')
-      return
-    }
-    if (par.controla_material && par.material_obrigatorio && matQtdNum == null) {
-      toast.error(`Informe o material aplicado (${matControlado?.nome ?? 'material'}).`)
-      return
-    }
-    // eixo: as estacas digitadas (no padrão do eixo) viram a faixa em metros internos; área: sem faixa
-    const loc = resolverLocalProducao(trecho, estacaIni, estacaFim)
-    if (!loc.ok) {
-      toast.error(loc.erro)
+    const primeiro = ORDEM_ERROS.find((c) => erros[c])
+    if (primeiro || !loc.ok || qtdNum == null) {
+      setTentou(true)
+      const alvo = formRef.current?.querySelector<HTMLElement>(`[data-campo="${primeiro}"]`)
+      alvo?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      alvo?.querySelector<HTMLElement>('input, select, button')?.focus({ preventScroll: true })
       return
     }
     const input: LancamentoInput = {
@@ -344,9 +340,12 @@ function FormInner({
           onProgress: (feitas, total) => setProgresso({ feitas, total })
         })
         if (r.erros.length > 0)
-          toast.warning(`${r.enviadas} foto(s) enviada(s); ${r.erros.length} falharam.`, {
-            description: r.erros.slice(0, 3).join('\n')
-          })
+          toast.warning(
+            `${contar(r.enviadas, 'foto enviada', 'fotos enviadas')}; ${contar(r.erros.length, 'falhou', 'falharam')}.`,
+            {
+              description: r.erros.slice(0, 3).join('\n')
+            }
+          )
       }
       toast.success(
         editar
@@ -357,7 +356,7 @@ function FormInner({
       limparPorLancamento()
       onSalvo?.(id)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Falha ao salvar o lançamento')
+      toast.error(err instanceof Error ? err.message : 'Não foi possível salvar o lançamento.')
     }
   }
 
@@ -370,26 +369,31 @@ function FormInner({
   }
 
   const campo =
-    'h-10 w-full rounded border border-border bg-bg px-3 text-sm text-text font-sans focus:border-accent focus:outline-none'
+    'h-10 w-full rounded border border-border-strong bg-bg-panel px-3 text-md text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent aria-[invalid=true]:border-danger aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger'
 
   return (
-    <form onSubmit={onSubmit} className={cn('flex flex-col', compacto ? 'min-h-full' : '')}>
+    <form
+      ref={formRef}
+      noValidate
+      onSubmit={onSubmit}
+      className={cn('flex flex-col', compacto ? 'min-h-full' : '')}
+    >
       <div className={cn('space-y-4', compacto ? 'p-4 pb-28' : 'p-5')}>
         {editar ? (
-          <div className="rounded border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-accent flex items-center justify-between gap-2">
+          <div className="rounded border border-accent/40 bg-accent-glow px-3 py-2 text-sm text-accent flex items-center justify-between gap-2">
             <span>Editando lançamento de {fmtBR(editar.data)}</span>
             <button
               type="button"
               onClick={onCancelarEdicao}
               className="inline-flex items-center gap-1 hover:underline"
             >
-              <X size={11} /> cancelar
+              <X size={12} /> Cancelar edição
             </button>
           </div>
         ) : null}
 
         <div className={cn('grid gap-3', compacto ? 'grid-cols-1' : 'grid-cols-2')}>
-          <div>
+          <div data-campo="data">
             <Label htmlFor="lc-data">Data</Label>
             <input
               id="lc-data"
@@ -398,8 +402,10 @@ function FormInner({
               max={hojeLocalISO()}
               onChange={(e) => onDataChange(e.target.value)}
               className={campo}
+              aria-invalid={erro('data') ? true : undefined}
               required
             />
+            <ErroCampo texto={erro('data')} />
           </div>
           <div>
             <Label>Equipe</Label>
@@ -422,23 +428,24 @@ function FormInner({
           </div>
         </div>
 
-        <div>
-          <Label>Serviço (item do orçamento)</Label>
+        <div data-campo="servico">
+          <Label>Serviço</Label>
           <ItemCombobox
             itens={itensManuais}
             value={itemId}
             onChange={escolherItem}
             loading={loadingItens}
           />
+          <ErroCampo texto={erro('servico')} />
           {item ? (
-            <div className="mt-1 text-2xs font-mono text-text-dim flex items-center gap-2">
+            <div className="mt-1 text-xs text-text-muted flex items-center gap-2">
               <ProgressoItem item={item} />
             </div>
           ) : null}
         </div>
 
         <div className={cn('grid gap-3', compacto ? 'grid-cols-1' : 'grid-cols-2')}>
-          <div>
+          <div data-campo="quantidade">
             <Label htmlFor="lc-qtd">Quantidade{unidade ? ` (${unidade})` : ''}</Label>
             <div className="relative">
               <input
@@ -449,18 +456,24 @@ function FormInner({
                 value={quantidade}
                 onChange={(e) => setQuantidade(e.target.value)}
                 placeholder="0,00"
-                className={cn(campo, 'font-mono text-base pr-14')}
+                className={cn(campo, 'tabular pr-14')}
+                aria-invalid={
+                  erro('quantidade') || (quantidade && qtdNum == null) ? true : undefined
+                }
                 required
               />
               {unidade ? (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-text-dim">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
                   {unidade}
                 </span>
               ) : null}
             </div>
-            {quantidade && qtdNum == null ? (
-              <div className="text-2xs text-danger mt-0.5">Número inválido</div>
-            ) : null}
+            <ErroCampo
+              texto={
+                erro('quantidade') ??
+                (quantidade && qtdNum == null ? 'Digite um número, como 1.250,5.' : undefined)
+              }
+            />
           </div>
           <div>
             <Label>Encarregado</Label>
@@ -491,8 +504,8 @@ function FormInner({
         </div>
 
         {porViagens ? (
-          <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn flex items-start gap-2">
-            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text flex items-start gap-2">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warn" />
             <span>
               Este serviço é <strong>alimentado por viagens</strong>: a produção do dia é a soma das
               viagens lançadas (app de campo ou Acompanhamento › Viagens).
@@ -501,9 +514,9 @@ function FormInner({
         ) : null}
 
         {par.controla_material && itemId ? (
-          <div>
+          <div data-campo="material">
             <Label htmlFor="lc-mat">
-              Material aplicado — {matControlado?.nome ?? 'material'}
+              Material aplicado: {matControlado?.nome ?? 'material'}
               {par.material_obrigatorio ? '' : ' (opcional)'}
             </Label>
             <div className="relative">
@@ -514,16 +527,17 @@ function FormInner({
                 value={matQtd}
                 onChange={(e) => setMatQtd(e.target.value)}
                 placeholder="0,00"
-                className={cn(campo, 'font-mono text-base pr-14')}
+                className={cn(campo, 'tabular pr-14')}
+                aria-invalid={erro('material') || (matQtd && matQtdNum == null) ? true : undefined}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-text-dim">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
                 {par.material_unidade ?? ''}
               </span>
             </div>
-            {matQtd && matQtdNum == null ? (
-              <div className="text-2xs text-danger mt-0.5">Número inválido</div>
+            {erro('material') || (matQtd && matQtdNum == null) ? (
+              <ErroCampo texto={erro('material') ?? 'Digite um número, como 1.250,5.'} />
             ) : qtdNum && matQtdNum != null && qtdNum > 0 ? (
-              <div className="text-2xs font-mono text-text-dim mt-0.5">
+              <div className="text-xs text-text-muted mt-1 tabular">
                 {formatNumber(matQtdNum / qtdNum, 3)} {par.material_unidade ?? ''} por{' '}
                 {unidade ?? 'unidade'}
               </div>
@@ -531,13 +545,23 @@ function FormInner({
           </div>
         ) : null}
 
-        <div>
-          <Label htmlFor="lc-local">Local{par.exige_local ? ' *' : ''}</Label>
+        <div data-campo="local">
+          <Label htmlFor="lc-local">
+            Local
+            {par.exige_local ? (
+              <span className="text-danger" aria-hidden>
+                {' '}
+                *
+              </span>
+            ) : null}
+          </Label>
           <Select
             id="lc-local"
             value={trechoId}
             onChange={(e) => setTrechoId(e.target.value)}
-            className="h-10 text-sm"
+            className="h-10 text-md"
+            aria-invalid={erro('local') ? true : undefined}
+            aria-required={par.exige_local || undefined}
           >
             <option value="">Sem local</option>
             {trechos.some((t) => t.tipo === 'eixo') ? (
@@ -565,18 +589,19 @@ function FormInner({
               </optgroup>
             ) : null}
           </Select>
-          {trechos.length === 0 ? (
-            <p className="text-2xs text-warn mt-1">
+          <ErroCampo texto={erro('local')} />
+          {erro('local') ? null : trechos.length === 0 ? (
+            <p className="text-xs text-warn mt-1">
               A obra não tem locais cadastrados (Planejamento › Locais): o realizado vai para as
               tarefas do serviço pela ordem de início, sem posição.
             </p>
           ) : !trecho ? (
-            <p className="text-2xs text-warn mt-1">
+            <p className="text-xs text-warn mt-1">
               Sem local, o realizado vai para as tarefas do serviço pela ordem de início, sem
               posição no tempo-caminho. Informe o local e as estacas.
             </p>
           ) : (
-            <p className="text-2xs text-text-dim mt-1">
+            <p className="text-xs text-text-muted mt-1">
               O realizado cai na tarefa do cronograma que cobre{' '}
               {trecho.tipo === 'area' ? 'esta área' : 'esta faixa de estacas'}.
               {item && !locaisDoItem.has(trecho.id)
@@ -585,7 +610,10 @@ function FormInner({
             </p>
           )}
         </div>
-        <div className={cn('grid grid-cols-2 gap-3', trecho?.tipo === 'area' ? 'hidden' : '')}>
+        <div
+          data-campo="estacas"
+          className={cn('grid grid-cols-2 gap-x-3', trecho?.tipo === 'area' ? 'hidden' : '')}
+        >
           <div>
             <Label htmlFor="lc-est-i">Estaca inicial</Label>
             <Input
@@ -594,7 +622,8 @@ function FormInner({
               onChange={(e) => setEstacaIni(e.target.value)}
               placeholder={trecho?.tipo === 'eixo' ? estacaInicialTexto(trecho) : 'Ex.: 12+300'}
               disabled={trecho?.tipo === 'area'}
-              className="h-10 text-sm font-mono"
+              className="h-10 text-md tabular"
+              aria-invalid={erro('estacas') ? true : undefined}
             />
           </div>
           <div>
@@ -605,8 +634,12 @@ function FormInner({
               onChange={(e) => setEstacaFim(e.target.value)}
               placeholder={trecho?.tipo === 'eixo' ? estacaFinalTexto(trecho) : 'Ex.: 12+500'}
               disabled={trecho?.tipo === 'area'}
-              className="h-10 text-sm font-mono"
+              className="h-10 text-md tabular"
+              aria-invalid={erro('estacas') ? true : undefined}
             />
+          </div>
+          <div className="col-span-2">
+            <ErroCampo texto={erro('estacas')} />
           </div>
         </div>
         <div>
@@ -617,7 +650,7 @@ function FormInner({
             value={frente}
             onChange={(e) => setFrente(e.target.value)}
             placeholder="Ex.: Pista direita · Lado esquerdo"
-            className="h-10 text-sm"
+            className="h-10 text-md"
           />
           <datalist id="lc-frentes">
             {frentes.map((f) => (
@@ -627,8 +660,8 @@ function FormInner({
         </div>
 
         {duplicado ? (
-          <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn flex items-start gap-2">
-            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text flex items-start gap-2">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warn" />
             <span>
               Já existe {duplicado.n === 1 ? 'um lançamento' : `${duplicado.n} lançamentos`} deste
               serviço
@@ -683,7 +716,7 @@ function FormInner({
                     className="absolute top-0.5 right-0.5 size-5 rounded-full bg-black/60 text-white flex items-center justify-center"
                     title="Remover"
                   >
-                    <X size={10} />
+                    <X size={12} />
                   </button>
                 </div>
               ))}
@@ -739,7 +772,7 @@ function FormInner({
                         onClick={() => setMateriais((m) => [...m, { ...MAT_VAZIO }])}
                         className="text-2xs text-accent inline-flex items-center gap-1 hover:underline"
                       >
-                        <Plus size={10} /> adicionar
+                        <Plus size={12} /> adicionar
                       </button>
                     </div>
                     {materiais.length === 0 ? (
@@ -814,7 +847,7 @@ function FormInner({
       >
         {progresso ? (
           <span className="text-2xs font-mono text-text-dim inline-flex items-center gap-1">
-            <Loader2 size={11} className="animate-spin" /> fotos {progresso.feitas}/
+            <Loader2 size={12} className="animate-spin" /> fotos {progresso.feitas}/
             {progresso.total}
           </span>
         ) : null}
@@ -827,7 +860,7 @@ function FormInner({
         <Button
           type="submit"
           size="lg"
-          disabled={salvando || !itemId || qtdNum == null || porViagens}
+          disabled={salvando}
           className={cn('min-h-11', compacto ? 'flex-1' : 'min-w-[180px]')}
         >
           {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
@@ -842,6 +875,25 @@ function FormInner({
         onCreated={(e: Encarregado) => setEncarregadoId(e.id)}
       />
     </form>
+  )
+}
+
+type CampoComErro = 'data' | 'servico' | 'quantidade' | 'material' | 'local' | 'estacas'
+const ORDEM_ERROS: CampoComErro[] = [
+  'data',
+  'servico',
+  'quantidade',
+  'material',
+  'local',
+  'estacas'
+]
+
+function ErroCampo({ texto }: { texto?: string }): ReactNode {
+  if (!texto) return null
+  return (
+    <p role="alert" className="mt-1 text-xs font-medium text-danger">
+      {texto}
+    </p>
   )
 }
 

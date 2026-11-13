@@ -18,6 +18,21 @@ interface UIStore {
 }
 
 const SIDEBAR_KEY = storageKey('ui.sidebarOpen')
+// A mesma chave de public/theme-boot.js, que aplica a densidade antes da primeira pintura.
+const CHAVE_DENSIDADE = 'infrawork.ui.density'
+
+function lerDensidade(): 'compact' | 'normal' {
+  try {
+    return window.localStorage.getItem(CHAVE_DENSIDADE) === 'compact' ? 'compact' : 'normal'
+  } catch {
+    return 'normal'
+  }
+}
+
+function aplicarDensidade(d: 'compact' | 'normal'): void {
+  if (d === 'compact') document.documentElement.dataset.density = 'compact'
+  else delete document.documentElement.dataset.density
+}
 
 function readSidebarPref(): boolean {
   if (typeof window === 'undefined') return true
@@ -64,6 +79,14 @@ export const useUIStore = create<UIStore>((set) => ({
       return { activeModals: next }
     }),
 
-  density: 'normal',
-  setDensity: (density) => set({ density })
+  density: lerDensidade(),
+  setDensity: (density) => {
+    try {
+      window.localStorage.setItem(CHAVE_DENSIDADE, density)
+    } catch {
+      // sem armazenamento: vale só para esta sessão
+    }
+    aplicarDensidade(density)
+    set({ density })
+  }
 }))

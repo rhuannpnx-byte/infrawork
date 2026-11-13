@@ -1,16 +1,15 @@
 import { type ReactNode, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, Search, Check, X, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { BarraFiltros, Filtro, FiltroUnico } from '@/components/ui/filtros'
+import { FaixaIndicadores, Indicador } from '@/components/ui/indicador'
 import { AvisoSemLinhaDeBase } from '@/features/acompanhamento/components/AvisoSemLinhaDeBase'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
-import { KPICard } from '@/components/charts/KPICard'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
-import { cn } from '@/lib/utils'
 import { fmtBRL, fmtQtd } from '@/lib/money'
 import { useValorAgregado } from '@/features/acompanhamento/hooks/valor-agregado'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
@@ -118,7 +117,7 @@ function ValorAgregadoInner(): ReactNode {
       downloadBlob(blob, `Medição ${scope.obra?.nome ?? 'Obra'} ${dmy(de)} - ${dmy(ate)}.xlsx`)
       toast.success('Planilha exportada.')
     } catch (err) {
-      toast.error(`Falha ao exportar: ${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`Não foi possível exportar: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setExportando(false)
     }
@@ -126,32 +125,30 @@ function ValorAgregadoInner(): ReactNode {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Valor Agregado" subtitle={scope.obra?.nome ?? ''} />
+      <PageHeader title="Valor Agregado" />
       <AvisoSemLinhaDeBase obraId={obraId} />
 
       <div className="flex-1 overflow-auto">
-        {/* Filtros sticky */}
-        <div className="sticky top-0 z-20 bg-bg border-b border-border px-5 py-2 flex flex-wrap items-center gap-3">
-          <span className="text-2xs font-mono uppercase text-text-dim">Período</span>
-          <DateRangePopover
-            from={rawDe}
-            to={rawAte}
-            onChange={(d, a) => setRange(d, a)}
-            placeholder="Mês atual"
+        <BarraFiltros
+          className="sticky top-0 z-20"
+          aoLimpar={servicoItemId ? () => setServicoItem(null) : null}
+        >
+          <Filtro rotulo="Período">
+            <DateRangePopover
+              from={rawDe}
+              to={rawAte}
+              onChange={(d, a) => setRange(d, a)}
+              placeholder="Mês atual"
+            />
+          </Filtro>
+          <FiltroUnico
+            rotulo="Serviço"
+            todos="Todos os serviços"
+            opcoes={listaServicos.map((o) => ({ valor: o.id, rotulo: o.label }))}
+            valor={servicoItemId}
+            aoMudar={setServicoItem}
           />
-          <span className="ml-2 h-4 w-px bg-border" />
-          <span className="text-2xs font-mono uppercase text-text-dim">Serviço</span>
-          <ServicoSelect value={servicoItemId} onChange={setServicoItem} opcoes={listaServicos} />
-          {servicoItemId && (
-            <button
-              onClick={() => setServicoItem(null)}
-              className="text-2xs text-text-dim hover:text-danger inline-flex items-center gap-0.5"
-              title="Limpar filtro de serviço"
-            >
-              <X size={9} /> limpar
-            </button>
-          )}
-        </div>
+        </BarraFiltros>
 
         <div className="p-5 space-y-4">
           {semBaseline ? (
@@ -163,68 +160,74 @@ function ValorAgregadoInner(): ReactNode {
           ) : (
             <>
               {referenciaProvisoria ? (
-                <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn">
-                  Sem linha de base vigente (replanejamento em andamento): o planejado usa a última
+                <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text">
+                  Sem linha de base vigente (replanejamento em andamento): o previsto usa a última
                   vigente como referência provisória.
                 </div>
               ) : null}
               {prateleira.length > 0 ? (
-                <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn space-y-0.5">
+                <div className="rounded border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-text space-y-0.5">
                   <div className="font-semibold">
                     Executado além do contrato (não agrega valor até um aditivo):
                   </div>
                   {prateleira.map((p) => (
-                    <div key={p.id} className="font-mono text-2xs">
+                    <div key={p.id} className="tabular text-text-muted">
                       {p.codigo} · {p.descricao}: {fmtQtd(p.excedente)} {p.unidade}
                     </div>
                   ))}
                 </div>
               ) : null}
-              {/* KPIs */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {isLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => <PulseBlock key={i} h={92} />)
-                ) : (
-                  <>
-                    <KPICard
-                      icon={<TrendingUp size={11} />}
-                      label="Receita projetada"
-                      value={fmtBRL(kpis.recProj)}
-                      hint="valor agregado acumulado"
-                    />
-                    <KPICard
-                      icon={<TrendingUp size={11} />}
-                      label="Custo projetado"
-                      value={fmtBRL(kpis.custProj)}
-                      hint="produzido + indireto + impostos"
-                    />
-                    <KPICard
-                      icon={<TrendingUp size={11} />}
-                      label="Margem projetada"
-                      value={fmtBRL(kpis.margem)}
-                    />
-                    <KPICard
-                      icon={<TrendingUp size={11} />}
-                      label="Medição do período"
-                      value={fmtBRL(kpis.totalMedicao)}
-                    />
-                  </>
-                )}
-              </div>
+              <FaixaIndicadores rotulo="Valor agregado">
+                <Indicador
+                  rotulo="Receita executada"
+                  tamanho="sm"
+                  carregando={isLoading}
+                  valor={fmtBRL(kpis.recProj)}
+                >
+                  <span>valor agregado acumulado</span>
+                </Indicador>
+                <Indicador
+                  rotulo="Custo executado"
+                  tamanho="sm"
+                  carregando={isLoading}
+                  valor={fmtBRL(kpis.custProj)}
+                >
+                  <span>produzido, indireto e impostos</span>
+                </Indicador>
+                <Indicador
+                  rotulo="Margem"
+                  tamanho="sm"
+                  carregando={isLoading}
+                  tom={kpis.margem < 0 ? 'danger' : 'neutro'}
+                  valor={fmtBRL(kpis.margem)}
+                >
+                  <span>receita menos custo, até hoje</span>
+                </Indicador>
+                <Indicador
+                  rotulo="Medição do período"
+                  tamanho="sm"
+                  carregando={isLoading}
+                  valor={fmtBRL(kpis.totalMedicao)}
+                >
+                  <span>pelas quantidades do período</span>
+                </Indicador>
+              </FaixaIndicadores>
 
-              {/* Curva-S de valor agregado */}
               <div>
-                <div className="text-2xs font-mono uppercase text-text-dim mb-1.5">
-                  Curva-S — planejado × projetado (acumulado)
-                </div>
+                <h2 className="text-lg font-semibold text-text mb-2">
+                  Curva S{' '}
+                  <span className="text-sm font-normal text-text-muted">
+                    receita e custo, previstos e executados, acumulados
+                  </span>
+                </h2>
                 {isLoading ? <PulseBlock h={380} /> : <CurvaSValorAgregado dados={curva} />}
               </div>
 
-              {/* Planejado × Projetado por serviço */}
               <div>
-                <div className="text-2xs font-mono uppercase text-text-dim mb-1.5">
-                  Planejado × Projetado por serviço (período)
-                </div>
+                <h2 className="text-lg font-semibold text-text mb-2">
+                  Previsto e executado por serviço{' '}
+                  <span className="text-sm font-normal text-text-muted">no período</span>
+                </h2>
                 {isLoading ? (
                   <PulseBlock h={260} />
                 ) : (
@@ -232,7 +235,6 @@ function ValorAgregadoInner(): ReactNode {
                 )}
               </div>
 
-              {/* Medição unitária */}
               {isLoading ? (
                 <PulseBlock h={240} />
               ) : (
@@ -242,111 +244,6 @@ function ValorAgregadoInner(): ReactNode {
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-/** Combobox custom para serviços — espelha o do dashboard (select nativo renderiza branco no Electron). */
-function ServicoSelect({
-  value,
-  onChange,
-  opcoes
-}: {
-  value: string | null
-  onChange: (id: string | null) => void
-  opcoes: Array<{ id: string; label: string }>
-}): ReactNode {
-  const [open, setOpen] = useState(false)
-  const [busca, setBusca] = useState('')
-  const filtradas = useMemo(() => {
-    const q = busca.trim().toLowerCase()
-    if (!q) return opcoes
-    return opcoes.filter((o) => o.label.toLowerCase().includes(q))
-  }, [opcoes, busca])
-  const selecionado = value ? opcoes.find((o) => o.id === value) : null
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          'inline-flex items-center gap-1.5 px-2 py-1 rounded border text-2xs font-mono min-w-[240px] max-w-[300px]',
-          value
-            ? 'border-accent/50 text-text bg-accent/5 hover:border-accent'
-            : 'border-border text-text-dim hover:text-text hover:border-border-strong'
-        )}
-      >
-        <span className="flex-1 text-left truncate">
-          {selecionado ? selecionado.label : 'Todos os serviços'}
-        </span>
-        <ChevronDown size={11} className="shrink-0 text-text-dim" />
-      </button>
-      {open && (
-        <>
-          <div
-            className="fixed inset-0 z-30"
-            onClick={() => {
-              setOpen(false)
-              setBusca('')
-            }}
-          />
-          <div className="absolute top-full mt-1 left-0 z-40 bg-bg-elevated border border-border-strong rounded shadow-xl w-[340px] max-h-[320px] overflow-hidden flex flex-col">
-            <div className="px-2 py-1.5 border-b border-border flex items-center gap-1.5">
-              <Search size={11} className="text-text-dim" />
-              <input
-                autoFocus
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar serviço…"
-                className="bg-transparent flex-1 text-2xs font-mono text-text outline-none placeholder:text-text-dim"
-              />
-            </div>
-            <div className="overflow-auto flex-1 p-1">
-              <button
-                onClick={() => {
-                  onChange(null)
-                  setOpen(false)
-                  setBusca('')
-                }}
-                className={cn(
-                  'w-full text-left px-2 py-1 rounded text-2xs font-mono flex items-center gap-1.5',
-                  value == null
-                    ? 'bg-accent/15 text-accent'
-                    : 'text-text-dim hover:bg-bg-hover hover:text-text'
-                )}
-              >
-                {value == null && <Check size={10} />}
-                {value != null && <span className="size-2.5 shrink-0" />}— Todos os serviços —
-              </button>
-              {filtradas.length === 0 && (
-                <div className="text-2xs font-mono text-text-dim p-2 text-center">
-                  sem resultados
-                </div>
-              )}
-              {filtradas.map((o) => {
-                const sel = value === o.id
-                return (
-                  <button
-                    key={o.id}
-                    onClick={() => {
-                      onChange(o.id)
-                      setOpen(false)
-                      setBusca('')
-                    }}
-                    className={cn(
-                      'w-full text-left px-2 py-1 rounded text-2xs font-mono flex items-center gap-1.5',
-                      sel ? 'bg-accent/15 text-accent' : 'text-text hover:bg-bg-hover'
-                    )}
-                  >
-                    {sel ? <Check size={10} /> : <span className="size-2.5 shrink-0" />}
-                    <span className="truncate">{o.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

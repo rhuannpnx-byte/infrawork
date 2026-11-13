@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatNumber } from '@/lib/format'
 import { hojeLocalISO } from '@/lib/format/local-date'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
@@ -163,7 +164,9 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
     }
     try {
       const r = await lote.mutateAsync({ linhas: prontas, origem: 'app' })
-      toast.success(`${r.inseridos} lançamento(s) registrado(s) em ${fmtBR(data)}.`)
+      toast.success(
+        `${contar(r.inseridos, 'lançamento registrado', 'lançamentos registrados')} em ${fmtBR(data)}.`
+      )
       setLinhas({})
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Falha ao salvar o lote')
@@ -248,7 +251,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
         </div>
         <div className="relative">
           <Label>Filtrar itens</Label>
-          <Search size={11} className="absolute left-2 bottom-2.5 text-text-dim" />
+          <Search size={12} className="absolute left-2 bottom-2.5 text-text-dim" />
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -428,7 +431,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
 
       <div className="border-t border-border bg-bg-panel px-5 py-3 flex items-center gap-3">
         <span className="text-2xs font-mono text-text-dim">
-          {prontas.length} item(ns) com quantidade · {fmtBR(data)}
+          {contar(prontas.length, 'item', 'itens')} com quantidade · {fmtBR(data)}
           {erros.length ? (
             <span className="text-danger"> · {erros.length} com local/estaca inválido</span>
           ) : null}
@@ -444,7 +447,7 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
         </Button>
         <Button onClick={() => void salvar()} disabled={lote.isPending || prontas.length === 0}>
           {lote.isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-          Registrar {prontas.length > 0 ? `${prontas.length} lançamento(s)` : ''}
+          Registrar {prontas.length > 0 ? contar(prontas.length, 'lançamento', 'lançamentos') : ''}
         </Button>
       </div>
     </div>

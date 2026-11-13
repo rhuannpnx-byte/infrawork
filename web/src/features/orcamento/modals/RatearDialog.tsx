@@ -292,7 +292,7 @@ function RatearConteudo({
               onClick={() => setLinhas((ls) => [...ls, { grupo_id: '', valor: '', compoe: false }])}
               className="text-2xs text-accent hover:underline inline-flex items-center gap-1"
             >
-              <Plus size={11} /> serviço
+              <Plus size={12} /> serviço
             </button>
             {criterio === 'percentual' && linhas.length > 0 ? (
               <button

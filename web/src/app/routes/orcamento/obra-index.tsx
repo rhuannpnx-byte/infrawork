@@ -10,6 +10,7 @@ import { usePlanOrc } from '@/features/orcamento/hooks/plan-orc'
 import { useIndireto, totalIndireto } from '@/features/orcamento/hooks/indireto'
 import { fmtBRL, fmtPct2 } from '@/lib/money'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import { ProntidaoObra } from '@/features/gerencial/components/ProntidaoObra'
 import { rotuloStatusObra } from '@/features/gerencial/lib/status-obra'
 
@@ -45,14 +46,14 @@ function ObraDashboard(): ReactNode {
             icon={<ListTree size={16} />}
             label="Itens da planilha"
             value={totalItens.toString()}
-            hint={`${totalReceitas} receita(s)`}
+            hint={contar(totalReceitas, 'receita', 'receitas')}
             onClick={() => navigate({ to: '/orcamento/obra/plan-orc' })}
           />
           <Card
             icon={<Briefcase size={16} />}
             label="Indireto total"
             value={fmtBRL(indiretoTotal)}
-            hint={`${indiretos.length} lançamento(s)`}
+            hint={contar(indiretos.length, 'lançamento', 'lançamentos')}
             onClick={() => navigate({ to: '/orcamento/obra/indireto' })}
           />
           <Card

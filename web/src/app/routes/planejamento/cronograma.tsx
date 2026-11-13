@@ -23,5 +23,5 @@ function Inner(): ReactNode {
   useEffect(() => {
     if (plan) escolher(obraId, plan)
   }, [plan, obraId, escolher])
-  return <CronogramaPagina obraId={obraId} obraNome={scope.obra?.nome ?? ''} />
+  return <CronogramaPagina obraId={obraId} />
 }

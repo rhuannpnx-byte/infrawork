@@ -18,7 +18,7 @@ import { compararPlanos } from '@/features/planejamento/lib/comparar-planos'
 
 export function PlanejamentoCompararPage(): ReactNode {
   return (
-    <RequireObra pageTitle="Comparar baseline">
+    <RequireObra pageTitle="Comparar planos">
       <CompararInner />
     </RequireObra>
   )
@@ -61,12 +61,12 @@ function CompararInner(): ReactNode {
   if (!baseline && !ativo) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Comparar" subtitle={scope.obra?.nome ?? ''} />
+        <PageHeader title="Comparar" />
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="git-compare"
             title="Sem revisões para comparar"
-            description="Crie revisões e promova uma a baseline para comparar."
+            description="Crie um plano e trave-o como linha de base para comparar."
           />
         </div>
       </div>
@@ -76,8 +76,8 @@ function CompararInner(): ReactNode {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Comparar baseline"
-        subtitle={`${scope.obra?.nome ?? ''} — diferença entre duas revisões do cronograma.`}
+        title="Comparar planos"
+        subtitle="Diferença entre dois planos do cronograma."
         actions={
           <div className="flex items-center gap-2">
             <span className="text-2xs font-mono text-text-dim uppercase">Esq:</span>

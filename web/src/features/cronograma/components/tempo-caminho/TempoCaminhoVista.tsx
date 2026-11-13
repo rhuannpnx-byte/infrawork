@@ -920,7 +920,7 @@ export function TempoCaminhoVista({
   const dividindo = modo === 'dividir' && !somenteLeitura
 
   return (
-    <div className="relative h-full w-full">
+    <div data-density="compact" className="relative h-full w-full">
       <div
         ref={ref}
         className="relative h-full w-full overflow-auto bg-bg"

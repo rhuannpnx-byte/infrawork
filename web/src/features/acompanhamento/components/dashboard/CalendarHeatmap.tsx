@@ -1,5 +1,4 @@
 import { type ReactNode, useMemo } from 'react'
-import { Camera } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -54,14 +53,14 @@ export function CalendarHeatmap({ data, altura = 200 }: Props): ReactNode {
       className="rounded border border-border bg-bg-panel flex flex-col"
       style={{ height: altura }}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-text flex items-center gap-1.5">
-          <Camera size={11} /> Cobertura fotográfica
+      <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3">
+        <h4 className="text-md font-semibold text-text flex items-center gap-1.5">
+          Cobertura de fotos
         </h4>
-        <span className="text-2xs font-mono text-text-dim capitalize">{grid.mesLabel}</span>
+        <span className="text-xs text-text-muted first-letter:uppercase">{grid.mesLabel}</span>
       </div>
       <div className="flex-1 px-3 pb-3 flex flex-col overflow-hidden">
-        <div className="grid grid-cols-7 gap-0.5 mb-1 text-2xs font-mono text-text-dim text-center shrink-0">
+        <div className="grid grid-cols-7 gap-0.5 mb-1 text-xs text-text-muted text-center shrink-0">
           {WEEK_LABELS.map((l, i) => (
             <div key={i}>{l}</div>
           ))}
@@ -75,8 +74,10 @@ export function CalendarHeatmap({ data, altura = 200 }: Props): ReactNode {
             />
           ))}
         </div>
-        <div className="pt-2 text-2xs font-mono text-text-dim flex items-center justify-between shrink-0">
-          <span>{totalFotos} fotos no mês</span>
+        <div className="pt-2 text-xs text-text-muted flex items-center justify-between shrink-0">
+          <span>
+            {totalFotos} {totalFotos === 1 ? 'foto' : 'fotos'} no mês
+          </span>
           <span>
             {diasComFoto}/{diasUteisAteHoje} dias
           </span>

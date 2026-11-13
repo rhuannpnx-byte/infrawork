@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import {
   traduzirErro,
@@ -174,7 +175,7 @@ function GrupoConteudo({
             <p className="text-2xs text-text-dim">
               {fmtDataLonga(ini)} → {fmtDataLonga(fim - 1)}
               {spec ? ` · ${fmtDias(getWorkDaysBetween(new Calendar(spec), ini, fim))}` : ''} ·{' '}
-              {rs.length} tarefa(s)
+              {contar(rs.length, 'tarefa', 'tarefas')}
             </p>
           </>
         ) : null}

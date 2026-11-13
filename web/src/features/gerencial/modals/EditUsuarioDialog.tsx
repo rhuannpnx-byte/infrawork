@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUpdateUsuario, useEmpresas, useEngenheiros } from '../hooks'
 import { maskWhatsappBR } from '@/lib/format'
+import { ROTULO_PAPEL } from '@/lib/rotulos'
 import type { Role } from '@/types/auth'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
@@ -32,11 +33,7 @@ function rolesEditableFor(caller: Role | undefined): Role[] {
 }
 
 const ROLE_LABEL: Record<Role, string> = {
-  god: 'God',
-  adm: 'Administrador',
-  engenheiro: 'Engenheiro',
-  apoio: 'Apoio',
-  cliente: 'Cliente',
+  ...ROTULO_PAPEL,
   apontador: 'Apontador (app de campo)'
 }
 

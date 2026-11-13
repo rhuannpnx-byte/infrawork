@@ -12,6 +12,8 @@ import { getModuleByRoute } from '@/config/modules'
 import { formatNumber } from '@/lib/format'
 import { useTabsStore } from '@/stores/tabs-store'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
+import { Button } from '@/components/ui/button'
 import {
   useProntidaoObra,
   type EtapaProntidao,
@@ -19,10 +21,10 @@ import {
 } from '@/features/gerencial/hooks/prontidao'
 
 const ICONE: Record<SituacaoEtapa, ReactNode> = {
-  ok: <CircleCheck size={14} className="text-success" />,
-  pendente: <CircleDot size={14} className="text-danger" />,
-  aviso: <AlertTriangle size={14} className="text-warn" />,
-  opcional: <CircleDashed size={14} className="text-text-dim" />
+  ok: <CircleCheck size={16} className="text-success" />,
+  pendente: <CircleDot size={16} className="text-danger" />,
+  aviso: <AlertTriangle size={16} className="text-warn" />,
+  opcional: <CircleDashed size={16} className="text-text-dim" />
 }
 
 /** Etapas da obra até ter previsto e realizado, com o que falta em cada uma e o atalho para resolver. */
@@ -39,25 +41,25 @@ export function ProntidaoObra({
   const avisos = data?.avisos ?? 0
   return (
     <section className="rounded border border-border bg-bg-panel">
-      <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-text">{titulo}</h3>
+      <header className="flex items-baseline gap-3 border-b border-border px-4 py-3">
+        <h2 className="text-lg font-semibold text-text">{titulo}</h2>
         {data ? (
           <span
             className={cn(
-              'ml-auto text-2xs font-mono',
+              'ml-auto text-sm font-semibold',
               pendentes ? 'text-danger' : avisos ? 'text-warn' : 'text-success'
             )}
           >
             {pendentes
-              ? `${pendentes} pendência(s)${avisos ? ` · ${avisos} aviso(s)` : ''}`
+              ? `${contar(pendentes, 'pendência', 'pendências')}${avisos ? ` e ${contar(avisos, 'aviso', 'avisos')}` : ''}`
               : avisos
-                ? `${avisos} aviso(s)`
+                ? contar(avisos, 'aviso', 'avisos')
                 : 'Obra pronta'}
           </span>
         ) : null}
       </header>
       {isLoading ? (
-        <div className="px-4 py-3 text-2xs text-text-dim">Conferindo a obra…</div>
+        <div className="px-4 py-3 text-sm text-text-muted">Conferindo a obra…</div>
       ) : (
         <ol className="divide-y divide-border">
           {(data?.etapas ?? []).map((e) => (
@@ -74,31 +76,36 @@ function Etapa({ etapa }: { etapa: EtapaProntidao }): ReactNode {
   const [aberta, setAberta] = useState(false)
   const temItens = etapa.itens.length > 0 && etapa.situacao !== 'ok'
   return (
-    <li className="px-4 py-2">
-      <div className="flex items-start gap-2">
+    <li className="px-4 py-2.5">
+      <div className="flex items-start gap-2.5">
         <span className="mt-0.5 shrink-0">{ICONE[etapa.situacao]}</span>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-text">{etapa.titulo}</div>
-          <div className="text-2xs text-text-muted leading-snug">{etapa.resumo}</div>
+          <div className="text-sm font-semibold text-text">{etapa.titulo}</div>
+          <div className="text-sm text-text-muted">{etapa.resumo}</div>
           {temItens ? (
             <button
               type="button"
               onClick={() => setAberta((a) => !a)}
-              className="mt-1 inline-flex items-center gap-1 text-2xs text-accent hover:underline"
+              aria-expanded={aberta}
+              className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline"
             >
-              {aberta ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {aberta ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               {aberta ? 'Ocultar' : 'Ver'}{' '}
-              {etapa.itens.length === 30 ? 'os primeiros 30' : etapa.itens.length} item(ns)
+              {etapa.itens.length === 30
+                ? 'os primeiros 30 itens'
+                : contar(etapa.itens.length, 'item', 'itens')}
             </button>
           ) : null}
           {aberta ? (
-            <ul className="mt-1 space-y-0.5 text-2xs text-text-muted">
+            <ul className="mt-1.5 space-y-1 text-sm text-text-muted">
               {etapa.itens.map((i) => (
                 <li key={i.id} className="flex gap-2">
-                  {i.codigo ? <span className="font-mono text-text-dim">{i.codigo}</span> : null}
+                  {i.codigo ? (
+                    <span className="tabular text-text-dim shrink-0">{i.codigo}</span>
+                  ) : null}
                   <span className="truncate">{i.descricao}</span>
                   {i.orcado !== undefined ? (
-                    <span className="ml-auto shrink-0 font-mono tabular-nums">
+                    <span className="ml-auto shrink-0 tabular">
                       {formatNumber(i.planejado ?? 0, 2)} de {formatNumber(i.orcado, 2)}
                     </span>
                   ) : null}
@@ -108,16 +115,17 @@ function Etapa({ etapa }: { etapa: EtapaProntidao }): ReactNode {
           ) : null}
         </div>
         {etapa.situacao !== 'ok' ? (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
             onClick={() => {
               const m = getModuleByRoute(etapa.rota)
               if (m) openModule(m.key, etapa.rota)
             }}
-            className="shrink-0 inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-2xs text-text-muted hover:border-border-accent hover:text-accent"
           >
-            Resolver <ArrowRight size={11} />
-          </button>
+            Resolver <ArrowRight size={12} />
+          </Button>
         ) : null}
       </div>
     </li>

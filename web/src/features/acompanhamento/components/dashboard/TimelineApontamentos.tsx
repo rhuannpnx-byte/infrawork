@@ -1,7 +1,9 @@
 import { type ReactNode } from 'react'
-import { Activity } from 'lucide-react'
 import type { DashboardResumoResposta } from '@/types/acompanhamento'
 import { formatNumber } from '@/lib/format'
+
+const dataBR = (iso: string | null | undefined): string =>
+  iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''
 
 interface Props {
   itens: DashboardResumoResposta['ultimos_apontamentos']
@@ -14,15 +16,15 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
       className="rounded border border-border bg-bg-panel flex flex-col"
       style={{ height: altura }}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-text flex items-center gap-1.5">
-          <Activity size={11} /> Últimos apontamentos
+      <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3">
+        <h4 className="text-md font-semibold text-text flex items-center gap-1.5">
+          Últimos lançamentos
         </h4>
       </div>
-      <div className="flex-1 overflow-auto px-3 pb-3 space-y-1.5">
+      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
         {itens.length === 0 && (
-          <div className="text-text-dim text-2xs font-mono flex items-center justify-center h-full">
-            Sem apontamentos
+          <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
+            Nenhum lançamento ainda.
           </div>
         )}
         {itens.map((i) => {
@@ -32,7 +34,7 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
           const valor = converteu ? Number(i.qtd_convertida ?? 0) : Number(i.qtd ?? 0)
           const unidade = converteu ? i.unidade_plano : (i.unidade ?? i.unidade_plano)
           return (
-            <div key={i.id} className="flex items-start gap-2 text-xs">
+            <div key={i.id} className="flex items-start gap-2 text-sm">
               <div
                 className="size-2 mt-1 rounded-full shrink-0"
                 style={{ background: i.equipe_display_cor ?? '#94a3b8' }}
@@ -40,18 +42,20 @@ export function TimelineApontamentos({ itens, altura = 200 }: Props): ReactNode 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <div
-                    className="font-mono text-text truncate"
+                    className="text-text truncate"
                     title={i.servico_display_nome ?? i.servico_nome ?? ''}
                   >
                     {i.servico_display_nome ?? i.servico_nome ?? '—'}
                   </div>
-                  <div className="text-2xs font-mono text-text-dim shrink-0 tabular-nums">
+                  <div className="text-text shrink-0 tabular-nums font-semibold">
                     {formatNumber(valor, 2)}
-                    {unidade ? <span className="ml-1">{unidade}</span> : null}
+                    {unidade ? (
+                      <span className="ml-1 font-normal text-text-muted">{unidade}</span>
+                    ) : null}
                   </div>
                 </div>
-                <div className="text-2xs font-mono text-text-dim truncate">
-                  {i.equipe_display_nome ?? '—'} · {i.frente ?? '—'} · {i.data ?? '—'}
+                <div className="text-xs text-text-muted truncate">
+                  {[dataBR(i.data), i.equipe_display_nome, i.frente].filter(Boolean).join(' · ')}
                 </div>
               </div>
             </div>

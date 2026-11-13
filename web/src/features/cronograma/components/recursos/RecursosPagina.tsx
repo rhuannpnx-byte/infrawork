@@ -34,7 +34,6 @@ export function RecursosPagina({
   return (
     <PaginaPlano
       obraId={obraId}
-      obraNome={obraNome}
       titulo="Histograma de recursos"
       corpo={(c) => <CorpoRecursos {...c} obraNome={obraNome} />}
     />

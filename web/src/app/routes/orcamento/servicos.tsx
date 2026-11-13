@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { buildServicoTree, useServicos } from '@/features/orcamento/hooks/servicos'
 import { previewCascadeServicos } from '@/features/orcamento/hooks/cascade'
 import { supabase } from '@/lib/supabase/client'
+import { contar } from '@/lib/rotulos'
 import { ServicosTree } from '@/features/orcamento/components/ServicosTree'
 import { NewServicoDialog } from '@/features/orcamento/modals/NewServicoDialog'
 import { ServicoCpuLinksDialog } from '@/features/orcamento/modals/ServicoCpuLinksDialog'
@@ -98,9 +99,15 @@ function ServicosInner(): ReactNode {
               {preview.itensOrcamentoBloqueando > 0 ? (
                 <li>
                   <span className="text-warn">
-                    {preview.itensOrcamentoBloqueando} item(ns) orçamentário(s)
+                    {contar(
+                      preview.itensOrcamentoBloqueando,
+                      'item orçamentário',
+                      'itens orçamentários'
+                    )}
                   </span>{' '}
-                  apontam pra esses serviços — remova-os do orçamento primeiro.
+                  {preview.itensOrcamentoBloqueando === 1 ? 'aponta' : 'apontam'} pra esses serviços
+                  — {preview.itensOrcamentoBloqueando === 1 ? 'remova-o' : 'remova-os'} do orçamento
+                  primeiro.
                 </li>
               ) : null}
             </ul>
@@ -114,29 +121,40 @@ function ServicosInner(): ReactNode {
     }
 
     const ok = await confirm({
-      title: `Excluir ${selectedIds.size} serviço(s)?`,
+      title: `Excluir ${contar(selectedIds.size, 'serviço', 'serviços')}?`,
       description: (
         <div className="space-y-2 text-xs">
           {preview.descendentesEmCascata > 0 ? (
             <p>
-              <span className="text-warn">{preview.descendentesEmCascata} sub-serviço(s)</span>{' '}
-              serão apagados em cascata.
+              <span className="text-warn">
+                {contar(preview.descendentesEmCascata, 'sub-serviço', 'sub-serviços')}
+              </span>{' '}
+              {preview.descendentesEmCascata === 1 ? 'será apagado' : 'serão apagados'} em cascata.
             </p>
           ) : null}
           {preview.vinculosCpuLink > 0 ? (
             <p>
-              <span className="text-text-dim">{preview.vinculosCpuLink} vínculo(s) com CPU</span>{' '}
-              dentro desses serviços serão removidos (CASCADE).
+              <span className="text-text-dim">
+                {contar(preview.vinculosCpuLink, 'vínculo', 'vínculos')} com CPU
+              </span>{' '}
+              dentro desses serviços{' '}
+              {preview.vinculosCpuLink === 1 ? 'será removido' : 'serão removidos'} (CASCADE).
             </p>
           ) : null}
           {preview.cpusOrfanizadas > 0 ? (
             <p>
-              <span className="text-text-dim">{preview.cpusOrfanizadas} CPU(s)</span> ficarão sem
-              servico-dono (órfãs). Você pode apagá-las manualmente em Composições.
+              <span className="text-text-dim">
+                {contar(preview.cpusOrfanizadas, 'CPU', 'CPUs')}
+              </span>{' '}
+              {preview.cpusOrfanizadas === 1
+                ? 'ficará sem servico-dono (órfã)'
+                : 'ficarão sem servico-dono (órfãs)'}
+              . Você pode apagá-las manualmente em Composições.
             </p>
           ) : null}
           <p className="text-text-dim">
-            Total a apagar: <strong>{preview.totalParaApagar}</strong> serviço(s).
+            Total a apagar: <strong>{preview.totalParaApagar}</strong>{' '}
+            {preview.totalParaApagar === 1 ? 'serviço' : 'serviços'}.
           </p>
         </div>
       ),
@@ -177,7 +195,7 @@ function ServicosInner(): ReactNode {
         total += ids.length
       }
       const ms = Math.round(performance.now() - t0)
-      toast.success(`${total} serviço(s) excluído(s) em ${ms}ms.`)
+      toast.success(`${contar(total, 'serviço excluído', 'serviços excluídos')} em ${ms}ms.`)
     } finally {
       void qc.invalidateQueries({ queryKey: ['orcamento', 'servicos'] })
       void qc.invalidateQueries({ queryKey: ['orcamento', 'cpus'] })
@@ -244,7 +262,7 @@ function ServicosInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Serviços"
-        subtitle="Catálogo hierárquico. Cada serviço-folha pode agregar N composições (CPUs) com fator de conversão."
+        subtitle="Catálogo em árvore. Cada serviço pode reunir várias composições, com fator de conversão."
         actions={
           podeEditar ? (
             <div className="flex items-center gap-2">
@@ -256,7 +274,7 @@ function ServicosInner(): ReactNode {
                     onClick={() => setSelectedIds(new Set())}
                     title="Limpar seleção"
                   >
-                    <X size={11} /> {selectedIds.size} selecionado(s)
+                    <X size={12} /> {contar(selectedIds.size, 'selecionado', 'selecionados')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -265,12 +283,12 @@ function ServicosInner(): ReactNode {
                     onClick={() => void handleBulkDelete()}
                     disabled={bulkDeleting}
                   >
-                    <Trash2 size={11} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
+                    <Trash2 size={12} /> {bulkDeleting ? 'Excluindo…' : 'Excluir'}
                   </Button>
                 </>
               ) : null}
               <Button variant="default" size="sm" onClick={() => abrirNovo(null)}>
-                <Plus size={11} /> Novo serviço (raiz)
+                <Plus size={12} /> Novo serviço (raiz)
               </Button>
             </div>
           ) : null
@@ -306,7 +324,7 @@ function ServicosInner(): ReactNode {
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text"
                 title="Limpar"
               >
-                <X size={11} />
+                <X size={12} />
               </button>
             ) : null}
           </div>
@@ -423,10 +441,10 @@ function ServicosEmptyState({ podeEditar, onCriarRaiz, onImportar }: EmptyStateP
       {podeEditar ? (
         <div className="flex items-center gap-2">
           <Button variant="default" size="sm" onClick={onCriarRaiz}>
-            <Plus size={11} /> Criar serviço-raiz
+            <Plus size={12} /> Criar serviço-raiz
           </Button>
           <Button variant="outline" size="sm" onClick={onImportar}>
-            <Upload size={11} /> Importar planilha
+            <Upload size={12} /> Importar planilha
           </Button>
         </div>
       ) : (

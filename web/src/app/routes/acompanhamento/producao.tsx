@@ -3,6 +3,8 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from '@tanstack/react-router'
 import { Camera, Image as ImageIcon, PlusCircle, FileUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { BarraFiltros, Filtro, FiltroMulti } from '@/components/ui/filtros'
+import { Select } from '@/components/ui/select'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -201,7 +203,7 @@ function ProducaoInner(): ReactNode {
       {
         header: () => (
           <span className="inline-flex items-center gap-1">
-            <Camera size={11} />
+            <Camera size={12} />
           </span>
         ),
         accessorKey: 'fotos_count',
@@ -210,7 +212,7 @@ function ProducaoInner(): ReactNode {
           if (n === 0) return <span className="text-text-dim text-2xs">—</span>
           return (
             <span className="inline-flex items-center gap-1 text-2xs font-mono text-accent">
-              <ImageIcon size={10} /> {n}
+              <ImageIcon size={12} /> {n}
             </span>
           )
         }
@@ -272,7 +274,7 @@ function ProducaoInner(): ReactNode {
           { header: 'Material' },
           { header: 'Origem' },
           { header: 'Lançado por' },
-          { header: 'Tarefa baseline' },
+          { header: 'Tarefa da linha de base' },
           { header: 'Fotos', numFmt: '0' }
         ],
         linhas: visibleRows.map((r) => [
@@ -313,7 +315,7 @@ function ProducaoInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Produção"
-        subtitle={`${scope.obra?.nome ?? ''} — ${rows.length} lançamentos`}
+        subtitle={`${rows.length} ${rows.length === 1 ? 'lançamento' : 'lançamentos'}`}
         actions={
           podeLancar ? (
             <div className="flex items-center gap-1.5">
@@ -337,57 +339,53 @@ function ProducaoInner(): ReactNode {
         }
       />
 
-      {/* Filtros */}
-      <div className="border-b border-border px-5 py-3 flex flex-wrap items-center gap-3 bg-bg-panel">
-        <div className="flex items-center gap-1.5">
-          <span className="text-2xs font-mono uppercase text-text-dim">Período</span>
+      <BarraFiltros aoLimpar={temFiltro ? () => setFiltros({}) : null}>
+        <Filtro rotulo="Período">
           <DateRangePopover
             from={filtros.data_de ?? null}
             to={filtros.data_ate ?? null}
             onChange={(de, ate) => setFiltros((f) => ({ ...f, data_de: de, data_ate: ate }))}
+            placeholder="Todo o período"
           />
-        </div>
+        </Filtro>
         <FiltroMulti
-          label="Serviços"
-          opcoes={servicosDisponiveis.map(([id, nome]) => ({ value: id, label: nome }))}
+          rotulo="Serviços"
+          opcoes={servicosDisponiveis.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
           selecionados={filtros.item_ids ?? []}
-          onChange={(v) => setFiltros((f) => ({ ...f, item_ids: v }))}
+          aoMudar={(v) => setFiltros((f) => ({ ...f, item_ids: v }))}
         />
         <FiltroMulti
-          label="Equipes"
-          opcoes={equipesDisponiveis.map(([id, nome]) => ({ value: id, label: nome }))}
+          rotulo="Equipes"
+          todos="Todas"
+          opcoes={equipesDisponiveis.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
           selecionados={filtros.equipe_ids ?? []}
-          onChange={(v) => setFiltros((f) => ({ ...f, equipe_ids: v }))}
+          aoMudar={(v) => setFiltros((f) => ({ ...f, equipe_ids: v }))}
         />
         <FiltroMulti
-          label="Encarregados"
-          opcoes={encarregadosDisponiveis.map(([id, nome]) => ({ value: id, label: nome }))}
+          rotulo="Encarregados"
+          opcoes={encarregadosDisponiveis.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
           selecionados={filtros.encarregado_ids ?? []}
-          onChange={(v) => setFiltros((f) => ({ ...f, encarregado_ids: v }))}
+          aoMudar={(v) => setFiltros((f) => ({ ...f, encarregado_ids: v }))}
         />
-        <select
-          value={filtros.origem ?? ''}
-          onChange={(e) =>
-            setFiltros((f) => ({ ...f, origem: (e.target.value || null) as ProducaoOrigem | null }))
-          }
-          className="h-6 rounded border border-border bg-bg-panel px-1.5 text-2xs font-mono text-text-dim"
-          title="Origem do lançamento"
-        >
-          <option value="">origem: todas</option>
-          <option value="app">web</option>
-          <option value="campo">campo</option>
-          <option value="viagens">viagens</option>
-          <option value="importacao">importação</option>
-        </select>
-        {temFiltro ? (
-          <button
-            onClick={() => setFiltros({})}
-            className="text-2xs font-mono text-text-dim hover:text-text underline"
+        <Filtro rotulo="Origem">
+          <Select
+            value={filtros.origem ?? ''}
+            onChange={(e) =>
+              setFiltros((f) => ({
+                ...f,
+                origem: (e.target.value || null) as ProducaoOrigem | null
+              }))
+            }
+            className="h-7 w-[150px]"
           >
-            limpar filtros
-          </button>
-        ) : null}
-      </div>
+            <option value="">Todas</option>
+            <option value="app">Site</option>
+            <option value="campo">App de campo</option>
+            <option value="viagens">Viagens</option>
+            <option value="importacao">Importação</option>
+          </Select>
+        </Filtro>
+      </BarraFiltros>
 
       <div className="flex-1 overflow-hidden">
         <DataTable
@@ -411,76 +409,6 @@ function ProducaoInner(): ReactNode {
         open={!!selecionada}
         onOpenChange={(o) => !o && setSelecionada(null)}
       />
-    </div>
-  )
-}
-
-function FiltroMulti({
-  label,
-  opcoes,
-  selecionados,
-  onChange
-}: {
-  label: string
-  opcoes: Array<{ value: string; label: string }>
-  selecionados: string[]
-  onChange: (v: string[]) => void
-}): ReactNode {
-  const [open, setOpen] = useState(false)
-  const display =
-    selecionados.length === 0
-      ? 'todos'
-      : selecionados.length === 1
-        ? (opcoes.find((o) => o.value === selecionados[0])?.label ?? '1 selec.')
-        : `${selecionados.length} selec.`
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border text-2xs font-mono text-text-dim hover:text-text hover:border-border-strong"
-      >
-        <span className="uppercase">{label}</span>
-        <span
-          className={cn(
-            'text-text truncate max-w-[160px]',
-            selecionados.length > 0 && 'text-accent'
-          )}
-        >
-          {display}
-        </span>
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute top-full mt-1 left-0 z-40 bg-bg-elevated border border-border rounded shadow-lg min-w-[220px] max-h-[260px] overflow-auto p-1">
-            {opcoes.length === 0 && (
-              <div className="text-2xs font-mono text-text-dim p-2">sem opções</div>
-            )}
-            {opcoes.map((o) => {
-              const checked = selecionados.includes(o.value)
-              return (
-                <label
-                  key={o.value}
-                  className="flex items-center gap-2 px-2 py-1 hover:bg-bg-hover cursor-pointer rounded text-xs"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() =>
-                      onChange(
-                        checked
-                          ? selecionados.filter((s) => s !== o.value)
-                          : [...selecionados, o.value]
-                      )
-                    }
-                  />
-                  <span className="truncate">{o.label}</span>
-                </label>
-              )
-            })}
-          </div>
-        </>
-      )}
     </div>
   )
 }

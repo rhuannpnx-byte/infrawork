@@ -101,22 +101,22 @@ export function LocaisPagina(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Locais"
-        subtitle={`${obraNome} — eixos com estaqueamento e áreas sem estacas, cada um com as quantidades por serviço. As tarefas do cronograma apontam para estes locais.`}
+        subtitle="Eixos com estaqueamento e áreas sem estacas, cada um com as quantidades por serviço. As tarefas do cronograma apontam para estes locais."
         actions={
           <>
             <Button size="sm" variant="ghost" onClick={() => void exportar()}>
-              <Download size={11} /> Exportar planilha
+              <Download size={12} /> Exportar planilha
             </Button>
             {!readOnly ? (
               <>
                 <Button size="sm" variant="secondary" onClick={() => setImportar(true)}>
-                  <Upload size={11} /> Importar quantidades…
+                  <Upload size={12} /> Importar quantidades…
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setNovo('area')}>
-                  <Plus size={11} /> Nova área
+                  <Plus size={12} /> Nova área
                 </Button>
                 <Button size="sm" onClick={() => setNovo('eixo')}>
-                  <Plus size={11} /> Novo eixo
+                  <Plus size={12} /> Novo eixo
                 </Button>
               </>
             ) : null}
@@ -135,10 +135,10 @@ export function LocaisPagina(): ReactNode {
                 !readOnly ? (
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => setNovo('eixo')}>
-                      <Plus size={11} /> Novo eixo
+                      <Plus size={12} /> Novo eixo
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => setImportar(true)}>
-                      <Upload size={11} /> Importar quantidades…
+                      <Upload size={12} /> Importar quantidades…
                     </Button>
                   </div>
                 ) : undefined
@@ -418,12 +418,12 @@ function LinhaLocal({
               >
                 {comMapa ? (
                   <>
-                    <MapPinned size={11} />{' '}
+                    <MapPinned size={12} />{' '}
                     {(Number(trecho.geometry_comprimento_m) / 1000).toFixed(1)} km
                   </>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-text-dim hover:text-accent">
-                    <MapIcon size={11} /> opcional
+                    <MapIcon size={12} /> opcional
                   </span>
                 )}
               </button>
@@ -449,7 +449,7 @@ function LinhaLocal({
                   : `v${template!.numero} · ${nServ} serviço${nServ === 1 ? '' : 's'} · ${template!.segmentos.length} faixa${template!.segmentos.length === 1 ? '' : 's'}`
             }
           >
-            <ClipboardList size={11} />
+            <ClipboardList size={12} />
             {ehEixo && comp <= 0
               ? 'Sem estacas'
               : nServ === 0
@@ -461,7 +461,7 @@ function LinhaLocal({
           {!readOnly ? (
             <>
               <IconButton size="sm" variant="ghost" aria-label="Editar local" onClick={onEditar}>
-                <Pencil size={11} />
+                <Pencil size={12} />
               </IconButton>
               <IconButton
                 size="sm"
@@ -469,7 +469,7 @@ function LinhaLocal({
                 aria-label="Remover local"
                 onClick={() => void remover()}
               >
-                <Trash2 size={11} />
+                <Trash2 size={12} />
               </IconButton>
             </>
           ) : null}

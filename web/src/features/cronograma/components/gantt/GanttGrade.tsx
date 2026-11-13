@@ -289,7 +289,7 @@ function Icone({ l, cor }: { l: LinhaGantt; cor: string }): ReactNode {
   if (l.tipo === 'plano') return <LayoutList size={12} className="shrink-0 text-accent" />
   if (l.tipo === 'grupo') return <FolderTree size={12} className="shrink-0 text-text-dim" />
   if (l.tipo === 'local') return <MapPin size={12} className="shrink-0" style={{ color: cor }} />
-  if (l.tipo === 'servico') return <Wrench size={11} className="shrink-0" style={{ color: cor }} />
+  if (l.tipo === 'servico') return <Wrench size={12} className="shrink-0" style={{ color: cor }} />
   return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ background: cor }} />
 }
 

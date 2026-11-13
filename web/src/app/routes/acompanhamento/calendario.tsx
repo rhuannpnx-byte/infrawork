@@ -39,7 +39,7 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Calendário"
-        subtitle={`${scope.obra?.nome ?? ''} · programação mensal — previsto × realizado por serviço`}
+        subtitle="Programação mensal: previsto e realizado por serviço"
       />
       <AvisoSemLinhaDeBase obraId={obraId} />
       <div className="flex-1 overflow-auto p-5">

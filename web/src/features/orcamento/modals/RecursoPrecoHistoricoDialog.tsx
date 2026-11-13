@@ -100,7 +100,7 @@ export function RecursoPrecoHistoricoDialog({
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="secondary" size="sm" onClick={() => setOpenNew(true)}>
-            <Plus size={11} /> Novo preço
+            <Plus size={12} /> Novo preço
           </Button>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Fechar

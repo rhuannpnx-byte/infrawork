@@ -115,7 +115,7 @@ function ClusterContent({
     <>
       <div className="px-2 py-1.5 border-b border-border bg-bg-panel flex items-center justify-between">
         <div className="text-2xs font-mono uppercase text-text-dim flex items-center gap-1.5">
-          <Layers size={10} /> {fotos.length} fotos neste ponto
+          <Layers size={12} /> {fotos.length} fotos neste ponto
         </div>
       </div>
       <div className="grid grid-cols-3 gap-px bg-border">

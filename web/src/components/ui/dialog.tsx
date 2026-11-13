@@ -1,7 +1,17 @@
-import { useEffect, useRef, type ReactNode, type HTMLAttributes } from 'react'
+import {
+  createContext,
+  useContext,
+  useId,
+  useRef,
+  type ReactNode,
+  type HTMLAttributes
+} from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { AlertTriangle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useCamadaModal } from './camada-modal'
+
+const TituloId = createContext<string | undefined>(undefined)
 
 interface DialogProps {
   open: boolean
@@ -46,15 +56,8 @@ export function Dialog({
   hideClose = false
 }: DialogProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !disableDismiss) onOpenChange(false)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onOpenChange, disableDismiss])
+  const tituloId = useId()
+  useCamadaModal(open, ref, { aoFechar: disableDismiss ? undefined : () => onOpenChange(false) })
 
   if (!open) return null
 
@@ -68,6 +71,7 @@ export function Dialog({
     <div
       role="dialog"
       aria-modal="true"
+      aria-labelledby={tituloId}
       className={cn(
         'fixed inset-0 flex items-center justify-center',
         topmost ? 'z-[10010]' : 'z-50'
@@ -80,10 +84,11 @@ export function Dialog({
       <div className="absolute inset-0 bg-[color:var(--veu)] animate-fade-in pointer-events-none" />
       <div
         ref={ref}
+        tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative mx-4 rounded-md border border-border-strong bg-bg-panel shadow-[var(--sombra-flutuante)] animate-slide-up',
+          'relative mx-4 rounded-md border border-border-strong bg-bg-panel shadow-[var(--sombra-flutuante)] animate-slide-up focus:outline-none',
           SIZES[size],
           className
         )}
@@ -92,13 +97,14 @@ export function Dialog({
           <button
             type="button"
             aria-label="Fechar"
+            data-fechar=""
             onClick={() => onOpenChange(false)}
-            className="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-6 h-6 rounded text-text-dim hover:text-text hover:bg-bg-hover transition-colors"
+            className="absolute top-2 right-2 z-10 inline-flex items-center justify-center w-7 h-7 rounded text-text-dim hover:text-text hover:bg-bg-hover transition-colors"
           >
             <X size={14} />
           </button>
         ) : null}
-        {children}
+        <TituloId.Provider value={tituloId}>{children}</TituloId.Provider>
       </div>
     </div>,
     document.body
@@ -113,14 +119,15 @@ export function DialogTitle({
   className,
   ...props
 }: HTMLAttributes<HTMLHeadingElement>): ReactNode {
-  return <h2 className={cn('text-md font-semibold text-text', className)} {...props} />
+  const id = useContext(TituloId)
+  return <h2 id={id} className={cn('text-lg font-semibold text-text pr-8', className)} {...props} />
 }
 
 export function DialogDescription({
   className,
   ...props
 }: HTMLAttributes<HTMLParagraphElement>): ReactNode {
-  return <p className={cn('text-xs text-text-muted mt-0.5', className)} {...props} />
+  return <p className={cn('text-sm text-text-muted mt-0.5', className)} {...props} />
 }
 
 export function DialogBody({ className, ...props }: HTMLAttributes<HTMLDivElement>): ReactNode {
@@ -146,10 +153,10 @@ export function DialogErrorBanner({ message }: { message: string | null }): Reac
     <div
       role="alert"
       aria-live="assertive"
-      className="mb-3 flex items-start gap-2 rounded border border-danger/40 bg-danger/10 px-3 py-2 text-2xs font-mono text-danger"
+      className="mb-3 flex items-start gap-2 rounded border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
     >
-      <span className="mt-px shrink-0">⚠</span>
-      <span className="leading-relaxed">{message}</span>
+      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+      <span>{message}</span>
     </div>
   )
 }

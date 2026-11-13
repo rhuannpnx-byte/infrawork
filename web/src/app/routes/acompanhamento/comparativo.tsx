@@ -10,6 +10,11 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePrevistoXRealizado, useCurvaS } from '@/features/acompanhamento/hooks/comparativo'
 import { CurvaSComProjecoes } from '@/features/acompanhamento/components/comparativo/CurvaSComProjecoes'
+import { CurvaS, reaisCurto } from '@/components/charts/CurvaS'
+import { Secao } from '@/components/ui/secao'
+import { EstadoConsulta, Vazio } from '@/components/ui/estado'
+import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
+import { Button } from '@/components/ui/button'
 import { ProgressBarPrevReal } from '@/features/acompanhamento/components/comparativo/ProgressBarPrevReal'
 import { StatusComparativoChip } from '@/features/acompanhamento/components/comparativo/StatusComparativoChip'
 import { projetarItem, type ProjecaoItem } from '@/features/acompanhamento/lib/projecoes'
@@ -39,6 +44,7 @@ function Inner(): ReactNode {
   const { data: itens = [], isLoading } = usePrevistoXRealizado(obraId)
   const { data: curva = [] } = useCurvaS(obraId, null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const curvaValor = useCurvaSValor(isCliente ? null : obraId)
 
   const itemSelecionado = useMemo(
     () => (selectedId ? itens.find((i) => i.item_orcamentario_id === selectedId) : null) ?? null,
@@ -237,7 +243,7 @@ function Inner(): ReactNode {
         cell: ({ row }) => (
           <span
             className="font-mono tabular-nums text-xs"
-            title="Quantidade prevista acumulada até hoje, segundo o cronograma do baseline"
+            title="Quantidade prevista acumulada até hoje, pelo cronograma da linha de base"
           >
             {row.original.qtd_plan_periodo != null
               ? formatNumber(Number(row.original.qtd_plan_periodo), 1)
@@ -322,33 +328,55 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Previsto × Realizado"
-        subtitle={`${scope.obra?.nome ?? ''} · ${itens.length} ${itens.length === 1 ? 'serviço' : 'serviços'} na linha de base${selectedId ? ' · filtrando 1 serviço' : ''}`}
+        subtitle={`${itens.length} ${itens.length === 1 ? 'serviço' : 'serviços'} na linha de base${itemSelecionado ? ` · mostrando ${itemSelecionado.codigo}` : ''}`}
         actions={
           selectedId && (
-            <button
-              onClick={() => setSelectedId(null)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border text-2xs font-mono text-text-dim hover:text-text"
-            >
-              <X size={11} /> Limpar filtro
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => setSelectedId(null)}>
+              <X size={12} /> Ver todos os serviços
+            </Button>
           )
         }
       />
       <AvisoSemLinhaDeBase obraId={obraId} />
       <div className="flex-1 overflow-auto p-5 space-y-4">
-        <CurvaSComProjecoes
-          pontos={curvaFiltrada}
-          item={itemSelecionado}
-          altura={360}
-          ocultarProjecoes={isCliente}
-        />
-
-        {!selectedId && (
-          <div className="text-2xs font-mono text-text-dim">
-            {isCliente
-              ? 'Clique em uma linha da tabela para filtrar a curva-S por serviço.'
-              : 'Clique em uma linha da tabela para filtrar a curva-S por serviço e ativar projeções de término.'}
-          </div>
+        {selectedId ? (
+          <CurvaSComProjecoes
+            pontos={curvaFiltrada}
+            item={itemSelecionado}
+            altura={360}
+            ocultarProjecoes={isCliente}
+          />
+        ) : (
+          <Secao
+            titulo="Curva S"
+            nota={
+              isCliente ? undefined : 'valor previsto e executado de todos os serviços, por semana'
+            }
+          >
+            {isCliente ? (
+              <Vazio>Clique em um serviço da tabela para ver a curva S dele.</Vazio>
+            ) : (
+              <>
+                <EstadoConsulta
+                  consulta={curvaValor}
+                  oQue="a curva S"
+                  vazio={curvaValor.pontos.length === 0}
+                  textoVazio="A curva S aparece quando a obra tem linha de base vigente com o cronograma calculado."
+                >
+                  <CurvaS
+                    pontos={curvaValor.pontos}
+                    formatar={reaisCurto}
+                    rotuloRealizado="Executado"
+                    altura={300}
+                  />
+                </EstadoConsulta>
+                <p className="mt-2 text-sm text-text-muted">
+                  Clique em um serviço da tabela para ver a curva em quantidade e as projeções de
+                  término.
+                </p>
+              </>
+            )}
+          </Secao>
         )}
 
         <DataTable
@@ -356,7 +384,7 @@ function Inner(): ReactNode {
           columns={columns}
           loading={isLoading}
           emptyMessage="Sem comparativo disponível"
-          emptyDescription="Promova uma baseline no Planejamento e registre produção nos itens programados."
+          emptyDescription="Trave um plano como linha de base no Planejamento e lance a produção dos serviços programados."
           onRowClick={(row) =>
             setSelectedId((cur) =>
               cur === row.item_orcamentario_id ? null : row.item_orcamentario_id

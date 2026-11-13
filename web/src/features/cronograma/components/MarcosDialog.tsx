@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import { traduzirErro, useExcluirMarco, useSalvarMarco, type CamposMarco } from '../hooks/edicao'
 import type { MarcoEntrada } from '../motor/tipos'
@@ -97,7 +98,7 @@ function Conteudo({ calc, somenteLeitura, onFechar }: Omit<Props, 'aberto'>): Re
                 </span>
                 <span className="text-2xs text-text-dim">
                   {m.fim ? `até ${fmtDataLonga(isoParaSeg(m.fim))}` : 'sem fim'} ·{' '}
-                  {r?.tarefas.length ?? 0} tarefa(s)
+                  {contar(r?.tarefas.length ?? 0, 'tarefa', 'tarefas')}
                 </span>
               </button>
             )
@@ -240,7 +241,9 @@ function FormMarco({
             />
           </Campo>
           <div className="flex items-end pb-1 text-2xs text-text-dim">
-            {marco ? `${incluidasCalc.length} tarefa(s) incluída(s) no último cálculo` : ''}
+            {marco
+              ? `${contar(incluidasCalc.length, 'tarefa incluída', 'tarefas incluídas')} no último cálculo`
+              : ''}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-6">

@@ -21,6 +21,7 @@ import { Select } from '@/components/ui/select'
 import { hojeLocalISO } from '@/lib/format/local-date'
 import { formatMarcador, parseMarcador } from '@/lib/format/posicao'
 import { formatNumber } from '@/lib/format/number'
+import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
@@ -305,7 +306,7 @@ function Form({
         viagens,
         versao: ficha?.updated_at ?? null
       })
-      toast.success(`Ficha gravada: ${viagens.length} viagem(ns).`)
+      toast.success(`Ficha gravada: ${contar(viagens.length, 'viagem', 'viagens')}.`)
       onOpenChange(false)
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Falha ao gravar a ficha')
@@ -651,7 +652,7 @@ function Form({
                 <Plus size={12} /> Viagem
               </Button>
               <span className="ml-auto font-mono text-2xs text-text-muted">
-                {linhas.length} viagem(ns) · total {formatNumber(total, 2)}
+                {contar(linhas.length, 'viagem', 'viagens')} · total {formatNumber(total, 2)}
               </span>
             </div>
           </div>
@@ -670,7 +671,7 @@ function Form({
               onClick={async () => {
                 const ok = await confirm({
                   title: 'Excluir esta ficha?',
-                  description: `${ficha.data.split('-').reverse().join('/')} · ${ficha.viagens.length} viagem(ns). A produção do dia é recalculada.`,
+                  description: `${ficha.data.split('-').reverse().join('/')} · ${contar(ficha.viagens.length, 'viagem', 'viagens')}. A produção do dia é recalculada.`,
                   confirmLabel: 'Excluir',
                   variant: 'danger'
                 })

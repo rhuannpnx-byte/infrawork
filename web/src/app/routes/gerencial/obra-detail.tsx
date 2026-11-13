@@ -81,7 +81,7 @@ export function ObraDetailPage(): ReactNode {
       <div className="flex flex-col items-center justify-center h-full gap-3">
         <EmptyState icon="folder-x" title="Obra não encontrada" />
         <Button variant="ghost" onClick={() => navigate({ to: '/gerencial/obras' })}>
-          <ArrowLeft size={11} /> Voltar
+          <ArrowLeft size={12} /> Voltar
         </Button>
       </div>
     )
@@ -108,7 +108,7 @@ export function ObraDetailPage(): ReactNode {
         actions={
           <>
             <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/gerencial/obras' })}>
-              <ArrowLeft size={11} /> Voltar
+              <ArrowLeft size={12} /> Voltar
             </Button>
             <Button
               variant="ghost"
@@ -129,16 +129,16 @@ export function ObraDetailPage(): ReactNode {
             >
               {obra.ativa ? (
                 <>
-                  <PowerOff size={11} /> Desabilitar
+                  <PowerOff size={12} /> Desabilitar
                 </>
               ) : (
                 <>
-                  <Power size={11} /> Reabilitar
+                  <Power size={12} /> Reabilitar
                 </>
               )}
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setOpenEdit(true)}>
-              <Pencil size={11} /> Editar dados
+              <Pencil size={12} /> Editar dados
             </Button>
             <Button
               variant="default"
@@ -146,7 +146,7 @@ export function ObraDetailPage(): ReactNode {
               onClick={() => setOpenGrant(true)}
               disabled={!podeGerirPerms}
             >
-              <Plus size={11} /> Conceder acesso
+              <Plus size={12} /> Conceder acesso
             </Button>
           </>
         }
@@ -199,7 +199,7 @@ export function ObraDetailPage(): ReactNode {
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <div className="flex items-center gap-2">
               <KeyRound size={12} className="text-accent" />
-              <h2 className="text-sm font-semibold text-text">Usuários com acesso</h2>
+              <h2 className="text-lg font-semibold text-text">Usuários com acesso</h2>
             </div>
             <span className="text-2xs font-mono text-text-dim">
               {permissoes.length} {permissoes.length === 1 ? 'usuário' : 'usuários'}
@@ -216,7 +216,7 @@ export function ObraDetailPage(): ReactNode {
                 description="Conceda acesso a um Engenheiro ou Cliente da empresa para que possa visualizar esta obra. Apoios vinculados a um engenheiro herdam o acesso automaticamente."
                 action={
                   <Button variant="default" size="sm" onClick={() => setOpenGrant(true)}>
-                    <Plus size={11} /> Conceder acesso
+                    <Plus size={12} /> Conceder acesso
                   </Button>
                 }
               />
@@ -264,7 +264,7 @@ export function ObraDetailPage(): ReactNode {
                           <div className="flex flex-wrap gap-1 max-w-[260px]">
                             {apoios.slice(0, 3).map((a) => (
                               <Badge key={a.id}>
-                                <Users size={9} /> {a.nome}
+                                <Users size={12} /> {a.nome}
                               </Badge>
                             ))}
                             {apoios.length > 3 ? (
@@ -304,7 +304,7 @@ export function ObraDetailPage(): ReactNode {
                             }
                           }}
                         >
-                          <Trash2 size={11} /> Revogar
+                          <Trash2 size={12} /> Revogar
                         </Button>
                       </td>
                     </tr>
@@ -339,7 +339,7 @@ export function ObraDetailPage(): ReactNode {
                 setOpenDelete(true)
               }}
             >
-              <Trash2 size={11} /> Excluir obra
+              <Trash2 size={12} /> Excluir obra
             </Button>
           </div>
         </section>
@@ -408,7 +408,7 @@ export function ObraDetailPage(): ReactNode {
                 )
             }}
           >
-            <Trash2 size={11} /> {deleteObra.isPending ? 'Excluindo…' : 'Excluir definitivamente'}
+            <Trash2 size={12} /> {deleteObra.isPending ? 'Excluindo…' : 'Excluir definitivamente'}
           </Button>
         </DialogFooter>
       </Dialog>

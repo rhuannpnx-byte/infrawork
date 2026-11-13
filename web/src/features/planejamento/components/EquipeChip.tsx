@@ -38,7 +38,7 @@ export function EquipeChip({ nome, cor, qtd, size = 'md', onRemove, className }:
           }}
           className="text-text-dim hover:text-text"
         >
-          <X size={9} />
+          <X size={12} />
         </button>
       ) : null}
     </span>

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { useCamadaAberta } from './camada-modal'
 
 interface DropdownProps {
   trigger: ReactNode
@@ -42,6 +43,8 @@ export function Dropdown({
       window.removeEventListener('scroll', update, true)
     }
   }, [open, align])
+
+  useCamadaAberta(open)
 
   useEffect(() => {
     if (!open) return

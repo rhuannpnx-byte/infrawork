@@ -36,6 +36,7 @@ import {
 import { useConfirm } from '@/components/modals/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import { fmtBRL, fmtQtd } from '@/lib/money'
+import { contar } from '@/lib/rotulos'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import {
   useCadeiaTrava,
@@ -136,15 +137,15 @@ export function SeletorPlano({
             )}
           >
             {plano.is_baseline ? (
-              <Lock size={11} className={plano.vigente ? 'text-warn' : 'text-text-dim'} />
+              <Lock size={12} className={plano.vigente ? 'text-warn' : 'text-text-dim'} />
             ) : (
-              <Pencil size={11} className="text-accent" />
+              <Pencil size={12} className="text-accent" />
             )}
             <span className="truncate">{plano.nome}</span>
             <span className="shrink-0 text-2xs text-text-dim">
               {plano.is_baseline ? (plano.vigente ? 'LB vigente' : 'LB') : 'em edição'}
             </span>
-            <ChevronDown size={11} className="shrink-0 text-text-dim" />
+            <ChevronDown size={12} className="shrink-0 text-text-dim" />
           </button>
         }
       >
@@ -212,9 +213,9 @@ export function SeletorPlano({
               )}
             >
               {trava ? (
-                <Lock size={11} className="mt-px shrink-0" />
+                <Lock size={12} className="mt-px shrink-0" />
               ) : (
-                <LockOpen size={11} className="mt-px shrink-0" />
+                <LockOpen size={12} className="mt-px shrink-0" />
               )}
               <span>
                 {trava
@@ -228,7 +229,7 @@ export function SeletorPlano({
                 onClick={() => void navigate({ to: '/planejamento/comparar' })}
                 className="mt-1.5 flex items-center gap-1.5 text-2xs text-text-muted hover:text-accent"
               >
-                <GitCompare size={11} /> Comparar planos
+                <GitCompare size={12} /> Comparar planos
               </button>
             ) : null}
           </div>
@@ -247,7 +248,7 @@ export function SeletorPlano({
               : 'Congela o plano como linha de base'
           }
         >
-          <Lock size={11} /> Travar como linha de base
+          <Lock size={12} /> Travar como linha de base
         </Button>
       ) : null}
 
@@ -302,14 +303,14 @@ function ItemPlano({
       </span>
       {p.is_baseline ? (
         <Star
-          size={11}
+          size={12}
           className={cn(
             'shrink-0',
             p.vigente ? 'fill-warn text-warn' : 'text-text-dim/40'
           )}
         />
       ) : (
-        <Pencil size={11} className="shrink-0 text-accent" />
+        <Pencil size={12} className="shrink-0 text-accent" />
       )}
       <span className={cn('min-w-0 flex-1 truncate', p.vigente && 'font-semibold text-accent')}>
         {p.nome}
@@ -405,7 +406,7 @@ export function FaixaLinhaBase({
       const r = await copiar.mutateAsync({ origem_id: plano.id, nome_novo: nome, obra_id: obraId })
       toast.success(
         r.tarefas_ajustadas > 0
-          ? `Plano em edição criado: ${r.tarefas_ajustadas} tarefa(s) ajustada(s) à quantidade atual do orçamento.`
+          ? `Plano em edição criado: ${contar(r.tarefas_ajustadas, 'tarefa ajustada', 'tarefas ajustadas')} à quantidade atual do orçamento.`
           : 'Plano em edição criado.'
       )
       onEscolher(r.novo_id)
@@ -446,22 +447,22 @@ export function FaixaLinhaBase({
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         {edicao ? (
           <Button size="sm" variant="ghost" onClick={() => onEscolher(edicao.id)}>
-            <Pencil size={11} /> Ir para o plano em edição
+            <Pencil size={12} /> Ir para o plano em edição
           </Button>
         ) : podeGerir ? (
           <Button size="sm" variant="secondary" onClick={() => setNomeDe('editar')}>
-            <CopyPlus size={11} /> Editar a partir desta
+            <CopyPlus size={12} /> Editar a partir desta
           </Button>
         ) : null}
         {podeGerir ? (
           <>
             {plano.vigente ? (
               <Button size="sm" variant="ghost" onClick={() => void desmarcarVigente()}>
-                <StarOff size={11} /> Desmarcar vigente
+                <StarOff size={12} /> Desmarcar vigente
               </Button>
             ) : !mudou ? (
               <Button size="sm" variant="ghost" onClick={() => void tornarVigente()}>
-                <Star size={11} /> Tornar vigente
+                <Star size={12} /> Tornar vigente
               </Button>
             ) : null}
             {mudou ? (
@@ -476,7 +477,7 @@ export function FaixaLinhaBase({
                     : 'Cria uma nova linha de base com as premissas atuais; esta fica intacta'
                 }
               >
-                <RotateCcw size={11} /> Restaurar com premissas atuais
+                <RotateCcw size={12} /> Restaurar com premissas atuais
               </Button>
             ) : null}
             {!plano.vigente ? (
@@ -487,7 +488,7 @@ export function FaixaLinhaBase({
                 className="hover:text-danger"
                 aria-label="Excluir linha de base"
               >
-                <Trash2 size={11} />
+                <Trash2 size={12} />
               </Button>
             ) : null}
           </>

@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Play, Plus, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { contar, rotuloReajusteStatus } from '@/lib/rotulos'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -73,13 +74,13 @@ function ReajustesInner(): ReactNode {
       <PageHeader
         title="Reajustes"
         breadcrumb={['Orçamento', 'Planilha Orçamentária', 'Reajustes']}
-        subtitle={`${scope.obra?.nome ?? ''} — reajuste anual por grupos de índices (vale a partir da data)`}
+        subtitle="Reajuste anual por grupos de índices, válido a partir da data informada"
         actions={
           <div className="flex items-center gap-2">
             <VoltarPlanilhaButton />
             {podeEditar ? (
               <Button size="sm" onClick={() => setNovoOpen(true)} disabled={!dataBase}>
-                <Plus size={11} /> Novo reajuste
+                <Plus size={12} /> Novo reajuste
               </Button>
             ) : null}
           </div>
@@ -130,7 +131,9 @@ function ReajustesInner(): ReactNode {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-text">Reajuste {r.numero}</span>
-                  <Badge variant={r.status === 'aplicado' ? 'success' : 'warn'}>{r.status}</Badge>
+                  <Badge variant={r.status === 'aplicado' ? 'success' : 'warn'}>
+                    {rotuloReajusteStatus(r.status)}
+                  </Badge>
                 </div>
                 <div className="text-2xs font-mono text-text-dim mt-0.5">{fmtDataBR(r.data)}</div>
                 {r.status === 'aplicado' && r.venda_antes != null && r.venda_depois != null ? (
@@ -315,7 +318,9 @@ function ReajusteEditor({
       title: `Aplicar o reajuste ${reajuste.numero} em ${fmtDataBR(reajuste.data)}?`,
       description:
         `Os preços de venda das ${itens.length} receitas classificadas mudam (Δ venda ${fmtBRL(deltaVenda)}).` +
-        (semGrupo > 0 ? ` ${semGrupo} receita(s) sem grupo ficam sem reajuste.` : '') +
+        (semGrupo > 0
+          ? ` ${contar(semGrupo, 'receita sem grupo fica', 'receitas sem grupo ficam')} sem reajuste.`
+          : '') +
         ' O que foi executado/planejado antes da data continua valorado pelo preço anterior. Não dá para desfazer.',
       confirmLabel: 'Aplicar reajuste'
     })
@@ -335,8 +340,10 @@ function ReajusteEditor({
       <div className="flex items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-[240px] space-y-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-text">Reajuste {reajuste.numero}</h2>
-            <Badge variant={rascunho ? 'warn' : 'success'}>{reajuste.status}</Badge>
+            <h2 className="text-lg font-semibold text-text">Reajuste {reajuste.numero}</h2>
+            <Badge variant={rascunho ? 'warn' : 'success'}>
+              {rotuloReajusteStatus(reajuste.status)}
+            </Badge>
           </div>
           <div className="flex items-end gap-3 flex-wrap">
             <div>
@@ -385,14 +392,14 @@ function ReajusteEditor({
                 if (ok) excluir.mutate({ id: reajuste.id })
               }}
             >
-              <Trash2 size={11} /> Excluir rascunho
+              <Trash2 size={12} /> Excluir rascunho
             </Button>
             <Button
               size="sm"
               onClick={() => void onAplicar()}
               disabled={itens.length === 0 || aplicar.isPending}
             >
-              <Play size={11} /> {aplicar.isPending ? 'Aplicando…' : 'Aplicar reajuste'}
+              <Play size={12} /> {aplicar.isPending ? 'Aplicando…' : 'Aplicar reajuste'}
             </Button>
           </div>
         ) : null}
@@ -465,7 +472,7 @@ function ReajusteEditor({
                         aria-label="Excluir grupo"
                         onClick={() => excluirGrupo.mutate({ id: g.id, reajuste_id: reajuste.id })}
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={12} />
                       </IconButton>
                     ) : null}
                   </td>
@@ -490,7 +497,7 @@ function ReajusteEditor({
                         )
                       }
                     >
-                      <Plus size={11} /> Grupo
+                      <Plus size={12} /> Grupo
                     </Button>
                   </td>
                 </tr>
@@ -512,7 +519,9 @@ function ReajusteEditor({
           </label>
           {editavel && selecionadas.size > 0 ? (
             <div className="flex items-center gap-2 ml-auto text-xs">
-              <span className="text-text-muted">{selecionadas.size} selecionada(s) →</span>
+              <span className="text-text-muted">
+                {contar(selecionadas.size, 'selecionada', 'selecionadas')} →
+              </span>
               <Select
                 className="h-7 w-48"
                 defaultValue=""

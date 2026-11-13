@@ -1,6 +1,7 @@
 // Capturas das telas: entra no web e fotografa cada rota do menu num tema, para revisão visual.
 //   E2E_EMAIL=… E2E_PASSWORD=… E2E_EMPRESA_ID=… E2E_OBRA_ID=… [E2E_URL=http://localhost:5174]
-//   [E2E_TEMA=light|dark] [E2E_SAIDA=capturas] [E2E_ROTAS=/,/orcamento] [E2E_LARGURA=1440] node scripts/capturas-telas.mjs
+//   [E2E_TEMA=light|dark] [E2E_SAIDA=capturas] [E2E_ROTAS=/,/orcamento] [E2E_LARGURA=1440] [E2E_ALTURA=900] node scripts/capturas-telas.mjs
+// E2E_ALTURA maior (ex.: 2000) fotografa a página inteira, já que a rolagem é interna.
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
@@ -14,7 +15,9 @@ const rotas = process.env.E2E_ROTAS ? process.env.E2E_ROTAS.split(',') : ROTAS
 
 mkdirSync(SAIDA, { recursive: true })
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: LARGURA, height: 900 } })
+const page = await browser.newPage({
+  viewport: { width: LARGURA, height: Number(process.env.E2E_ALTURA ?? 900) }
+})
 await page.addInitScript((tema) => localStorage.setItem('infrawork.ui.theme', tema), TEMA)
 
 await page.goto(URL)

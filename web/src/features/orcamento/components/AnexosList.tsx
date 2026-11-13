@@ -61,7 +61,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
     <div className="space-y-2 text-xs">
       <div className="flex items-center justify-between">
         <h3 className="text-2xs font-mono uppercase tracking-wider text-text-dim flex items-center gap-1">
-          <Paperclip size={11} /> Anexos ({anexos.length})
+          <Paperclip size={12} /> Anexos ({anexos.length})
         </h3>
         {podeEditar ? (
           <Button
@@ -71,7 +71,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
             onClick={onPick}
             disabled={upload.isPending}
           >
-            <Upload size={11} /> {upload.isPending ? 'Enviando…' : 'Enviar arquivo'}
+            <Upload size={12} /> {upload.isPending ? 'Enviando…' : 'Enviar arquivo'}
           </Button>
         ) : null}
         <input ref={fileInputRef} type="file" onChange={onChange} className="hidden" />
@@ -85,7 +85,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
         <div className="rounded border border-border bg-bg-elevated divide-y divide-border">
           {anexos.map((a) => (
             <div key={a.id} className="flex items-center gap-2 px-2 py-1.5 group">
-              <Paperclip size={11} className="text-text-dim shrink-0" />
+              <Paperclip size={12} className="text-text-dim shrink-0" />
               <div className="flex-1 min-w-0">
                 <button
                   type="button"
@@ -106,7 +106,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
                   className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-hover"
                   title="Abrir"
                 >
-                  <ExternalLink size={11} />
+                  <ExternalLink size={12} />
                 </button>
                 {podeEditar ? (
                   <button
@@ -130,7 +130,7 @@ export function AnexosList({ obraId, escopo, escopoId, podeEditar }: Props): Rea
                     className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
                     title="Excluir"
                   >
-                    <Trash2 size={11} />
+                    <Trash2 size={12} />
                   </button>
                 ) : null}
               </div>

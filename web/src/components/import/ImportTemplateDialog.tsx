@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import { downloadBlob, loadWorkbookFromFile } from '@/lib/xlsx/download'
 import type { ImportAcao, ImportResultado, ParseResult, ParsedRow } from '@/lib/xlsx/types'
 
@@ -152,7 +153,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
       setStep('resultado')
       onAplicado?.(r)
       if (r.ok) toast.success(`Importação de ${entidadeLabel} concluída.`)
-      else toast.warning(`Importação concluída com ${r.erros.length} erro(s).`)
+      else toast.warning(`Importação concluída com ${contar(r.erros.length, 'erro', 'erros')}.`)
     } catch (e) {
       setErroGeral(e instanceof Error ? e.message : 'Falha ao importar.')
       setStep('preview')
@@ -184,7 +185,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => void baixarModelo()}>
-                  <Download size={11} /> Baixar modelo (.xlsx)
+                  <Download size={12} /> Baixar modelo (.xlsx)
                 </Button>
                 {extraDownload ? (
                   <Button
@@ -202,7 +203,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
                         .finally(() => setBaixandoExtra(false))
                     }}
                   >
-                    <Download size={11} /> {baixandoExtra ? 'Exportando…' : extraDownload.label}
+                    <Download size={12} /> {baixandoExtra ? 'Exportando…' : extraDownload.label}
                   </Button>
                 ) : null}
               </div>
@@ -220,7 +221,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
                   onClick={() => inputRef.current?.click()}
                   disabled={parsing}
                 >
-                  {parsing ? <Loader2 size={11} className="animate-spin" /> : <FileUp size={11} />}{' '}
+                  {parsing ? <Loader2 size={12} className="animate-spin" /> : <FileUp size={12} />}{' '}
                   {parsing ? 'Lendo…' : 'Escolher arquivo'}
                 </Button>
                 {arquivoNome ? (
@@ -259,7 +260,11 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
               ))}
               {parsed.rows.some((r) => r.avisos.length > 0) ? (
                 <Badge variant="warn">
-                  {parsed.rows.reduce((n, r) => n + r.avisos.length, 0)} aviso(s)
+                  {contar(
+                    parsed.rows.reduce((n, r) => n + r.avisos.length, 0),
+                    'aviso',
+                    'avisos'
+                  )}
                 </Badge>
               ) : null}
               <label className="ml-auto flex items-center gap-1.5 text-2xs text-text-muted cursor-pointer">
@@ -330,12 +335,12 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
                         {r.motivo ? <div className="text-text-dim">{r.motivo}</div> : null}
                         {r.erros.map((e, i) => (
                           <div key={`e${i}`} className="text-danger flex items-start gap-1">
-                            <XCircle size={10} className="mt-0.5 shrink-0" /> {e.msg}
+                            <XCircle size={12} className="mt-0.5 shrink-0" /> {e.msg}
                           </div>
                         ))}
                         {r.avisos.map((a, i) => (
                           <div key={`a${i}`} className="text-warn flex items-start gap-1">
-                            <AlertTriangle size={10} className="mt-0.5 shrink-0" /> {a.msg}
+                            <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {a.msg}
                           </div>
                         ))}
                       </td>
@@ -389,7 +394,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
             {resultado.avisos.length > 0 ? (
               <details className="rounded border border-warn/30 bg-warn/5 p-2 text-2xs" open>
                 <summary className="cursor-pointer text-warn">
-                  {resultado.avisos.length} aviso(s)
+                  {contar(resultado.avisos.length, 'aviso', 'avisos')}
                 </summary>
                 <ul className="mt-1 space-y-0.5 text-text-muted list-disc pl-4">
                   {resultado.avisos.slice(0, 100).map((a, i) => (
@@ -401,7 +406,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
             {resultado.erros.length > 0 ? (
               <details className="rounded border border-danger/30 bg-danger/5 p-2 text-2xs" open>
                 <summary className="cursor-pointer text-danger">
-                  {resultado.erros.length} erro(s)
+                  {contar(resultado.erros.length, 'erro', 'erros')}
                 </summary>
                 <ul className="mt-1 space-y-0.5 text-text-muted list-disc pl-4">
                   {resultado.erros.slice(0, 100).map((a, i) => (
@@ -424,7 +429,7 @@ export function ImportTemplateDialog<T, O>(props: ImportTemplateDialogProps<T, O
               onClick={() => void importar()}
               disabled={validas.length === 0}
             >
-              Importar {validas.length} linha(s) válida(s)
+              Importar {contar(validas.length, 'linha válida', 'linhas válidas')}
             </Button>
           </>
         ) : step === 'resultado' ? (

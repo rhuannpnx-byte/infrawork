@@ -114,67 +114,83 @@ export function DateRangePopover({
   }
 
   const trigger = (
-    <button
-      onClick={() => setOpen((o) => !o)}
+    <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-1 rounded border text-2xs font-mono transition-colors min-w-[180px]',
+        'inline-flex items-center h-7 rounded border bg-bg-panel text-sm transition-colors',
         from || to
-          ? 'border-accent/50 text-text bg-accent/5 hover:border-accent'
-          : 'border-border text-text-dim hover:text-text hover:border-border-strong'
+          ? 'border-accent text-accent font-semibold'
+          : 'border-border-strong text-text hover:border-border-accent'
       )}
     >
-      <CalendarIcon size={11} />
-      <span className="flex-1 text-left truncate">
-        {from || to ? `${fmtBR(fromD) || '…'} → ${fmtBR(toD) || '…'}` : placeholder}
-      </span>
-      {(from || to) && (
-        <X
-          size={10}
-          className="text-text-dim hover:text-text"
-          onClick={(e) => {
-            e.stopPropagation()
-            onChange(null, null)
-          }}
-        />
-      )}
-    </button>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 h-full pl-2.5 pr-2 min-w-[150px] rounded"
+      >
+        <CalendarIcon size={12} className="shrink-0" />
+        <span className="flex-1 text-left truncate tabular">
+          {from || to ? `${fmtBR(fromD) || '…'} a ${fmtBR(toD) || '…'}` : placeholder}
+        </span>
+      </button>
+      {from || to ? (
+        <button
+          type="button"
+          aria-label="Limpar período"
+          title="Limpar período"
+          onClick={() => onChange(null, null)}
+          className="inline-flex items-center justify-center h-full w-7 rounded border-l border-accent/40 hover:bg-bg-hover"
+        >
+          <X size={12} />
+        </button>
+      ) : null}
+    </span>
   )
 
   return (
-    <Popover open={open} onOpenChange={setOpen} trigger={trigger} className="p-3 w-[280px]">
+    <Popover open={open} onOpenChange={setOpen} trigger={trigger} className="p-3 w-[310px]">
       <div className="flex items-center gap-1 mb-3 border-b border-border pb-2">
         {(['7d', '30d', 'mes', 'mes_passado'] as const).map((k) => (
           <button
             key={k}
             onClick={() => preset(k)}
-            className="px-1.5 py-0.5 rounded text-2xs font-mono text-text-dim hover:text-text hover:bg-bg-hover"
+            className="px-1.5 h-7 rounded text-xs text-text-muted hover:text-text hover:bg-bg-hover"
           >
-            {k === '7d' ? '7d' : k === '30d' ? '30d' : k === 'mes' ? 'mês' : 'mês ant.'}
+            {k === '7d'
+              ? '7 dias'
+              : k === '30d'
+                ? '30 dias'
+                : k === 'mes'
+                  ? 'Este mês'
+                  : 'Mês passado'}
           </button>
         ))}
         <button
           onClick={() => preset('limpar')}
-          className="px-1.5 py-0.5 rounded text-2xs font-mono text-text-dim hover:text-danger ml-auto"
+          className="px-1.5 h-7 rounded text-xs text-text-muted hover:text-text hover:bg-bg-hover ml-auto"
         >
-          limpar
+          Limpar
         </button>
       </div>
 
       <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))}
-          className="p-1 rounded hover:bg-bg-hover text-text-dim hover:text-text"
+          aria-label="Mês anterior"
+          className="inline-flex items-center justify-center size-7 rounded hover:bg-bg-hover text-text-muted hover:text-text"
         >
-          <ChevronLeft size={12} />
+          <ChevronLeft size={14} />
         </button>
-        <span className="text-xs font-mono text-text capitalize">
+        <span className="text-sm font-semibold text-text">
           {MESES[mes.getMonth()]} {mes.getFullYear()}
         </span>
         <button
           onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))}
-          className="p-1 rounded hover:bg-bg-hover text-text-dim hover:text-text"
+          aria-label="Próximo mês"
+          className="inline-flex items-center justify-center size-7 rounded hover:bg-bg-hover text-text-muted hover:text-text"
         >
-          <ChevronRight size={12} />
+          <ChevronRight size={14} />
         </button>
       </div>
 
@@ -182,7 +198,7 @@ export function DateRangePopover({
         {DIAS.map((d, i) => (
           <div
             key={i}
-            className="text-center text-2xs font-mono text-text-dim h-5 flex items-center justify-center"
+            className="text-center text-xs text-text-dim h-6 flex items-center justify-center"
           >
             {d}
           </div>
@@ -191,7 +207,7 @@ export function DateRangePopover({
 
       <div className="grid grid-cols-7 gap-0.5">
         {grid.map((cell, idx) => {
-          if (!cell) return <div key={idx} className="h-6" />
+          if (!cell) return <div key={idx} className="h-8" />
           const isFrom = fromD && sameDay(cell, fromD)
           const isTo = toD && sameDay(cell, toD)
           const inRange = isInRange(cell)
@@ -203,9 +219,9 @@ export function DateRangePopover({
               onMouseEnter={() => setHoverDay(cell)}
               onMouseLeave={() => setHoverDay(null)}
               className={cn(
-                'h-6 rounded text-2xs font-mono transition-colors',
-                inRange && !isFrom && !isTo && 'bg-accent/20 text-text',
-                (isFrom || isTo) && 'bg-accent text-bg font-semibold',
+                'h-8 rounded text-sm tabular transition-colors',
+                inRange && !isFrom && !isTo && 'bg-accent-glow-strong text-text',
+                (isFrom || isTo) && 'bg-accent text-[color:var(--on-accent)] font-semibold',
                 !inRange && !isFrom && !isTo && 'text-text-muted hover:bg-bg-hover hover:text-text',
                 isToday && !isFrom && !isTo && 'ring-1 ring-accent/50'
               )}
@@ -216,8 +232,8 @@ export function DateRangePopover({
         })}
       </div>
 
-      <div className="text-2xs font-mono text-text-dim mt-2 pt-2 border-t border-border">
-        {picking === 'from' ? 'Selecione a data inicial' : 'Selecione a data final'}
+      <div className="text-xs text-text-muted mt-2 pt-2 border-t border-border">
+        {picking === 'from' ? 'Escolha a data inicial.' : 'Escolha a data final.'}
       </div>
     </Popover>
   )

@@ -60,13 +60,7 @@ function Marca({
   )
 }
 
-export function ParametrizacaoPagina({
-  obraId,
-  obraNome
-}: {
-  obraId: string
-  obraNome: string
-}): ReactNode {
+export function ParametrizacaoPagina({ obraId }: { obraId: string }): ReactNode {
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const ro = role === 'apoio' || role === 'cliente'
   const servicos = useServicosParametrizaveis(obraId)
@@ -132,7 +126,7 @@ export function ParametrizacaoPagina({
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Parametrização dos serviços"
-        subtitle={`${obraNome} — como cada serviço é lançado no campo. Defina antes de montar o cronograma.`}
+        subtitle="Como cada serviço é lançado no campo. Defina antes de montar o cronograma."
       />
       {servicos.isLoading || parametros.isLoading ? (
         <PulseBlock h={420} className="m-4" />

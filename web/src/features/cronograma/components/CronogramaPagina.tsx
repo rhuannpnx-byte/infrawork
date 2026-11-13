@@ -51,17 +51,10 @@ const ROTULO_COLUNA: Record<ColunaGantt, string> = {
   previsto: 'Término previsto (controle)'
 }
 
-export function CronogramaPagina({
-  obraId,
-  obraNome
-}: {
-  obraId: string
-  obraNome: string
-}): ReactNode {
+export function CronogramaPagina({ obraId }: { obraId: string }): ReactNode {
   return (
     <PaginaPlano
       obraId={obraId}
-      obraNome={obraNome}
       titulo="Cronograma"
       corpo={(c) => <CorpoGantt {...c} />}
     />

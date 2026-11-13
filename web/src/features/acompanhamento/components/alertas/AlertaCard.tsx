@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, Info, Check, ZapOff, Undo2 } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { rotuloAlertaStatus } from '@/lib/rotulos'
 import type { AcompanhamentoAlerta } from '@/types/acompanhamento'
 import { ALERTA_TIPO_LABEL } from '@/types/acompanhamento'
 import {
@@ -38,18 +39,14 @@ export function AlertaCard({ alerta }: Props): ReactNode {
         <Icon size={16} className="shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-xs font-semibold text-text">{alerta.titulo}</h4>
-            <Badge variant="default" className="text-2xs">
-              {ALERTA_TIPO_LABEL[alerta.tipo]}
-            </Badge>
+            <h3 className="text-md font-semibold text-text">{alerta.titulo}</h3>
+            <Badge variant="default">{ALERTA_TIPO_LABEL[alerta.tipo]}</Badge>
             {alerta.status !== 'aberto' && (
-              <Badge variant="default" className="text-2xs uppercase">
-                {alerta.status}
-              </Badge>
+              <Badge variant="default">{rotuloAlertaStatus(alerta.status)}</Badge>
             )}
           </div>
           {alerta.descricao && (
-            <p className="text-xs text-text-muted leading-relaxed">{alerta.descricao}</p>
+            <p className="text-sm text-text-muted">{alerta.descricao}</p>
           )}
           <div className="mt-2 flex flex-wrap gap-1 text-2xs font-mono text-text-dim">
             {Object.entries(ctx)
@@ -79,7 +76,7 @@ export function AlertaCard({ alerta }: Props): ReactNode {
                     }
                   }}
                 >
-                  <ZapOff size={11} /> Silenciar 7d
+                  <ZapOff size={12} /> Silenciar 7d
                 </Button>
                 <Button
                   size="sm"
@@ -93,7 +90,7 @@ export function AlertaCard({ alerta }: Props): ReactNode {
                     }
                   }}
                 >
-                  <Check size={11} /> Resolver
+                  <Check size={12} /> Resolver
                 </Button>
               </>
             )}
@@ -110,7 +107,7 @@ export function AlertaCard({ alerta }: Props): ReactNode {
                   }
                 }}
               >
-                <Undo2 size={11} /> Reabrir
+                <Undo2 size={12} /> Reabrir
               </Button>
             )}
           </div>

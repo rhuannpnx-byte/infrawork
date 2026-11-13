@@ -19,6 +19,7 @@ import {
   Wand2
 } from 'lucide-react'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
+import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import {
   useAtualizarTarefas,
@@ -122,7 +123,10 @@ export function useMenusCronograma(
     renomear.mutate(
       { planejamentoId: planoId, ids: null },
       {
-        onSuccess: (n) => toast.success(n ? `${n} tarefa(s) renomeada(s).` : 'Nada a renomear.'),
+        onSuccess: (n) =>
+          toast.success(
+            n ? `${contar(n, 'tarefa renomeada', 'tarefas renomeadas')}.` : 'Nada a renomear.'
+          ),
         onError: (x) => toast.error(x.message)
       }
     )
@@ -359,7 +363,8 @@ export function useMenusCronograma(
             renomear.mutate(
               { planejamentoId: planoId, ids: ts.map((t) => t.id) },
               {
-                onSuccess: (n) => toast.success(`${n} tarefa(s) renomeada(s).`),
+                onSuccess: (n) =>
+                  toast.success(`${contar(n, 'tarefa renomeada', 'tarefas renomeadas')}.`),
                 onError: erro
               }
             )

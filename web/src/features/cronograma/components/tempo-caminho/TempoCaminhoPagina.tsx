@@ -30,17 +30,10 @@ import { agoraLocal } from '../../visoes/formato'
 import { LegendaControle } from '../LegendaControle'
 import { TempoCaminhoVista, type ModoTempoCaminho } from './TempoCaminhoVista'
 
-export function TempoCaminhoPagina({
-  obraId,
-  obraNome
-}: {
-  obraId: string
-  obraNome: string
-}): ReactNode {
+export function TempoCaminhoPagina({ obraId }: { obraId: string }): ReactNode {
   return (
     <PaginaPlano
       obraId={obraId}
-      obraNome={obraNome}
       titulo="Tempo-caminho"
       corpo={(c) => <CorpoTempoCaminho {...c} />}
     />
@@ -230,7 +223,7 @@ function CorpoTempoCaminho({ obraId, calc, somenteLeitura, baseline }: ContextoP
                           onClick={() => moverTrecho(t.id, -1)}
                           aria-label="Para a esquerda"
                         >
-                          <ArrowUp size={11} />
+                          <ArrowUp size={12} />
                         </Button>
                         <Button
                           variant="ghost"
@@ -239,7 +232,7 @@ function CorpoTempoCaminho({ obraId, calc, somenteLeitura, baseline }: ContextoP
                           onClick={() => moverTrecho(t.id, 1)}
                           aria-label="Para a direita"
                         >
-                          <ArrowDown size={11} />
+                          <ArrowDown size={12} />
                         </Button>
                       </>
                     ) : null}

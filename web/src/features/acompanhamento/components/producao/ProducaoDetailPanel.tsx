@@ -94,7 +94,7 @@ function Panel({
             {t === 'detalhes'
               ? 'Detalhes'
               : t === 'tarefa'
-                ? 'Tarefa baseline'
+                ? 'Tarefa da linha de base'
                 : `Fotos (${p.fotos_count ?? 0})`}
           </TabPill>
         ))}
@@ -184,7 +184,7 @@ function Panel({
                   value={`${p.servico_grupo_codigo ?? ''} — ${p.servico_grupo_descricao ?? ''}`}
                 />
                 <Field
-                  label="Tarefa baseline"
+                  label="Tarefa da linha de base"
                   value={`${formatDate(p.tarefa_data_inicio)} → ${formatDate(p.tarefa_data_fim)}`}
                 />
                 <p className="text-text-muted leading-relaxed text-2xs font-mono">

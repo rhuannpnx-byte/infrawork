@@ -1,12 +1,11 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { navigateActiveTab } from '@/app/navigateActiveTab'
 
 interface Props {
-  /** O que isolar. Se um filho explodir, o boundary substitui apenas essa subarvore. */
   children: ReactNode
-  /** Rotulo que vai no header da tela de erro. Ex.: "Acompanhamento", "Dashboard". */
+  /** Nome da área na mensagem de erro (ex.: "Acompanhamento"). */
   scope?: string
-  /** Callback opcional pra reportar (Sentry, log). */
   onError?: (error: Error, info: ErrorInfo) => void
 }
 
@@ -16,9 +15,8 @@ interface State {
 }
 
 /**
- * Captura erros de render em React. PRODUCT.md proibe mensagem generica
- * simpatica ("Oops, algo deu errado"). Mostramos: escopo + mensagem original +
- * stack (toggle) + botoes "Tentar novamente" e "Voltar pra Home".
+ * Captura erros de render e troca só a subárvore que falhou. Mostra o escopo, a mensagem original e a pilha
+ * (recolhida), com "Tentar de novo" e "Ir para o início".
  */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null, errorInfo: null }
@@ -38,59 +36,46 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ error: null, errorInfo: null })
   }
 
-  private goHome = (): void => {
+  private irParaInicio = (): void => {
+    navigateActiveTab('/')
     this.reset()
-    window.location.hash = '#/'
   }
 
   render(): ReactNode {
     const { error, errorInfo } = this.state
     if (!error) return this.props.children
 
-    const scopeLabel = this.props.scope ? `em ${this.props.scope}` : ''
-
     return (
       <div className="p-6 max-w-3xl mx-auto">
-        <div className="rounded border border-danger/30 bg-danger/5 p-4">
-          <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="text-sm font-semibold text-danger">
-              Erro ao renderizar tela {scopeLabel}
-            </h2>
-            <span className="text-2xs font-mono uppercase tracking-wide text-text-dim">
-              {error.name}
-            </span>
-          </div>
+        <div role="alert" className="rounded border border-danger/40 bg-danger/10 p-4">
+          <h2 className="text-lg font-semibold text-danger">
+            Esta tela parou por um erro{this.props.scope ? ` em ${this.props.scope}` : ''}
+          </h2>
+          <p className="text-sm text-text-muted mt-1">
+            O que você digitou em outras telas não foi perdido. Tente de novo; se o erro voltar,
+            envie a mensagem abaixo para o suporte.
+          </p>
 
-          <pre className="text-xs font-mono text-text whitespace-pre-wrap break-words bg-bg p-3 rounded border border-border">
-            {error.message}
+          <pre className="mt-3 text-sm text-text whitespace-pre-wrap break-words bg-bg-panel p-3 rounded border border-border">
+            {error.name}: {error.message}
           </pre>
 
-          {errorInfo?.componentStack ? (
+          {errorInfo?.componentStack || error.stack ? (
             <details className="mt-3">
-              <summary className="text-2xs font-mono text-text-dim cursor-pointer hover:text-text">
-                Stack do componente
+              <summary className="text-sm text-text-muted cursor-pointer hover:text-text">
+                Detalhes técnicos
               </summary>
-              <pre className="mt-2 text-2xs font-mono text-text-muted whitespace-pre-wrap break-words bg-bg p-3 rounded border border-border max-h-64 overflow-auto">
-                {errorInfo.componentStack}
-              </pre>
-            </details>
-          ) : null}
-
-          {error.stack ? (
-            <details className="mt-2">
-              <summary className="text-2xs font-mono text-text-dim cursor-pointer hover:text-text">
-                Stack trace
-              </summary>
-              <pre className="mt-2 text-2xs font-mono text-text-muted whitespace-pre-wrap break-words bg-bg p-3 rounded border border-border max-h-64 overflow-auto">
+              <pre className="mt-2 text-xs text-text-muted whitespace-pre-wrap break-words bg-bg-panel p-3 rounded border border-border max-h-64 overflow-auto">
                 {error.stack}
+                {errorInfo?.componentStack}
               </pre>
             </details>
           ) : null}
 
           <div className="flex items-center gap-2 mt-4">
-            <Button onClick={this.reset}>Tentar novamente</Button>
-            <Button variant="secondary" onClick={this.goHome}>
-              Voltar pra Home
+            <Button onClick={this.reset}>Tentar de novo</Button>
+            <Button variant="secondary" onClick={this.irParaInicio}>
+              Ir para o início
             </Button>
           </div>
         </div>

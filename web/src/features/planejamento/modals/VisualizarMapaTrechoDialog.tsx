@@ -149,17 +149,17 @@ export function VisualizarMapaTrechoDialog({
           disabled={salvar.isPending}
           className="text-danger"
         >
-          <Trash2 size={11} /> Remover mapa
+          <Trash2 size={12} /> Remover mapa
         </Button>
         <div className="flex-1" />
         <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
           Fechar
         </Button>
         <Button variant="ghost" size="sm" onClick={onTrocar} disabled={salvar.isPending}>
-          <FileUp size={11} /> Trocar arquivo
+          <FileUp size={12} /> Trocar arquivo
         </Button>
         <Button variant="default" size="sm" onClick={onEditar} disabled={salvar.isPending}>
-          <Edit3 size={11} /> Editar configuração
+          <Edit3 size={12} /> Editar configuração
         </Button>
       </DialogFooter>
     </Dialog>

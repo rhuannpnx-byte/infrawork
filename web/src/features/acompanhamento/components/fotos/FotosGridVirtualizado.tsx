@@ -159,7 +159,7 @@ export function FotosGridVirtualizado({ fotos, onPick, loading, cols = 2 }: Prop
                     )}
                     {f.lat != null && f.lng != null && (
                       <span className="absolute top-1 left-1 text-text drop-shadow bg-black/50 rounded p-0.5">
-                        <MapPin size={9} />
+                        <MapPin size={12} />
                       </span>
                     )}
                     {f.equipe_display_cor && (

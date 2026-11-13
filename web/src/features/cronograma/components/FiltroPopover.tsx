@@ -79,7 +79,7 @@ export function FiltroPopover({ entrada: e, filtro, onChange }: Props): ReactNod
               className="inline-flex items-center gap-1 text-2xs text-accent hover:underline"
               onClick={() => onChange(FILTRO_VAZIO)}
             >
-              <X size={10} /> Limpar
+              <X size={12} /> Limpar
             </button>
           ) : null}
         </div>

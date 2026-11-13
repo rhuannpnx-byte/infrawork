@@ -1,16 +1,18 @@
 import { type ReactNode, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { RefreshCw, Filter } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { contar, rotuloAlertaStatusPlural } from '@/lib/rotulos'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
 import { PulseBlock } from '@/components/ui/PulseBlock'
+import { FiltroChips } from '@/components/ui/filtro-chips'
+import { ErroConsulta, Vazio } from '@/components/ui/estado'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAlertas, useRecalcularAlertas } from '@/features/acompanhamento/hooks/alertas'
 import { AlertaCard } from '@/features/acompanhamento/components/alertas/AlertaCard'
 import type { AlertaSeveridade, AlertaStatus } from '@/types/acompanhamento'
-import { cn } from '@/lib/utils'
 
 export function AcompanhamentoAlertasPage(): ReactNode {
   return (
@@ -27,7 +29,12 @@ function Inner(): ReactNode {
   const obraId = scope.obraId!
   const [statusFiltro, setStatusFiltro] = useState<AlertaStatus[]>(['aberto'])
   const [severidadeFiltro, setSeveridadeFiltro] = useState<AlertaSeveridade[]>([])
-  const { data: alertas = [], isLoading } = useAlertas(obraId, {
+  const {
+    data: alertas = [],
+    isLoading,
+    error,
+    refetch
+  } = useAlertas(obraId, {
     status: statusFiltro,
     severidade: severidadeFiltro.length ? severidadeFiltro : undefined
   })
@@ -44,7 +51,7 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Alertas"
-        subtitle={`${scope.obra?.nome ?? ''} · ${alertas.length} alertas (${statusFiltro.join(', ')})`}
+        subtitle={`${contar(alertas.length, 'alerta', 'alertas')} (${statusFiltro.map(rotuloAlertaStatusPlural).join(', ')})`}
         actions={
           <Button
             size="sm"
@@ -57,85 +64,67 @@ function Inner(): ReactNode {
                 if (item?.erros.length) toast.error(item.erros.join('; '))
                 else if (item)
                   toast.success(
-                    `${item.abertos} aberto(s): ${item.inseridos} novo(s), ${item.resolvidos} resolvido(s) automaticamente`
+                    `${contar(item.abertos, 'alerta aberto', 'alertas abertos')}: ${contar(item.inseridos, 'novo', 'novos')} e ${contar(item.resolvidos, 'resolvido', 'resolvidos')} automaticamente`
                   )
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : 'Erro')
+                toast.error(
+                  e instanceof Error ? e.message : 'Não foi possível recalcular os alertas.'
+                )
               }
             }}
           >
-            <RefreshCw size={11} className={recalc.isPending ? 'animate-spin' : ''} />
-            Recalcular
+            <RefreshCw size={13} className={recalc.isPending ? 'animate-spin' : ''} />
+            {recalc.isPending ? 'Recalculando…' : 'Recalcular'}
           </Button>
         }
       />
 
-      <div className="border-b border-border px-5 py-3 flex flex-wrap items-center gap-4 bg-bg-panel">
-        <div className="flex items-center gap-2">
-          <Filter size={11} className="text-text-dim" />
-          <span className="text-2xs font-mono uppercase text-text-dim">Status</span>
-          {(['aberto', 'silenciado', 'resolvido'] as AlertaStatus[]).map((s) => {
-            const ativo = statusFiltro.includes(s)
-            return (
-              <button
-                key={s}
-                onClick={() =>
-                  setStatusFiltro((cur) => (ativo ? cur.filter((x) => x !== s) : [...cur, s]))
-                }
-                className={cn(
-                  'px-2 py-0.5 rounded border text-2xs font-mono uppercase',
-                  ativo
-                    ? 'border-accent text-accent bg-accent/10'
-                    : 'border-border text-text-dim hover:text-text'
-                )}
-              >
-                {s}
-              </button>
-            )
-          })}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-2xs font-mono uppercase text-text-dim">Severidade</span>
-          {(['critical', 'warn', 'info'] as AlertaSeveridade[]).map((s) => {
-            const ativo = severidadeFiltro.includes(s)
-            return (
-              <button
-                key={s}
-                onClick={() =>
-                  setSeveridadeFiltro((cur) => (ativo ? cur.filter((x) => x !== s) : [...cur, s]))
-                }
-                className={cn(
-                  'px-2 py-0.5 rounded border text-2xs font-mono uppercase',
-                  ativo
-                    ? 'border-accent text-accent bg-accent/10'
-                    : 'border-border text-text-dim hover:text-text'
-                )}
-              >
-                {s}
-              </button>
-            )
-          })}
-        </div>
+      <div className="border-b border-border px-5 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-2 bg-bg-panel">
+        <FiltroChips
+          rotulo="Situação"
+          opcoes={[
+            { valor: 'aberto', rotulo: 'Abertos' },
+            { valor: 'silenciado', rotulo: 'Silenciados' },
+            { valor: 'resolvido', rotulo: 'Resolvidos' }
+          ]}
+          valores={statusFiltro}
+          aoMudar={setStatusFiltro}
+        />
+        <FiltroChips
+          rotulo="Gravidade"
+          opcoes={[
+            { valor: 'critical', rotulo: 'Críticos' },
+            { valor: 'warn', rotulo: 'Avisos' },
+            { valor: 'info', rotulo: 'Informativos' }
+          ]}
+          valores={severidadeFiltro}
+          aoMudar={setSeveridadeFiltro}
+        />
       </div>
 
       <div className="flex-1 overflow-auto p-5 space-y-4">
         {isLoading && Array.from({ length: 4 }).map((_, i) => <PulseBlock key={i} h={80} />)}
-        {!isLoading && alertas.length === 0 && (
-          <div className="rounded border border-success/40 bg-success/5 px-4 py-6 text-center text-success text-xs">
-            Sem alertas nesse filtro · tudo certo
-          </div>
+        {error ? (
+          <ErroConsulta erro={error} oQue="os alertas" aoTentar={() => void refetch()} />
+        ) : null}
+        {!isLoading && !error && alertas.length === 0 && (
+          <Vazio className="px-1">
+            {statusFiltro.length === 0
+              ? 'Escolha ao menos uma situação para listar os alertas.'
+              : 'Nenhum alerta neste filtro.'}
+          </Vazio>
         )}
         {grupos.map((g) =>
           g.itens.length === 0 ? null : (
             <div key={g.severidade} className="space-y-2">
-              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <h2 className="text-lg font-semibold text-text">
                 {g.severidade === 'critical'
                   ? 'Críticos'
                   : g.severidade === 'warn'
                     ? 'Avisos'
                     : 'Informativos'}{' '}
-                <span className="font-mono text-text-dim">({g.itens.length})</span>
-              </h3>
+                <span className="font-normal text-text-muted tabular">{g.itens.length}</span>
+              </h2>
               <div className="space-y-2">
                 {g.itens.map((a) => (
                   <AlertaCard key={a.id} alerta={a} />

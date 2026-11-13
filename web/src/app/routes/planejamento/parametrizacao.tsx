@@ -13,5 +13,5 @@ export function PlanejamentoParametrizacaoPage(): ReactNode {
 
 function Inner(): ReactNode {
   const scope = useCurrentScope()
-  return <ParametrizacaoPagina obraId={scope.obraId!} obraNome={scope.obra?.nome ?? ''} />
+  return <ParametrizacaoPagina obraId={scope.obraId!} />
 }

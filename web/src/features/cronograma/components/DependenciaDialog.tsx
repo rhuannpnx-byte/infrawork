@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import {
   traduzirErro,
@@ -277,7 +278,7 @@ function Conteudo({
         {podeRegra ? (
           <Caixa marcado={comoRegra} onMudar={setComoRegra} desabilitado={ro}>
             Valer para todas as tarefas de {nomeServ(ss)} depois de {nomeServ(sp)} (regra entre
-            serviços{regra ? `, hoje com ${regra.atraso_dias} dia(s)` : ''})
+            serviços{regra ? `, hoje com ${contar(regra.atraso_dias, 'dia', 'dias')}` : ''})
           </Caixa>
         ) : null}
         {modoRegra ? (

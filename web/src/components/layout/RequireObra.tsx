@@ -38,7 +38,7 @@ export function RequireObra({
             description="Como God, você precisa escolher uma empresa antes de operar em qualquer módulo."
             action={
               <Button variant="default" size="sm" onClick={() => openModal('projectSwitcher')}>
-                <Building2 size={11} /> Selecionar empresa
+                <Building2 size={12} /> Selecionar empresa
               </Button>
             }
           />
@@ -58,7 +58,7 @@ export function RequireObra({
             description="Este módulo opera dentro do escopo de uma obra: todos os dados aqui são herméticos por obra. Escolha uma para liberar a tela."
             action={
               <Button variant="default" size="sm" onClick={() => openModal('projectSwitcher')}>
-                <FolderOpen size={11} /> Selecionar obra
+                <FolderOpen size={12} /> Selecionar obra
               </Button>
             }
           />

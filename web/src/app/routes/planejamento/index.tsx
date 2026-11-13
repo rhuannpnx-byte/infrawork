@@ -41,7 +41,7 @@ function PlanejamentoIndexInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Planejamento"
-        subtitle={`${scope.obra?.nome ?? ''} — cronograma, tempo-caminho, calendários e linha de base.`}
+        subtitle="Cronograma, tempo-caminho, calendários e linha de base."
       />
       <div className="flex-1 overflow-auto p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">

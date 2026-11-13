@@ -21,7 +21,10 @@ import {
   ChevronRight,
   Search,
   Settings2,
-  Download
+  Download,
+  Check,
+  Minus,
+  Rows3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +32,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dropdown, DropdownItem, DropdownLabel } from '@/components/ui/dropdown'
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import type { TableExportConfig } from './export-types'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 
@@ -113,44 +117,60 @@ export function DataTable<T>({
     if (!enableRowSelection) return columns
     const selectCol: ColumnDef<T, unknown> = {
       id: '__select__',
-      size: 32,
+      size: 36,
       enableSorting: false,
       enableHiding: false,
       header: ({ table }) => (
         <button
           type="button"
+          role="checkbox"
+          aria-checked={
+            table.getIsAllPageRowsSelected()
+              ? true
+              : table.getIsSomePageRowsSelected()
+                ? 'mixed'
+                : false
+          }
+          aria-label="Selecionar todas as linhas desta página"
+          title="Selecionar todas as linhas desta página"
           onClick={(e) => {
             e.stopPropagation()
             table.toggleAllPageRowsSelected(!table.getIsAllPageRowsSelected())
           }}
           className={cn(
-            'w-3.5 h-3.5 inline-flex items-center justify-center rounded border',
+            'size-4 inline-flex items-center justify-center rounded-sm border align-middle',
             table.getIsAllPageRowsSelected()
-              ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
+              ? 'border-accent bg-accent text-[color:var(--on-accent)]'
               : table.getIsSomePageRowsSelected()
-                ? 'border-accent bg-accent/40'
-                : 'border-border-strong hover:border-accent'
+                ? 'border-accent bg-accent/40 text-[color:var(--on-accent)]'
+                : 'border-border-strong bg-bg-panel hover:border-accent'
           )}
-          title="Selecionar todos nesta página"
         >
-          {table.getIsAllPageRowsSelected() ? '✓' : table.getIsSomePageRowsSelected() ? '−' : ''}
+          {table.getIsAllPageRowsSelected() ? (
+            <Check size={12} strokeWidth={3} />
+          ) : table.getIsSomePageRowsSelected() ? (
+            <Minus size={12} strokeWidth={3} />
+          ) : null}
         </button>
       ),
       cell: ({ row }: { row: Row<T> }) => (
         <button
           type="button"
+          role="checkbox"
+          aria-checked={row.getIsSelected()}
+          aria-label="Selecionar a linha"
           onClick={(e) => {
             e.stopPropagation()
             row.toggleSelected(!row.getIsSelected())
           }}
           className={cn(
-            'w-3.5 h-3.5 inline-flex items-center justify-center rounded border text-2xs',
+            'size-4 inline-flex items-center justify-center rounded-sm border align-middle',
             row.getIsSelected()
-              ? 'border-accent bg-accent text-[color:var(--primary-foreground)]'
-              : 'border-border-strong hover:border-accent'
+              ? 'border-accent bg-accent text-[color:var(--on-accent)]'
+              : 'border-border-strong bg-bg-panel hover:border-accent'
           )}
         >
-          {row.getIsSelected() ? '✓' : ''}
+          {row.getIsSelected() ? <Check size={12} strokeWidth={3} /> : null}
         </button>
       )
     }
@@ -183,8 +203,34 @@ export function DataTable<T>({
   )
   const clearSelection = (): void => setRowSelection({})
 
-  const rowHeight = density === 'compact' ? 'h-7' : 'h-8'
+  const rowHeight = density === 'compact' ? 'h-7' : 'h-9'
   const cellPad = density === 'compact' ? 'px-2 py-1' : 'px-3 py-1.5'
+
+  // Número alinha à direita: vale o `meta.align` da coluna ou, sem ele, o tipo do valor nas primeiras linhas.
+  const aDireita = useMemo(() => {
+    const out = new Set<string>()
+    const amostra = table.getCoreRowModel().rows.slice(0, 30)
+    for (const c of table.getAllLeafColumns()) {
+      const align = (c.columnDef.meta as { align?: 'left' | 'right' } | undefined)?.align
+      if (align) {
+        if (align === 'right') out.add(c.id)
+        continue
+      }
+      if (c.accessorFn === undefined) continue
+      let numeros = 0
+      let outros = 0
+      for (const r of amostra) {
+        const v = r.getValue(c.id)
+        if (v == null || v === '') continue
+        if (typeof v === 'number') numeros++
+        else outros++
+      }
+      if (numeros > 0 && outros === 0) out.add(c.id)
+    }
+    return out
+    // `table` é estável; recalcula quando os dados ou as colunas mudam.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, effectiveColumns])
 
   return (
     // `min-h-0` é essencial: sem ele o min-height:auto padrão de item flex impede
@@ -196,7 +242,7 @@ export function DataTable<T>({
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-bg-panel">
         <div className="relative">
           <Search
-            size={11}
+            size={12}
             className="absolute left-2 top-1/2 -translate-y-1/2 text-text-dim pointer-events-none"
           />
           <Input
@@ -210,7 +256,7 @@ export function DataTable<T>({
         {selectedCount > 0 ? (
           <>
             <Badge variant="accent">
-              {selectedCount} selecionado{selectedCount > 1 ? 's' : ''}
+              {selectedCount} {selectedCount > 1 ? 'selecionados' : 'selecionado'}
             </Badge>
             <Button variant="ghost" size="sm" onClick={clearSelection}>
               Limpar seleção
@@ -230,22 +276,27 @@ export function DataTable<T>({
             align="end"
             trigger={
               <Button variant="ghost" size="sm">
-                <Settings2 size={11} /> Colunas
+                <Settings2 size={12} /> Colunas
               </Button>
             }
           >
-            <DropdownLabel>Visibilidade</DropdownLabel>
+            <DropdownLabel>Colunas visíveis</DropdownLabel>
             {table
               .getAllLeafColumns()
               .filter((c) => c.getCanHide())
               .map((c) => (
                 <DropdownItem key={c.id} onClick={() => c.toggleVisibility()}>
                   <span
+                    aria-hidden
                     className={cn(
-                      'w-3 h-3 mr-1 rounded-sm border',
-                      c.getIsVisible() ? 'bg-accent border-accent' : 'border-border-strong'
+                      'size-4 mr-1 rounded-sm border inline-flex items-center justify-center',
+                      c.getIsVisible()
+                        ? 'bg-accent border-accent text-[color:var(--on-accent)]'
+                        : 'border-border-strong'
                     )}
-                  />
+                  >
+                    {c.getIsVisible() ? <Check size={12} strokeWidth={3} /> : null}
+                  </span>
                   {(c.columnDef.meta as { label?: string } | undefined)?.label ?? c.id}
                 </DropdownItem>
               ))}
@@ -256,13 +307,14 @@ export function DataTable<T>({
           <Dropdown
             align="end"
             trigger={
-              <Button variant="ghost" size="sm">
-                Densidade
+              <Button variant="ghost" size="sm" title="Tamanho do texto e altura das linhas">
+                <Rows3 size={12} /> {density === 'compact' ? 'Compacto' : 'Confortável'}
               </Button>
             }
           >
-            <DropdownItem onClick={() => setDensity('compact')}>Compacta</DropdownItem>
-            <DropdownItem onClick={() => setDensity('normal')}>Normal</DropdownItem>
+            <DropdownLabel>Tamanho do texto</DropdownLabel>
+            <DropdownItem onClick={() => setDensity('normal')}>Confortável</DropdownItem>
+            <DropdownItem onClick={() => setDensity('compact')}>Compacto</DropdownItem>
           </Dropdown>
         ) : null}
 
@@ -300,44 +352,59 @@ export function DataTable<T>({
               }
             }}
           >
-            <Download size={11} /> Exportar
+            <Download size={12} /> Exportar
           </Button>
         ) : null}
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-xs tabular">
+        <table className="w-full text-sm tabular">
           <thead className="sticky top-0 bg-bg-panel z-10 border-b border-border-strong">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
                   const canSort = header.column.getCanSort()
                   const sort = header.column.getIsSorted()
+                  const direita = aDireita.has(header.column.id)
+                  const conteudo = flexRender(header.column.columnDef.header, header.getContext())
                   return (
                     <th
                       key={header.id}
+                      scope="col"
+                      aria-sort={
+                        sort === 'asc' ? 'ascending' : sort === 'desc' ? 'descending' : undefined
+                      }
                       style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       className={cn(
-                        'text-left font-medium font-mono uppercase tracking-wider text-2xs text-text-dim',
+                        'font-semibold uppercase tracking-[0.08em] text-2xs text-text-dim',
                         'border-r border-border last:border-r-0',
-                        cellPad,
-                        canSort && 'cursor-pointer select-none hover:text-text-muted'
+                        direita ? 'text-right' : 'text-left',
+                        cellPad
                       )}
-                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
-                      <span className="inline-flex items-center gap-1">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {canSort ? (
-                          sort === 'asc' ? (
-                            <ChevronUp size={9} />
+                      {canSort ? (
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          title="Ordenar por esta coluna"
+                          className={cn(
+                            'inline-flex items-center gap-1 uppercase tracking-[0.08em] font-semibold rounded-sm hover:text-text',
+                            sort && 'text-text'
+                          )}
+                        >
+                          {conteudo}
+                          {sort === 'asc' ? (
+                            <ChevronUp size={12} />
                           ) : sort === 'desc' ? (
-                            <ChevronDown size={9} />
+                            <ChevronDown size={12} />
                           ) : (
-                            <ChevronsUpDown size={9} className="opacity-50" />
-                          )
-                        ) : null}
-                      </span>
+                            <ChevronsUpDown size={12} className="opacity-50" />
+                          )}
+                        </button>
+                      ) : (
+                        conteudo
+                      )}
                     </th>
                   )
                 })}
@@ -357,10 +424,10 @@ export function DataTable<T>({
               ))
             ) : table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="py-16 text-center">
-                  <div className="text-text-muted text-sm">{emptyMessage}</div>
+                <td colSpan={table.getVisibleLeafColumns().length} className="py-16 text-center">
+                  <div className="text-text text-md font-semibold">{emptyMessage}</div>
                   {emptyDescription ? (
-                    <div className="text-text-dim text-xs mt-1">{emptyDescription}</div>
+                    <div className="text-text-muted text-sm mt-1">{emptyDescription}</div>
                   ) : null}
                 </td>
               </tr>
@@ -370,12 +437,23 @@ export function DataTable<T>({
                 return (
                   <tr
                     key={row.id}
+                    tabIndex={onRowClick ? 0 : undefined}
                     className={cn(
-                      'border-b border-border hover:bg-bg-hover transition-colors cursor-pointer',
+                      'border-b border-border hover:bg-bg-hover transition-colors',
+                      onRowClick &&
+                        'cursor-pointer focus-visible:outline-none focus-visible:bg-bg-active',
                       isSelected && 'bg-accent-glow',
                       rowHeight
                     )}
                     onClick={() => onRowClick?.(row.original)}
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => {
+                            if (e.key === 'Enter' && e.target === e.currentTarget)
+                              onRowClick(row.original)
+                          }
+                        : undefined
+                    }
                   >
                     {row.getVisibleCells().map((cell) => (
                       <td
@@ -383,7 +461,8 @@ export function DataTable<T>({
                         className={cn(
                           'border-r border-border last:border-r-0',
                           cellPad,
-                          'text-text'
+                          'text-text',
+                          aDireita.has(cell.column.id) && 'text-right'
                         )}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -397,15 +476,29 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-bg-panel">
-        <div className="text-2xs font-mono text-text-dim">
-          {table.getFilteredRowModel().rows.length}{' '}
-          {table.getFilteredRowModel().rows.length === 1 ? 'item' : 'itens'}
-          {table.getFilteredRowModel().rows.length !== data.length ? ` · ${data.length} total` : ''}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-1.5 border-t border-border bg-bg-panel text-xs text-text-muted">
+        <div>
+          {contar(table.getFilteredRowModel().rows.length, 'item', 'itens')}
+          {table.getFilteredRowModel().rows.length !== data.length
+            ? ` de ${data.length.toLocaleString('pt-BR')}`
+            : ''}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-2xs font-mono text-text-dim">
+          <label className="flex items-center gap-1.5">
+            Linhas por página
+            <select
+              value={table.getState().pagination.pageSize}
+              onChange={(e) => table.setPageSize(Number(e.target.value))}
+              className="h-7 rounded border border-border-strong bg-bg-panel px-1.5 text-xs text-text"
+            >
+              {[25, 50, 100, 200].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="tabular">
             Página {table.getState().pagination.pageIndex + 1} de {table.getPageCount() || 1}
           </span>
           <Button
@@ -415,7 +508,7 @@ export function DataTable<T>({
             disabled={!table.getCanPreviousPage()}
             aria-label="Página anterior"
           >
-            <ChevronLeft size={12} />
+            <ChevronLeft size={14} />
           </Button>
           <Button
             variant="ghost"
@@ -424,7 +517,7 @@ export function DataTable<T>({
             disabled={!table.getCanNextPage()}
             aria-label="Próxima página"
           >
-            <ChevronRight size={12} />
+            <ChevronRight size={14} />
           </Button>
         </div>
       </div>

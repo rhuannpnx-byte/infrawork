@@ -16,7 +16,6 @@ const TIMEOUT_MS = 800
 
 export function useShortcuts(): void {
   const openModal = useUIStore((s) => s.openModal)
-  const closeModal = useUIStore((s) => s.closeModal)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
 
   const waitingForG = useRef(false)
@@ -38,13 +37,6 @@ export function useShortcuts(): void {
   useHotkeys('shift+slash, ?', (e) => {
     e.preventDefault()
     openModal('shortcuts')
-  })
-
-  // Esc — close topmost modal
-  useHotkeys('escape', () => {
-    const { activeModals } = useUIStore.getState()
-    const last = Array.from(activeModals).pop()
-    if (last) closeModal(last)
   })
 
   // ─── Vim-style sequence "G + letter" ──────────────────────────────────────

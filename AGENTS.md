@@ -56,6 +56,11 @@ Ao mexer em tela do `web/`:
 - token novo entra nos dois temas em `web/src/styles/theme.css` (`theme.test.ts` cobra);
 - ícone chamado pelo nome entra no mapa de `web/src/components/layout/IconRenderer.tsx` (`icones.test.ts` cobra);
 - página nova entra em `web/src/config/modules.ts` (menu) e em `web/scripts/rotas-telas.mjs` (fumaça e capturas);
+- bloco, indicador, filtro, estado de consulta, campo e curva S usam os componentes de `web/src/components/ui/` e
+  `charts/` (tabela em `web/DESIGN.md`), não uma cópia feita na tela;
+- número que junta serviços de unidades diferentes vai em valor (R$) ou em dias, nunca somando m², m³ e metros;
+- texto de tela segue o glossário do `web/DESIGN.md` (linha de base, plano, lançamento); código do banco e plural
+  passam por `web/src/lib/rotulos.ts`;
 - confira nos dois temas com `node scripts/capturas-telas.mjs` e rode `node scripts/fumaca-telas.mjs`.
 
 ## Publicação na Vercel

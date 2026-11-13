@@ -74,7 +74,7 @@ function CurvaSInner(): ReactNode {
   if (!planAtivo) {
     return (
       <div className="flex flex-col h-full">
-        <PageHeader title="Curva-S" subtitle={scope.obra?.nome ?? ''} />
+        <PageHeader title="Curva-S" />
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="trending-up"
@@ -90,7 +90,7 @@ function CurvaSInner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Curva-S"
-        subtitle={`${scope.obra?.nome ?? ''}: avanço físico acumulado planejado${baseline ? ' vs baseline' : ''}.`}
+        subtitle={`Avanço físico acumulado planejado${baseline ? ' e a linha de base' : ''}.`}
         actions={
           <select
             value={planSel?.id ?? ''}

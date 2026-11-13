@@ -35,7 +35,9 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
   }, [itens])
 
   if (data.length === 0) {
-    return <ChartEmptyState message="Sem dados de produtividade" height={altura} />
+    return (
+      <ChartEmptyState message="Sem produção lançada para medir a produtividade." height={altura} />
+    )
   }
 
   return (
@@ -43,16 +45,16 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
       className="rounded border border-border bg-bg-panel flex flex-col"
       style={{ height: altura }}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
-        <h4 className="text-xs font-semibold text-text">Produtividade por equipe × serviço</h4>
+      <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3 shrink-0">
+        <h4 className="text-md font-semibold text-text">Produtividade das equipes</h4>
         <span
-          className="text-2xs font-mono text-text-dim inline-flex items-center gap-1"
-          title="Aderência = mediana diária realizada / produção diária esperada pela CPU do orçamento. 90-110% = no alvo (verde); 70-89% ou 111-130% = atenção (amarelo); <70% atrasado ou >130% revisar CPU (vermelho)."
+          className="text-xs text-text-muted inline-flex items-center gap-1 shrink-0"
+          title="Aderência: mediana diária realizada dividida pela produção diária da composição do orçamento. De 90 a 110% está no alvo; de 70 a 89% ou de 111 a 130% pede atenção; abaixo de 70% está atrasado e acima de 130% vale revisar a composição."
         >
-          <Info size={10} /> aderência CPU
+          <Info size={12} /> aderência à composição
         </span>
       </div>
-      <div className="flex-1 overflow-auto px-3 pb-3 space-y-2">
+      <div className="flex-1 overflow-auto px-4 pb-3 space-y-2">
         {data.map((d) => {
           const pctNum = d.pct_aderencia_meta == null ? null : Number(d.pct_aderencia_meta)
           const pctLabel = pctNum == null ? null : `${Math.round(pctNum * 100)}%`
@@ -67,7 +69,7 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
           const key = `${d.equipe_id ?? d.equipe_display_nome}__${d.item_orcamentario_id ?? d.servico_id ?? d.servico_nome}`
           return (
             <div key={key} className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-mono gap-2">
+              <div className="flex items-center justify-between text-sm gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span
                     className="size-2 rounded-sm shrink-0"
@@ -95,7 +97,7 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
                   style={{ width: `${barFill}%`, background: cor }}
                 />
               </div>
-              <div className="flex items-center justify-between text-2xs font-mono text-text-dim gap-2">
+              <div className="flex items-center justify-between text-xs text-text-muted gap-2">
                 <span className="truncate">
                   {dias} dia{dias !== 1 ? 's' : ''} · {formatNumber(total, 1)} {unidade} total
                 </span>

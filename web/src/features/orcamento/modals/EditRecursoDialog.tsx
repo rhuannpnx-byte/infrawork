@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
+import { contar } from '@/lib/rotulos'
 import { useUpdateRecurso } from '../hooks/recursos'
 import { RECURSO_GRUPO_LABEL, type Recurso, type RecursoGrupo } from '@/types/orcamento'
 
@@ -57,7 +58,7 @@ export function EditRecursoDialog({ open, onOpenChange, recurso }: Props): React
           .eq('recurso_id', recurso.id)
         if ((count ?? 0) > 0) {
           setError(
-            `Este recurso é usado em ${count} insumo(s) de composição — não é possível trocar o grupo.`
+            `Este recurso é usado em ${contar(count ?? 0, 'insumo', 'insumos')} de composição — não é possível trocar o grupo.`
           )
           return
         }

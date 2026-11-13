@@ -65,7 +65,7 @@ export function MemoriaEditor({ itemId, podeEditar }: Props): ReactNode {
             onClick={() => setEditing((e) => !e)}
             disabled={upsert.isPending}
           >
-            {editing ? <Eye size={11} /> : <Edit3 size={11} />}
+            {editing ? <Eye size={12} /> : <Edit3 size={12} />}
             {editing ? 'Visualizar' : memoria ? 'Editar' : 'Criar'}
           </Button>
         ) : null}
@@ -112,7 +112,7 @@ export function MemoriaEditor({ itemId, podeEditar }: Props): ReactNode {
               onClick={save}
               disabled={upsert.isPending}
             >
-              <Save size={11} /> {upsert.isPending ? 'Salvando…' : 'Salvar'}
+              <Save size={12} /> {upsert.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>
         </>

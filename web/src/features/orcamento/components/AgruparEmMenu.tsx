@@ -67,7 +67,7 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
       align="end"
       trigger={
         <Button variant="default" size="sm" onClick={() => setOpen((o) => !o)} disabled={ocupado}>
-          <Package size={11} /> Agrupar {receitaIds.length} em… <ChevronDown size={11} />
+          <Package size={12} /> Agrupar {receitaIds.length} em… <ChevronDown size={12} />
         </Button>
       }
       className="w-[320px] p-0"
@@ -96,7 +96,7 @@ export function AgruparEmMenu({ obraId, servicos, receitaIds, onDone }: Props): 
             disabled={ocupado}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-bg-hover text-accent"
           >
-            <Plus size={11} /> Novo serviço “{nomeNovo}”
+            <Plus size={12} /> Novo serviço “{nomeNovo}”
           </button>
         ) : null}
         {lista.map((s) => (

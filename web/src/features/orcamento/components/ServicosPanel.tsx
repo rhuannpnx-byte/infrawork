@@ -99,7 +99,7 @@ export function ServicosPanel({
       {servicos.length > 8 ? (
         <div className="px-2 py-1.5 border-b border-border">
           <div className="flex items-center gap-1.5 h-6 px-2 rounded bg-bg-elevated border border-border-strong">
-            <Search size={11} className="text-text-dim" />
+            <Search size={12} className="text-text-dim" />
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -149,7 +149,7 @@ export function ServicosPanel({
                 <span className="ml-auto">{nReceitas.get(s.id) ?? 0} rec.</span>
                 {semVinculo ? (
                   <span title="Sem composição vinculada — não entra em custo, programação e produção">
-                    <Link2Off size={11} className="text-warn" />
+                    <Link2Off size={12} className="text-warn" />
                   </span>
                 ) : null}
                 <button
@@ -183,7 +183,7 @@ export function ServicosPanel({
             }}
             className="flex items-center gap-1.5 h-7 px-2 rounded border border-dashed border-border-strong focus-within:border-accent"
           >
-            <Plus size={11} className="text-text-dim" />
+            <Plus size={12} className="text-text-dim" />
             <input
               value={novo}
               onChange={(e) => setNovo(e.target.value)}

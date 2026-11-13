@@ -68,7 +68,7 @@ export function CommentsPanel({ itemId }: Props): ReactNode {
                     className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-success hover:bg-success/10"
                     title={c.resolvido ? 'Reabrir' : 'Resolver'}
                   >
-                    <Check size={11} />
+                    <Check size={12} />
                   </button>
                   {c.autor_id === callerId ? (
                     <button
@@ -84,7 +84,7 @@ export function CommentsPanel({ itemId }: Props): ReactNode {
                       className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
                       title="Excluir"
                     >
-                      <Trash2 size={11} />
+                      <Trash2 size={12} />
                     </button>
                   ) : null}
                 </div>
@@ -104,7 +104,7 @@ export function CommentsPanel({ itemId }: Props): ReactNode {
           className="flex-1 rounded border border-border-strong bg-bg-elevated px-2 py-1.5 text-xs text-text placeholder:text-text-dim focus-visible:outline-none focus-visible:border-accent resize-none"
         />
         <Button type="submit" variant="default" size="sm" disabled={add.isPending || !texto.trim()}>
-          <Send size={11} /> {add.isPending ? '...' : 'Enviar'}
+          <Send size={12} /> {add.isPending ? '...' : 'Enviar'}
         </Button>
       </form>
     </div>

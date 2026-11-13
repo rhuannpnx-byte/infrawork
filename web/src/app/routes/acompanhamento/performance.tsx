@@ -21,6 +21,7 @@ import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
 import {
   useProducaoPerformance,
   useProdutividadeObra,
@@ -141,7 +142,7 @@ function Inner(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Performance de equipes & encarregados"
-        subtitle={`${scope.obra?.nome ?? ''} · produtividade, tendência e benchmark histórico`}
+        subtitle="Produtividade, tendência e benchmark histórico"
       />
 
       {/* Barra de filtros */}
@@ -149,10 +150,10 @@ function Inner(): ReactNode {
         {/* dimensão */}
         <div className="flex items-center gap-1 rounded border border-border p-0.5">
           <FiltroBtn ativo={dimensao === 'equipe'} onClick={() => setDimensao('equipe')}>
-            <Users size={11} /> Equipes
+            <Users size={12} /> Equipes
           </FiltroBtn>
           <FiltroBtn ativo={dimensao === 'encarregado'} onClick={() => setDimensao('encarregado')}>
-            <HardHat size={11} /> Encarregados
+            <HardHat size={12} /> Encarregados
           </FiltroBtn>
         </div>
 
@@ -338,8 +339,12 @@ function Inner(): ReactNode {
 
             {semServico > 0 ? (
               <div className="text-2xs font-mono text-text-dim">
-                {formatNumber(semServico, 0)} lançamento(s) do período ignorado(s) porque o item do
-                orçamento foi removido.
+                {contar(
+                  semServico,
+                  'lançamento do período ignorado',
+                  'lançamentos do período ignorados'
+                )}{' '}
+                porque o item do orçamento foi removido.
               </div>
             ) : null}
           </>
@@ -402,26 +407,26 @@ function KpisEntidade(props: {
         delta={deltaHist}
         hint={deltaHist != null ? 'vs mediana histórica' : props.nome}
         spark={props.spark.length > 1 ? props.spark : undefined}
-        icon={<Gauge size={11} />}
+        icon={<Gauge size={12} />}
       />
       <KPICard
         label="Mediana/dia"
         value={formatNumber(props.mediana, 1)}
         unit={un}
-        icon={<Activity size={11} />}
+        icon={<Activity size={12} />}
       />
       <KPICard
         label="Melhor dia"
         value={formatNumber(props.melhorDia, 1)}
         unit={un}
         hint={props.melhorData ? props.melhorData.split('-').reverse().join('/') : undefined}
-        icon={<Trophy size={11} />}
+        icon={<Trophy size={12} />}
       />
       <KPICard
         label="Dias trabalhados"
         value={formatNumber(props.dias, 0)}
         unit="dias"
-        icon={<CalendarRange size={11} />}
+        icon={<CalendarRange size={12} />}
       />
       <KPICard
         label="Aderência à meta"
@@ -431,7 +436,7 @@ function KpisEntidade(props: {
             ? `meta ${formatNumber(props.cpuMeta, 0)} ${un}/dia`
             : 'sem meta (equipe/CPU)'
         }
-        icon={<Gauge size={11} />}
+        icon={<Gauge size={12} />}
       />
       <KPICard
         label="Tendência"
@@ -441,7 +446,7 @@ function KpisEntidade(props: {
             ? `R² ${t.r2.toFixed(2)} · ${t.pctPorDia >= 0 ? '+' : ''}${formatNumber(t.pctPorDia * 100, 1)}%/dia`
             : undefined
         }
-        icon={<TendIcon size={11} />}
+        icon={<TendIcon size={12} />}
       />
     </div>
   )

@@ -1,8 +1,11 @@
 import { type ReactNode, useMemo } from 'react'
-import { UserCircle2 } from 'lucide-react'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
+import { contar } from '@/lib/rotulos'
+
+const dataBR = (iso: string | null | undefined): string =>
+  iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''
 
 interface Props {
   producoes: ProducaoEnriquecida[]
@@ -58,49 +61,55 @@ export function PorEncarregado({ producoes, filtroItemId, altura = 200 }: Props)
         ultimaData: v.ultimaData
       })
     }
-    return out.sort((a, b) => b.qtd - a.qtd).slice(0, 8)
+    const medida = (a: Agg): number => (filtroItemId ? a.qtd : a.dias)
+    return out.sort((a, b) => medida(b) - medida(a)).slice(0, 8)
   }, [producoes, filtroItemId])
 
-  const max = Math.max(1, ...linhas.map((l) => l.qtd))
+  // Quantidade só se compara dentro de um serviço; sem filtro a régua é de dias com lançamento.
+  const medida = (a: Agg): number => (filtroItemId ? a.qtd : a.dias)
+  const max = Math.max(1, ...linhas.map(medida))
 
   return (
     <div
       className="rounded border border-border bg-bg-panel flex flex-col"
       style={{ height: altura }}
     >
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
-        <h4 className="text-xs font-semibold text-text flex items-center gap-1.5">
-          <UserCircle2 size={11} /> Por encarregado
+      <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3 shrink-0">
+        <h4 className="text-md font-semibold text-text flex items-center gap-1.5">
+          Por encarregado
         </h4>
-        <span className="text-2xs font-mono text-text-dim">qtd · dias</span>
+        <span className="text-xs text-text-muted">
+          {filtroItemId ? 'quantidade no período' : 'dias com lançamento'}
+        </span>
       </div>
-      <div className="flex-1 overflow-auto px-3 pb-3 space-y-1.5">
+      <div className="flex-1 overflow-auto px-4 pb-3 space-y-1.5">
         {linhas.length === 0 && (
-          <div className="text-text-dim text-2xs font-mono flex items-center justify-center h-full">
-            Sem dados
+          <div className="text-sm text-text-muted flex items-center justify-center h-full text-center px-3">
+            Nenhum lançamento no período.
           </div>
         )}
         {linhas.map((l) => (
           <div key={l.nome} className={cn('space-y-0.5')}>
-            <div className="flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center justify-between text-sm">
               <span className="text-text truncate" title={l.nome}>
                 {l.nome}
               </span>
-              <span className="text-text-dim tabular-nums shrink-0 ml-2">
-                {formatNumber(l.qtd, 0)}
+              <span className="text-text-muted tabular-nums shrink-0 ml-2">
+                {filtroItemId ? formatNumber(l.qtd, 0) : contar(l.dias, 'dia', 'dias')}
               </span>
             </div>
-            <div className="h-1 rounded bg-bg overflow-hidden">
+            <div className="h-1.5 bg-bg-elevated overflow-hidden">
               <div
                 className="h-full bg-accent"
-                style={{ width: `${Math.max(4, (l.qtd / max) * 100)}%` }}
+                style={{ width: `${Math.max(4, (medida(l) / max) * 100)}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-2xs font-mono text-text-dim">
+            <div className="flex items-center justify-between text-xs text-text-muted">
               <span>
-                {l.dias} dias · {l.servicos} serviços
+                {contar(l.registros, 'lançamento', 'lançamentos')} ·{' '}
+                {contar(l.servicos, 'serviço', 'serviços')}
               </span>
-              <span>{l.ultimaData ?? ''}</span>
+              <span>{dataBR(l.ultimaData)}</span>
             </div>
           </div>
         ))}

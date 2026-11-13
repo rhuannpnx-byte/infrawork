@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearch } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { ClipboardList, FileUp, ListChecks, Smartphone, Table2, Undo2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { contar } from '@/lib/rotulos'
 import { RequireObra } from '@/components/layout/RequireObra'
 import { RequireRole } from '@/components/layout/RequireRole'
 import { Button } from '@/components/ui/button'
@@ -81,7 +82,7 @@ function Inner(): ReactNode {
     if (!ultimoLote) return
     try {
       const n = await desfazer.mutateAsync({ importacao_id: ultimoLote.id })
-      toast.success(`${n} lançamento(s) removido(s).`)
+      toast.success(`${contar(n, 'lançamento removido', 'lançamentos removidos')}.`)
       setUltimoLote(null)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Falha ao desfazer')
@@ -95,7 +96,7 @@ function Inner(): ReactNode {
         subtitle={
           mobile
             ? (scope.obra?.codigo ?? '')
-            : `${scope.obra?.nome ?? ''} — registre o executado do dia por item do orçamento.`
+            : 'Registre o executado do dia por serviço do orçamento.'
         }
         className={cn(mobile && 'px-4 py-2')}
         actions={

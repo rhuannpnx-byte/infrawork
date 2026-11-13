@@ -75,23 +75,23 @@ export function ConfirmDialog(): ReactNode {
     <Dialog open={open} onOpenChange={(o) => !o && answer(false)} size="sm" topmost>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <Icon size={14} className={iconColor} />
+          <Icon size={16} className={iconColor} />
           {options?.title ?? 'Confirmar'}
         </DialogTitle>
       </DialogHeader>
       <DialogBody>
         {options?.description ? (
           typeof options.description === 'string' ? (
-            <p className="text-xs text-text-muted whitespace-pre-line leading-relaxed">
+            <p className="text-sm text-text-muted whitespace-pre-line">
               {options.description}
             </p>
           ) : (
-            <div className="text-xs text-text-muted">{options.description}</div>
+            <div className="text-sm text-text-muted">{options.description}</div>
           )
         ) : null}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={() => answer(false)} autoFocus>
+        <Button variant="secondary" onClick={() => answer(false)} autoFocus>
           {options?.cancelLabel ?? 'Cancelar'}
         </Button>
         <Button variant={confirmVariant} onClick={() => answer(true)}>

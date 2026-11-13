@@ -13,6 +13,7 @@ import type { ObraTrecho } from '@/types/gerencial'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
 import { formatMarcador, parseMarcador } from '@/lib/format/posicao'
+import { contar } from '@/lib/rotulos'
 import { parseQtd } from '@/features/acompanhamento/lib/parse-qtd'
 import {
   TIPO_LOCAL_LABEL,
@@ -87,7 +88,9 @@ function Inner(): ReactNode {
           trecho_id: t.id
         })
       }
-      toast.success(`${eixosSemPista.length} local(is) de pista criado(s) a partir dos eixos.`)
+      toast.success(
+        `${contar(eixosSemPista.length, 'local de pista criado', 'locais de pista criados')} a partir dos eixos.`
+      )
     } catch (e) {
       erro(e as Error)
     }
@@ -97,7 +100,7 @@ function Inner(): ReactNode {
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Origens e destinos"
-        subtitle={`${scope.obra?.nome ?? ''} — DMT da viagem = acesso da origem + distância pelo eixo entre as estacas + acesso do destino. Na pista a viagem informa a estaca; fora dela vale a estaca onde o acesso encontra o eixo.`}
+        subtitle="A DMT da viagem soma o acesso da origem, a distância pelo eixo entre as estacas e o acesso do destino. Fora da pista vale a estaca onde o acesso encontra o eixo."
       />
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-4 overflow-hidden p-4">
         <section className="flex min-h-0 flex-col rounded border border-border bg-bg-panel">

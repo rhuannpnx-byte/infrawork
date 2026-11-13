@@ -213,7 +213,7 @@ export function GradeQuantidades({
                     disabled={segmentos.length <= 1}
                     onClick={() => onChange(segmentos.filter((_, i) => i !== r))}
                   >
-                    <Trash2 size={11} />
+                    <Trash2 size={12} />
                   </IconButton>
                 </td>
               ) : null}

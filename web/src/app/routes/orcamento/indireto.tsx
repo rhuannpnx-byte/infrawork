@@ -36,12 +36,12 @@ function Indireto(): ReactNode {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Custos indiretos"
-        subtitle={`${scope.obra?.nome ?? ''} — mobilização, administração local e outros`}
+        subtitle="Mobilização, administração local e outros"
         actions={
           podeEditar ? (
             <div className="flex items-center gap-2">
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={11} /> Novo indireto
+                <Plus size={12} /> Novo indireto
               </Button>
             </div>
           ) : null
@@ -62,7 +62,7 @@ function Indireto(): ReactNode {
             action={
               podeEditar ? (
                 <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                  <Plus size={11} /> Novo indireto
+                  <Plus size={12} /> Novo indireto
                 </Button>
               ) : null
             }

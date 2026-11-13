@@ -131,7 +131,7 @@ export async function carregarHistoricoPrecos(obraId: string): Promise<Historico
 }
 
 /** Produção real/planejada por item/dia (vw_acompanhamento_curva_s). */
-function useCurvaSDia(
+export function useCurvaSDia(
   obraId: string | null | undefined
 ): ReturnType<typeof useQuery<CurvaSDiaRow[]>> {
   return useQuery({

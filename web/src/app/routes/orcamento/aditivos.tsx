@@ -64,7 +64,7 @@ function AditivosInner(): ReactNode {
       <PageHeader
         title="Aditivos"
         breadcrumb={['Orçamento', 'Planilha Orçamentária', 'Aditivos']}
-        subtitle={`${scope.obra?.nome ?? ''} — acréscimos, supressões, exclusões e itens novos na planilha de venda`}
+        subtitle="Acréscimos, supressões, exclusões e itens novos na planilha de venda"
         actions={
           <div className="flex items-center gap-2">
             <VoltarPlanilhaButton />
@@ -79,7 +79,7 @@ function AditivosInner(): ReactNode {
             ) : null}
             {podeEditar ? (
               <Button size="sm" onClick={() => setNovoOpen(true)}>
-                <Plus size={11} /> Novo aditivo
+                <Plus size={12} /> Novo aditivo
               </Button>
             ) : null}
           </div>
@@ -287,7 +287,7 @@ function AditivoEditor({
       <div className="flex items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-[240px] space-y-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-text">Aditivo {aditivo.numero}</h2>
+            <h2 className="text-lg font-semibold text-text">Aditivo {aditivo.numero}</h2>
             <Badge variant={rascunho ? 'warn' : 'success'}>
               {rascunho ? 'rascunho' : 'aplicado'}
             </Badge>
@@ -334,14 +334,14 @@ function AditivoEditor({
                 if (ok) excluir.mutate({ id: aditivo.id })
               }}
             >
-              <Trash2 size={11} /> Excluir rascunho
+              <Trash2 size={12} /> Excluir rascunho
             </Button>
             <Button
               size="sm"
               onClick={() => void onAplicar()}
               disabled={itens.length === 0 || aplicar.isPending}
             >
-              <Play size={11} /> {aplicar.isPending ? 'Aplicando…' : 'Aplicar aditivo'}
+              <Play size={12} /> {aplicar.isPending ? 'Aplicando…' : 'Aplicar aditivo'}
             </Button>
           </div>
         ) : null}
@@ -350,13 +350,13 @@ function AditivoEditor({
       {editavel ? (
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant="secondary" onClick={() => setPicker('quantidade')}>
-            <Pencil size={11} /> Acréscimo / supressão
+            <Pencil size={12} /> Acréscimo / supressão
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setPicker('exclusao')}>
-            <Minus size={11} /> Excluir item
+            <Minus size={12} /> Excluir item
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setNovoOpen(true)}>
-            <PackagePlus size={11} /> Item novo
+            <PackagePlus size={12} /> Item novo
           </Button>
         </div>
       ) : null}
@@ -461,7 +461,7 @@ function AditivoEditor({
                           aria-label="Remover linha"
                           onClick={() => excluirItem.mutate({ id: it.id, aditivo_id: aditivo.id })}
                         >
-                          <Trash2 size={11} />
+                          <Trash2 size={12} />
                         </IconButton>
                       ) : null}
                     </td>
@@ -727,7 +727,7 @@ function ItemNovoDialog({
             })
           }
         >
-          <FilePlus2 size={11} /> Incluir no aditivo
+          <FilePlus2 size={12} /> Incluir no aditivo
         </Button>
       </DialogFooter>
     </Dialog>

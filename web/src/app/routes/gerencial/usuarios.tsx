@@ -15,6 +15,7 @@ import { RedefinirSenhaDialog } from '@/features/gerencial/modals/RedefinirSenha
 import { ObrasDoUsuarioDialog } from '@/features/gerencial/modals/ObrasDoUsuarioDialog'
 import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { rotuloPapel } from '@/lib/rotulos'
 import type { Role } from '@/types/auth'
 import type { UsuarioComEmpresa } from '@/types/gerencial'
 
@@ -81,10 +82,10 @@ export function UsuariosPage(): ReactNode {
         header: 'Papel',
         cell: (info) => {
           const r = info.getValue() as Role
-          return <Badge variant={ROLE_VARIANT[r]}>{r}</Badge>
+          return <Badge variant={ROLE_VARIANT[r]}>{rotuloPapel(r)}</Badge>
         },
         meta: { label: 'Papel' },
-        size: 110
+        size: 150
       },
       {
         id: 'empresa',
@@ -145,7 +146,7 @@ export function UsuariosPage(): ReactNode {
                 )
               },
               meta: { label: 'Online' },
-              size: 110
+              size: 150
             },
             {
               accessorKey: 'acessos_count',
@@ -185,7 +186,7 @@ export function UsuariosPage(): ReactNode {
           </span>
         ),
         meta: { label: 'Criado em' },
-        size: 110
+        size: 150
       },
       ...(podeAcessar
         ? ([
@@ -292,7 +293,7 @@ export function UsuariosPage(): ReactNode {
         }
         actions={
           <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-            <Plus size={11} /> Novo usuário
+            <Plus size={12} /> Novo usuário
           </Button>
         }
       />
@@ -313,7 +314,7 @@ export function UsuariosPage(): ReactNode {
             }
             action={
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={11} /> Novo usuário
+                <Plus size={12} /> Novo usuário
               </Button>
             }
           />

@@ -189,8 +189,7 @@ export function PlanOrcTree({
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
+    <div data-density="compact" className="flex flex-col h-full">
       <div className="flex items-center text-2xs font-mono uppercase tracking-wider text-text-dim bg-bg-elevated border-b border-border sticky top-0 z-10">
         <div
           className="px-2 py-1.5 flex items-center justify-center"
@@ -236,7 +235,7 @@ export function PlanOrcTree({
                   filtroAloc.size > 0 ? 'text-accent' : 'text-text-dim'
                 )}
               >
-                <Filter size={11} className={filtroAloc.size > 0 ? 'fill-current' : ''} />
+                <Filter size={12} className={filtroAloc.size > 0 ? 'fill-current' : ''} />
               </button>
             }
             className="w-[220px] p-1 normal-case tracking-normal font-sans"
@@ -464,12 +463,12 @@ const PlanOrcRow = memo(function PlanOrcRow({
           className="w-4 h-4 flex items-center justify-center text-text-dim hover:text-text"
           disabled={!isEtapa}
         >
-          {isEtapa ? isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} /> : null}
+          {isEtapa ? isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} /> : null}
         </button>
         {isEtapa ? (
-          <Folder size={11} className="text-text-muted shrink-0" />
+          <Folder size={12} className="text-text-muted shrink-0" />
         ) : (
-          <FileText size={11} className="text-text-dim shrink-0" />
+          <FileText size={12} className="text-text-dim shrink-0" />
         )}
         <button
           type="button"
@@ -584,7 +583,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
                 title="Adicionar filho neste índice"
                 className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-accent hover:bg-bg-elevated"
               >
-                <Plus size={11} />
+                <Plus size={12} />
               </button>
             ) : null}
             <Dropdown
@@ -594,32 +593,32 @@ const PlanOrcRow = memo(function PlanOrcRow({
                   type="button"
                   className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-elevated"
                 >
-                  <MoreVertical size={11} />
+                  <MoreVertical size={12} />
                 </button>
               }
             >
               {isReceita ? (
                 <DropdownItem onClick={onRatear}>
-                  <Split size={11} /> {alocada ? 'Editar rateio…' : 'Ratear…'}
+                  <Split size={12} /> {alocada ? 'Editar rateio…' : 'Ratear…'}
                 </DropdownItem>
               ) : null}
               {alocada ? (
                 <DropdownItem onClick={onRemoverAlocacao}>
-                  <Unlink size={11} /> Remover alocação
+                  <Unlink size={12} /> Remover alocação
                 </DropdownItem>
               ) : null}
               <DropdownItem
                 onClick={() => reorder.mutate({ id: node.id, obra_id: obraId, direction: 'up' })}
               >
-                <ArrowUp size={11} /> Subir
+                <ArrowUp size={12} /> Subir
               </DropdownItem>
               <DropdownItem
                 onClick={() => reorder.mutate({ id: node.id, obra_id: obraId, direction: 'down' })}
               >
-                <ArrowDown size={11} /> Descer
+                <ArrowDown size={12} /> Descer
               </DropdownItem>
               <DropdownItem onClick={onMover}>
-                <Move size={11} /> Mover para…
+                <Move size={12} /> Mover para…
               </DropdownItem>
               <DropdownItem
                 onClick={async () => {
@@ -644,7 +643,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
                     )
                 }}
               >
-                <Trash2 size={11} /> Excluir
+                <Trash2 size={12} /> Excluir
               </DropdownItem>
             </Dropdown>
           </>
@@ -656,16 +655,16 @@ const PlanOrcRow = memo(function PlanOrcRow({
                 type="button"
                 className="w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-text hover:bg-bg-elevated"
               >
-                <MoreVertical size={11} />
+                <MoreVertical size={12} />
               </button>
             }
           >
             <DropdownItem onClick={onRatear}>
-              <Split size={11} /> {alocada ? 'Editar rateio…' : 'Ratear…'}
+              <Split size={12} /> {alocada ? 'Editar rateio…' : 'Ratear…'}
             </DropdownItem>
             {alocada ? (
               <DropdownItem onClick={onRemoverAlocacao}>
-                <Unlink size={11} /> Remover alocação
+                <Unlink size={12} /> Remover alocação
               </DropdownItem>
             ) : null}
           </Dropdown>

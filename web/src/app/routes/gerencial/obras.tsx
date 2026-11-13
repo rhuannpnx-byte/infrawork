@@ -119,7 +119,7 @@ export function ObrasPage(): ReactNode {
         }
         actions={
           <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-            <Plus size={11} /> Nova obra
+            <Plus size={12} /> Nova obra
           </Button>
         }
       />
@@ -136,7 +136,7 @@ export function ObrasPage(): ReactNode {
             description="Cadastre a primeira obra para começar a alocar engenheiros."
             action={
               <Button variant="default" size="sm" onClick={() => setOpenNew(true)}>
-                <Plus size={11} /> Nova obra
+                <Plus size={12} /> Nova obra
               </Button>
             }
           />

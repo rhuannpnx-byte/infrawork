@@ -18,29 +18,29 @@ export function KPICard({ label, value, delta, unit, spark, hint, icon }: KPICar
   const sparkData = spark?.map((v, i) => ({ i, v })) ?? []
 
   return (
-    <div className="rounded border border-border bg-bg-panel p-3 hover:border-border-accent transition-colors">
+    <div className="rounded border border-border bg-bg-panel px-4 py-3">
       <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5 text-2xs font-mono uppercase tracking-wider text-text-dim">
+        <div className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
           {icon}
           {label}
         </div>
         {delta !== undefined ? (
           <div
             className={cn(
-              'flex items-center gap-0.5 text-2xs font-mono px-1 py-0.5 rounded',
+              'flex items-center gap-0.5 text-xs font-semibold tabular px-1 py-0.5 rounded',
               positive ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
             )}
           >
-            {positive ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+            {positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
             {Math.abs(delta * 100).toFixed(1)}%
           </div>
         ) : null}
       </div>
       <div className="flex items-baseline gap-1">
-        <div className="text-xl font-semibold text-text font-mono">{value}</div>
-        {unit ? <span className="text-2xs font-mono text-text-dim">{unit}</span> : null}
+        <div className="text-2xl font-semibold text-text tabular leading-tight">{value}</div>
+        {unit ? <span className="text-sm text-text-muted">{unit}</span> : null}
       </div>
-      {hint ? <div className="text-2xs text-text-muted font-mono mt-0.5">{hint}</div> : null}
+      {hint ? <div className="text-sm text-text-muted mt-0.5">{hint}</div> : null}
       {spark && spark.length > 0 ? (
         <div className="h-7 mt-2 -mx-1">
           <ResponsiveContainer width="100%" height="100%">

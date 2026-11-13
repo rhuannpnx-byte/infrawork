@@ -39,7 +39,7 @@ function CustomTooltip(props: {
   if (!active || !payload?.length) return null
   const p = (payload[0]?.payload ?? {}) as DataRow
   return (
-    <div className="rounded border border-border-strong bg-bg-elevated px-2 py-1.5 shadow-lg text-xs font-mono">
+    <div className="rounded border border-border-strong bg-bg-elevated px-2 py-1.5 shadow-lg text-sm">
       <div className="text-text font-semibold">
         {p.label} — {p.descricao}
       </div>
@@ -81,7 +81,7 @@ export function TopServicosBar({
         className="rounded border border-border bg-bg-panel p-4 text-text-dim text-2xs font-mono flex items-center justify-center"
         style={{ height: altura }}
       >
-        Sem serviços com plano associado
+        Nenhum serviço na linha de base.
       </div>
     )
   }
@@ -89,8 +89,8 @@ export function TopServicosBar({
   return (
     <div className="rounded border border-border bg-bg-panel" style={{ height: altura }}>
       <div className="px-3 pt-3 pb-1 flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-text">Top serviços (% avanço)</h4>
-        <span className="text-2xs font-mono text-text-dim">vs baseline</span>
+        <h4 className="text-md font-semibold text-text">Serviços mais avançados</h4>
+        <span className="text-xs text-text-muted">sobre a linha de base</span>
       </div>
       <div style={{ height: altura - 36 }}>
         <ResponsiveContainer width="100%" height="100%">

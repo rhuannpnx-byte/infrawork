@@ -191,12 +191,12 @@ function ServicoRow({
           disabled={!temFilhos}
           title={temFilhos ? (expanded ? 'Colapsar' : 'Expandir') : undefined}
         >
-          {temFilhos ? expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} /> : null}
+          {temFilhos ? expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} /> : null}
         </button>
         {isFolha ? (
-          <FileText size={11} className="text-text-dim shrink-0" />
+          <FileText size={12} className="text-text-dim shrink-0" />
         ) : (
-          <Folder size={11} className="text-accent shrink-0" />
+          <Folder size={12} className="text-accent shrink-0" />
         )}
         <button
           type="button"
@@ -233,7 +233,7 @@ function ServicoRow({
               className="w-5 h-5 flex items-center justify-center text-text-dim hover:text-accent rounded hover:bg-bg-elevated"
               title="Adicionar filho"
             >
-              <Plus size={11} />
+              <Plus size={12} />
             </button>
           ) : null}
           <button
@@ -245,7 +245,7 @@ function ServicoRow({
             )}
             title={node.ativo ? 'Desativar' : 'Reativar'}
           >
-            <Power size={11} />
+            <Power size={12} />
           </button>
         </div>
       </div>

@@ -363,7 +363,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
               size="sm"
               onClick={() => navigate({ to: '/orcamento/composicoes' })}
             >
-              <ArrowLeft size={11} /> Voltar
+              <ArrowLeft size={12} /> Voltar
             </Button>
             {!isNew && cpu && !cpu.is_vigente && podeEditar ? (
               <Button
@@ -372,7 +372,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 onClick={() => void onTornarVigente()}
                 disabled={publish.isPending}
               >
-                <CheckCircle2 size={11} /> Tornar vigente
+                <CheckCircle2 size={12} /> Tornar vigente
               </Button>
             ) : null}
             {!isNew && podeEditar ? (
@@ -383,7 +383,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 disabled={salvar.isPending}
                 title="Guarda a versão atual no histórico e cria uma nova vigente"
               >
-                <GitBranch size={11} /> Nova versão
+                <GitBranch size={12} /> Nova versão
               </Button>
             ) : null}
             {podeEditar ? (
@@ -393,7 +393,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 onClick={() => void onSalvar('salvar')}
                 disabled={salvar.isPending || (!isNew && !dirty)}
               >
-                <Save size={11} />{' '}
+                <Save size={12} />{' '}
                 {salvar.isPending ? 'Salvando…' : isNew ? 'Criar composição' : 'Salvar'}
               </Button>
             ) : null}
@@ -530,7 +530,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
               <div className="flex items-center gap-1">
                 {GRUPOS_ITEM.map((g) => (
                   <Button key={g} variant="ghost" size="sm" onClick={() => addItem(g)}>
-                    <Plus size={11} /> {CPU_ITEM_GRUPO_LABEL[g]}
+                    <Plus size={12} /> {CPU_ITEM_GRUPO_LABEL[g]}
                   </Button>
                 ))}
                 <Button
@@ -539,7 +539,7 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   onClick={() => setNovoRecursoOpen(true)}
                   title="Cadastrar um recurso que ainda não existe"
                 >
-                  <Plus size={11} /> Novo recurso
+                  <Plus size={12} /> Novo recurso
                 </Button>
               </div>
             ) : null}
@@ -844,7 +844,7 @@ function ItemRow({
             className="w-5 h-5 inline-flex items-center justify-center rounded text-text-dim hover:text-danger hover:bg-danger/10"
             title="Remover"
           >
-            <Trash2 size={11} />
+            <Trash2 size={12} />
           </button>
         ) : null}
       </td>
