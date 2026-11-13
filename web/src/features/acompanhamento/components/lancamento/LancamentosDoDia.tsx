@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { useDeleteLancamento, useLancamentosDia } from '../../hooks/lancamento'
 import { rotuloLocalProducao } from '../../lib/local-producao'
+import { dataBR as fmtBR } from '@/lib/format/local-date'
 
 interface Props {
   obraId: string
@@ -195,7 +196,3 @@ export function LancamentosDoDia({ obraId, data, onEditar, compacto = false }: P
   )
 }
 
-function fmtBR(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}

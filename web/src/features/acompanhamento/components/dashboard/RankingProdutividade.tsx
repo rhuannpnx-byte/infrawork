@@ -46,7 +46,7 @@ export function RankingProdutividade({ itens, altura = 220 }: Props): ReactNode 
       style={{ height: altura }}
     >
       <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3 shrink-0">
-        <h4 className="text-md font-semibold text-text">Produtividade das equipes</h4>
+        <h4 className="text-md font-semibold text-text">Produtividade</h4>
         <span
           className="text-xs text-text-muted inline-flex items-center gap-1 shrink-0"
           title="Aderência: mediana diária realizada dividida pela produção diária da composição do orçamento. De 90 a 110% está no alvo; de 70 a 89% ou de 111 a 130% pede atenção; abaixo de 70% está atrasado e acima de 130% vale revisar a composição."

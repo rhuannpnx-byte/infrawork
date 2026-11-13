@@ -12,6 +12,11 @@ import { BarraAvanco, FaixaIndicadores, Indicador } from '@/components/ui/indica
 import { ErroConsulta, EstadoConsulta } from '@/components/ui/estado'
 import { CurvaS, reaisCurto } from '@/components/charts/CurvaS'
 import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
+import { useProducao } from '@/features/acompanhamento/hooks/producao'
+import { useBaseline } from '@/features/planejamento/hooks/planejamentos'
+import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
+import { FaixaObra } from '@/features/painel/FaixaObra'
+import { useFaixasPrevistas } from '@/features/painel/faixas-previstas'
 import { contar } from '@/lib/rotulos'
 import { PulseBlock } from '@/components/ui/PulseBlock'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
@@ -83,6 +88,10 @@ function DashboardAcompanhamento(): ReactNode {
 
   const consultaResumo = useDashboardResumo(obraId, janela.dias)
   const curvaValor = useCurvaSValor(obraId)
+  const { data: linhaBase } = useBaseline(obraId)
+  const { data: trechosObra = [] } = useObraTrechos(obraId)
+  const { data: producaoObra = [] } = useProducao(obraId)
+  const { data: faixasPrevistas = [] } = useFaixasPrevistas(linhaBase?.id)
   const { data: resumo, isLoading: loadingResumo } = consultaResumo
   const { data: prodsDash = [] } = useProducoesDashboard(
     obraId,
@@ -298,6 +307,7 @@ function DashboardAcompanhamento(): ReactNode {
                 altura={352}
               />
             </div>
+            <FaixaObra producao={producaoObra} trechos={trechosObra} previsto={faixasPrevistas} />
           </Grupo>
 
           <Grupo titulo="Serviços">

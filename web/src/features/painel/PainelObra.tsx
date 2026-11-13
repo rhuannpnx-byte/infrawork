@@ -8,7 +8,7 @@ import { EstadoConsulta } from '@/components/ui/estado'
 import { CurvaS, reaisCurto } from '@/components/charts/CurvaS'
 import { contar } from '@/lib/rotulos'
 import { formatNumber } from '@/lib/format'
-import { hojeLocalISO } from '@/lib/format/local-date'
+import { hojeLocalISO, dataBR } from '@/lib/format/local-date'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { useAuthStore } from '@/stores/auth-store'
 import { useObra } from '@/features/gerencial/hooks'
@@ -26,9 +26,7 @@ import {
   type StatusComparativo
 } from '@/types/acompanhamento'
 import { FaixaObra } from './FaixaObra'
-
-const dataBR = (iso: string | null | undefined): string =>
-  iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '—'
+import { useFaixasPrevistas } from './faixas-previstas'
 
 const diasEntre = (de: string, ate: string): number =>
   Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000)
@@ -70,6 +68,7 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
   const { data: painel } = useDashboardResumo(interno ? obraId : null, 30)
   const { data: producao = [] } = useProducao(obraId)
   const valor = useCurvaSValor(interno ? obraId : null)
+  const { data: faixasPrevistas = [] } = useFaixasPrevistas(interno ? linhaBase?.id : null)
 
   const resumo = painel?.resumo ?? null
   const termino = useMemo(() => {
@@ -249,7 +248,9 @@ export function PainelObra({ obraId }: { obraId: string }): ReactNode {
           </Secao>
         ) : null}
 
-        {interno ? <FaixaObra producao={producao} trechos={trechos} /> : null}
+        {interno ? (
+          <FaixaObra producao={producao} trechos={trechos} previsto={faixasPrevistas} />
+        ) : null}
 
         <div className="flex flex-wrap items-start gap-4">
           <Secao

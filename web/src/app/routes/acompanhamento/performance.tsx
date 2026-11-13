@@ -22,7 +22,7 @@ import {
   useProdutividadeObra,
   usePerfHistorico
 } from '@/features/acompanhamento/hooks/performance'
-import { addDiasISO, hojeLocalISO } from '@/lib/format/local-date'
+import { addDiasISO, hojeLocalISO, dataBR } from '@/lib/format/local-date'
 import {
   servicosDisponiveis,
   contarSemServico,
@@ -61,8 +61,6 @@ function rangeDe(
   const dias = preset === '90d' ? 90 : preset === '180d' ? 180 : 30
   return { de: addDiasISO(ate, -(dias - 1)), ate }
 }
-
-const dataBR = (iso: string): string => iso.split('-').reverse().join('/')
 
 function Inner(): ReactNode {
   const scope = useCurrentScope()

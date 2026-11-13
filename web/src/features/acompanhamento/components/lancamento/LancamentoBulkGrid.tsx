@@ -6,7 +6,7 @@ import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { formatNumber } from '@/lib/format'
-import { hojeLocalISO } from '@/lib/format/local-date'
+import { hojeLocalISO, dataBR as fmtBR } from '@/lib/format/local-date'
 import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
@@ -533,7 +533,3 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
   )
 }
 
-function fmtBR(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}

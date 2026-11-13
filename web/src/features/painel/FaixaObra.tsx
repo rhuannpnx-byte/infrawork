@@ -2,12 +2,27 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { formatNumber } from '@/lib/format'
 import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import type { ObraTrecho } from '@/types/gerencial'
+import type { FaixaPrevista } from './faixas-previstas'
 
 interface LinhaFaixa {
   codigo: string
   nome: string
   trechos: Array<[number, number]>
   executado: number
+  /** Onde o serviço está previsto neste eixo (linha de base); vazio quando não há linha de base. */
+  previstos: Array<[number, number]>
+  previsto: number
+}
+
+const soma = (partes: Array<[number, number]>): number =>
+  partes.reduce((s, [a, b]) => s + (b - a), 0)
+
+/** Comprimento de `a` que cai dentro de `b` (as duas listas já unidas e em ordem). */
+function sobreposicao(a: Array<[number, number]>, b: Array<[number, number]>): number {
+  let total = 0
+  for (const [a0, a1] of a)
+    for (const [b0, b1] of b) total += Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
+  return total
 }
 
 /** Une intervalos que se tocam ou se sobrepõem. */
@@ -24,16 +39,23 @@ function unir(intervalos: Array<[number, number]>): Array<[number, number]> {
 
 const km = (m: number): string => formatNumber(m / 1000, 1)
 
+// Em tela larga: nome, faixa e executado na mesma linha. Em tela estreita: nome e executado em cima, faixa embaixo.
+const LINHA =
+  'grid items-center gap-x-3 gap-y-1 grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(140px,240px)_minmax(0,1fr)_190px]'
+
 /**
- * Faixa da obra: os trechos do eixo já executados por serviço, pelos locais e estacas da produção lançada. É o
- * desenho da obra em linha: onde cada serviço passou e onde ainda falta.
+ * Faixa da obra: os trechos do eixo já executados por serviço, pelos locais e estacas da produção lançada, sobre
+ * a faixa em que o serviço está previsto na linha de base. É o desenho da obra em linha: onde cada serviço passou
+ * e onde ainda falta.
  */
 export function FaixaObra({
   producao,
-  trechos
+  trechos,
+  previsto = []
 }: {
   producao: ProducaoEnriquecida[]
   trechos: ObraTrecho[]
+  previsto?: FaixaPrevista[]
 }): ReactNode {
   const eixos = useMemo(
     () => trechos.filter((t) => t.tipo === 'eixo' && Number(t.comprimento_m ?? 0) > 0),
@@ -55,32 +77,45 @@ export function FaixaObra({
 
   const linhas = useMemo((): LinhaFaixa[] => {
     if (!eixo) return []
-    const grupos = new Map<string, { nome: string; brutos: Array<[number, number]> }>()
+    const grupos = new Map<
+      string,
+      { nome: string; brutos: Array<[number, number]>; itens: Set<string> }
+    >()
     for (const p of producao) {
       if (p.trecho_id !== eixo.id || p.posicao_inicio_m == null || p.posicao_fim_m == null) continue
       const codigo = p.servico_grupo_codigo ?? p.servico_codigo ?? '—'
       const g = grupos.get(codigo) ?? {
         nome: p.servico_grupo_descricao ?? p.servico_display_nome,
-        brutos: []
+        brutos: [],
+        itens: new Set<string>()
       }
       const a = Math.min(Number(p.posicao_inicio_m), Number(p.posicao_fim_m))
       const b = Math.max(Number(p.posicao_inicio_m), Number(p.posicao_fim_m))
       if (b > a) g.brutos.push([a, b])
+      if (p.item_orcamentario_id) g.itens.add(p.item_orcamentario_id)
       grupos.set(codigo, g)
     }
     return [...grupos.entries()]
       .map(([codigo, g]) => {
         const partes = unir(g.brutos)
+        const previstos = unir(
+          previsto
+            .filter((f) => f.trecho_id === eixo.id && g.itens.has(f.item_orcamentario_id))
+            .map((f): [number, number] => [f.inicio_m, f.fim_m])
+            .filter(([a, b]) => b > a)
+        )
         return {
           codigo,
           nome: g.nome,
           trechos: partes,
-          executado: partes.reduce((s, [a, b]) => s + (b - a), 0)
+          executado: previstos.length ? sobreposicao(partes, previstos) : soma(partes),
+          previstos,
+          previsto: soma(previstos)
         }
       })
       .filter((l) => l.trechos.length > 0)
       .sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }))
-  }, [producao, eixo])
+  }, [producao, eixo, previsto])
 
   if (!eixo) return null
   const comprimento = Number(eixo.comprimento_m)
@@ -98,7 +133,9 @@ export function FaixaObra({
         <div className="flex flex-wrap items-baseline gap-x-3">
           <h2 className="text-lg font-semibold text-text">Faixa da obra</h2>
           <span className="text-sm text-text-muted">
-            onde cada serviço já foi executado ao longo do eixo
+            {previsto.length
+              ? 'onde cada serviço já foi executado, sobre a faixa prevista na linha de base'
+              : 'onde cada serviço já foi executado ao longo do eixo'}
           </span>
         </div>
         {eixos.length > 1 ? (
@@ -129,13 +166,10 @@ export function FaixaObra({
           para ver o avanço ao longo do traçado.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <div
-            className="grid items-center gap-x-3 gap-y-1.5 min-w-[640px]"
-            style={{ gridTemplateColumns: 'minmax(140px, 240px) minmax(0, 1fr) 132px' }}
-          >
-            <span />
-            <div className="relative h-5 border-b border-border-strong">
+        <div className="flex flex-col gap-y-2 sm:gap-y-1.5">
+          <div className={LINHA}>
+            <span className="hidden sm:block" />
+            <div className="relative col-span-2 h-5 border-b border-border-strong sm:col-span-1">
               {marcas.map((m) => (
                 <span
                   key={m}
@@ -146,14 +180,13 @@ export function FaixaObra({
                 </span>
               ))}
             </div>
-            <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim text-right">
+            <span className="hidden text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim text-right sm:block">
               Executado
             </span>
-
-            {linhas.map((l) => (
-              <FaixaLinha key={l.codigo} linha={l} comprimento={comprimento} />
-            ))}
           </div>
+          {linhas.map((l) => (
+            <FaixaLinha key={l.codigo} linha={l} comprimento={comprimento} />
+          ))}
         </div>
       )}
     </section>
@@ -161,20 +194,31 @@ export function FaixaObra({
 }
 
 function FaixaLinha({ linha, comprimento }: { linha: LinhaFaixa; comprimento: number }): ReactNode {
-  const fracao = linha.executado / comprimento
+  const base = linha.previsto > 0 ? linha.previsto : comprimento
+  const fracao = linha.executado / base
   return (
-    <>
-      <span className="flex gap-2 min-w-0 text-sm">
+    <div className={LINHA}>
+      <span className="order-1 flex gap-2 min-w-0 text-sm">
         <span className="tabular text-text-dim shrink-0">{linha.codigo}</span>
         <span className="truncate text-text" title={linha.nome}>
           {linha.nome}
         </span>
       </span>
       <div
-        className="relative h-3.5 bg-bg-elevated border border-border"
+        className="relative order-3 col-span-2 h-3.5 bg-bg-elevated border border-border sm:order-2 sm:col-span-1"
         role="img"
-        aria-label={`${linha.nome}: ${km(linha.executado)} km executados de ${km(comprimento)} km`}
+        aria-label={`${linha.nome}: ${km(linha.executado)} km executados de ${km(base)} km ${linha.previsto > 0 ? 'previstos' : 'do eixo'}`}
       >
+        {linha.previstos.map(([a, b]) => (
+          <span
+            key={`p${a}`}
+            className="absolute inset-y-0 bg-bg-active border-x border-border-strong"
+            style={{
+              left: `${(a / comprimento) * 100}%`,
+              width: `${((b - a) / comprimento) * 100}%`
+            }}
+          />
+        ))}
         {linha.trechos.map(([a, b]) => (
           <span
             key={a}
@@ -186,10 +230,13 @@ function FaixaLinha({ linha, comprimento }: { linha: LinhaFaixa; comprimento: nu
           />
         ))}
       </div>
-      <span className="text-sm tabular text-right text-text">
+      <span className="order-2 text-sm tabular text-right text-text whitespace-nowrap sm:order-3">
         {km(linha.executado)} km
-        <span className="text-text-dim"> · {formatNumber(Math.min(fracao, 1) * 100, 0)}%</span>
+        <span className="text-text-muted">
+          {' '}
+          de {km(base)} km · {formatNumber(Math.min(fracao, 1) * 100, 0)}%
+        </span>
       </span>
-    </>
+    </div>
   )
 }

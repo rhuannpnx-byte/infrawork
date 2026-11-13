@@ -1,9 +1,7 @@
 import { type ReactNode } from 'react'
 import type { DashboardResumoResposta } from '@/types/acompanhamento'
 import { formatNumber } from '@/lib/format'
-
-const dataBR = (iso: string | null | undefined): string =>
-  iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''
+import { diaMesBR as dataBR } from '@/lib/format/local-date'
 
 interface Props {
   itens: DashboardResumoResposta['ultimos_apontamentos']

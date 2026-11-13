@@ -15,6 +15,7 @@ import { CHART_THEME, axisStyle } from '@/components/charts/theme'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
 import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { formatNumber } from '@/lib/format'
+import { dataBR as fmtBR } from '@/lib/format/local-date'
 
 interface Props {
   pontos: CurvaSPonto[]
@@ -493,10 +494,6 @@ export function CurvaSComProjecoes({
       </div>
     </div>
   )
-}
-
-function fmtBR(s: string): string {
-  return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
 function emptyStats(): ProjecaoStats {

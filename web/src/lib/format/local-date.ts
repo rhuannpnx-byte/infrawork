@@ -20,3 +20,16 @@ export function addDiasISO(iso: string, dias: number): string {
   const dt = new Date(y, m - 1, d + dias)
   return toLocalISO(dt)
 }
+
+/**
+ * Data ISO ('YYYY-MM-DD', com ou sem hora depois) como dd/mm/aaaa. Só rearranja o texto: não passa por `Date`,
+ * então não muda de dia por causa do fuso.
+ */
+export function dataBR(iso: string | null | undefined, vazio = '—'): string {
+  return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : vazio
+}
+
+/** Dia e mês (dd/mm) de uma data ISO. */
+export function diaMesBR(iso: string | null | undefined, vazio = ''): string {
+  return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : vazio
+}

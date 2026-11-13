@@ -21,8 +21,8 @@ import { useEncarregados } from '@/features/acompanhamento/hooks/lancamento'
 import { useProdutividadeObra } from '@/features/acompanhamento/hooks/performance'
 import type { Equipe } from '@/types/planejamento'
 import type { Encarregado } from '@/types/acompanhamento'
+import { dataBR as fmtBR } from '@/lib/format/local-date'
 
-const fmtBR = (iso: string): string => iso.split('-').reverse().join('/')
 const CABECALHO =
   'border-y border-border bg-bg-elevated text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 

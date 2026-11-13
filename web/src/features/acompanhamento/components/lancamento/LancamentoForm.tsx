@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { contar } from '@/lib/rotulos'
 import { formatNumber } from '@/lib/format'
-import { hojeLocalISO } from '@/lib/format/local-date'
+import { hojeLocalISO, dataBR as fmtBR } from '@/lib/format/local-date'
 import { useEquipes } from '@/features/planejamento/hooks/equipes'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { useBaseline, usePlanejamentoAtivo } from '@/features/planejamento/hooks/planejamentos'
@@ -899,11 +899,6 @@ function ErroCampo({ texto }: { texto?: string }): ReactNode {
       {texto}
     </p>
   )
-}
-
-function fmtBR(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
 }
 
 function ProgressoItem({ item }: { item: ItemLancavel }): ReactNode {

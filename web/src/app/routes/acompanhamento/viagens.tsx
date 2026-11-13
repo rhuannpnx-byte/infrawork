@@ -15,7 +15,7 @@ import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatNumber } from '@/lib/format'
-import { hojeLocalISO } from '@/lib/format/local-date'
+import { hojeLocalISO, dataBR as fmtBR } from '@/lib/format/local-date'
 import { formatMarcadorCompacto } from '@/lib/format/posicao'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { ctxObraTrecho } from '@/features/planejamento/lib/trecho'
@@ -69,8 +69,6 @@ const menosDias = (iso: string, d: number): string => {
   x.setDate(x.getDate() - d)
   return x.toISOString().slice(0, 10)
 }
-const fmtBR = (iso: string): string => iso.split('-').reverse().join('/')
-
 function Inner(): ReactNode {
   const scope = useCurrentScope()
   const obraId = scope.obraId!

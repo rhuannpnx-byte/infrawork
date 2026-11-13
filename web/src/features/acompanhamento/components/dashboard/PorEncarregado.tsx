@@ -3,9 +3,7 @@ import type { ProducaoEnriquecida } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import { contar } from '@/lib/rotulos'
-
-const dataBR = (iso: string | null | undefined): string =>
-  iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''
+import { diaMesBR as dataBR } from '@/lib/format/local-date'
 
 interface Props {
   producoes: ProducaoEnriquecida[]
