@@ -313,3 +313,53 @@ export function faixasLivresDoServico(
   }
   return sequenciasContiguas(pedacos, itemId)
 }
+
+/**
+ * Arredonda as células para os milésimos que o banco guarda (`numeric(18,3)`) sem mudar a soma: por serviço, somando
+ * todas as listas (os locais de uma importação), o total gravado é a soma exata arredondada; o milésimo que sobra vai
+ * para as células com a maior fração descartada. Sem isso, a reamostragem e as fórmulas da planilha geram centenas de
+ * frações que o banco arredonda uma a uma, e a soma passa do orçado por milésimos.
+ *
+ * `tetos` (por serviço): se a soma arredondada passar do teto por até 1 milésimo, fica no teto.
+ */
+export function arredondarPreservandoSoma<T extends { valores: Record<string, number> }>(
+  listas: readonly (readonly T[])[],
+  tetos: Readonly<Record<string, number>> = {}
+): T[][] {
+  const EPS = 1e-6
+  const out = listas.map((l) => l.map((s) => ({ ...s, valores: { ...s.valores } })))
+  const celulas = new Map<string, { li: number; si: number; mil: number }[]>()
+  out.forEach((l, li) =>
+    l.forEach((s, si) => {
+      for (const [id, v] of Object.entries(s.valores)) {
+        if (!Number.isFinite(v)) continue
+        const arr = celulas.get(id) ?? []
+        arr.push({ li, si, mil: v * 1000 })
+        celulas.set(id, arr)
+      }
+    })
+  )
+  for (const [id, cs] of celulas) {
+    let alvo = Math.round(cs.reduce((t, c) => t + c.mil, 0))
+    const teto = tetos[id]
+    if (teto !== undefined) {
+      const tetoMil = Math.floor(teto * 1000 + EPS)
+      if (alvo > tetoMil && alvo - tetoMil <= 1) alvo = tetoMil
+    }
+    const base = cs.map((c) => Math.floor(c.mil + EPS))
+    let falta = alvo - base.reduce((t, b) => t + b, 0)
+    const ordem = cs
+      .map((c, k) => ({ k, resto: c.mil - base[k]! }))
+      .sort((a, b) => (falta > 0 ? b.resto - a.resto : a.resto - b.resto))
+    for (const { k } of ordem) {
+      if (falta === 0) break
+      if (falta < 0 && base[k]! <= 0) continue
+      base[k]! += falta > 0 ? 1 : -1
+      falta += falta > 0 ? -1 : 1
+    }
+    cs.forEach((c, k) => {
+      out[c.li]![c.si]!.valores[id] = base[k]! / 1000
+    })
+  }
+  return out
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  arredondarPreservandoSoma,
   estacaPorFracao,
   faixasDeDivisao,
   faixasDosPontos,
@@ -177,5 +178,39 @@ describe('faixasLivresDoServico', () => {
   })
   it('tudo coberto → nada', () => {
     expect(faixasLivresDoServico(segs, 'A', [[0, 4000]])).toEqual([])
+  })
+})
+
+describe('arredondarPreservandoSoma', () => {
+  const seg = (v: number): SegmentoValores => ({
+    ini: 0,
+    fim: 1,
+    label_ini: '',
+    label_fim: '',
+    valores: { s: v }
+  })
+  const soma = (ls: SegmentoValores[][]): number =>
+    ls.flat().reduce((t, x) => t + (x.valores.s ?? 0), 0)
+
+  it('o total em milésimos é a soma exata arredondada, mesmo com muitas frações', () => {
+    // 60 dividido em 7 locais × 300 faixas: cada célula arredondada sozinha somaria mais que 60
+    const cel = 60 / 2100
+    const listas = Array.from({ length: 7 }, () => Array.from({ length: 300 }, () => seg(cel)))
+    const r = arredondarPreservandoSoma(listas)
+    expect(Math.round(soma(r) * 1000)).toBe(60000)
+    for (const x of r.flat())
+      expect(Math.round(x.valores.s! * 1000)).toBeCloseTo(x.valores.s! * 1000, 6)
+  })
+
+  it('arredondar para cima não passa do teto por um milésimo', () => {
+    const r = arredondarPreservandoSoma([[seg(1.0004), seg(1.0002)]], { s: 2 })
+    expect(Math.round(soma(r) * 1000)).toBe(2000)
+    const longe = arredondarPreservandoSoma([[seg(1.5), seg(1.5)]], { s: 2 })
+    expect(Math.round(soma(longe) * 1000)).toBe(3000)
+  })
+
+  it('valores já em milésimos ficam iguais', () => {
+    const r = arredondarPreservandoSoma([[seg(12.345), seg(0.001)]])
+    expect(r[0]!.map((x) => x.valores.s)).toEqual([12.345, 0.001])
   })
 })

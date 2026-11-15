@@ -42,7 +42,12 @@ import {
   type LinhaArea
 } from '@/lib/quantidades/boq-xlsx'
 import type { TrechoUnidadeConfig } from '@/lib/quantidades/grade'
-import { fundirSegmentos, totaisPorItem, type SegmentoValores } from '@/lib/quantidades/segmentos'
+import {
+  arredondarPreservandoSoma,
+  fundirSegmentos,
+  totaisPorItem,
+  type SegmentoValores
+} from '@/lib/quantidades/segmentos'
 import type { ObraTrecho, UnidadeEspacoPadrao } from '@/types/gerencial'
 import {
   useCreateTrecho,
@@ -447,19 +452,38 @@ export function ImportarQuantidadesDialog({
     })
   }, [locaisLidos, destLocais, destCols, trechos, templates, agrupadores, estender])
 
-  const ativos = planos.filter((p) => p.destino.modo !== 'nao' && p.itens.size > 0)
+  const ativos = useMemo(
+    () => planos.filter((p) => p.destino.modo !== 'nao' && p.itens.size > 0),
+    [planos]
+  )
+  // O banco guarda milésimos e confere Σ dos locais ≤ orçado: grava (e confere aqui) já arredondado, com a soma de
+  // cada serviço preservada, para as frações da planilha e da reamostragem não estourarem o orçado por milésimos.
+  const finaisGravados = useMemo(() => {
+    const outrosLocais = new Map(agrupadores.map((a) => [a.id, a.totalTrechos]))
+    for (const p of ativos)
+      for (const ln of p.linhas)
+        outrosLocais.set(ln.itemId, (outrosLocais.get(ln.itemId) ?? 0) - ln.atual)
+    const tetos: Record<string, number> = {}
+    for (const a of agrupadores) tetos[a.id] = a.quantidade - (outrosLocais.get(a.id) ?? 0)
+    return arredondarPreservandoSoma(
+      ativos.map((p) => p.finais),
+      tetos
+    )
+  }, [agrupadores, ativos])
   // Σ por serviço somando todos os locais desta importação (a prévia por local só vê "outros" já gravados)
   const excedeGlobal = useMemo(() => {
     const porItem = new Map<string, { soma: number; orcamento: number; codigo: string }>()
     for (const a of agrupadores)
       porItem.set(a.id, { soma: a.totalTrechos, orcamento: a.quantidade, codigo: a.codigo })
-    for (const p of ativos)
+    ativos.forEach((p, i) => {
+      const gravado = totaisPorItem(finaisGravados[i] ?? [])
       for (const ln of p.linhas) {
         const x = porItem.get(ln.itemId)
-        if (x) x.soma += ln.importado - ln.atual
+        if (x) x.soma += (gravado[ln.itemId] ?? 0) - ln.atual
       }
+    })
     return [...porItem.values()].filter((x) => x.soma > x.orcamento + 0.0005)
-  }, [agrupadores, ativos])
+  }, [agrupadores, ativos, finaisGravados])
   const bloqueios = [
     ...ativos
       .filter((p) => p.erros.length > 0)
@@ -479,7 +503,7 @@ export function ImportarQuantidadesDialog({
     const itemIds = new Set<string>()
     let ordem = trechos.length ? Math.max(...trechos.map((t) => t.ordem)) + 1 : 0
     try {
-      for (const p of ativos) {
+      for (const [i, p] of ativos.entries()) {
         let trechoId: string
         if (p.destino.modo === 'criar') {
           const r = await criarTrecho.mutateAsync({
@@ -506,7 +530,7 @@ export function ImportarQuantidadesDialog({
           trecho_id: trechoId,
           modo: 'simplificado',
           servicos: p.servicos,
-          segmentos: p.finais,
+          segmentos: finaisGravados[i] ?? p.finais,
           nova_versao: true,
           comentario: `Importado de ${arquivo?.nome ?? 'planilha'}`
         })

@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import type { ModoQuantidade } from '@/types/quantidades'
-import type { SegmentoValores as SegmentoTrecho } from '@/lib/quantidades/segmentos'
+import {
+  arredondarPreservandoSoma,
+  type SegmentoValores as SegmentoTrecho
+} from '@/lib/quantidades/segmentos'
 
 export interface VersaoResumo {
   id: string
@@ -111,7 +114,7 @@ export function useSalvarQuantidadesTrecho(): ReturnType<
           servicos: b.servicos,
           nova_versao: b.nova_versao,
           comentario: b.comentario ?? '',
-          segmentos: b.segmentos
+          segmentos: arredondarPreservandoSoma([b.segmentos])[0]
         }
       })
       if (error) throw error

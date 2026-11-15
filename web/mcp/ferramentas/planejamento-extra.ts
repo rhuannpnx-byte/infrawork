@@ -4,6 +4,7 @@ import { CONFIRMAR, exigir, ferramenta, pedirConfirmacao } from '../ferramenta'
 import { eq, gravar, ler } from '../lib/banco'
 import { ARQUIVO, abrirPlanilha } from '../lib/planilha'
 import { lerPlanilhaQuantidades } from '@/lib/quantidades/boq-xlsx'
+import { arredondarPreservandoSoma } from '@/lib/quantidades/segmentos'
 import { depois } from './planejamento'
 
 const OBRA = z.string().uuid().describe('id da obra')
@@ -40,7 +41,8 @@ export const quantidadesLocais = ferramenta({
     'Quantidades de cada serviço distribuídas ao longo dos locais (eixos por estaca e áreas), como no DynaRoad. ' +
     'acao: ler (versão atual do trecho: segmentos × serviços) | versoes | salvar (substitui ou cria nova versão: ' +
     'servicos = ids dos agrupadores, segmentos [{ini, fim, label_ini, label_fim, valores}] em metros internos; o ' +
-    'banco recusa total acima do orçamento) | restaurar (versão antiga) | totais (quanto de cada serviço já foi ' +
+    'banco recusa total acima do orçamento; as células são gravadas em milésimos, com a soma de cada serviço ' +
+    'preservada) | restaurar (versão antiga) | totais (quanto de cada serviço já foi ' +
     'distribuído nos trechos) | ler_planilha (lê uma planilha de quantidades no padrão DynaRoad e devolve as ' +
     'abas/colunas/linhas para você montar os segmentos) | mapeamento (colunas da planilha → serviço) | ' +
     'salvar_mapeamento | criar_tarefas (gera tarefas do plano a partir das quantidades: modo sequencia|local|' +
@@ -183,7 +185,8 @@ export const quantidadesLocais = ferramenta({
           _dados: {
             modo: a.modo ?? 'analitico',
             servicos: exigir(a.servicos, 'servicos', a.acao),
-            segmentos,
+            // o banco guarda milésimos célula a célula: arredonda aqui preservando a soma de cada serviço
+            segmentos: arredondarPreservandoSoma([segmentos])[0],
             nova_versao: a.nova_versao ?? true,
             comentario: a.comentario ?? ''
           }
