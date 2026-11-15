@@ -36,6 +36,26 @@ describe('posição do trecho', () => {
         expect(parseMarcador(formatMarcador(comp, c), c).metros!).toBeLessThanOrEqual(comp)
       })
 
+  it('unidade própria (km de marco) aparece e é lida na unidade do local', () => {
+    // CO.366: "km" de 1.005,679 m, do km 303,4 em diante, 99.461,62 m de eixo
+    const c = ctx({
+      unidade_espaco_padrao: 'custom',
+      unidade_custom_label: 'km',
+      unidade_custom_divisor_m: 1005.679,
+      marcador_valor_inicial: 303.4,
+      geometry_comprimento_m: 99461.62
+    })
+    expect(formatMarcador(0, c)).toBe('km 303,400')
+    expect(formatMarcador(99461.62, c)).toBe('km 402,300')
+    expect(parseMarcador('km 303,400', c).metros).toBe(0)
+    expect(parseMarcador('km 402,300', c).metros).toBeCloseTo(99461.62, 0)
+    expect(parseMarcador('350', c).metros).toBeCloseTo(46.6 * 1005.679, 3)
+    expect(parseMarcador('350 km', c).metros).toBeCloseTo(46.6 * 1005.679, 3)
+    expect(parseMarcador('KM 350,5', c).metros).toBeCloseTo(47.1 * 1005.679, 3)
+    expect(parseMarcador('km 403', c).metros).toBeNull()
+    expect(parseMarcador('km 303', c).metros).toBeNull()
+  })
+
   it('fora do trecho continua recusado', () => {
     const c = ctx({ marcador_valor_inicial: 305123.0123 })
     expect(parseMarcador('305.122,90', c).metros).toBeNull()

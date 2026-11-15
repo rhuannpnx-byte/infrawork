@@ -197,8 +197,29 @@ export function formatMarcador(
   // canônico (KM+M ou EST N+M). Para metros raw, mostra o marcador (ou 0
   // se o trecho começa em 0).
   // Conversão: marcador (unidades) × divisor → metros do marcador (origem 0)
+  // Unidade própria (ex.: "km" de marco, 1 = 1.005,679 m): o valor na unidade, com o rótulo do local.
+  if (trecho.unidade_espaco_padrao === 'custom')
+    return `${rotuloCustom(trecho)} ${formatComma(marcador, 3, 1, true)}`
   const metrosDoMarcador = marcador * divisorMetrosPorUnidade(trecho)
   return formatPosicao(metrosDoMarcador, trecho.unidade_espaco_padrao)
+}
+
+const rotuloCustom = (trecho: TrechoCtx): string => trecho.unidade_custom_label?.trim() || 'ref'
+
+/** Folga de leitura nas pontas do trecho: a precisão do texto mostrado (2 casas em metros; 3 na unidade própria). */
+function precisaoMetros(trecho: TrechoCtx): number {
+  return trecho.unidade_espaco_padrao === 'custom'
+    ? divisorMetrosPorUnidade(trecho) * 0.0005 + 0.001
+    : 0.01
+}
+
+/** Tira o rótulo da unidade própria digitado antes ou depois do número ("km 303,4", "303,4 km"). */
+function semRotulo(input: string, trecho: TrechoCtx): string {
+  const r = rotuloCustom(trecho).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return input
+    .trim()
+    .replace(new RegExp(`^${r}\\s*|\\s*${r}$`, 'gi'), '')
+    .trim()
 }
 
 /**
@@ -265,13 +286,14 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
   //    - "Só número" (sem '+'): retorna o número raw. Em trecho km/estaca/custom
   //      esse número É o valor do marcador (ex: '100' em km = km 100), NÃO
   //      metros. Em trecho 'm', é metros mesmo. O passo (2) lida com isso.
-  const parsedRaw = parsePosicao(input, trecho.unidade_espaco_padrao)
+  const texto = trecho.unidade_espaco_padrao === 'custom' ? semRotulo(input, trecho) : input
+  const parsedRaw = parsePosicao(texto, trecho.unidade_espaco_padrao)
   if (parsedRaw === null) return { metros: null, erro: 'fmt' }
 
   // 2) Determina o `marcador` (em unidades do trecho) a partir do parse bruto.
   //    Canônico ou unidade 'm': dividir pelo divisor pra obter marker units.
   //    "Só número" em km/estaca/custom: o número JÁ é o marker value.
-  const isCanonical = input.includes('+') || /^\s*EST\b/i.test(input)
+  const isCanonical = texto.includes('+') || /^\s*EST\b/i.test(texto)
   const divisor = divisorMetrosPorUnidade(trecho)
   const ehMetrosRaw = trecho.unidade_espaco_padrao === 'm'
   const marcador = isCanonical || ehMetrosRaw ? parsedRaw / divisor : parsedRaw
@@ -282,7 +304,7 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
   //    Folga de 1 cm (a precisão da tela): o valor inicial pode ter mais casas do que o texto mostra, e o texto do
   //    próprio início do trecho precisa voltar válido.
   const sentido = trecho.geometry_sentido ?? 'natural'
-  const folga = 0.01 / divisor
+  const folga = precisaoMetros(trecho) / divisor
   if (sentido === 'natural' && marcador < inicial - folga) {
     return { metros: null, erro: 'sentido-invalido' }
   }
@@ -302,7 +324,7 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
     trecho.geometry_comprimento_m > 0
   ) {
     // Tolerância de 1cm pra arredondamento de display.
-    if (metros > trecho.geometry_comprimento_m + 0.01) {
+    if (metros > trecho.geometry_comprimento_m + precisaoMetros(trecho)) {
       return { metros: null, erro: 'fora-do-trecho' }
     }
     metros = Math.min(metros, trecho.geometry_comprimento_m)

@@ -65,6 +65,7 @@ export function CriarTarefasDialog({ calc, obraId, destino, onFechar }: Props): 
       open={destino !== undefined && !!calc.entrada}
       onOpenChange={(o) => !o && onFechar()}
       size="xl"
+      className="max-w-6xl"
     >
       {destino !== undefined && calc.entrada ? (
         <Conteudo calc={calc} obraId={obraId} destino={destino} onFechar={onFechar} />
@@ -794,23 +795,23 @@ function Conteudo({
                             ) : null}
                             <div className="flex items-center gap-2">
                               <div className="w-40 shrink-0">
-                              <Select
-                                value={l.origem}
-                                onChange={(x) =>
-                                  mudar(it.id, { origem: x.target.value as 'manual' | 'trecho' })
-                                }
-                                aria-label={`Origem da quantidade de ${it.codigo}`}
-                                className="h-7 text-xs"
-                                disabled={!temTemplate}
-                                title={
-                                  temTemplate
-                                    ? undefined
-                                    : 'Este local não tem quantidade do serviço na planilha'
-                                }
-                              >
-                                <option value="manual">Quantidade manual</option>
-                                <option value="trecho">Do template</option>
-                              </Select>
+                                <Select
+                                  value={l.origem}
+                                  onChange={(x) =>
+                                    mudar(it.id, { origem: x.target.value as 'manual' | 'trecho' })
+                                  }
+                                  aria-label={`Origem da quantidade de ${it.codigo}`}
+                                  className="h-7 text-xs"
+                                  disabled={!temTemplate}
+                                  title={
+                                    temTemplate
+                                      ? undefined
+                                      : 'Este local não tem quantidade do serviço na planilha'
+                                  }
+                                >
+                                  <option value="manual">Quantidade manual</option>
+                                  <option value="trecho">Do template</option>
+                                </Select>
                               </div>
                               {tpl !== null ? (
                                 <span className="text-xs text-text-muted whitespace-nowrap">
