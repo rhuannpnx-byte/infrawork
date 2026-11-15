@@ -122,7 +122,7 @@ Regras que valem para todos:
   - **Modos**, no botão "Controle da sidebar" do rodapé: expandida (empurra o conteúdo), recolhida (só ícones, dica na
     hora) e "expandir ao passar o mouse" (padrão; também abre com o foco do teclado). A preferência fica em
     `ui-store` (`modoBarra`, no navegador). Ctrl B alterna entre expandida e ao passar o mouse.
-  - **Menu do módulo** (`MenuModulo`): 256 px, com o nome do módulo no topo e as páginas em grupos com título. Só
+  - **Menu do módulo** (`MenuModulo`): 256 px, com o nome do módulo no topo e as páginas em grupos com título, separados por uma linha de ponta a ponta. Só
     aparece em módulo com páginas (o Início não tem) e entra e sai em 200 ms.
   - **Conteúdo**: `isolate`, para mapas e gráficos (`z-index` alto) não passarem por cima da barra aberta.
 - Destaque só por contraste: o item ativo tem `bg-active` e peso médio, o item sob o mouse tem `bg-hover`, e nenhum usa

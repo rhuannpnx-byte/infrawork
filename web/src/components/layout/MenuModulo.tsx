@@ -67,9 +67,9 @@ export function MenuModulo(): ReactNode {
           <div className="flex h-12 shrink-0 items-center border-b border-border px-4">
             <h2 className="truncate text-base font-semibold text-text">{exibido.mod.title}</h2>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto py-2">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {exibido.secoes.map((s) => (
-              <div key={s.title} className="px-2 py-2">
+              <div key={s.title} className="border-t border-border px-2 py-4 first:border-t-0">
                 <h3 className="px-2 pb-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                   {frase(s.title)}
                 </h3>
