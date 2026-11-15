@@ -67,7 +67,7 @@ export function CriarTarefasDialog({ calc, obraId, destino, onFechar }: Props): 
       open={destino !== undefined && !!calc.entrada}
       onOpenChange={(o) => !o && onFechar()}
       size="xl"
-      className="max-w-6xl"
+      className="max-w-7xl"
     >
       {destino !== undefined && calc.entrada ? (
         <Conteudo calc={calc} obraId={obraId} destino={destino} onFechar={onFechar} />
@@ -643,29 +643,30 @@ function Conteudo({
             role="region"
             aria-label="Serviços do orçamento"
           >
-            <table className="w-full text-xs">
+            <table className="w-full table-fixed text-xs">
               <thead className="sticky top-0 z-[1] bg-bg-panel">
-                <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                <tr className="whitespace-nowrap text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
                   <th className="w-8 py-1.5" aria-label="Escolher" />
                   <th className="px-2 py-1.5 text-left">Serviço</th>
-                  <th className="px-2 py-1.5 text-right">Orçado</th>
-                  <th className="px-2 py-1.5 text-right">No plano</th>
+                  <th className="w-32 px-2 py-1.5 text-right">Orçado</th>
+                  <th className="w-32 px-2 py-1.5 text-right">No plano</th>
+                  <th className="w-44 px-2 py-1.5 text-left">Local</th>
+                  <th className="w-60 px-2 py-1.5 text-left">Estacas</th>
+                  <th className="w-28 px-2 py-1.5 text-left">Origem</th>
                   <th className="w-28 px-2 py-1.5 text-right">Quantidade</th>
-                  <th className="w-40 px-2 py-1.5 text-left">Local</th>
-                  <th className="w-48 px-2 py-1.5 text-left">Estacas · origem</th>
                 </tr>
               </thead>
               <tbody>
                 {itensQ.isLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-sm text-text-muted">
+                    <td colSpan={8} className="py-6 text-center text-sm text-text-muted">
                       Carregando serviços…
                     </td>
                   </tr>
                 ) : null}
                 {!itensQ.isLoading && !itensFiltrados.length ? (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-sm text-text-muted">
+                    <td colSpan={8} className="py-6 text-center text-sm text-text-muted">
                       {busca.trim()
                         ? 'Nenhum serviço corresponde ao filtro.'
                         : 'Nenhum serviço com composição no orçamento.'}
@@ -685,7 +686,7 @@ function Conteudo({
                       key={it.id}
                       className={cn('border-t border-border', escolhido && 'bg-accent-glow')}
                     >
-                      <td className="py-1 text-center align-top">
+                      <td className="py-1 text-center">
                         <input
                           type="checkbox"
                           className="accent-[var(--accent)]"
@@ -694,23 +695,25 @@ function Conteudo({
                           aria-label={`Criar tarefa de ${it.codigo} ${it.descricao}`}
                         />
                       </td>
-                      <td className="px-2 py-1 align-top">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xs tabular text-text-muted">{it.codigo}</span>
-                          <span className="truncate text-text">{it.descricao}</span>
+                      <td className="px-2 py-1">
+                        <div className="flex min-w-0 items-baseline gap-2" title={it.descricao}>
+                          <span className="shrink-0 text-xs tabular text-text-muted">
+                            {it.codigo}
+                          </span>
+                          <span className="min-w-0 truncate text-text">{it.descricao}</span>
                           {it.indireto_id ? (
-                            <span className="rounded bg-bg-elevated px-1 text-xs text-text-muted">
+                            <span className="shrink-0 rounded bg-bg-elevated px-1 text-xs text-text-muted">
                               indireto
                             </span>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-2 py-1 text-right tabular-nums text-text-muted align-top">
+                      <td className="truncate px-2 py-1 text-right tabular-nums text-text-muted">
                         {fmtNum(it.quantidade_referencia, 'auto')} {it.unidade ?? ''}
                       </td>
                       <td
                         className={cn(
-                          'px-2 py-1 text-right tabular-nums align-top',
+                          'truncate px-2 py-1 text-right tabular-nums',
                           it.alocado > it.quantidade_referencia + 1e-6
                             ? 'text-warn'
                             : 'text-text-muted'
@@ -718,30 +721,13 @@ function Conteudo({
                       >
                         {it.count ? `${fmtNum(it.alocado, 'auto')} (${it.count})` : '—'}
                       </td>
-                      <td className="px-2 py-1 align-top">
-                        {escolhido && !it.indireto_id ? (
-                          l.origem === 'trecho' ? (
-                            <span className="block text-right text-xs text-text-muted tabular-nums">
-                              {tpl !== null ? fmtNum(tpl, 'auto') : '—'} do template
-                            </span>
-                          ) : (
-                            <Input
-                              value={l.qtd}
-                              onChange={(x) => mudar(it.id, { qtd: x.target.value })}
-                              inputMode="decimal"
-                              aria-label={`Quantidade de ${it.codigo}`}
-                              className="h-7 px-1.5 text-right text-xs tabular"
-                            />
-                          )
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-1 align-top">
+                      <td className="px-2 py-1">
                         {escolhido && !it.indireto_id ? (
                           <Select
                             value={l.trecho}
                             onChange={(x) => mudar(it.id, { trecho: x.target.value })}
                             aria-label={`Local de ${it.codigo}`}
-                            className="h-7 min-w-36 text-xs"
+                            className="h-7 text-xs"
                           >
                             <option value="">Sem local</option>
                             {e.trechos.filter((t) => t.tipo === 'eixo').length ? (
@@ -769,47 +755,63 @@ function Conteudo({
                           </Select>
                         ) : null}
                       </td>
-                      <td className="px-2 py-1 align-top">
+                      <td className="px-2 py-1">
+                        {escolhido && !it.indireto_id && tr?.tipo === 'eixo' ? (
+                          <EstacasDoLocal
+                            tr={tr}
+                            segs={segsPorTrecho.get(tr.id) ?? SEM_SEGMENTOS}
+                            itemId={it.id}
+                            codigo={it.codigo}
+                            ini={l.ini}
+                            fim={l.fim}
+                            aoMudar={(x) => mudar(it.id, x)}
+                          />
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-1">
                         {escolhido && !it.indireto_id && tr ? (
-                          <div className="space-y-1">
-                            {tr.tipo === 'eixo' ? (
-                              <EstacasDoLocal
-                                tr={tr}
-                                segs={segsPorTrecho.get(tr.id) ?? SEM_SEGMENTOS}
-                                itemId={it.id}
-                                codigo={it.codigo}
-                                ini={l.ini}
-                                fim={l.fim}
-                                aoMudar={(x) => mudar(it.id, x)}
-                              />
-                            ) : null}
-                            <div className="flex items-center gap-2">
-                              <div className="w-40 shrink-0">
-                                <Select
-                                  value={l.origem}
-                                  onChange={(x) =>
-                                    mudar(it.id, { origem: x.target.value as 'manual' | 'trecho' })
-                                  }
-                                  aria-label={`Origem da quantidade de ${it.codigo}`}
-                                  className="h-7 text-xs"
-                                  disabled={!temTemplate}
-                                  title={
-                                    temTemplate
-                                      ? undefined
-                                      : 'Este local não tem quantidade do serviço na planilha'
-                                  }
-                                >
-                                  <option value="manual">Quantidade manual</option>
-                                  <option value="trecho">Do template</option>
-                                </Select>
-                              </div>
-                              {tpl !== null ? (
-                                <span className="text-xs text-text-muted whitespace-nowrap">
-                                  no template: {fmtNum(tpl, 'auto')}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
+                          <Select
+                            value={l.origem}
+                            onChange={(x) =>
+                              mudar(it.id, { origem: x.target.value as 'manual' | 'trecho' })
+                            }
+                            aria-label={`Origem da quantidade de ${it.codigo}`}
+                            className="h-7 text-xs"
+                            disabled={!temTemplate}
+                            title={
+                              temTemplate
+                                ? undefined
+                                : 'Este local não tem quantidade do serviço na planilha'
+                            }
+                          >
+                            <option value="manual">Manual</option>
+                            <option value="trecho">
+                              Template{tpl !== null ? ` (${fmtNum(tpl, 'auto')})` : ''}
+                            </option>
+                          </Select>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-1">
+                        {escolhido && !it.indireto_id ? (
+                          l.origem === 'trecho' ? (
+                            <span
+                              className="block truncate text-right text-xs tabular-nums text-text-muted"
+                              title="Quantidade da planilha nesse trecho"
+                            >
+                              {tpl !== null ? fmtNum(tpl, 'auto') : '—'}
+                            </span>
+                          ) : (
+                            <Input
+                              value={l.qtd}
+                              onChange={(x) => mudar(it.id, { qtd: x.target.value })}
+                              inputMode="decimal"
+                              aria-label={`Quantidade de ${it.codigo}`}
+                              title={
+                                tpl !== null ? `No template: ${fmtNum(tpl, 'auto')}` : undefined
+                              }
+                              className="h-7 px-1.5 text-right text-xs tabular"
+                            />
+                          )
                         ) : null}
                       </td>
                     </tr>
@@ -903,10 +905,7 @@ function EstacasDoLocal({
     }
   const faixa = `${textoEstaca(0, tr)} a ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
   return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-1.5 gap-y-1">
-      <span className="text-2xs text-text-muted" aria-hidden>
-        de
-      </span>
+    <div className="flex items-center gap-1">
       <ListaPesquisavel
         rotulo={`Estaca inicial de ${codigo}`}
         title={`Estaca inicial (local de ${faixa})`}
@@ -916,10 +915,10 @@ function EstacasDoLocal({
         livre={livre(antesDoFim)}
         invalido={a === null}
         aoEscolher={(o) => aoMudar({ ini: o.valor })}
-        className="h-7 text-xs"
+        className="h-7 min-w-0 flex-1 text-xs"
       />
-      <span className="text-2xs text-text-muted" aria-hidden>
-        até
+      <span className="shrink-0 text-2xs text-text-muted" aria-hidden>
+        a
       </span>
       <ListaPesquisavel
         rotulo={`Estaca final de ${codigo}`}
@@ -930,7 +929,7 @@ function EstacasDoLocal({
         livre={livre(depoisDoInicio)}
         invalido={b === null}
         aoEscolher={(o) => aoMudar({ fim: o.valor })}
-        className="h-7 text-xs"
+        className="h-7 min-w-0 flex-1 text-xs"
       />
     </div>
   )
