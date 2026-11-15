@@ -20,10 +20,10 @@ const co366: TrechoEntrada = {
 
 describe('estacas para escolher', () => {
   it('início, fim e cada km redondo do local', () => {
-    const ops = opcoesEstaca(co366, [], 'srv', 'm³')
-    expect(ops[0]).toMatchObject({ m: 0, rotulo: 'km 303,400', dica: 'início do local' })
+    const ops = opcoesEstaca(co366, [], 'srv')
+    expect(ops[0]).toMatchObject({ m: 0, rotulo: 'km 303,400' })
     expect(ops[1]!.rotulo).toBe('km 304,000')
-    expect(ops[ops.length - 1]).toMatchObject({ rotulo: 'km 402,300', dica: 'fim do local' })
+    expect(ops[ops.length - 1]!.rotulo).toBe('km 402,300')
     expect(ops).toHaveLength(2 + 99) // km 304 a 402
   })
 
@@ -32,9 +32,9 @@ describe('estacas para escolher', () => {
       { ini: 0, fim: 1005.679 * 0.6, label_ini: '', label_fim: '', valores: { srv: 120 } },
       { ini: 1005.679 * 0.6, fim: 5000, label_ini: '', label_fim: '', valores: { outro: 5 } }
     ]
-    const ops = opcoesEstaca(co366, segs, 'srv', 'm³')
-    expect(ops[0]!.dica).toBe('início do local · início da faixa da planilha: 120,00 m³')
-    expect(ops[1]).toMatchObject({ rotulo: 'km 304,000', dica: 'fim de faixa da planilha' })
+    const ops = opcoesEstaca(co366, segs, 'srv')
+    expect(ops[1]!.rotulo).toBe('km 304,000')
+    expect(ops).toHaveLength(2 + 99)
     expect(ops.some((o) => Math.abs(o.m - 5000) < 0.01)).toBe(false)
   })
 
@@ -47,7 +47,7 @@ describe('estacas para escolher', () => {
         geometry_sentido: 'invertido' as const
       }
     }
-    const ops = opcoesEstaca(inv, [], 'srv', '')
+    const ops = opcoesEstaca(inv, [], 'srv')
     expect(ops[0]!.rotulo).toBe('km 402,300')
     expect(ops[1]!.rotulo).toBe('km 402,000')
   })

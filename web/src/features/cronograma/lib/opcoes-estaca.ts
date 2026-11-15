@@ -1,5 +1,4 @@
 import { divisorMetrosPorUnidade } from '@/lib/format/posicao'
-import { formatNumber } from '@/lib/format'
 import type { SegmentoValores } from '@/lib/quantidades/segmentos'
 import { ctxTrecho, lerEstaca, textoEstaca } from '../visoes/formato'
 import type { TrechoEntrada } from '../motor/tipos'
@@ -8,7 +7,6 @@ export interface OpcaoEstaca {
   /** posição em metros internos do eixo */
   m: number
   rotulo: string
-  dica?: string
 }
 
 /** Passo da lista: 1 unidade do local (km, km de marco, estaca); em metros, 100 m. Nunca mais de ~5.000 opções. */
@@ -23,24 +21,20 @@ function passoDaLista(t: TrechoEntrada): number {
 
 /**
  * Estacas que dá para escolher num eixo: o início e o fim do local, cada unidade dele e as bordas das faixas da
- * planilha de quantidades onde o serviço tem quantidade (com a quantidade da faixa como dica). Em ordem de posição.
+ * planilha de quantidades onde o serviço tem quantidade. Em ordem de posição.
  */
 export function opcoesEstaca(
   t: TrechoEntrada,
   segs: readonly SegmentoValores[],
-  itemId: string,
-  unidade: string
+  itemId: string
 ): OpcaoEstaca[] {
   const comp = t.comprimento_m ?? 0
-  const pontos = new Map<number, string[]>()
-  const marcar = (m: number, dica?: string): void => {
-    const k = Math.round(Math.min(Math.max(m, 0), comp) * 100) / 100
-    const d = pontos.get(k) ?? []
-    if (dica && !d.includes(dica)) d.push(dica)
-    pontos.set(k, d)
+  const pontos = new Set<number>()
+  const marcar = (m: number): void => {
+    pontos.add(Math.round(Math.min(Math.max(m, 0), comp) * 100) / 100)
   }
-  marcar(0, 'início do local')
-  marcar(comp, 'fim do local')
+  marcar(0)
+  marcar(comp)
   const passo = passoDaLista(t)
   // as marcas caem nos valores redondos da unidade, a partir do valor inicial do local
   const ctx = ctxTrecho(t)
@@ -50,19 +44,15 @@ export function opcoesEstaca(
   const primeiro = ctx.geometry_sentido === 'invertido' ? resto : resto === 0 ? 0 : passo - resto
   for (let m = primeiro; m < comp; m += passo) if (m > 0) marcar(m)
   for (const s of segs) {
-    const v = s.valores[itemId] ?? 0
-    if (!(v > 0)) continue
-    const faixa = `faixa da planilha: ${formatNumber(v, 2)}${unidade ? ` ${unidade}` : ''}`
-    marcar(s.ini, `início da ${faixa}`)
-    marcar(s.fim, 'fim de faixa da planilha')
+    if (!((s.valores[itemId] ?? 0) > 0)) continue
+    marcar(s.ini)
+    marcar(s.fim)
   }
-  return [...pontos.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([m, dicas]) => ({ m, rotulo: textoEstaca(m, t), dica: dicas.join(' · ') || undefined }))
+  return [...pontos].sort((a, b) => a - b).map((m) => ({ m, rotulo: textoEstaca(m, t) }))
 }
 
 /** Estaca digitada na busca, aceita se cair dentro do local. */
 export function estacaDigitada(texto: string, t: TrechoEntrada): OpcaoEstaca | null {
   const m = lerEstaca(texto, t)
-  return m === null ? null : { m, rotulo: textoEstaca(m, t), dica: 'digitada' }
+  return m === null ? null : { m, rotulo: textoEstaca(m, t) }
 }

@@ -778,7 +778,6 @@ function Conteudo({
                                 segs={segsPorTrecho.get(tr.id) ?? SEM_SEGMENTOS}
                                 itemId={it.id}
                                 codigo={it.codigo}
-                                unidade={it.unidade ?? ''}
                                 ini={l.ini}
                                 fim={l.fim}
                                 aoMudar={(x) => mudar(it.id, x)}
@@ -878,7 +877,6 @@ function EstacasDoLocal({
   segs,
   itemId,
   codigo,
-  unidade,
   ini,
   fim,
   aoMudar
@@ -887,21 +885,16 @@ function EstacasDoLocal({
   segs: readonly SegmentoValores[]
   itemId: string
   codigo: string
-  unidade: string
   ini: string
   fim: string
   aoMudar: (x: { ini?: string; fim?: string }) => void
 }): ReactNode {
-  const opcoes = useMemo(() => opcoesEstaca(tr, segs, itemId, unidade), [tr, segs, itemId, unidade])
+  const opcoes = useMemo(() => opcoesEstaca(tr, segs, itemId), [tr, segs, itemId])
   const a = lerEstaca(ini, tr)
   const b = lerEstaca(fim, tr)
   const antesDoFim = (o: OpcaoEstaca): boolean => b === null || o.m < b - 0.005
   const depoisDoInicio = (o: OpcaoEstaca): boolean => a === null || o.m > a + 0.005
-  const comoOpcao = (o: OpcaoEstaca): OpcaoLista => ({
-    valor: o.rotulo,
-    rotulo: o.rotulo,
-    dica: o.dica
-  })
+  const comoOpcao = (o: OpcaoEstaca): OpcaoLista => ({ valor: o.rotulo, rotulo: o.rotulo })
   const livre =
     (cabe: (o: OpcaoEstaca) => boolean) =>
     (texto: string): OpcaoLista | null => {

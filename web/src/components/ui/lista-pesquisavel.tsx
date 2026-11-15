@@ -263,7 +263,7 @@ export function ListaPesquisavel({
                       <span className="w-3 shrink-0 text-accent">
                         {marcada ? <Check size={12} aria-hidden /> : null}
                       </span>
-                      <span className="tabular text-text">{o.rotulo}</span>
+                      <span className="whitespace-nowrap tabular text-text">{o.rotulo}</span>
                       {o.dica ? (
                         <span className="ml-auto truncate pl-2 text-xs text-text-muted">
                           {o.dica}
