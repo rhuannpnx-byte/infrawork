@@ -76,6 +76,7 @@ Antes de montar um bloco à mão, use o que já existe:
 | Retorno de edição direta ("Salvando…", falha) | `ui/estado`: `EstadoGravacao`                                                                   |
 | Campo de formulário com rótulo, dica e erro   | `ui/campo`: `Campo` (ou `aria-invalid` no `Input`/`Select`)                                     |
 | Escolha única entre poucas opções             | `ui/segmentado`: `Segmentado`                                                                   |
+| Escolher numa lista longa, com busca          | `ui/lista-pesquisavel`: `ListaPesquisavel` (abre em portal; aceita valor digitado via `livre`)  |
 | Filtros da página                             | `ui/filtros`: `BarraFiltros`, `Filtro`, `FiltroMulti`; `ui/filtro-chips`; `ui/DateRangePopover` |
 | Curva S (previsto e realizado)                | `charts/CurvaS`                                                                                 |
 | Diálogo, painel lateral, menu, popover        | `ui/dialog`, `ui/sheet`, `ui/dropdown`, `ui/popover`                                            |

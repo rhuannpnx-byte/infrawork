@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { TabPill } from '@/components/ui/TabPill'
+import { ListaPesquisavel, type OpcaoLista } from '@/components/ui/lista-pesquisavel'
+import { estacaDigitada, opcoesEstaca, type OpcaoEstaca } from '../lib/opcoes-estaca'
 import { useTrechosQuantidadeTemplatesAtuais } from '@/features/planejamento/hooks/trechos'
 import { useItensSincronizaveis } from '@/features/planejamento/hooks/tarefas'
 import { useCriarTarefaIndireta } from '@/features/planejamento/hooks/indireto-config'
@@ -649,8 +651,8 @@ function Conteudo({
                   <th className="px-2 py-1.5 text-right">Orçado</th>
                   <th className="px-2 py-1.5 text-right">No plano</th>
                   <th className="w-28 px-2 py-1.5 text-right">Quantidade</th>
-                  <th className="w-44 px-2 py-1.5 text-left">Local</th>
-                  <th className="w-64 px-2 py-1.5 text-left">Estacas · origem</th>
+                  <th className="w-40 px-2 py-1.5 text-left">Local</th>
+                  <th className="w-48 px-2 py-1.5 text-left">Estacas · origem</th>
                 </tr>
               </thead>
               <tbody>
@@ -694,7 +696,7 @@ function Conteudo({
                       </td>
                       <td className="px-2 py-1 align-top">
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xs tabular text-text-dim">{it.codigo}</span>
+                          <span className="text-xs tabular text-text-muted">{it.codigo}</span>
                           <span className="truncate text-text">{it.descricao}</span>
                           {it.indireto_id ? (
                             <span className="rounded bg-bg-elevated px-1 text-xs text-text-muted">
@@ -739,7 +741,7 @@ function Conteudo({
                             value={l.trecho}
                             onChange={(x) => mudar(it.id, { trecho: x.target.value })}
                             aria-label={`Local de ${it.codigo}`}
-                            className="h-7 text-xs"
+                            className="h-7 min-w-36 text-xs"
                           >
                             <option value="">Sem local</option>
                             {e.trechos.filter((t) => t.tipo === 'eixo').length ? (
@@ -771,27 +773,16 @@ function Conteudo({
                         {escolhido && !it.indireto_id && tr ? (
                           <div className="space-y-1">
                             {tr.tipo === 'eixo' ? (
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  value={l.ini}
-                                  onChange={(x) => mudar(it.id, { ini: x.target.value })}
-                                  aria-label={`Estaca inicial de ${it.codigo}`}
-                                  aria-invalid={lerEstaca(l.ini, tr) === null || undefined}
-                                  className="h-7 w-28 px-1.5 text-xs tabular"
-                                  title={`Estaca inicial (${textoEstaca(0, tr)} – ${textoEstaca(tr.comprimento_m ?? 0, tr)})`}
-                                />
-                                <span className="text-text-dim" aria-hidden>
-                                  –
-                                </span>
-                                <Input
-                                  value={l.fim}
-                                  onChange={(x) => mudar(it.id, { fim: x.target.value })}
-                                  aria-label={`Estaca final de ${it.codigo}`}
-                                  aria-invalid={lerEstaca(l.fim, tr) === null || undefined}
-                                  className="h-7 w-28 px-1.5 text-xs tabular"
-                                  title="Estaca final"
-                                />
-                              </div>
+                              <EstacasDoLocal
+                                tr={tr}
+                                segs={segsPorTrecho.get(tr.id) ?? SEM_SEGMENTOS}
+                                itemId={it.id}
+                                codigo={it.codigo}
+                                unidade={it.unidade ?? ''}
+                                ini={l.ini}
+                                fim={l.fim}
+                                aoMudar={(x) => mudar(it.id, x)}
+                              />
                             ) : null}
                             <div className="flex items-center gap-2">
                               <div className="w-40 shrink-0">
@@ -873,5 +864,81 @@ function Conteudo({
         )}
       </DialogFooter>
     </>
+  )
+}
+
+const SEM_SEGMENTOS: SegmentoValores[] = []
+
+/**
+ * Estaca inicial e final escolhidas em lista com busca: início e fim do local, cada unidade dele e as bordas das
+ * faixas da planilha onde o serviço tem quantidade. Uma estaca digitada na busca também vale, se cair no local.
+ */
+function EstacasDoLocal({
+  tr,
+  segs,
+  itemId,
+  codigo,
+  unidade,
+  ini,
+  fim,
+  aoMudar
+}: {
+  tr: TrechoEntrada
+  segs: readonly SegmentoValores[]
+  itemId: string
+  codigo: string
+  unidade: string
+  ini: string
+  fim: string
+  aoMudar: (x: { ini?: string; fim?: string }) => void
+}): ReactNode {
+  const opcoes = useMemo(() => opcoesEstaca(tr, segs, itemId, unidade), [tr, segs, itemId, unidade])
+  const a = lerEstaca(ini, tr)
+  const b = lerEstaca(fim, tr)
+  const antesDoFim = (o: OpcaoEstaca): boolean => b === null || o.m < b - 0.005
+  const depoisDoInicio = (o: OpcaoEstaca): boolean => a === null || o.m > a + 0.005
+  const comoOpcao = (o: OpcaoEstaca): OpcaoLista => ({
+    valor: o.rotulo,
+    rotulo: o.rotulo,
+    dica: o.dica
+  })
+  const livre =
+    (cabe: (o: OpcaoEstaca) => boolean) =>
+    (texto: string): OpcaoLista | null => {
+      const o = estacaDigitada(texto, tr)
+      return o && cabe(o) ? comoOpcao(o) : null
+    }
+  const faixa = `${textoEstaca(0, tr)} a ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
+  return (
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-1.5 gap-y-1">
+      <span className="text-2xs text-text-muted" aria-hidden>
+        de
+      </span>
+      <ListaPesquisavel
+        rotulo={`Estaca inicial de ${codigo}`}
+        title={`Estaca inicial (local de ${faixa})`}
+        placeholder="Início"
+        valor={ini || null}
+        opcoes={opcoes.filter(antesDoFim).map(comoOpcao)}
+        livre={livre(antesDoFim)}
+        invalido={a === null}
+        aoEscolher={(o) => aoMudar({ ini: o.valor })}
+        className="h-7 text-xs"
+      />
+      <span className="text-2xs text-text-muted" aria-hidden>
+        até
+      </span>
+      <ListaPesquisavel
+        rotulo={`Estaca final de ${codigo}`}
+        title={`Estaca final (local de ${faixa})`}
+        placeholder="Fim"
+        valor={fim || null}
+        opcoes={opcoes.filter(depoisDoInicio).map(comoOpcao)}
+        livre={livre(depoisDoInicio)}
+        invalido={b === null}
+        aoEscolher={(o) => aoMudar({ fim: o.valor })}
+        className="h-7 text-xs"
+      />
+    </div>
   )
 }
