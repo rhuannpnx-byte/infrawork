@@ -23,7 +23,12 @@
 //         (valor do serviço no dia ÷ valor na data em que a LB foi travada).
 
 import type { PlanejamentoTarefaCompleta } from '@/types/planejamento'
-import { segundaDaSemanaISO, semanasEntre } from '@/features/planejamento/hooks/cronograma'
+import {
+  receitaPeloFaturamento,
+  repartirPor,
+  segundaDaSemanaISO,
+  semanasEntre
+} from '@/features/planejamento/hooks/cronograma'
 
 /** Linha diária de `vw_acompanhamento_curva_s` (subset usado aqui). */
 export interface CurvaSDiaRow {
@@ -268,9 +273,12 @@ export function montarCurvaValorAgregado(input: MontarCurvaInput): ValorAgregado
     custDirSem.set(sem, (custDirSem.get(sem) ?? 0) + real * val.custoUnit(r.item_orcamentario_id))
   }
 
-  // 3) Indireto por semana (SEM taxas — idêntico em planejado e projetado).
+  // 3) Indireto por semana (SEM taxas). Custo por tempo, igual nos dois. Receita por tempo, igual nos dois; ou no
+  //    ritmo das diretas: no planejado, pelo faturamento planejado; no projetado, pelo executado (÷ total planejado).
   const recIndSem = new Map<string, number>()
+  const recIndProjSem = new Map<string, number>()
   const custIndSem = new Map<string, number>()
+  const totalPlanDireto = [...recPlanSem.values()].reduce((a, b) => a + b, 0)
   for (const t of tarefas) {
     if (!t.is_indireto || !t.data_inicio || !t.data_fim) continue
     const sems = semanasEntre(t.data_inicio, t.data_fim)
@@ -278,9 +286,16 @@ export function montarCurvaValorAgregado(input: MontarCurvaInput): ValorAgregado
     const frac = 1 / sems.length
     const cust = num(t.custo_total_calc)
     const rec = num(t.receita_total_calc)
+    const peloRitmo = receitaPeloFaturamento(t)
     for (const s of sems) {
       custIndSem.set(s, (custIndSem.get(s) ?? 0) + cust * frac)
+      if (peloRitmo) continue
       recIndSem.set(s, (recIndSem.get(s) ?? 0) + rec * frac)
+      recIndProjSem.set(s, (recIndProjSem.get(s) ?? 0) + rec * frac)
+    }
+    if (peloRitmo) {
+      repartirPor(recIndSem, recPlanSem, rec)
+      repartirPor(recIndProjSem, recDirSem, rec, totalPlanDireto)
     }
   }
 
@@ -295,6 +310,7 @@ export function montarCurvaValorAgregado(input: MontarCurvaInput): ValorAgregado
       ...recDirSem.keys(),
       ...custDirSem.keys(),
       ...recIndSem.keys(),
+      ...recIndProjSem.keys(),
       ...custIndSem.keys()
     ])
   ).sort()
@@ -310,7 +326,7 @@ export function montarCurvaValorAgregado(input: MontarCurvaInput): ValorAgregado
     let recProj: number | null = null
     let custProj: number | null = null
     if (periodo <= semHoje) {
-      const recSem = (recDirSem.get(periodo) ?? 0) + (recIndSem.get(periodo) ?? 0)
+      const recSem = (recDirSem.get(periodo) ?? 0) + (recIndProjSem.get(periodo) ?? 0)
       const custSem = (custDirSem.get(periodo) ?? 0) + (custIndSem.get(periodo) ?? 0)
       const taxasSem = recSem * taxaRate
       recProjAcum += recSem
@@ -409,14 +425,19 @@ export function montarMedicao(input: MontarMedicaoInput): MedicaoRow[] {
   }
 
   const rows: MedicaoRow[] = []
+  // faturamento direto medido no período e o total do contrato, a preço base (para o indireto no ritmo das diretas)
+  let diretoMedido = 0
+  let diretoTotal = 0
   for (const g of grupos) {
     if (indiretoGrupoIds.has(g.id)) continue // indireto tratado à parte (abaixo)
+    for (const f of g.filhos) diretoTotal += f.quantidade * f.venda_unitaria
     const dias = realPorGrupo.get(g.id) ?? []
     const realPeriodo = dias.reduce((a, d) => a + d.real, 0)
     if (realPeriodo <= 0) continue
     const pct = g.quantidade_referencia > 0 ? realPeriodo / g.quantidade_referencia : 0
     for (const f of g.filhos) {
       const medQtd = pct * f.quantidade
+      diretoMedido += medQtd * f.venda_unitaria
       // valor ao preço de cada dia (reajuste vale a partir da data)
       const valor =
         g.quantidade_referencia > 0
@@ -446,7 +467,8 @@ export function montarMedicao(input: MontarMedicaoInput): MedicaoRow[] {
   }
 
   // Indireto: avanço = fração das semanas da indireta dentro do período (mesma
-  // lógica da Curva-S, confirmada com o usuário), aplicado às QUANTIDADES dos
+  // lógica da Curva-S, confirmada com o usuário) ou, com a receita no ritmo das
+  // diretas, o faturamento direto medido ÷ o total do contrato; aplicado às QUANTIDADES dos
   // itens `receita` que compõem o agregador (ADMINISTRAÇÃO DE OBRAS, CANTEIRO,
   // MOBILIZAÇÃO, DESMOBILIZAÇÃO…). Mesma semântica da medição direta
   // (pct × qtd contratual), só que o pct vem do tempo, não da produção física.
@@ -455,11 +477,16 @@ export function montarMedicao(input: MontarMedicaoInput): MedicaoRow[] {
     const semDe = segundaDaSemanaISO(de)
     for (const t of tarefas) {
       if (!t.is_indireto || !t.data_inicio || !t.data_fim) continue
-      const sems = semanasEntre(t.data_inicio, t.data_fim)
-      if (!sems.length) continue
-      const dentro = sems.filter((s) => s >= semDe && s <= ate).length
-      if (dentro === 0) continue
-      const fracPeriodo = dentro / sems.length
+      let fracPeriodo: number
+      if (receitaPeloFaturamento(t)) {
+        fracPeriodo = diretoTotal > 0 ? diretoMedido / diretoTotal : 0
+      } else {
+        const sems = semanasEntre(t.data_inicio, t.data_fim)
+        if (!sems.length) continue
+        const dentro = sems.filter((s) => s >= semDe && s <= ate).length
+        fracPeriodo = dentro / sems.length
+      }
+      if (fracPeriodo <= 0) continue
 
       const g = t.item_orcamentario_id ? gruposById.get(t.item_orcamentario_id) : undefined
       const grupoCod = t.servico_grupo_codigo ?? g?.codigo ?? ''

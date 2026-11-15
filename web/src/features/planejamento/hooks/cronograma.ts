@@ -29,6 +29,25 @@ export function segundaDaSemanaISO(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Indireto com a receita no ritmo dos serviços diretos: em cada período, a receita orçada do indireto × (faturamento
+ * direto do período ÷ faturamento direto total). O custo continua por tempo.
+ */
+export const receitaPeloFaturamento = (t: PlanejamentoTarefaCompleta): boolean =>
+  t.is_indireto && t.indireto_config?.receita_modo === 'percentual_dos_servicos'
+
+/** Soma `total` em `destino`, repartido na proporção de cada período em `base`. */
+export function repartirPor(
+  destino: Map<string, number>,
+  base: ReadonlyMap<string, number>,
+  total: number,
+  divisor = [...base.values()].reduce((a, b) => a + b, 0)
+): void {
+  if (!(total > 0) || !(divisor > 0)) return
+  for (const [k, v] of base)
+    if (v > 0) destino.set(k, (destino.get(k) ?? 0) + (total * v) / divisor)
+}
+
 export function semanasEntre(inicioIso: string, fimIso: string): string[] {
   const out: string[] = []
   let cur = segundaDaSemanaISO(inicioIso)
@@ -93,6 +112,8 @@ export function calcularCurvaSemanal(
 
   const custoPorSem = new Map<string, number>()
   const receitaPorSem = new Map<string, number>()
+  const diretaPorSem = new Map<string, number>()
+  let receitaPeloRitmo = 0
 
   for (const t of tarefas) {
     if (t.is_indireto) {
@@ -103,9 +124,12 @@ export function calcularCurvaSemanal(
       const custoTotal = Number(t.custo_total_calc ?? 0) + Number(t.custo_taxas_calc ?? 0)
       const receitaTotal = Number(t.receita_total_calc ?? 0)
       const fracPorSem = 1 / sems.length
+      const peloRitmo = receitaPeloFaturamento(t)
+      if (peloRitmo) receitaPeloRitmo += receitaTotal
       for (const s of sems) {
         custoPorSem.set(s, (custoPorSem.get(s) ?? 0) + custoTotal * fracPorSem)
-        receitaPorSem.set(s, (receitaPorSem.get(s) ?? 0) + receitaTotal * fracPorSem)
+        if (!peloRitmo)
+          receitaPorSem.set(s, (receitaPorSem.get(s) ?? 0) + receitaTotal * fracPorSem)
       }
     } else {
       // Direta: usa perfil_semanas pra distribuir físico × preços unitários.
@@ -122,15 +146,15 @@ export function calcularCurvaSemanal(
           )
         }
         if (vendaUnit > 0) {
-          receitaPorSem.set(
-            s.semana_segunda,
-            (receitaPorSem.get(s.semana_segunda) ?? 0) +
-              qty * vendaUnit * fatorSemana(t, s.semana_segunda)
-          )
+          const v = qty * vendaUnit * fatorSemana(t, s.semana_segunda)
+          receitaPorSem.set(s.semana_segunda, (receitaPorSem.get(s.semana_segunda) ?? 0) + v)
+          diretaPorSem.set(s.semana_segunda, (diretaPorSem.get(s.semana_segunda) ?? 0) + v)
         }
       }
     }
   }
+
+  repartirPor(receitaPorSem, diretaPorSem, receitaPeloRitmo)
 
   const semanas = Array.from(new Set([...custoPorSem.keys(), ...receitaPorSem.keys()])).sort()
   const totalCusto = Array.from(custoPorSem.values()).reduce((a, b) => a + b, 0)

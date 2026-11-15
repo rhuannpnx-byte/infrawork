@@ -65,24 +65,22 @@ export function IndiretoCampos({
             ro={ro}
             onClick={() => set({ receitaModo: 'percentual_dos_servicos' })}
           >
-            Percentual do faturamento dos serviços diretos no período
+            No ritmo dos serviços diretos
           </Opcao>
           {valor.receitaModo === 'percentual_dos_servicos' ? (
-            <div className="flex items-center gap-2 pl-6">
-              <Input
-                value={valor.receitaPct}
-                disabled={ro}
-                inputMode="decimal"
-                aria-label="Percentual sobre o faturamento dos diretos"
-                onChange={(e) => set({ receitaPct: e.target.value })}
-                className="h-7 w-24 text-right font-mono text-xs"
-              />
-              <span className="text-xs text-text-muted">% sobre o faturamento dos diretos</span>
-            </div>
-          ) : null}
-          <Caixa marcado={valor.extrapola} desabilitado={ro} onMudar={(v) => set({ extrapola: v })}>
-            Receita acompanha o período integral (desmarcado: limitada ao valor orçado do item)
-          </Caixa>
+            <p className="pl-6 text-xs text-text-muted">
+              Em cada período, a receita orçada do indireto × (faturamento dos serviços diretos no
+              período ÷ faturamento total dos serviços diretos).
+            </p>
+          ) : (
+            <Caixa
+              marcado={valor.extrapola}
+              desabilitado={ro}
+              onMudar={(v) => set({ extrapola: v })}
+            >
+              Receita acompanha o período integral (desmarcado: limitada ao valor orçado do item)
+            </Caixa>
+          )}
         </div>
       </Secao>
 

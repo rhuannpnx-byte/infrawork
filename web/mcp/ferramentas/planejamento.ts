@@ -291,7 +291,14 @@ export const tarefas = ferramenta({
       .array(z.object({ local_id: z.string().uuid().nullable(), quantidade: z.number() }))
       .optional(),
     equipes: z.array(z.string().uuid()).optional(),
-    indireto_config: z.record(z.string(), z.any()).optional(),
+    indireto_config: z
+      .record(z.string(), z.any())
+      .optional()
+      .describe(
+        'custo_periodicidade (dia|mes|ano), receita_modo (mesma_logica_custo | percentual_dos_servicos = receita ' +
+          'orçada no ritmo do faturamento direto; mande receita_percentual 100), offset_dias_antes, ' +
+          'offset_dias_depois, receita_extrapola, aplica_taxas, taxa_regime_id'
+      ),
     notas: z.string().nullable().optional(),
     filtro_servico: z.string().uuid().optional().describe('listar: só um serviço'),
     recalcular: RECALCULAR,

@@ -6,7 +6,6 @@ import { lerNumero } from './campos-util'
 export interface FormIndireto {
   periodicidade: 'dia' | 'mes' | 'ano'
   receitaModo: 'mesma_logica_custo' | 'percentual_dos_servicos'
-  receitaPct: string
   antes: string
   depois: string
   extrapola: boolean
@@ -17,7 +16,6 @@ export interface FormIndireto {
 export const FORM_INDIRETO_PADRAO: FormIndireto = {
   periodicidade: 'mes',
   receitaModo: 'mesma_logica_custo',
-  receitaPct: '',
   antes: '0',
   depois: '0',
   extrapola: true,
@@ -30,7 +28,6 @@ export function formDoConfig(c: IndiretoConfig | null): FormIndireto {
   return {
     periodicidade: c.custo_periodicidade,
     receitaModo: c.receita_modo,
-    receitaPct: c.receita_percentual !== null ? String(c.receita_percentual).replace('.', ',') : '',
     antes: String(c.offset_dias_antes),
     depois: String(c.offset_dias_depois),
     extrapola: c.receita_extrapola,
@@ -45,21 +42,18 @@ export function configDoForm(f: FormIndireto): Record<string, unknown> | string 
   const depois = lerNumero(f.depois) ?? 0
   if (!Number.isInteger(antes) || antes < 0 || !Number.isInteger(depois) || depois < 0)
     return 'As folgas do indireto são dias úteis inteiros, a partir de zero.'
-  let pct: number | null = null
-  if (f.receitaModo === 'percentual_dos_servicos') {
-    pct = lerNumero(f.receitaPct)
-    if (pct === null || pct < 0 || pct > 100)
-      return 'Informe o percentual da receita do indireto (0 a 100).'
-  }
+  // No ritmo das diretas a receita é a orçada inteira (100%), repartida pelo faturamento direto de cada período; o
+  // banco ainda guarda o percentual nesse modo.
+  const peloRitmo = f.receitaModo === 'percentual_dos_servicos'
   if (f.aplicaTaxas && !f.regimeId) return 'Escolha o regime de taxas do indireto.'
   return {
     custo_periodicidade: f.periodicidade,
     receita_modo: f.receitaModo,
     receita_unitaria: '',
-    receita_percentual: pct === null ? '' : String(pct),
+    receita_percentual: peloRitmo ? '100' : '',
     offset_dias_antes: antes,
     offset_dias_depois: depois,
-    receita_extrapola: f.extrapola,
+    receita_extrapola: peloRitmo || f.extrapola,
     aplica_taxas: f.aplicaTaxas,
     taxa_regime_id: f.aplicaTaxas ? f.regimeId : ''
   }
@@ -79,7 +73,7 @@ export function inputDoForm(f: FormIndireto): IndiretoConfigInput | string {
     receita_percentual: c.receita_percentual === '' ? null : Number(c.receita_percentual),
     offset_dias_antes: c.offset_dias_antes as number,
     offset_dias_depois: c.offset_dias_depois as number,
-    receita_extrapola: f.extrapola,
+    receita_extrapola: c.receita_extrapola as boolean,
     aplica_taxas: f.aplicaTaxas,
     taxa_regime_id: f.aplicaTaxas ? f.regimeId : null
   }

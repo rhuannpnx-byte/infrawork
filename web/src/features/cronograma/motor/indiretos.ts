@@ -1,8 +1,8 @@
 /**
  * Tarefas de indireto (InfraWork; o ApeX não tem): ficam fora do motor e cobrem a janela das tarefas diretas,
  * estendida pelas folgas "antes" e "depois" em dias úteis do calendário padrão do plano. Custo e receita por
- * período (dia útil, mês ou ano, fracionados), receita própria ou % do faturamento das diretas na janela, taxas
- * sobre o faturamento total da janela.
+ * período (dia útil, mês ou ano, fracionados); a receita é própria por período ou a orçada do item repartida pelo
+ * faturamento das diretas (a parte delas que cai na janela); taxas sobre o faturamento total da janela.
  *
  * Correções em relação ao motor antigo (avaliação do cronograma): a folga "antes" era ignorada (somava dias úteis
  * negativos como zero) e a contagem de dias úteis ficava um dia curta; aqui a janela recua e avança pelo
@@ -60,6 +60,12 @@ export function calcularIndiretos(
   const inicioGlobal = Math.min(...lista.map((d) => d.inicio))
   const fimGlobal = Math.max(...lista.map((d) => d.fim))
   const porId = new Map(e.tarefas.map((t) => [t.id, t]))
+  const vendaDe = (id: string): number => {
+    const td = porId.get(id)
+    return Number(td?.quantidade ?? 0) * Number(td?.venda_unitaria ?? 0)
+  }
+  let vendaTotal = 0
+  for (const id of diretas.keys()) vendaTotal += vendaDe(id)
   const out: ResultadoIndireto[] = []
   for (const t of indiretas) {
     const cfg = t.indireto!
@@ -87,9 +93,7 @@ export function calcularIndiretos(
         b = Math.min(d.fim, fim)
       const tot = d.fim - d.inicio
       const frac = tot > 0 ? Math.max(0, b - a) / tot : a <= b ? 1 : 0
-      if (frac <= 0) continue
-      const td = porId.get(id)
-      vendaDiretas += Number(td?.quantidade ?? 0) * Number(td?.venda_unitaria ?? 0) * frac
+      if (frac > 0) vendaDiretas += vendaDe(id) * frac
     }
     let receita: number
     if (cfg.receita_modo === 'mesma_logica_custo') {
@@ -100,7 +104,9 @@ export function calcularIndiretos(
           : 0)
       receita = unit * periodos
     } else {
-      receita = vendaDiretas * ((Number(cfg.receita_percentual) || 0) / 100)
+      // receita orçada × (faturamento das diretas na janela ÷ faturamento total das diretas)
+      const orcada = Number(t.venda_total_item ?? 0)
+      receita = vendaTotal > 0 ? (orcada * vendaDiretas) / vendaTotal : 0
     }
     if (!cfg.receita_extrapola) {
       const orcada = Number(t.venda_total_item ?? 0)

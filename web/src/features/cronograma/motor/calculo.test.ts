@@ -423,12 +423,13 @@ describe('adaptador do cronograma (motor do ApeX)', () => {
       is_indireto: true,
       servico_id: null,
       locais: [],
+      venda_total_item: 50000,
       indireto: {
         custo_periodicidade: 'dia',
         custo_unitario: 100,
         receita_modo: 'percentual_dos_servicos',
         receita_unitaria: null,
-        receita_percentual: 10,
+        receita_percentual: null,
         offset_dias_antes: 2,
         offset_dias_depois: 1,
         receita_extrapola: true,
@@ -443,7 +444,8 @@ describe('adaptador do cronograma (motor do ApeX)', () => {
     expect(ts(i.fim)).toBe('2026-11-23T15:00:00')
     expect(i.dias_uteis).toBeCloseTo(13, 6)
     expect(i.custo_total).toBeCloseTo(1300, 2)
-    expect(i.receita_total).toBeCloseTo(1000 * 10 * 0.1, 2)
+    // a janela cobre todas as diretas: a receita é a orçada inteira
+    expect(i.receita_total).toBeCloseTo(50000, 2)
   })
 
   it('linha de base: as datas congeladas valem como estão; folgas e violações sobre elas', () => {
