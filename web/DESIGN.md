@@ -9,19 +9,19 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 
 ## Onde fica cada coisa
 
-| O quê                                        | Arquivo                                                 |
-| -------------------------------------------- | ------------------------------------------------------- |
-| Cores dos dois temas                         | `src/styles/theme.css`                                  |
-| Base (fonte, foco, rolagem)                  | `src/styles/globals.css`                                |
-| Escalas de tamanho, raio e as classes de cor | `tailwind.config.js`                                    |
-| Tema antes da primeira pintura               | `public/theme-boot.js`                                  |
-| Preferência de tema (claro, escuro, sistema) | `src/stores/theme-store.ts`                             |
-| Tamanho do texto (confortável ou compacto)   | `--fs-*` em `theme.css`; `density` em `stores/ui-store` |
-| Componentes compartilhados                   | `src/components/ui/`, `src/components/charts/`          |
-| Rótulos dos códigos do banco e plurais       | `src/lib/rotulos.ts`                                    |
-| Casca: barra superior e menu                 | `src/components/layout/{AppShell,TitleBar,Sidebar}.tsx` |
-| Cabeçalho de página                          | `src/components/layout/PageHeader.tsx`                  |
-| Início (painel da obra, faixa da obra)       | `src/features/painel/`                                  |
+| O quê                                        | Arquivo                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Cores dos dois temas                         | `src/styles/theme.css`                                                                     |
+| Base (fonte, foco, rolagem)                  | `src/styles/globals.css`                                                                   |
+| Escalas de tamanho, raio e as classes de cor | `tailwind.config.js`                                                                       |
+| Tema antes da primeira pintura               | `public/theme-boot.js`                                                                     |
+| Preferência de tema (claro, escuro, sistema) | `src/stores/theme-store.ts`                                                                |
+| Tamanho do texto (confortável ou compacto)   | `--fs-*` em `theme.css`; `density` em `stores/ui-store`                                    |
+| Componentes compartilhados                   | `src/components/ui/`, `src/components/charts/`                                             |
+| Rótulos dos códigos do banco e plurais       | `src/lib/rotulos.ts`                                                                       |
+| Casca: barra superior e menus                | `src/components/layout/` (`AppShell`, `TitleBar`, `BarraModulos`, `MenuModulo`, `Sidebar`) |
+| Cabeçalho de página                          | `src/components/layout/PageHeader.tsx`                                                     |
+| Início (painel da obra, faixa da obra)       | `src/features/painel/`                                                                     |
 
 ## Cor
 
@@ -111,12 +111,27 @@ Regras que valem para todos:
 
 ## Navegação
 
-- Barra superior: menu, marca, obra em uso, busca (Ctrl K), tema e usuário. A busca encontra páginas do menu, obras
-  e ações.
-- Um menu lateral só: Início e um grupo por módulo, com as páginas dentro. O grupo do módulo em uso abre sozinho.
-  Em tela estreita o menu abre por cima do conteúdo.
-- As páginas vêm de `src/config/modules.ts`. Cada módulo continua com a sua aba viva em memória
-  (`stores/tabs-store.ts`), mas não há mais barra de abas, trilho de ícones nem barra de status.
+- Barra superior: marca, obra em uso, busca (Ctrl K), tema e usuário. A busca encontra páginas do menu, obras e
+  ações.
+- Abaixo, três colunas no padrão do Supabase:
+  - **Barra de módulos** (`BarraModulos`): ícones de 20 px em grupos separados por linha (Início; Orçamento,
+    Planejamento e Acompanhamento; Gerencial; atalhos e configurações). Tem 48 px e abre para 208 px em 100 ms
+    lineares. Tem duas camadas: a de fora reserva o espaço e a de dentro é absoluta (`z-30`). Ao passar o mouse, só a
+    de dentro cresce, por cima do resto. O rótulo está sempre no item e só é cortado. O ícone fica a 14 px da borda nos
+    dois estados (8 px do grupo + 6 px do item), nunca centralizado. O estado vai em `data-state`.
+  - **Modos**, no botão "Controle da sidebar" do rodapé: expandida (empurra o conteúdo), recolhida (só ícones, dica na
+    hora) e "expandir ao passar o mouse" (padrão; também abre com o foco do teclado). A preferência fica em
+    `ui-store` (`modoBarra`, no navegador). Ctrl B alterna entre expandida e ao passar o mouse.
+  - **Menu do módulo** (`MenuModulo`): 256 px, com o nome do módulo no topo e as páginas em grupos com título. Só
+    aparece em módulo com páginas (o Início não tem) e entra e sai em 200 ms.
+  - **Conteúdo**: `isolate`, para mapas e gráficos (`z-index` alto) não passarem por cima da barra aberta.
+- Destaque só por contraste: o item ativo tem `bg-active` e peso médio, o item sob o mouse tem `bg-hover`, e nenhum usa
+  cor de marca. A bolinha de alerta sobre o ícone de Acompanhamento é vermelha (alerta crítico aberto) ou amarela
+  (aviso).
+- Em tela estreita (celular) as colunas dão lugar à gaveta (`Sidebar`), aberta pelo botão de menu da barra superior.
+- Tudo sai de `src/config/modules.ts` (módulos, páginas, `GRUPOS_BARRA`, `MODULO_INICIO`): página nova entra lá. Cada
+  módulo continua com a sua aba viva em memória (`stores/tabs-store.ts`), e o ícone do módulo volta à última página
+  aberta nele.
 - Início com obra selecionada é o painel da obra: carimbo, situação (avanço, valor executado, término, serviços,
   último lançamento), curva S em valor, faixa da obra, serviços, alertas, últimos lançamentos e prontidão.
 
@@ -124,15 +139,15 @@ Regras que valem para todos:
 
 Com o servidor de desenvolvimento no ar e as variáveis `E2E_EMAIL`, `E2E_PASSWORD`, `E2E_EMPRESA_ID` e `E2E_OBRA_ID`:
 
-| Roteiro                                           | O que confere                                                           |
-| ------------------------------------------------- | ----------------------------------------------------------------------- |
-| `node scripts/fumaca-telas.mjs`                   | as 45 rotas abrem sem erro de página, de console ou de rede             |
-| `node scripts/capturas-telas.mjs`                 | fotografa as rotas num tema (`E2E_TEMA`, `E2E_LARGURA`, `E2E_ALTURA`)   |
-| `node scripts/comparar-capturas.mjs antes depois` | diferença por pixel entre duas pastas de capturas                       |
-| `node scripts/acessibilidade-telas.mjs`           | axe (WCAG 2 A e AA) em cada rota (`E2E_LARGURA=390` para celular)       |
-| `node scripts/acessibilidade-dialogos.mjs`        | abre os diálogos pelos botões, roda o axe e confere foco e Esc          |
-| `node scripts/layout-telas.mjs [rota…]`           | em 1440, 1024 e 390 px: rolagem lateral, controle cortado, texto cru    |
-| `node scripts/conferir-csp.mjs [../campo]`        | serve o build com a CSP do `vercel.json` e acusa o que for bloqueado    |
+| Roteiro                                           | O que confere                                                         |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| `node scripts/fumaca-telas.mjs`                   | as 45 rotas abrem sem erro de página, de console ou de rede           |
+| `node scripts/capturas-telas.mjs`                 | fotografa as rotas num tema (`E2E_TEMA`, `E2E_LARGURA`, `E2E_ALTURA`) |
+| `node scripts/comparar-capturas.mjs antes depois` | diferença por pixel entre duas pastas de capturas                     |
+| `node scripts/acessibilidade-telas.mjs`           | axe (WCAG 2 A e AA) em cada rota (`E2E_LARGURA=390` para celular)     |
+| `node scripts/acessibilidade-dialogos.mjs`        | abre os diálogos pelos botões, roda o axe e confere foco e Esc        |
+| `node scripts/layout-telas.mjs [rota…]`           | em 1440, 1024 e 390 px: rolagem lateral, controle cortado, texto cru  |
+| `node scripts/conferir-csp.mjs [../campo]`        | serve o build com a CSP do `vercel.json` e acusa o que for bloqueado  |
 
 Sem servidor, no `npm test`: `theme.test.ts` (toda variável usada existe), `contraste.test.ts` (texto com 4,5:1 e
 contorno de campo com 3:1, nos dois temas), `cores.test.ts` (sem cor literal), `classes.test.ts` (classe de cor usada existe no `tailwind.config.js`) e

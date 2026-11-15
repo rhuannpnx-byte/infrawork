@@ -27,10 +27,16 @@ export function useShortcuts(): void {
     openModal('commandPalette')
   })
 
-  // Cmd/Ctrl + B — toggle sidebar
+  // Cmd/Ctrl + B: no computador alterna a barra de módulos entre sempre aberta e "ao passar o mouse"; no celular
+  // abre e fecha a gaveta do menu.
   useHotkeys('mod+b', (e) => {
     e.preventDefault()
-    toggleSidebar()
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      toggleSidebar()
+      return
+    }
+    const ui = useUIStore.getState()
+    ui.setModoBarra(ui.modoBarra === 'expandida' ? 'hover' : 'expandida')
   })
 
   // ─── Vim-style sequence "G + letter" ──────────────────────────────────────

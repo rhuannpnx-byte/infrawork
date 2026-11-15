@@ -30,6 +30,10 @@ export interface ModuleConfig {
   sections: ModuleSection[]
   /** Se omitido, o módulo é visível para todos os papéis autenticados. */
   requiredRoles?: Role[]
+  /** Bolinha sobre o ícone na barra de módulos: de onde vem a pendência (só alertas da obra, por ora). */
+  alerta?: 'alertas-da-obra'
+  /** Fora do ar para todos: aparece apagado e sem clique. */
+  desabilitado?: boolean
   /**
    * Categoria do módulo no PrimaryRail. `engineering` (default) vai na parte
    * superior do rail; `system` vai na parte inferior (próximo a configurações).

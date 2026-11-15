@@ -32,14 +32,11 @@ export function TitleBar(): ReactNode {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
 
   return (
-    <header
-      style={{ gridArea: 'title' }}
-      className="bg-bg-menu border-b border-border flex items-center gap-2 px-2 min-w-0"
-    >
+    <header className="h-12 shrink-0 bg-bg-menu border-b border-border flex items-center gap-2 px-2 min-w-0">
       <IconButton
-        aria-label="Mostrar ou ocultar o menu"
+        aria-label="Abrir o menu"
         aria-expanded={sidebarOpen}
-        title="Menu (Ctrl B)"
+        className="md:hidden"
         onClick={toggleSidebar}
       >
         <PanelLeft size={16} strokeWidth={1.8} />

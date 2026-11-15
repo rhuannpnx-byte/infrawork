@@ -1,8 +1,8 @@
 import type { ModuleConfig } from '@/types/module'
 
 /**
- * Catálogo de módulos do app. Cada item alimenta o PrimaryRail, a
- * SecondarySidebar e o CommandPalette.
+ * Catálogo de módulos do app: a única fonte da navegação. A barra de módulos (ícones), o menu do módulo (páginas),
+ * a busca, os atalhos "g + letra" e o título da aba do navegador saem daqui. Página nova entra num `sections`.
  */
 
 /**
@@ -232,6 +232,7 @@ export const MODULES: ModuleConfig[] = [
     shortcut: 'g a',
     routePrefix: '/acompanhamento',
     category: 'engineering',
+    alerta: 'alertas-da-obra',
     requiredRoles: ['god', 'adm', 'engenheiro', 'apoio', 'cliente'],
     sections: [
       {
@@ -330,6 +331,23 @@ export const MODULES: ModuleConfig[] = [
       }
     ]
   }
+]
+
+/** Início: módulo sem páginas (não abre o menu do módulo). */
+export const MODULO_INICIO: ModuleConfig = {
+  key: 'home',
+  title: 'Início',
+  icon: 'home',
+  shortcut: 'g h',
+  routePrefix: '/',
+  sections: []
+}
+
+/** Grupos da barra de módulos, de cima para baixo, separados por uma linha. */
+export const GRUPOS_BARRA: { key: string; modulos: string[] }[] = [
+  { key: 'inicio', modulos: ['home'] },
+  { key: 'obra', modulos: ['orcamento', 'planejamento', 'acompanhamento'] },
+  { key: 'sistema', modulos: ['gerencial'] }
 ]
 
 export function getModuleByRoute(pathname: string): ModuleConfig | undefined {

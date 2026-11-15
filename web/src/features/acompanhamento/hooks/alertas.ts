@@ -142,3 +142,29 @@ export function useReabrirAlerta(): ReturnType<
     }
   })
 }
+
+/** Pendência mais grave entre os alertas abertos da obra (bolinha da barra de módulos): erro, aviso ou nada. */
+export function useResumoAlertas(
+  obraId: string | null | undefined,
+  ativo = true
+): 'erro' | 'aviso' | null {
+  const { data } = useQuery({
+    queryKey: ['acompanhamento', 'alertas', 'resumo', obraId],
+    enabled: !!obraId && ativo,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      // 'critical' < 'warn' na ordem alfabética: a primeira linha é a mais grave
+      const { data, error } = await supabase
+        .from('acompanhamento_alerta')
+        .select('severidade')
+        .eq('obra_id', obraId!)
+        .eq('status', 'aberto')
+        .in('severidade', ['critical', 'warn'])
+        .order('severidade')
+        .limit(1)
+      if (error) throw error
+      return (data?.[0]?.severidade as AlertaSeveridade | undefined) ?? null
+    }
+  })
+  return data === 'critical' ? 'erro' : data === 'warn' ? 'aviso' : null
+}

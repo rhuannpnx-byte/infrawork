@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { LayoutDashboard } from 'lucide-react'
 import { TitleBar, ScopePill, UserMenu } from './TitleBar'
 import { Sidebar } from './Sidebar'
+import { BarraModulos } from './BarraModulos'
+import { MenuModulo } from './MenuModulo'
 import infraworkIcon from '@/assets/infrawork-icon.png'
 import { useUIStore } from '@/stores/ui-store'
 import { useActiveTab } from '@/stores/tabs-store'
@@ -45,23 +47,21 @@ export function AppShell({ children }: { children: ReactNode }): ReactNode {
     )
   }
 
-  // Tela estreita (celular): o menu abre por cima do conteúdo e fecha ao escolher a página.
-  const fixo = sidebarOpen && !estreito
+  // Três colunas: barra de módulos, menu do módulo e conteúdo. O conteúdo isola o próprio empilhamento (mapas e
+  // gráficos usam z-index alto) para a barra aberta por cima dele não ficar atrás. Em tela estreita (celular) o menu
+  // é uma gaveta por cima do conteúdo, que fecha ao escolher a página.
   return (
-    <div
-      className="h-dvh w-screen grid"
-      style={{
-        gridTemplateRows: '48px minmax(0, 1fr)',
-        gridTemplateColumns: fixo ? '248px minmax(0, 1fr)' : '0 minmax(0, 1fr)',
-        gridTemplateAreas: '"title title" "sidebar main"',
-        transition: 'grid-template-columns 140ms ease-out'
-      }}
-    >
+    <div className="h-dvh w-screen flex flex-col">
       <TitleBar />
-      {fixo ? <Sidebar /> : <span style={{ gridArea: 'sidebar' }} />}
-      <main style={{ gridArea: 'main' }} className="bg-bg overflow-hidden relative">
-        {children}
-      </main>
+      <div className="flex min-h-0 flex-1">
+        {estreito ? null : (
+          <>
+            <BarraModulos />
+            <MenuModulo />
+          </>
+        )}
+        <main className="relative isolate min-w-0 flex-1 overflow-hidden bg-bg">{children}</main>
+      </div>
       {sidebarOpen && estreito ? <GavetaMenu aoFechar={() => setSidebarOpen(false)} /> : null}
     </div>
   )
@@ -81,7 +81,7 @@ function GavetaMenu({ aoFechar }: { aoFechar: () => void }): ReactNode {
         tabIndex={-1}
         className="w-[min(280px,85vw)] h-full flex shadow-[var(--sombra-flutuante)]"
       >
-        <Sidebar gaveta aoNavegar={aoFechar} />
+        <Sidebar aoNavegar={aoFechar} />
       </div>
       <button
         type="button"

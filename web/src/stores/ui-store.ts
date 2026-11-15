@@ -3,7 +3,14 @@ import { storageKey } from '@/lib/storage-keys'
 
 export type ModalKey = 'commandPalette' | 'projectSwitcher' | 'export' | 'settings' | 'shortcuts'
 
+/** Preferência da barra de módulos: sempre aberta, sempre só ícones ou abre ao passar o mouse (padrão). */
+export type ModoBarra = 'expandida' | 'recolhida' | 'hover'
+
 interface UIStore {
+  modoBarra: ModoBarra
+  setModoBarra: (modo: ModoBarra) => void
+
+  /** Gaveta do menu em tela estreita (celular). */
   sidebarOpen: boolean
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -17,7 +24,16 @@ interface UIStore {
   setDensity: (d: 'compact' | 'normal') => void
 }
 
-const SIDEBAR_KEY = storageKey('ui.sidebarOpen')
+const CHAVE_MODO_BARRA = storageKey('ui.modoBarra')
+
+function lerModoBarra(): ModoBarra {
+  try {
+    const v = window.localStorage.getItem(CHAVE_MODO_BARRA)
+    return v === 'expandida' || v === 'recolhida' ? v : 'hover'
+  } catch {
+    return 'hover'
+  }
+}
 // A mesma chave de public/theme-boot.js, que aplica a densidade antes da primeira pintura.
 const CHAVE_DENSIDADE = 'infrawork.ui.density'
 
@@ -34,30 +50,20 @@ function aplicarDensidade(d: 'compact' | 'normal'): void {
   else delete document.documentElement.dataset.density
 }
 
-function readSidebarPref(): boolean {
-  if (typeof window === 'undefined') return true
-  const v = window.localStorage.getItem(SIDEBAR_KEY)
-  if (v === null) return !window.matchMedia('(max-width: 767px)').matches
-  return v === '1'
-}
-
-function writeSidebarPref(open: boolean): void {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(SIDEBAR_KEY, open ? '1' : '0')
-}
-
 export const useUIStore = create<UIStore>((set) => ({
-  sidebarOpen: readSidebarPref(),
-  toggleSidebar: () =>
-    set((s) => {
-      const next = !s.sidebarOpen
-      writeSidebarPref(next)
-      return { sidebarOpen: next }
-    }),
-  setSidebarOpen: (open) => {
-    writeSidebarPref(open)
-    set({ sidebarOpen: open })
+  modoBarra: lerModoBarra(),
+  setModoBarra: (modo) => {
+    try {
+      window.localStorage.setItem(CHAVE_MODO_BARRA, modo)
+    } catch {
+      // sem armazenamento: vale só para esta sessão
+    }
+    set({ modoBarra: modo })
   },
+
+  sidebarOpen: false,
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
   activeModals: new Set<ModalKey>(),
   modalPayload: {},

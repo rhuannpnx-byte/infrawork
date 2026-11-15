@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCamadaAberta } from './camada-modal'
 
@@ -16,7 +17,13 @@ interface Position {
 }
 
 const itens = (menu: HTMLElement | null): HTMLElement[] =>
-  menu ? [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')] : []
+  menu
+    ? [
+        ...menu.querySelectorAll<HTMLElement>(
+          '[role="menuitem"]:not([disabled]), [role="menuitemradio"]:not([disabled])'
+        )
+      ]
+    : []
 
 /**
  * Menu de ações. Abre com clique, Enter ou seta para baixo no gatilho; dentro dele as setas, Home e End movem o
@@ -173,6 +180,35 @@ export function DropdownItem({
     >
       <span className="flex items-center gap-2">{children}</span>
       {shortcut ? <span className="tabular text-xs text-text-dim">{shortcut}</span> : null}
+    </button>
+  )
+}
+
+/** Opção de escolha única (marca a atual). */
+export function DropdownRadioItem({
+  marcado,
+  onClick,
+  children
+}: {
+  marcado: boolean
+  onClick: () => void
+  children: ReactNode
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={marcado}
+      onClick={onClick}
+      className={cn(
+        'flex w-full min-h-8 items-center gap-2 rounded-sm px-2 py-1 text-sm text-left text-text transition-colors',
+        'hover:bg-bg-hover focus-visible:outline-none focus-visible:bg-bg-active'
+      )}
+    >
+      <span className="w-4 shrink-0 text-accent">
+        {marcado ? <Check size={14} aria-hidden /> : null}
+      </span>
+      {children}
     </button>
   )
 }

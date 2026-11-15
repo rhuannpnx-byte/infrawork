@@ -25,13 +25,10 @@ function lerGrupos(): Record<string, boolean> {
 const frase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 
 /**
- * Menu único do app: Início e, abaixo, um grupo por módulo com as suas páginas. O grupo do módulo em uso abre
- * sozinho; os outros abrem e fecham no cabeçalho, e a escolha fica guardada.
+ * Menu da gaveta, em tela estreita (no computador são a barra de módulos e o menu do módulo): Início e um grupo por
+ * módulo com as suas páginas. O grupo do módulo em uso abre sozinho; os outros abrem e fecham no cabeçalho.
  */
-export function Sidebar({
-  aoNavegar,
-  gaveta
-}: { aoNavegar?: () => void; gaveta?: boolean } = {}): ReactNode {
+export function Sidebar({ aoNavegar }: { aoNavegar?: () => void }): ReactNode {
   const pathname = useActiveLocation().split('?')[0]
   const openModal = useUIStore((s) => s.openModal)
   const role = useAuthStore((s) => s.profile?.role ?? null)
@@ -69,11 +66,7 @@ export function Sidebar({
   return (
     <nav
       aria-label="Menu"
-      style={gaveta ? undefined : { gridArea: 'sidebar' }}
-      className={cn(
-        'bg-bg-menu border-r border-border flex flex-col min-h-0 overflow-hidden',
-        gaveta && 'w-full'
-      )}
+      className="w-full bg-bg-menu border-r border-border flex flex-col min-h-0 overflow-hidden"
     >
       <ScrollArea className="flex-1 px-2 py-3">
         <ItemMenu

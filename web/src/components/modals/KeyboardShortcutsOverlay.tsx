@@ -16,7 +16,7 @@ const SECTIONS: Array<{ title: string; items: Array<[string, string]> }> = [
     title: 'Aplicação',
     items: [
       ['Ctrl K', 'Buscar páginas, obras e ações'],
-      ['Ctrl B', 'Mostrar ou ocultar o menu'],
+      ['Ctrl B', 'Fixar ou soltar a barra de módulos'],
       ['?', 'Mostrar estes atalhos'],
       ['Esc', 'Fechar a janela aberta']
     ]
