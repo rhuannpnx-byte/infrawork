@@ -649,7 +649,7 @@ function Conteudo({
                   <th className="px-2 py-1.5 text-right">No plano</th>
                   <th className="w-28 px-2 py-1.5 text-right">Quantidade</th>
                   <th className="w-44 px-2 py-1.5 text-left">Local</th>
-                  <th className="w-56 px-2 py-1.5 text-left">Estacas · origem</th>
+                  <th className="w-64 px-2 py-1.5 text-left">Estacas · origem</th>
                 </tr>
               </thead>
               <tbody>
@@ -776,7 +776,7 @@ function Conteudo({
                                   onChange={(x) => mudar(it.id, { ini: x.target.value })}
                                   aria-label={`Estaca inicial de ${it.codigo}`}
                                   aria-invalid={lerEstaca(l.ini, tr) === null || undefined}
-                                  className="h-7 w-24 px-1.5 text-xs tabular"
+                                  className="h-7 w-28 px-1.5 text-xs tabular"
                                   title={`Estaca inicial (${textoEstaca(0, tr)} – ${textoEstaca(tr.comprimento_m ?? 0, tr)})`}
                                 />
                                 <span className="text-text-dim" aria-hidden>
@@ -787,7 +787,7 @@ function Conteudo({
                                   onChange={(x) => mudar(it.id, { fim: x.target.value })}
                                   aria-label={`Estaca final de ${it.codigo}`}
                                   aria-invalid={lerEstaca(l.fim, tr) === null || undefined}
-                                  className="h-7 w-24 px-1.5 text-xs tabular"
+                                  className="h-7 w-28 px-1.5 text-xs tabular"
                                   title="Estaca final"
                                 />
                               </div>

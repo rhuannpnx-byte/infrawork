@@ -32,7 +32,7 @@ export function formatPosicao(metros: number | null | undefined, unidade: Unidad
   switch (unidade) {
     case 'm':
     case 'custom':
-      return formatComma(metros, 2)
+      return formatComma(metros, 2, 1, true)
     case 'km': {
       const km = Math.floor(metros / 1000)
       const resto = metros - km * 1000
@@ -276,16 +276,20 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
 
   // 3) Sentido-aware: trecho natural → marcador deve ser >= inicial;
   //    invertido → marcador deve ser <= inicial.
+  //    Folga de 1 cm (a precisão da tela): o valor inicial pode ter mais casas do que o texto mostra, e o texto do
+  //    próprio início do trecho precisa voltar válido.
   const sentido = trecho.geometry_sentido ?? 'natural'
-  if (sentido === 'natural' && marcador < inicial) {
+  const folga = 0.01 / divisor
+  if (sentido === 'natural' && marcador < inicial - folga) {
     return { metros: null, erro: 'sentido-invalido' }
   }
-  if (sentido === 'invertido' && marcador > inicial) {
+  if (sentido === 'invertido' && marcador > inicial + folga) {
     return { metros: null, erro: 'sentido-invalido' }
   }
+  const noTrecho = sentido === 'natural' ? Math.max(marcador, inicial) : Math.min(marcador, inicial)
 
   // 4) Converte para metros internos.
-  const metros = marcadorToMetros(marcador, trecho)
+  let metros = marcadorToMetros(noTrecho, trecho)
   if (!Number.isFinite(metros) || metros < 0) return { metros: null, erro: 'fora-do-trecho' }
 
   // 5) Limite superior via comprimento (se importado do KMZ).
@@ -298,6 +302,7 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
     if (metros > trecho.geometry_comprimento_m + 0.01) {
       return { metros: null, erro: 'fora-do-trecho' }
     }
+    metros = Math.min(metros, trecho.geometry_comprimento_m)
   }
   return { metros }
 }
@@ -306,12 +311,13 @@ export function parseMarcador(input: string, trecho: TrechoCtx): ParseMarcadorRe
 
 /**
  * Parsea string numérica PT-BR (vírgula como decimal) ou EN (ponto). Aceita
- * apenas dígitos + um separador decimal opcional. Rejeita "1.234,56" (milhar).
+ * dígitos com um separador decimal opcional, ou milhar com ponto e decimal com vírgula ("305.123,01").
  */
 function parseNumeroPtBR(s: string): number | null {
-  if (!/^\d+(?:[,.]\d+)?$/.test(s)) return null
-  const normalized = s.replace(',', '.')
-  const n = Number(normalized)
+  // milhar com ponto ("305.123,01", "1.500"): tira os pontos
+  const texto = /^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(s) ? s.replace(/\./g, '') : s
+  if (!/^\d+(?:[,.]\d+)?$/.test(texto)) return null
+  const n = Number(texto.replace(',', '.'))
   return Number.isFinite(n) ? n : null
 }
 
@@ -319,9 +325,10 @@ function parseNumeroPtBR(s: string): number | null {
  * Formata número com vírgula decimal PT-BR + número fixo de casas decimais.
  * Opcionalmente padding a esquerda na parte inteira (pra '050' em km).
  */
-function formatComma(n: number, decimais = 2, minIntegerDigits = 1): string {
+function formatComma(n: number, decimais = 2, minIntegerDigits = 1, milhar = false): string {
   const fixed = n.toFixed(decimais)
   const [intPart, decPart] = fixed.split('.')
-  const padded = intPart.padStart(minIntegerDigits, '0')
+  let padded = intPart.padStart(minIntegerDigits, '0')
+  if (milhar) padded = padded.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   return decimais > 0 && decPart !== undefined ? `${padded},${decPart}` : padded
 }
