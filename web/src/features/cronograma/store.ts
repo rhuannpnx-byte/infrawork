@@ -108,6 +108,8 @@ interface CronogramaUi {
   /** largura da grade; null = a soma das colunas */
   larguraGrade: number | null
   colunas: ColunaGantt[]
+  /** largura de cada coluna da grade ajustada pelo usuário (a que falta usa a padrão) */
+  largurasColunas: Partial<Record<ColunaGantt, number>>
   recolhidas: Record<string, string[]>
   tc: OpcoesTempoCaminho
   /** zoom do tempo-caminho; null = ajustar à área */
@@ -122,6 +124,8 @@ interface CronogramaUi {
   setZoom: (px: number | null) => void
   setLarguraGrade: (w: number | null) => void
   setColunas: (c: ColunaGantt[]) => void
+  /** null volta à largura padrão da coluna */
+  setLarguraColuna: (c: ColunaGantt, w: number | null) => void
   alternarRecolhida: (planoId: string, chave: string) => void
   setRecolhidas: (planoId: string, chaves: string[]) => void
 }
@@ -134,6 +138,7 @@ export const useCronogramaUi = create<CronogramaUi>()(
       pxPorHora: null,
       larguraGrade: null,
       colunas: COLUNAS_PADRAO,
+      largurasColunas: {},
       recolhidas: {},
       tc: OPCOES_TEMPO_CAMINHO,
       tcZoom: { pxPorHora: null, pxPorMetro: null },
@@ -149,6 +154,13 @@ export const useCronogramaUi = create<CronogramaUi>()(
         set({ larguraGrade: w === null ? null : Math.max(200, Math.min(1400, Math.round(w))) }),
       setColunas: (colunas) =>
         set({ colunas: colunas.includes('nome') ? colunas : ['nome', ...colunas] }),
+      setLarguraColuna: (c, w) =>
+        set((s) => {
+          const l = { ...s.largurasColunas }
+          if (w === null) delete l[c]
+          else l[c] = Math.max(40, Math.min(800, Math.round(w)))
+          return { largurasColunas: l }
+        }),
       alternarRecolhida: (planoId, chave) =>
         set((s) => {
           const atual = new Set(s.recolhidas[planoId] ?? [])
@@ -175,6 +187,7 @@ export const useCronogramaUi = create<CronogramaUi>()(
         pxPorHora: s.pxPorHora,
         larguraGrade: s.larguraGrade,
         colunas: s.colunas,
+        largurasColunas: s.largurasColunas,
         recolhidas: s.recolhidas,
         tc: s.tc,
         tcZoom: s.tcZoom,
@@ -186,6 +199,7 @@ export const useCronogramaUi = create<CronogramaUi>()(
           ...cur,
           ...x,
           gantt: { ...OPCOES_VISAO_GANTT, ...(x.gantt ?? {}) },
+          largurasColunas: x.largurasColunas ?? {},
           tc: { ...OPCOES_TEMPO_CAMINHO, ...(x.tc ?? {}) }
         }
       }

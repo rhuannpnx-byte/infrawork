@@ -52,6 +52,8 @@ interface Props {
   onSelecionar: (l: LinhaGantt, e: { ctrl: boolean; shift: boolean }) => void
   onAbrir: (l: LinhaGantt) => void
   onMenu: (l: LinhaGantt | null, x: number, y: number) => void
+  /** arrastar a borda do cabeçalho; null (duplo clique) volta à largura padrão */
+  onLarguraColuna: (c: ColunaGantt, w: number | null) => void
 }
 
 const RECUO = 14
@@ -115,11 +117,16 @@ export function GanttGrade(p: Props): ReactNode {
               title={c.dica}
               style={{ width: c.largura }}
               className={cn(
-                'shrink-0 truncate px-2 pb-1.5 text-2xs font-mono uppercase tracking-wider text-text-dim',
-                c.direita && 'text-right'
+                'relative flex h-full shrink-0 items-end px-2 pb-1.5 text-2xs font-mono uppercase tracking-wider text-text-dim',
+                c.direita && 'justify-end'
               )}
             >
-              {c.titulo}
+              <span className="truncate">{c.titulo}</span>
+              <BordaColuna
+                titulo={c.titulo}
+                largura={c.largura}
+                onMudar={(w) => p.onLarguraColuna(c.id, w)}
+              />
             </div>
           ))}
         </div>
@@ -291,6 +298,46 @@ export function GanttGrade(p: Props): ReactNode {
         </div>
       </div>
     </div>
+  )
+}
+
+/** Alça na borda direita do cabeçalho: arrastar muda a largura da coluna; duplo clique volta à padrão. */
+function BordaColuna({
+  titulo,
+  largura,
+  onMudar
+}: {
+  titulo: string
+  largura: number
+  onMudar: (w: number | null) => void
+}): ReactNode {
+  const ini = useRef<{ x: number; w: number } | null>(null)
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Largura da coluna ${titulo}`}
+      aria-valuenow={Math.round(largura)}
+      aria-valuemin={40}
+      aria-valuemax={800}
+      tabIndex={0}
+      title="Arraste para mudar a largura; duplo clique volta à padrão"
+      className="absolute inset-y-0 -right-1 z-[1] w-2 cursor-col-resize after:absolute after:inset-y-1 after:left-1/2 after:w-px after:bg-border hover:after:bg-accent focus-visible:outline-none focus-visible:after:bg-accent"
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+        ini.current = { x: e.clientX, w: largura }
+      }}
+      onPointerMove={(e) => ini.current && onMudar(ini.current.w + e.clientX - ini.current.x)}
+      onPointerUp={() => (ini.current = null)}
+      onDoubleClick={() => onMudar(null)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault()
+          onMudar(largura + (e.key === 'ArrowRight' ? 10 : -10))
+        }
+      }}
+    />
   )
 }
 

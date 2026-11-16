@@ -195,12 +195,18 @@ export function GanttVista({
       return null
     }
   }, [specPadrao, ui.gantt.fimDeSemana, ui.gantt.feriados])
+  const larguraColuna = (c: ColunaGantt): number =>
+    ui.largurasColunas[c] ?? COLS_GANTT_BASE[c].largura
   const larguraGrade =
     ui.larguraGrade ??
-    Math.min(
-      Math.round(areaW * 0.6),
-      ui.colunas.reduce((x, c) => x + COLS_GANTT_BASE[c].largura, 0) + 2
-    )
+    Math.min(Math.round(areaW * 0.6), ui.colunas.reduce((x, c) => x + larguraColuna(c), 0) + 2)
+  // a coluna alargada empurra a divisória quando a grade tem largura escolhida (como no MS Project)
+  const mudarLarguraColuna = (c: ColunaGantt, w: number | null): void => {
+    const antes = larguraColuna(c)
+    ui.setLarguraColuna(c, w)
+    const depois = useCronogramaUi.getState().largurasColunas[c] ?? COLS_GANTT_BASE[c].largura
+    if (ui.larguraGrade !== null) ui.setLarguraGrade(ui.larguraGrade + depois - antes)
+  }
   const larguraTempo = Math.max(300, areaW - larguraGrade - 5)
   const eixo = useMemo(() => {
     if (!calInterface || !dados) return null
@@ -298,7 +304,12 @@ export function GanttVista({
     () =>
       ui.colunas.map((id) => {
         const base = COLS_GANTT_BASE[id]
-        const c: DefColuna = { id, ...base, texto: () => '' }
+        const c: DefColuna = {
+          id,
+          ...base,
+          largura: ui.largurasColunas[id] ?? base.largura,
+          texto: () => ''
+        }
         switch (id) {
           case 'numero':
             c.texto = (l) => l.numero ?? ''
@@ -471,7 +482,19 @@ export function GanttVista({
         return c
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ui.colunas, porId, servicos, resultado, global, jornada, nomeadas, trechos, planoId, tarefasDe]
+    [
+      ui.colunas,
+      ui.largurasColunas,
+      porId,
+      servicos,
+      resultado,
+      global,
+      jornada,
+      nomeadas,
+      trechos,
+      planoId,
+      tarefasDe
+    ]
   )
 
   const corLinha = useCallback(
@@ -707,6 +730,7 @@ export function GanttVista({
         onSelecionar={selecionar}
         onAbrir={(l) => abrirLinha(l)}
         onMenu={(l, x, y) => (l ? menuLinha(l, x, y) : menuFundo(x, y))}
+        onLarguraColuna={mudarLarguraColuna}
       />
       <Divisoria largura={larguraGrade} onMudar={ui.setLarguraGrade} />
       <div className="min-w-0 flex-1">
