@@ -198,8 +198,13 @@ export function parseRecursos(
       })
     } else vistos.set(chave, pr.row)
 
+    // também o recurso que a importação de composições criou só com o código, guardado no nome
     const existente =
-      (data.codigo && porCodigo.get(normalizeTxt(data.codigo))) ||
+      (data.codigo &&
+        (porCodigo.get(normalizeTxt(data.codigo)) ??
+          contexto.recursos.find(
+            (r) => !r.codigo && r.grupo === data.grupo && r.nome === data.codigo
+          ))) ||
       porNome.get(`${data.grupo}|${normalizeTxt(data.nome)}`)
     const acao = erros.length > 0 ? 'erro' : existente ? 'atualizar' : 'criar'
     return {

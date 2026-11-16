@@ -204,7 +204,8 @@ export const composicoes = ferramenta({
     '[{grupo EQUIPAMENTO|COMBUSTIVEL|MO|MATERIAL, recurso_id, quantidade, horas_dia, consumo_combustivel_lh, ' +
     'indice_produtividade, consumo_material_por_unid}]; modo: erro=nova, substituir_itens=editar, ' +
     'nova_versao) | excluir | modelo | importar (xlsx ou JSON no formato da RPC importar_composicoes; prévia ' +
-    'sem confirmar). Para ligar a composição ao orçamento use agrupadores.editar com servico_id.',
+    'sem confirmar; item com recurso_ref em código leva o nome em recurso_nome, senão o recurso fica só com o ' +
+    'código). Para ligar a composição ao orçamento use agrupadores.editar com servico_id.',
   entrada: {
     acao: z.enum(['listar', 'detalhe', 'salvar', 'excluir', 'modelo', 'importar']),
     obra_id: OBRA.optional(),

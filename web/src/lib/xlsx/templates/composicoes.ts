@@ -33,6 +33,7 @@ export interface ComposicaoItemLinha {
   row: number
   grupo: CpuItemGrupo
   recurso_ref: string
+  recurso_nome: string | null
   recurso_id: string | null
   recurso_unidade: string | null
   preco: number | null
@@ -129,6 +130,14 @@ export const COMPOSICOES_SPEC: TemplateSpec = {
           tipo: 'text',
           width: 36,
           help: 'Código ou nome do recurso (aba Recursos). Se não existir, pode ser criado na importação.'
+        },
+        {
+          key: 'recurso_nome',
+          header: 'Nome do recurso',
+          aliases: ['Descrição do recurso', 'Descrição do insumo'],
+          tipo: 'text',
+          width: 36,
+          help: 'Quando "Recurso" é um código (ex.: SICRO E9571): o nome dele. Dá o nome ao recurso criado na importação ou ao que ainda só tem o código.'
         },
         {
           key: 'recurso_unidade',
@@ -400,6 +409,7 @@ export function parseComposicoes(
       row: pr.row,
       grupo: grupo ?? 'MATERIAL',
       recurso_ref: ref,
+      recurso_nome: String(d.recurso_nome ?? '').trim() || null,
       recurso_id: null,
       recurso_unidade: (d.recurso_unidade as string | null) ?? null,
       preco: (d.preco as number | null) ?? null,
@@ -479,6 +489,7 @@ export function composicoesToPayload(
       grupo: i.grupo,
       recurso_id: i.recurso_id,
       recurso_ref: i.recurso_ref,
+      recurso_nome: i.recurso_nome,
       recurso_unidade: i.recurso_unidade,
       preco: i.preco,
       quantidade: i.quantidade,

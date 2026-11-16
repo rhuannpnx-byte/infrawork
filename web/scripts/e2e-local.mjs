@@ -1127,6 +1127,46 @@ await sbAp.auth.signOut()
   check('equipes e encarregados presentes', Array.isArray(p.equipes) && Array.isArray(p.encarregados) && p.equipes.length > 0, `${p.equipes.length} equipe(s), ${p.encarregados.length} encarregado(s)`)
 }
 
+// ── 13. Recurso criado por código na importação de composições (migração 0061) ──────────────────────────────
+{
+  const c = await rpc('importar_composicoes', {
+    _obra_id: obraTr.id,
+    _composicoes: [
+      { row: 2, codigo: '91', nome: 'SICRO' },
+      {
+        row: 3,
+        codigo: '91.01',
+        nome: 'Escavação SICRO',
+        unidade: 'm³',
+        producao_qtde: 100,
+        itens: [
+          { row: 2, grupo: 'EQUIPAMENTO', recurso_ref: 'E9571', recurso_nome: 'Escavadeira hidráulica', recurso_unidade: 'h', quantidade: 1, horas_dia: 8 },
+          { row: 3, grupo: 'MO', recurso_ref: 'P9824', recurso_unidade: 'h', quantidade: 1, horas_dia: 8 }
+        ]
+      }
+    ],
+    _opcoes: { modo_existente: 'erro' }
+  })
+  const recs = await q('recurso', (t) => t.select('codigo, nome').eq('obra_id', obraTr.id).in('codigo', ['E9571', 'P9824']))
+  const de = (cod) => recs.find((r) => r.codigo === cod)?.nome
+  check(
+    'composição cria o recurso com o código e o nome da planilha',
+    c.ok && de('E9571') === 'Escavadeira hidráulica' && de('P9824') === 'P9824',
+    JSON.stringify(recs)
+  )
+  const r = await rpc('importar_recursos', {
+    _obra_id: obraTr.id,
+    _linhas: [{ row: 2, grupo: 'MO', codigo: 'P9824', nome: 'Ajudante SICRO', unidade: 'h' }],
+    _opcoes: {}
+  })
+  const depois = await q('recurso', (t) => t.select('nome').eq('obra_id', obraTr.id).eq('codigo', 'P9824'))
+  check(
+    'importação de recursos dá o nome pelo código, sem duplicar',
+    r.stats.criados === 0 && depois.length === 1 && depois[0].nome === 'Ajudante SICRO',
+    JSON.stringify({ stats: r.stats, erros: r.erros, depois })
+  )
+}
+
 // ── 9. Excluir obra inteira: as travas de exclusão (aditivo aplicado, linha de base, cadeia) não impedem ────────
 const recDireto = await sb.from('recurso').delete().eq('obra_id', obraTr.id)
 check('fora da exclusão da obra, recurso usado em composição continua protegido', !!recDireto.error, recDireto.error?.message?.slice(0, 90))
