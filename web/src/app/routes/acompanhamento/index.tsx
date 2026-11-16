@@ -38,13 +38,11 @@ import { CurvaSAcompanhamento } from '@/features/acompanhamento/components/dashb
 import { PrevistoRealizadoServicos } from '@/features/acompanhamento/components/dashboard/PrevistoRealizadoServicos'
 import { RankingProdutividade } from '@/features/acompanhamento/components/dashboard/RankingProdutividade'
 import { MapaFotosDashboard } from '@/features/acompanhamento/components/dashboard/MapaFotosDashboard'
-import { FrentesAtivasLista } from '@/features/acompanhamento/components/dashboard/FrentesAtivasLista'
 import { TimelineApontamentos } from '@/features/acompanhamento/components/dashboard/TimelineApontamentos'
 import { CalendarHeatmap } from '@/features/acompanhamento/components/dashboard/CalendarHeatmap'
 import { AlertasLateral } from '@/features/acompanhamento/components/dashboard/AlertasLateral'
 import { PrevistoRealizadoPainel } from '@/features/acompanhamento/components/dashboard/PrevistoRealizadoPainel'
 import { AderenciaServicos } from '@/features/acompanhamento/components/dashboard/AderenciaServicos'
-import { PorEncarregado } from '@/features/acompanhamento/components/dashboard/PorEncarregado'
 
 export function AcompanhamentoIndex(): ReactNode {
   // O cliente não vê o dashboard: para ele o módulo abre no calendário previsto e executado.
@@ -368,15 +366,11 @@ function DashboardAcompanhamento(): ReactNode {
             </Grupo>
           )}
 
-          <Grupo titulo="Equipes e frentes">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {comResumo(
-                240,
-                <RankingProdutividade itens={resumo?.produtividade_equipes ?? []} altura={240} />
-              )}
-              <PorEncarregado producoes={prodsDash} filtroItemId={servicoItemId} altura={240} />
-              {comResumo(240, <FrentesAtivasLista frentes={resumo?.frentes ?? []} altura={240} />)}
-            </div>
+          <Grupo titulo="Equipes">
+            {comResumo(
+              240,
+              <RankingProdutividade itens={resumo?.produtividade_equipes ?? []} altura={240} />
+            )}
           </Grupo>
 
           <Grupo titulo="Registros de campo">
