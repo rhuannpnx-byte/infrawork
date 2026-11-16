@@ -378,6 +378,7 @@ export function parseComposicoes(
   }
 
   // insumos
+  const soCodigo = new Set<string>()
   for (const pr of pi.rows) {
     const d = pr.data
     const codComp = String(d.codigo_composicao ?? '').trim()
@@ -439,11 +440,18 @@ export function parseComposicoes(
           })
         }
       } else {
+        const semNome = !item.recurso_nome && !/\s/.test(ref)
+        if (semNome) soCodigo.add(ref)
+        const como = item.recurso_nome
+          ? `"${ref} · ${item.recurso_nome}"`
+          : semNome
+            ? 'só com o código, sem nome'
+            : ''
         comp.avisos.push({
           ...base,
           col: 'Recurso',
           code: 'RECURSO_NAO_ENCONTRADO',
-          msg: `Linha ${pr.row}: recurso "${ref}" não existe — será criado (${item.recurso_unidade ?? 'un'}${item.preco != null ? `, R$ ${item.preco}` : ', sem preço'}) se a opção estiver marcada.`,
+          msg: `Linha ${pr.row}: recurso "${ref}" não existe e será criado${como ? ` ${como}` : ''} (${item.recurso_unidade ?? 'un'}${item.preco != null ? `, R$ ${item.preco}` : ', sem preço'}), se a opção estiver marcada.`,
           nivel: 'aviso'
         })
       }
@@ -468,6 +476,21 @@ export function parseComposicoes(
         nivel: 'aviso'
       })
     }
+  }
+
+  if (soCodigo.size > 0) {
+    const lista = [...soCodigo]
+    errosGerais.push({
+      sheet: specItens.name,
+      row: 0,
+      col: 'Recurso',
+      code: 'RECURSOS_SO_COM_CODIGO',
+      msg:
+        `${lista.length} ${lista.length === 1 ? 'recurso será criado' : 'recursos serão criados'} só com o código, sem nome ` +
+        `(${lista.slice(0, 5).join(', ')}${lista.length > 5 ? '…' : ''}): nos histogramas e listas aparece só o código. ` +
+        'Importe antes a planilha de recursos (Orçamento, Recursos, Importar modelo) ou preencha a coluna "Nome do recurso".',
+      nivel: 'aviso'
+    })
   }
 
   rows.sort((a, b) => compareCodigo(a.data.codigo, b.data.codigo))
