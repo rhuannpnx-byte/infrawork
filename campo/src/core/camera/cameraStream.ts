@@ -20,11 +20,13 @@ export async function openRearCamera(): Promise<CameraStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error('mediaDevices.getUserMedia indisponível')
   }
+  // 4:3, a proporção do sensor: pedir 16:9 (1920×1080) fazia o navegador cortar o quadro, e a foto em retrato
+  // saía 1080×1920, sem as laterais. Em retrato o celular entrega 1440×1920.
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: { ideal: 'environment' },
       width: { ideal: 1920 },
-      height: { ideal: 1080 },
+      height: { ideal: 1440 },
     },
     audio: false,
   })
