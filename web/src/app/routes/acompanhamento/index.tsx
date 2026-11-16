@@ -35,7 +35,7 @@ import {
 import { useMapaPrefsStore } from '@/features/acompanhamento/stores/mapa-prefs'
 import { agruparSequencias, producaoSemFoto } from '@/features/acompanhamento/lib/sequencia-ataque'
 import { CurvaSAcompanhamento } from '@/features/acompanhamento/components/dashboard/CurvaSAcompanhamento'
-import { TopServicosBar } from '@/features/acompanhamento/components/dashboard/TopServicosBar'
+import { PrevistoRealizadoServicos } from '@/features/acompanhamento/components/dashboard/PrevistoRealizadoServicos'
 import { RankingProdutividade } from '@/features/acompanhamento/components/dashboard/RankingProdutividade'
 import { MapaFotosDashboard } from '@/features/acompanhamento/components/dashboard/MapaFotosDashboard'
 import { FrentesAtivasLista } from '@/features/acompanhamento/components/dashboard/FrentesAtivasLista'
@@ -328,7 +328,7 @@ function DashboardAcompanhamento(): ReactNode {
 
           {semResumo ? null : (
             <Grupo titulo="Serviços">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {comResumo(
                   220,
                   <PrevistoRealizadoPainel
@@ -353,17 +353,18 @@ function DashboardAcompanhamento(): ReactNode {
                     altura={220}
                   />
                 )}
-                {comResumo(
-                  220,
-                  <TopServicosBar
-                    itens={resumo?.previsto_realizado ?? []}
-                    limit={6}
-                    selectedId={servicoItemId}
-                    onPick={setServicoItem}
-                    altura={220}
-                  />
-                )}
               </div>
+              {comResumo(
+                320,
+                <PrevistoRealizadoServicos
+                  itens={resumo?.previsto_realizado ?? []}
+                  curvaS={resumo?.curva_s ?? []}
+                  dataAte={janela.ate}
+                  selectedId={servicoItemId}
+                  onPick={setServicoItem}
+                  altura={320}
+                />
+              )}
             </Grupo>
           )}
 

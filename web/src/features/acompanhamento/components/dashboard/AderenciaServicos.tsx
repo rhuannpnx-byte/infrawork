@@ -3,6 +3,7 @@ import type { CurvaSPonto, PrevistoRealizadoItem } from '@/types/acompanhamento'
 import { STATUS_COMP_COR } from '@/types/acompanhamento'
 import { corAderenciaSobreAcumulado } from '@/lib/colors/aderencia'
 import { formatNumber } from '@/lib/format'
+import { acumuladoAte } from '@/features/acompanhamento/lib/acumulado-ate'
 
 interface Props {
   itens: PrevistoRealizadoItem[]
@@ -24,30 +25,7 @@ export function AderenciaServicos({
   altura = 200
 }: Props): ReactNode {
   const linhas = useMemo(() => {
-    // Para cada item, pega o último ponto da curva-S com data <= dataAte → plan_acum_periodo & real_acum_periodo
-    const ultimoAteFim = new Map<string, { plan: number; real: number }>()
-    const arrPorItem = new Map<string, CurvaSPonto[]>()
-    for (const p of curvaS) {
-      const k = p.item_orcamentario_id ?? ''
-      if (!k) continue
-      const arr = arrPorItem.get(k) ?? []
-      arr.push(p)
-      arrPorItem.set(k, arr)
-    }
-    for (const [k, arr] of arrPorItem.entries()) {
-      arr.sort((a, b) => a.data.localeCompare(b.data))
-      let last: CurvaSPonto | null = null
-      for (const p of arr) {
-        if (p.data <= dataAte) last = p
-        else break
-      }
-      if (last) {
-        ultimoAteFim.set(k, {
-          plan: Number(last.planejado_acumulado ?? 0),
-          real: Number(last.realizado_acumulado ?? 0)
-        })
-      }
-    }
+    const ultimoAteFim = acumuladoAte(curvaS, dataAte)
 
     return (itens ?? [])
       .filter((i) => i.qtd_plan && i.qtd_plan > 0)
