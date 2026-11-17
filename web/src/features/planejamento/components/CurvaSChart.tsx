@@ -13,6 +13,7 @@ import type { CurvaSBucket } from '../hooks/cronograma'
 import { fmtBRL } from '@/lib/money'
 import { fmtDataMonoBR } from '../lib/dates'
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState'
+import { tooltipProps } from '@/components/charts/theme'
 
 interface Props {
   planejada: CurvaSBucket[]
@@ -107,11 +108,7 @@ export function CurvaSChart({
             width={60}
           />
           <Tooltip
-            contentStyle={{
-              background: 'var(--bg-panel)',
-              border: '1px solid var(--border)',
-              fontSize: 11
-            }}
+            {...tooltipProps}
             labelFormatter={(v) => fmtDataMonoBR(v as string)}
             formatter={(value, name) => {
               const num = typeof value === 'number' ? value : Number(value)

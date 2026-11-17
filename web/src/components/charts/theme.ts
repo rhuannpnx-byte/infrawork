@@ -30,6 +30,16 @@ export const tooltipStyle = {
   padding: '6px 8px'
 }
 
+/**
+ * Props do `<Tooltip>` padrão. Sem `itemStyle`, o Recharts pinta o valor com a cor da série ou, quando a cor vem de
+ * `<Cell>`, de preto: some no tema escuro.
+ */
+export const tooltipProps = {
+  contentStyle: tooltipStyle,
+  itemStyle: { color: CHART_THEME.tooltipText },
+  labelStyle: { color: CHART_THEME.tooltipText, marginBottom: 2 }
+}
+
 export const axisStyle = {
   fontSize: 11,
   fontFamily: '"Archivo Variable", Archivo, system-ui, sans-serif',

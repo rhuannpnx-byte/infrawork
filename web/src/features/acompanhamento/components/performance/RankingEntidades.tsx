@@ -11,7 +11,7 @@ import {
   ReferenceLine,
   ResponsiveContainer
 } from 'recharts'
-import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
+import { CHART_THEME, axisStyle, tooltipProps } from '@/components/charts/theme'
 import { Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { COR, type EntidadeSerie } from '../../lib/performance-calc'
@@ -77,7 +77,7 @@ export function RankingEntidades({
             interval={0}
           />
           <Tooltip
-            contentStyle={tooltipStyle}
+            {...tooltipProps}
             cursor={{ fill: 'var(--bg-hover)' }}
             formatter={(v) => [
               `${formatNumber(Number(v), dec)} ${un}${ehMedia ? '/dia' : ''}`,

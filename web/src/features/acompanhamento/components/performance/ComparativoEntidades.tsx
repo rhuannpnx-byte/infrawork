@@ -9,7 +9,7 @@ import {
   ReferenceLine,
   ResponsiveContainer
 } from 'recharts'
-import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
+import { CHART_THEME, axisStyle, tooltipProps } from '@/components/charts/theme'
 import { Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -106,7 +106,7 @@ export function ComparativoEntidades({
               tickFormatter={(v: number) => formatNumber(v, 0)}
             />
             <Tooltip
-              contentStyle={tooltipStyle}
+              {...tooltipProps}
               labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('pt-BR')}
               formatter={(v, key) => {
                 const s = topSeries.find((x) => x.key === String(key))

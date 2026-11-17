@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts'
-import { CHART_THEME, axisStyle, tooltipStyle } from '@/components/charts/theme'
+import { CHART_THEME, axisStyle, tooltipProps } from '@/components/charts/theme'
 import { Vazio } from '@/components/ui/estado'
 import { formatNumber } from '@/lib/format'
 import { regressaoLinear } from '../../lib/estatistica'
@@ -90,7 +90,7 @@ export function ProdutividadeDiariaChart({
             tickFormatter={(v: number) => formatNumber(v, 0)}
           />
           <Tooltip
-            contentStyle={tooltipStyle}
+            {...tooltipProps}
             labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('pt-BR')}
             formatter={(v, n) => [`${formatNumber(Number(v), 1)} ${un}`, n]}
           />
