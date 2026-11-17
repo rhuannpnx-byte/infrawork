@@ -91,6 +91,10 @@ export interface CenaRef {
   focar: (peca: number) => void
   camera: () => CameraSalva | null
   irParaCamera: (c: CameraSalva) => void
+  /** Enquadra a obra na estaca `s`, de cima e por trás, sem animação (a câmera da simulação). */
+  enquadrar: (eixo: number, s: number) => void
+  /** Desenha a cena agora e devolve a tela, para quem grava o vídeo. */
+  quadro: () => HTMLCanvasElement | null
 }
 
 interface Props {
@@ -325,6 +329,20 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
         orientation: { heading: v.rumo, pitch: v.inclinacao, roll: 0 },
         duration: 0.8
       })
+    },
+    enquadrar: (ie, s) => {
+      const w = palco.current?.w
+      const q = noEixo(ie, s)
+      if (!w || !q) return
+      w.camera.lookAt(q.p, new HeadingPitchRange(q.rumo, CesiumMath.toRadians(-26), 320))
+      w.camera.lookAtTransform(Matrix4.IDENTITY)
+      w.scene.requestRender()
+    },
+    quadro: () => {
+      const w = palco.current?.w
+      if (!w) return null
+      w.scene.render()
+      return w.scene.canvas
     }
   }))
 

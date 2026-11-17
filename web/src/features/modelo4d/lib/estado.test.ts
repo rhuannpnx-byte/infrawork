@@ -336,3 +336,27 @@ describe('conversor do HTML', () => {
     expect('erros' in r && r.erros[0]).toContain('bloco "data"')
   })
 })
+
+describe('frente de serviço', () => {
+  it('acompanha onde o serviço está em execução na data', () => {
+    const e = new Estado4D(
+      prepararModelo(modelo()),
+      [wp('aterro', 0, 200, 0, 10, 1000)],
+      [],
+      vinculos
+    )
+    e.calcular(d(-1))
+    expect(e.frente('prev')).toBeNull()
+    e.calcular(d(2.5))
+    const cedo = e.frente('prev')!
+    e.calcular(d(7.5))
+    const tarde = e.frente('prev')!
+    expect(cedo.eixo).toBe(0)
+    expect(cedo.s).toBeGreaterThan(20)
+    expect(cedo.s).toBeLessThan(80)
+    expect(tarde.s).toBeGreaterThan(120)
+    expect(tarde.s).toBeLessThan(180)
+    // nada lançado: não há frente no realizado
+    expect(e.frente('real')).toBeNull()
+  })
+})

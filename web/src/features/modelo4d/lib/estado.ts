@@ -367,6 +367,28 @@ export class Estado4D {
     })
   }
 
+  /**
+   * Onde está a frente de serviço no instante já calculado (`calcular`): o trecho de 500 m com mais peças em
+   * execução, isto é, começadas e não concluídas. `null` quando nada está em execução.
+   */
+  frente(qual: 'prev' | 'real'): { eixo: number; s: number } | null {
+    const grau = qual === 'prev' ? this.prev : this.real
+    const pecas = this.modelo.pecas
+    const caixas = new Map<number, { n: number; soma: number; eixo: number }>()
+    for (let i = 0; i < pecas.length; i++) {
+      if (!this.vinculada[i] || !(grau[i] > 0.001 && grau[i] < 0.999)) continue
+      const meio = (pecas[i].s0 + pecas[i].s1) / 2
+      const k = pecas[i].eixo * 1e6 + Math.floor(meio / 500)
+      const c = caixas.get(k) ?? { n: 0, soma: 0, eixo: pecas[i].eixo }
+      c.n++
+      c.soma += meio
+      caixas.set(k, c)
+    }
+    let melhor: { n: number; soma: number; eixo: number } | null = null
+    for (const c of caixas.values()) if (!melhor || c.n > melhor.n) melhor = c
+    return melhor ? { eixo: melhor.eixo, s: melhor.soma / melhor.n } : null
+  }
+
   /** Previsto e realizado de cada serviço vinculado no instante `t`, em quantidade (inclui o que não tem estaca). */
   resumo(t: number): ResumoServico[] {
     const itens = new Map<string, ResumoServico>()

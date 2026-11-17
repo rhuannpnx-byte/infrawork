@@ -155,7 +155,10 @@ Regras que valem para todos:
   as setas, arrastando para olhar, com velocidade, Gravidade, Colisão e Terceira pessoa numa barra sobre a cena; o
   chão é a obra onde ela já existe na data e o terreno fora dela (`lib/superficie.ts`). Duplo clique numa peça (ou
   "Aproximar" na ficha) centra e aproxima. "Vistas" guarda a câmera com a data, o modo, o que está oculto e a
-  exibição; ficam no navegador de quem salvou.
+  exibição; ficam no navegador de quem salvou. "Simulação" define como a linha do tempo toca: a duração (o plano
+  inteiro, ou só o período destacado), a câmera (parada, sobrevoando a pista ou acompanhando a frente de serviço)
+  e a data, a semana e o avanço em valor escritos na cena; e grava o vídeo da simulação (720p ou 1080p), que o
+  navegador baixa em MP4 ou WebM.
 
 ## Verificação
 

@@ -40,6 +40,9 @@ import { useBaseline } from '@/features/planejamento/hooks/planejamentos'
 import { gravarExibicao, lerExibicao, type Exibicao } from './aparencia'
 import { ANDAR_PADRAO, type OpcoesAndar } from './caminhada'
 import { ExibicaoPopover } from './ExibicaoPopover'
+import { baixar, formatoDeVideo, gravarSimulacao } from './gravacao'
+import { SIMULACAO_PADRAO, type OpcoesSimulacao } from './simulacao'
+import { SimulacaoPopover } from './SimulacaoPopover'
 import { gravarVistas, lerVistas, type Vista } from './vistas'
 import { VistasPopover } from './VistasPopover'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
@@ -131,7 +134,10 @@ export function Pagina4D({
   const [estaca, setEstaca] = useState('')
   const [erroEstaca, setErroEstaca] = useState<string | null>(null)
   const [tocando, setTocando] = useState(false)
-  const [velocidade, setVelocidade] = useState(30)
+  const [sim, setSim] = useState<OpcoesSimulacao>(SIMULACAO_PADRAO)
+  const [gravando, setGravando] = useState<number | null>(null)
+  const cancelarVideo = useRef<AbortController | null>(null)
+  const alvoCamera = useRef<number | null>(null)
   const [hoje] = useState(() => fimDoDia(Date.now()))
   const [t, setT] = useState(hoje)
   const cena = useRef<CenaRef>(null)
@@ -187,26 +193,6 @@ export function Pagina4D({
     return [d.getTime(), fimDoDia(b)]
   }, [estado, lancamentos, hoje])
 
-  // a simulação anda `velocidade` dias de obra por segundo e para no fim
-  useEffect(() => {
-    if (!tocando) return
-    let antes = performance.now()
-    const id = window.setInterval(() => {
-      const agora = performance.now()
-      const passo = ((agora - antes) / 1000) * velocidade * DIA
-      antes = agora
-      setT((x) => {
-        const n = x + passo
-        if (n >= fim) {
-          setTocando(false)
-          return fim
-        }
-        return n
-      })
-    }, 50)
-    return () => window.clearInterval(id)
-  }, [tocando, velocidade, fim])
-
   const instante = fimDoDia(Math.max(inicio, Math.min(fim, t)))
 
   const idModelo = registro?.id
@@ -245,6 +231,110 @@ export function Pagina4D({
         : null,
     [de, ate]
   )
+
+  // a simulação toca o plano inteiro, ou só o período destacado, na duração escolhida, e para no fim
+  const [simInicio, simFim] = periodo ?? [inicio, fim]
+  useEffect(() => {
+    if (!tocando) return
+    let antes = performance.now()
+    const id = window.setInterval(() => {
+      const agora = performance.now()
+      const passo = ((agora - antes) / 1000 / sim.duracao) * (simFim - simInicio)
+      antes = agora
+      setT((x) => {
+        const n = Math.max(simInicio, x) + passo
+        if (n >= simFim) {
+          setTocando(false)
+          return simFim
+        }
+        return n
+      })
+    }, 50)
+    return () => window.clearInterval(id)
+  }, [tocando, sim.duracao, simInicio, simFim])
+
+  // câmera da simulação: sobrevoa a pista no ritmo do tempo ou acompanha a frente de serviço
+  useEffect(() => {
+    const eixo = pronto.data?.eixos[0]
+    if ((!tocando && gravando == null) || sim.camera === 'parada' || !eixo) return
+    let destino: number | null = null
+    if (sim.camera === 'pista') {
+      const f = Math.max(0, Math.min(1, (instante - simInicio) / (simFim - simInicio || 1)))
+      destino = eixo.sMin + (eixo.sMax - eixo.sMin) * f
+      alvoCamera.current = destino
+    } else if (estado) {
+      estado.calcular(instante)
+      const frente = estado.frente(modo === 'realizado' ? 'real' : 'prev')
+      if (frente && frente.eixo === 0) destino = frente.s
+      // a frente salta de um serviço para outro: a câmera vai atrás aos poucos
+      if (destino != null)
+        alvoCamera.current =
+          alvoCamera.current == null
+            ? destino
+            : alvoCamera.current + (destino - alvoCamera.current) * 0.12
+    }
+    if (alvoCamera.current != null) cena.current?.enquadrar(0, alvoCamera.current)
+  }, [tocando, gravando, sim.camera, instante, simInicio, simFim, pronto.data, estado, modo])
+
+  /** Data, semana da obra e avanço em valor (previsto e realizado) no instante `x`. */
+  const linhasDoTexto = (x: number): string[] => {
+    const dia = toLocalISO(new Date(x))
+    const total = Math.max(0, ...curva.pontos.map((p) => p.previsto ?? 0))
+    const ate = curva.pontos.filter((p) => p.data <= dia)
+    const ultimo = (campo: 'previsto' | 'realizado'): number | null => {
+      for (let i = ate.length - 1; i >= 0; i--) if (ate[i][campo] != null) return ate[i][campo]
+      return null
+    }
+    const pct = (v: number | null): string =>
+      v == null || total <= 0 ? 'sem dado' : `${formatNumber((v / total) * 100, 1)}%`
+    const linhas = [
+      dataBR(dia),
+      `Semana ${Math.max(1, Math.floor((x - inicio) / (7 * DIA)) + 1)} da obra`
+    ]
+    if (total > 0)
+      linhas.push(`Previsto ${pct(ultimo('previsto'))} · Realizado ${pct(ultimo('realizado'))}`)
+    return linhas
+  }
+
+  const semGravacao = formatoDeVideo() ? null : 'Este navegador não grava vídeo.'
+  const gravarVideo = async (altura: 720 | 1080): Promise<void> => {
+    const formato = formatoDeVideo()
+    if (!formato || gravando != null) return
+    const controle = new AbortController()
+    cancelarVideo.current = controle
+    setTocando(false)
+    setGravando(0)
+    alvoCamera.current = null
+    const proximoQuadro = (): Promise<void> =>
+      new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => ok())))
+    try {
+      const video = await gravarSimulacao({
+        largura: Math.round((altura * 16) / 9),
+        altura,
+        duracao: sim.duracao,
+        inicio: simInicio,
+        fim: simFim,
+        quadro: async (x) => {
+          setT(x)
+          // dois quadros do navegador: o primeiro leva a data à cena, o segundo já a encontra pintada
+          await proximoQuadro()
+          return cena.current?.quadro() ?? null
+        },
+        texto: (x) => (sim.texto ? linhasDoTexto(x) : []),
+        aoAvancar: setGravando,
+        sinal: controle.signal
+      })
+      if (video) {
+        baixar(video, `simulacao-${toLocalISO(new Date())}.${formato.extensao}`)
+        toast.success('Vídeo da simulação gravado.')
+      }
+    } catch (e) {
+      toast.error(`O vídeo não foi gravado: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setGravando(null)
+      cancelarVideo.current = null
+    }
+  }
 
   const resumo = useMemo(() => {
     const m = new Map<string, { previsto: number; realizado: number; total: number }>()
@@ -553,6 +643,14 @@ export function Pagina4D({
           Percorrer a pista
         </Button>
         <ExibicaoPopover valor={exibicao} aoMudar={mudarExibicao} />
+        <SimulacaoPopover
+          valor={sim}
+          aoMudar={setSim}
+          gravando={gravando}
+          semGravacao={semGravacao}
+          aoGravar={(altura) => void gravarVideo(altura)}
+          aoCancelar={() => cancelarVideo.current?.abort()}
+        />
         {registro ? (
           <VistasPopover
             vistas={vistas}
@@ -740,6 +838,18 @@ export function Pagina4D({
                 rotulo={`Modelo 3D da obra em ${dataBR(toLocalISO(new Date(instante)))}`}
               />
               <Legenda modo={modo} comEstado={!!estado} />
+              {sim.texto && (tocando || gravando != null) ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-14 left-3 rounded bg-[color:var(--sobre-foto)] px-2.5 py-1.5 text-sm text-[color:var(--na-foto)]"
+                >
+                  {linhasDoTexto(instante).map((l, i) => (
+                    <p key={l} className={i === 0 ? 'font-semibold' : undefined}>
+                      {l}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
               {passeio != null ? (
                 <div className="absolute bottom-12 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded border border-border bg-bg-panel px-2 py-1.5 shadow-[var(--sombra-flutuante)]">
                   <IconButton aria-label="Recuar 20 metros" onClick={() => andar(-20)}>
@@ -869,11 +979,10 @@ export function Pagina4D({
         }}
         tocando={tocando}
         aoAlternar={() => {
-          if (!tocando && instante >= fim) setT(inicio)
+          if (!tocando && (instante >= simFim || instante < simInicio)) setT(simInicio)
+          if (!tocando) alvoCamera.current = null
           setTocando((v) => !v)
         }}
-        velocidade={velocidade}
-        aoVelocidade={setVelocidade}
         curva={curva.pontos}
       />
       {dialogos}

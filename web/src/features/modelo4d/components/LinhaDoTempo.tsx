@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from 'react'
 import { Pause, Play, SkipBack } from 'lucide-react'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
 import type { PontoCurvaS } from '@/components/charts/CurvaS'
 import { dataBR, toLocalISO } from '@/lib/format/local-date'
 
@@ -16,18 +15,9 @@ interface Props {
   aoMudar: (t: number) => void
   tocando: boolean
   aoAlternar: () => void
-  /** Dias de obra por segundo de simulação. */
-  velocidade: number
-  aoVelocidade: (v: number) => void
   /** Curva S em valor, desenhada por trás do cursor. */
   curva: PontoCurvaS[]
 }
-
-const VELOCIDADES: [number, string][] = [
-  [7, '1 semana por segundo'],
-  [30, '1 mês por segundo'],
-  [90, '3 meses por segundo']
-]
 
 const iso = (t: number): string => toLocalISO(new Date(t))
 
@@ -40,8 +30,6 @@ export function LinhaDoTempo({
   aoMudar,
   tocando,
   aoAlternar,
-  velocidade,
-  aoVelocidade,
   curva
 }: Props): ReactNode {
   const dias = Math.max(1, Math.round((fim - inicio) / DIA))
@@ -141,20 +129,6 @@ export function LinhaDoTempo({
         >
           Hoje
         </Button>
-        <div className="w-44">
-          <Select
-            aria-label="Velocidade da simulação"
-            value={String(velocidade)}
-            onChange={(e) => aoVelocidade(Number(e.target.value))}
-            className="h-7 text-xs"
-          >
-            {VELOCIDADES.map(([v, r]) => (
-              <option key={v} value={v}>
-                {r}
-              </option>
-            ))}
-          </Select>
-        </div>
       </div>
     </div>
   )
