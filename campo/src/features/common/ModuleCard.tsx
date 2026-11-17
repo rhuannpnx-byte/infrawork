@@ -36,17 +36,17 @@ export function ModuleCard({
       className={cn(
         'group w-full rounded-md text-left',
         'border border-border bg-bg-panel',
-        'flex min-h-[80px] items-stretch',
+        'flex min-h-[64px] items-stretch',
         'transition-colors duration-150 ease-out',
         enabled ? 'hover:border-accent active:bg-bg-elevated' : 'cursor-not-allowed opacity-50',
       )}
     >
-      <div className="flex items-center px-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-md border border-accent-line bg-accent-glow text-accent">
+      <div className="flex items-center px-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-accent-line bg-accent-glow text-accent">
           {icon}
         </div>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center py-3 pr-3">
+      <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pr-2">
         <div className="flex items-center gap-2">
           <h2 className="truncate text-base font-semibold text-on-surface">{title}</h2>
           {badge > 0 && (
@@ -66,7 +66,7 @@ export function ModuleCard({
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-on-surface-dim">{subtitle}</p>
+        <p className="mt-0.5 truncate text-xs text-on-surface-dim">{subtitle}</p>
       </div>
       <div className="flex items-center pr-4 text-on-surface-muted">
         <ChevronRight className="h-5 w-5" />

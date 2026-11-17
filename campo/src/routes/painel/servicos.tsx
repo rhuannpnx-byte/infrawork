@@ -109,7 +109,7 @@ function Servicos({ p }: { p: CatPainel }) {
               <li key={s.id}>
                 <Link
                   to={`/painel/servicos/${s.id}`}
-                  className="block rounded-md border border-border bg-bg-panel p-3 active:bg-bg-elevated"
+                  className="block rounded-md border border-border bg-bg-panel px-3 py-2.5 active:bg-bg-elevated"
                 >
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
@@ -117,9 +117,14 @@ function Servicos({ p }: { p: CatPainel }) {
                         <span className="tabular text-on-surface-dim">{s.codigo}</span>{' '}
                         {s.descricao}
                       </p>
-                      <p className="mt-0.5 text-xs">
-                        <span className={TOM_TEXTO[st.tom]}>{st.label}</span>
-                        {dv && <span className={TOM_TEXTO[dv.tom]}> · {dv.texto}</span>}
+                      <p className="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
+                        <span className="truncate">
+                          <span className={TOM_TEXTO[st.tom]}>{st.label}</span>
+                          {dv && <span className={TOM_TEXTO[dv.tom]}> · {dv.texto}</span>}
+                        </span>
+                        <span className="tabular flex-shrink-0 text-on-surface">
+                          {moeda(s.valor_executado)}
+                        </span>
                       </p>
                     </div>
                     <ChevronRight className="mt-0.5 h-5 w-5 flex-shrink-0 text-on-surface-muted" />
@@ -128,18 +133,17 @@ function Servicos({ p }: { p: CatPainel }) {
                     real={s.pct_avanco}
                     esperado={s.pct_esperado}
                     tom={st.tom}
-                    className="mt-2.5"
+                    className="mt-2"
                   />
                   <div className="tabular mt-1.5 flex items-baseline justify-between gap-2 whitespace-nowrap text-xs text-on-surface-dim">
                     <span>
                       <span className="text-on-surface">{pct(s.pct_avanco)}</span>
                       {s.pct_esperado != null && ` · esp. ${pct(s.pct_esperado)}`}
                     </span>
-                    <span className="text-on-surface">{moeda(s.valor_executado)}</span>
+                    <span className="truncate">
+                      {qtd(s.qtd_real)} de {qtd(s.qtd_plan, s.unidade)}
+                    </span>
                   </div>
-                  <p className="tabular mt-0.5 truncate text-2xs text-on-surface-muted">
-                    {qtd(s.qtd_real)} de {qtd(s.qtd_plan, s.unidade)}
-                  </p>
                 </Link>
               </li>
             )

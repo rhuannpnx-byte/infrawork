@@ -116,7 +116,7 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
     )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="space-y-3">
         <PickerField
           label="Serviço"

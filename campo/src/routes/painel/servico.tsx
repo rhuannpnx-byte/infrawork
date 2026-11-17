@@ -44,7 +44,7 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
     .filter((x) => x.sv && Number(x.sv.d30 ?? 0) > 0)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <p className="text-sm text-on-surface-dim tabular">{s.codigo}</p>
         <h2 className="text-base font-semibold text-on-surface">{s.descricao}</h2>

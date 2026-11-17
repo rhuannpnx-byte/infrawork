@@ -27,7 +27,7 @@ function Equipes({ p }: { p: CatPainel }) {
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         className="grid grid-cols-2 rounded-md border border-border-strong bg-bg-panel p-0.5"
         role="tablist"

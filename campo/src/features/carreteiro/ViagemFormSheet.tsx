@@ -217,7 +217,7 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
           e.preventDefault()
           salvar()
         }}
-        className="folha-flutuante flex max-h-[90vh] w-full flex-col rounded-t-2xl focus-visible:ring-0 sm:max-w-md sm:rounded-lg"
+        className="folha-flutuante flex max-h-[90dvh] w-full flex-col rounded-t-2xl focus-visible:ring-0 sm:max-w-md sm:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-center pb-1 pt-3 sm:hidden">

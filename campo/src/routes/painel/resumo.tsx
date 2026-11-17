@@ -41,7 +41,7 @@ function Resumo({ p }: { p: CatPainel }) {
   const semHoje = semLancamentoHoje(p.equipes ?? [])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {!p.referencia ? (
         <Aviso>
           Sem linha de base vigente: o previsto e o esperado ficam vazios. A produção aparece
@@ -57,7 +57,7 @@ function Resumo({ p }: { p: CatPainel }) {
         <div className="flex items-end justify-between gap-3">
           <div>
             <p
-              className={cn('tabular text-4xl font-medium', TOM_TEXTO[tomFisico])}
+              className={cn('tabular text-3xl font-medium', TOM_TEXTO[tomFisico])}
               data-testid="painel-avanco"
             >
               {pct(r.avanco)}

@@ -108,7 +108,7 @@ export function HomeRoute() {
         )}
       </header>
 
-      <div className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 pb-5 pt-5">
+      <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 px-4 pb-4 pt-3">
         <ObraAtualCard
           codigo={obraAtual?.codigo}
           nome={obraAtual?.nome}
@@ -158,17 +158,17 @@ export function HomeRoute() {
         {temObra && (
           <p className="px-1 text-xs text-on-surface-dim">
             {catalogo
-              ? `Pronto para trabalhar sem sinal · dados da obra de ${new Date(catalogo.fetchedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+              ? `Funciona sem sinal · dados de ${new Date(catalogo.fetchedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
               : 'Baixando os dados da obra… conecte-se à internet ao menos uma vez.'}
           </p>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {podeVerPainel(session?.role) && (
             <ModuleCard
               icon={<LineChart className="h-5 w-5" strokeWidth={1.8} />}
               title="Visão estratégica"
-              subtitle="Avanço, serviços e equipes da obra"
+              subtitle="Avanço, serviços e equipes"
               badge={0}
               enabled={temObra}
               motivo={motivo}
@@ -179,7 +179,7 @@ export function HomeRoute() {
           <ModuleCard
             icon={<HardHat className="h-5 w-5" strokeWidth={1.8} />}
             title="Produção"
-            subtitle="Lançamento dos serviços executados no dia"
+            subtitle="Serviços executados no dia"
             badge={outbox?.producao ?? 0}
             recusados={outbox?.recusadosProducao ?? 0}
             enabled={pronto}
@@ -192,7 +192,7 @@ export function HomeRoute() {
             subtitle={
               pronto && nViagens === 0
                 ? 'Nenhum serviço da obra é lançado por viagens'
-                : 'Ficha do caminhão com as viagens de carga e descarga'
+                : 'Ficha do caminhão e as viagens'
             }
             badge={outbox?.fichas ?? 0}
             recusados={outbox?.recusadosFichas ?? 0}
@@ -203,7 +203,7 @@ export function HomeRoute() {
           <ModuleCard
             icon={<Camera className="h-5 w-5" strokeWidth={1.8} />}
             title="Fotos"
-            subtitle="Captura georreferenciada com marca d'água"
+            subtitle="Com local e marca d'água"
             badge={outbox?.fotos ?? 0}
             enabled={pronto}
             motivo={motivo}
@@ -211,7 +211,7 @@ export function HomeRoute() {
           />
         </div>
 
-        <SeletorTema className="pt-2" />
+        <SeletorTema className="pt-1" />
       </div>
 
       <footer className="sticky bottom-0 border-t border-border bg-bg-panel pb-safe pl-safe pr-safe">
@@ -282,7 +282,7 @@ function ObraAtualCard({
         'hover:border-accent active:border-accent',
       )}
     >
-      <div className="flex items-center gap-4 px-4 py-4">
+      <div className="flex items-center gap-4 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="rotulo">Obra atual</p>
           <p

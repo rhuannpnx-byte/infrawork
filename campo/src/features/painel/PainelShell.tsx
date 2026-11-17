@@ -80,8 +80,25 @@ export function PainelShell({
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-on-surface">{titulo}</h1>
-            <p className="truncate text-xs text-on-surface-dim">
-              {obra?.codigo ?? painel?.obra.codigo ?? '—'} · Visão estratégica
+            <p
+              className={cn(
+                'flex items-center gap-1.5 truncate text-xs',
+                idade?.antigo ? 'text-warn' : 'text-on-surface-dim',
+              )}
+              data-testid="painel-idade"
+            >
+              {idade && (
+                <span
+                  className={cn(
+                    'h-2 w-2 flex-shrink-0 rounded-full',
+                    idade.antigo ? 'bg-warn' : 'bg-ok',
+                  )}
+                />
+              )}
+              <span className="truncate">
+                {obra?.codigo ?? painel?.obra.codigo ?? '—'}
+                {idade ? ` · dados de ${idade.texto}` : ' · Visão estratégica'}
+              </span>
             </p>
           </div>
           <Button
@@ -94,26 +111,12 @@ export function PainelShell({
             <RefreshCw className={cn('h-5 w-5', atualizando && 'animate-spin')} />
           </Button>
         </div>
-        {idade && (
-          <div
-            className={cn(
-              'flex items-center gap-2 px-4 pb-2 text-xs',
-              idade.antigo ? 'text-warn' : 'text-on-surface-muted',
-            )}
-            data-testid="painel-idade"
-          >
-            <span
-              className={cn(
-                'h-2 w-2 flex-shrink-0 rounded-full',
-                idade.antigo ? 'bg-warn' : 'bg-ok',
-              )}
-            />
-            <span>
-              Dados de {idade.texto}
-              {idade.antigo && ' (mais de 24 h). Conecte-se e toque em atualizar.'}
-              {!idade.antigo && erro?.offline && ' · sem conexão, mostrando o último retrato'}
-            </span>
-          </div>
+        {idade && (idade.antigo || erro?.offline) && (
+          <p className={cn('px-4 pb-2 text-xs', idade.antigo ? 'text-warn' : 'text-on-surface-muted')}>
+            {idade.antigo
+              ? 'Dados com mais de 24 h. Conecte-se e toque em atualizar.'
+              : 'Sem conexão: mostrando o último retrato.'}
+          </p>
         )}
         {erro && !erro.offline && (
           <div role="alert" className="px-4 pb-2 text-xs text-bad">
@@ -122,7 +125,7 @@ export function PainelShell({
         )}
       </header>
 
-      <div className={cn('mx-auto w-full max-w-2xl flex-1 px-4 pt-4', semAbas ? 'pb-8' : 'pb-24')}>
+      <div className={cn('mx-auto w-full max-w-2xl flex-1 px-4 pt-3', semAbas ? 'pb-8' : 'pb-24')}>
         {painel === undefined ? null : painel === null ? (
           <SemRetrato atualizando={atualizando} erro={erro} onTentar={() => void atualizar(true)} />
         ) : (
@@ -211,8 +214,8 @@ export function Secao({
   className?: string
 }) {
   return (
-    <section className={cn('rounded-lg border border-border bg-bg-panel p-4', className)}>
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <section className={cn('rounded-lg border border-border bg-bg-panel p-3', className)}>
+      <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="rotulo">{titulo}</h2>
         {acao}
       </div>

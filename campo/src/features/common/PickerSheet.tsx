@@ -49,7 +49,7 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
   // Altura disponível para o sheet — encolhe quando teclado iOS sobe.
   // Sem isso, o sheet com items-end fica metade atrás do teclado e o item filtrado
   // some "lá embaixo" exigindo scroll bizarro.
-  const [maxH, setMaxH] = useState('85vh')
+  const [maxH, setMaxH] = useState('85dvh')
 
   // Limpa busca ao reabrir
   useEffect(() => {
@@ -73,7 +73,7 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
     const update = () => {
       // Deixa 10% folga acima do teclado pra usuário ver o que digita
       const pct = (vv.height / window.innerHeight) * 100
-      setMaxH(`${Math.min(85, pct - 5)}vh`)
+      setMaxH(`${Math.min(85, pct - 5)}dvh`)
     }
     update()
     vv.addEventListener('resize', update)
@@ -116,7 +116,7 @@ export function PickerSheet<T>(props: PickerSheetProps<T>) {
           // Mobile: altura FIXA grande pra item filtrado não "sumir" lá embaixo.
           // Desktop (sm+): adapta ao conteúdo.
           // (a altura vem por variável: no estilo direto ela venceria o `sm:h-auto` e o diálogo ficava alto e vazio)
-          'flex h-[var(--folha-altura,85vh)] flex-col sm:h-auto sm:max-h-[80vh]',
+          'flex h-[var(--folha-altura,85dvh)] flex-col sm:h-auto sm:max-h-[80dvh]',
           'rounded-t-2xl pb-safe sm:rounded-b-lg',
         )}
         style={{ '--folha-altura': maxH } as CSSProperties}
