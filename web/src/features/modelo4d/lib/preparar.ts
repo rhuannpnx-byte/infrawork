@@ -86,6 +86,7 @@ export function materialDaClasse(c: Classe4D): Material {
   if (c.contexto) return 'contexto'
   const t = sem(`${c.id} ${c.nome} ${c.disciplina}`)
   if (/sinaliza|placa|pintura de faixa/.test(t)) return 'sinal-branco'
+  if (/semead|grama|vegeta|hidrossem/.test(t)) return 'grama'
   if (/corte|escava/.test(t)) return 'corte'
   if (/aterro|terraplen|compacta/.test(t)) return 'aterro'
   if (/imprima|pintura de liga|betum/.test(t)) return 'betume'
@@ -247,7 +248,7 @@ function contornoDaPlaca(forma: string, larg: number, alt: number): [number, num
   ]
 }
 
-function cotaNoPerfil(perfil: [number, number][], o: number): number {
+export function cotaNoPerfil(perfil: [number, number][], o: number): number {
   if (o <= perfil[0][0]) return perfil[0][1]
   for (let k = 0; k < perfil.length - 1; k++) {
     const a = perfil[k]

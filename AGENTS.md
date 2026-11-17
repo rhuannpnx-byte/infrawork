@@ -75,6 +75,10 @@ O modelo 3D da obra segue o contrato `infrawork-4d` (`web/docs/MODELO-4D.md`). A
 - o contrato vive em três lugares que mudam juntos: os tipos e a validação (`web/src/features/modelo4d/lib/contrato.ts`),
   o texto entregue a quem gera o modelo (`contrato-texto.ts`, usado no prompt da tela e no MCP) e o `docs/MODELO-4D.md`
   (um teste cobra que o texto seja o mesmo);
+- o arquivo vem em geometria pronta (versão 1) ou em dados de projeto (versão 2: notas de serviço, cubação,
+  seção-tipo e quadros). A versão 2 é montada na versão 1 por `lib/projeto.ts`, com os projetos-tipo de
+  `lib/catalogo.ts` (dispositivo novo entra lá, pelo código do projeto); o que a montagem acha estranho sai em
+  `avisos`, que a importação e o MCP mostram. Geometria de rodovia melhora no motor, não em quem gera o arquivo;
 - as bibliotecas de `features/modelo4d/lib/` são TS puro, sem DOM: o web e o MCP (`modelo_da_obra`) usam as mesmas;
 - o vínculo é por classe (classe → serviço, eixo → local) e a estaca decide o estado; o previsto vem dos trechos de
   tarefa da linha de base (`planejamento_tarefa_wp`) e o realizado só dos lançamentos com estaca;

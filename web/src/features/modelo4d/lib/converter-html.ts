@@ -1,13 +1,5 @@
-import type {
-  Camada4D,
-  Classe4D,
-  Elemento4D,
-  FaixaCamada,
-  Material,
-  Modelo4D,
-  Pt,
-  Secao4D
-} from './contrato'
+import type { Camada4D, Classe4D, Elemento4D, FaixaCamada, Modelo4D, Pt, Secao4D } from './contrato'
+import { chapaDaPlaca } from './catalogo'
 import { EixoCalc } from './eixo'
 
 /**
@@ -116,35 +108,6 @@ function fusoDoHtml(html: string): string | undefined {
   // sem a conversão no código, vale o fuso escrito nos textos ("UTM 22S")
   const t = /UTM\s*(\d{1,2})\s*([NS])\b/.exec(html)
   return t ? `${t[1]}${t[2]}` : undefined
-}
-
-function placa(
-  codigo: string,
-  dim: string
-): {
-  forma: 'circulo' | 'losango' | 'octogono' | 'triangulo' | 'retangulo'
-  largura: number
-  altura?: number
-  material: Material
-} {
-  const medidas = [...dim.matchAll(/\d+(?:,\d+)?/g)].map((x) => numero(x[0]))
-  if (/^R-1$/.test(codigo)) return { forma: 'octogono', largura: 0.75, material: 'sinal-vermelho' }
-  if (/^R-2$/.test(codigo)) return { forma: 'triangulo', largura: 0.9, material: 'sinal-vermelho' }
-  if (/^R-/.test(codigo))
-    return {
-      forma: 'circulo',
-      largura: Math.max(0.6, (medidas[0] ?? 0.4) * 1.6),
-      material: 'sinal-vermelho'
-    }
-  if (/^A-/.test(codigo)) return { forma: 'losango', largura: 1.0, material: 'sinal-amarelo' }
-  if (/^M[QP]/.test(codigo))
-    return { forma: 'retangulo', largura: 0.5, altura: 0.7, material: 'sinal-azul' }
-  return {
-    forma: 'retangulo',
-    largura: Math.min(3.5, medidas[0] ?? 1.2),
-    altura: Math.min(1.5, medidas[1] ?? 0.6),
-    material: 'sinal-verde'
-  }
 }
 
 export function converterHtml(html: string): { modelo: Modelo4D } | { erros: string[] } {
@@ -555,7 +518,7 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
     const s = Number(g.s)
     const c = eixo.em(s)
     const direita = String(g.side ?? 'LD') !== 'LE'
-    const { material, ...chapa } = placa(String(g.code ?? ''), String(g.dim ?? ''))
+    const { material, ...chapa } = chapaDaPlaca(String(g.code ?? ''), String(g.dim ?? ''))
     el({
       classe: classe({
         id: 'SIN.VERTICAL',

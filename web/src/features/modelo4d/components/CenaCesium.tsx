@@ -87,6 +87,8 @@ const ESCOLHIDA = 32
 
 const CHEIO = 0.999
 const VAZIO = 0.001
+/** Quantas fatias (de 20 m) cabem num polígono de recorte do terreno. */
+const FATIAS_POR_RECORTE = 25
 
 const RELEVO_ABERTO = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium'
 const IMAGEM = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
@@ -606,7 +608,8 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       if (p.prims[ic] && !p.prims[ic]!.show) for (const i of m.pecas) p.codigo[i] = 255
     })
 
-    // recorte: trechos seguidos de fatias ativas viram um polígono cada
+    // recorte: trechos seguidos de fatias ativas viram um polígono cada. Polígono curto: a distância até a borda é
+    // calculada numa grade por polígono, e um de quilômetros perde a precisão (e custa caro)
     const trechos: number[][] = []
     for (let k = 0; k < fatias.length; k++) {
       if (!ativa[k]) continue
@@ -614,6 +617,7 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       const ant = ult ? fatias[ult[ult.length - 1]] : null
       if (
         ant &&
+        ult.length < FATIAS_POR_RECORTE &&
         ult[ult.length - 1] === k - 1 &&
         ant.eixo === fatias[k].eixo &&
         ant.s1 === fatias[k].s0

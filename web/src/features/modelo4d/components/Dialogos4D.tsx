@@ -49,6 +49,8 @@ interface Lido {
   modelo: Modelo4D
   origem: 'html' | 'iw4d'
   resumo: ResumoModelo
+  /** Conferência da montagem, quando o arquivo traz dados de projeto. */
+  avisos: string[]
 }
 
 export function ImportarModeloDialog({
@@ -92,7 +94,7 @@ export function ImportarModeloDialog({
         return
       }
       const resumo = resumirModelo(prepararModelo(r.modelo))
-      setLido({ modelo: r.modelo, origem: r.origem, resumo })
+      setLido({ modelo: r.modelo, origem: r.origem, resumo, avisos: r.avisos ?? [] })
       setNome(r.modelo.nome || arquivo.name.replace(/\.[^.]+$/, ''))
       setVinculos(sugerir(resumo, trechos, servicos))
     } catch (e) {
@@ -195,6 +197,19 @@ export function ImportarModeloDialog({
                 km{lido.resumo.terreno ? ' · com terreno' : ''}
               </p>
             </div>
+            {lido.avisos.length > 0 && (
+              <section
+                aria-label="Conferência do projeto"
+                className="rounded border border-border bg-bg-elevated px-3 py-2"
+              >
+                <h3 className="text-sm font-medium text-text">Conferência do projeto</h3>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-text-muted">
+                  {lido.avisos.map((a) => (
+                    <li key={a}>{a}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <VinculosForm
               resumo={lido.resumo}
               trechos={trechos}

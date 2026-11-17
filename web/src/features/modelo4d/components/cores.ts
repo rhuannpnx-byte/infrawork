@@ -34,6 +34,7 @@ export function coresDosMateriais(): Record<Material, Rgb> {
     concreto: cor('m4d-concreto'),
     metal: cor('m4d-metal'),
     madeira: cor('m4d-madeira'),
+    grama: cor('m4d-grama'),
     'sinal-branco': cor('m4d-sinal-branco'),
     'sinal-amarelo': cor('m4d-sinal-amarelo'),
     'sinal-vermelho': cor('m4d-sinal-vermelho'),

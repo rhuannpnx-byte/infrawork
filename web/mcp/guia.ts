@@ -62,7 +62,10 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   DMT, momento).
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.
 - **Acompanhamento 4D (beta)**: o modelo 3D (contrato infrawork-4d, ou o HTML da construção digital, que é
-  convertido) liga-se ao plano por classe, não elemento a elemento: cada classe aponta para um serviço e cada eixo
+  convertido) liga-se ao plano por classe, não elemento a elemento. Rodovia com nota de serviço vai em dados de
+  projeto (versão 2 do contrato: as tabelas do projeto como estão, e o sistema monta a geometria); **enviar**
+  devolve em \`conferencia\` o que a montagem achou estranho (seção em V, volumes das seções × cubação,
+  dispositivo fora do catálogo): repasse ao usuário. Cada classe aponta para um serviço e cada eixo
   do modelo para um local; a estaca de cada peça (fatias de até 20 m) decide quando ela é prevista (trechos de
   tarefa da LB, no ritmo do perfil semanal) e quando foi feita (lançamentos com estaca; grau = lançado sobre a
   peça ÷ previsto para ela). Atrasada = menos feito do que o plano previa para aquela estaca na data. Serviço

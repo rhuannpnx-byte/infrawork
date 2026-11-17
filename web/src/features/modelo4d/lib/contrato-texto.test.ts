@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CONTRATO_TEXTO } from './contrato-texto'
-import { validarModelo } from './contrato'
+import { lerModelo } from './arquivo'
 import type { ResumoModelo } from './preparar'
 import { sugerirVinculos } from './prompt'
 
@@ -12,11 +12,33 @@ describe('contrato do modelo 4D', () => {
     expect(doc.replace(/\r\n/g, '\n')).toContain(CONTRATO_TEXTO)
   })
 
-  it('o exemplo do contrato é um modelo válido', () => {
-    const json = /```json\n([\s\S]*?)\n```/.exec(CONTRATO_TEXTO)![1]
-    const exemplo = JSON.parse(json.replace(/"<[^"]*base64>"/g, '"AAAA"'))
-    const v = validarModelo(exemplo)
-    expect('erros' in v ? v.erros : []).toEqual([])
+  it('os exemplos do contrato (dados de projeto e geometria pronta) são modelos válidos', () => {
+    const exemplos = [...CONTRATO_TEXTO.matchAll(/```json\n([\s\S]*?)\n```/g)].map((m) =>
+      m[1].replace(/"<[^"]*base64>"/g, '"AAAA"')
+    )
+    expect(exemplos.map((t) => (JSON.parse(t) as { versao: number }).versao)).toEqual([2, 1])
+    for (const t of exemplos) {
+      const r = lerModelo(t)
+      expect('erros' in r ? r.erros : []).toEqual([])
+    }
+  })
+
+  it('o exemplo em dados de projeto vira seções, camadas e elementos', () => {
+    const r = lerModelo(/```json\n([\s\S]*?)\n```/.exec(CONTRATO_TEXTO)![1])
+    if ('erros' in r) throw new Error(r.erros.join(' '))
+    expect(r.modelo.secoes).toHaveLength(2)
+    expect(new Set(r.modelo.camadas!.map((c) => c.classe))).toEqual(
+      new Set([
+        'TERRA.ATERRO',
+        'OC.SEMEAD',
+        'PAV.CBUQ',
+        'PAV.IMPRIM',
+        'PAV.BASE',
+        'PAV.SUBBASE',
+        'SIN.HORIZ'
+      ])
+    )
+    expect(r.modelo.elementos.map((e) => e.geo.t).sort()).toEqual(['linha', 'linha', 'tubo'])
   })
 })
 

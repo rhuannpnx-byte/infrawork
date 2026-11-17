@@ -691,6 +691,51 @@ try {
     const x4 = await chamar('modelo_da_obra', { acao: 'excluir', id: env.id, confirmar: true })
     const vazio4 = await chamar('modelo_da_obra', { acao: 'listar', obra_id: O })
     check('modelo 4D: excluído', x4.excluido === env.id && vazio4.length === 0)
+
+    // dados de projeto (versão 2): só as tabelas; o sistema monta a geometria e devolve a conferência
+    const projeto = {
+      formato: 'infrawork-4d',
+      versao: 2,
+      nome: 'Projeto MCP',
+      origem: { e: 500000, n: 8000000, fuso: '22S' },
+      classes: [
+        { id: 'ESC', nome: 'Escavação', disciplina: 'Terraplenagem', servico: sEsc.codigo, terreno: true },
+        { id: 'ATE', nome: 'Aterro', disciplina: 'Terraplenagem', terreno: true },
+        { id: 'BASE', nome: 'Base', disciplina: 'Pavimentação', servico: sBase.codigo }
+      ],
+      projeto: {
+        secao_tipo: { pista: 3.5, acostamento: 2 },
+        pavimento: [{ classe: 'BASE', onde: 'tudo', espessura: 0.2 }],
+        terraplenagem: { corte: 'ESC', aterro: 'ATE' },
+        nota_servico: [
+          {
+            estacas: estacas.map((x) => ({
+              s: x, e: 500000 + x, n: 8000000, z: 100.2, zt: 100, zn: 101, ie: x === 100 ? 3 : -2, id: x === 100 ? 3 : -2,
+              esq: [[6.6, 99.9], [8.6, 101.9]], dir: [[6.6, 99.9], [8.6, 101.9]]
+            }))
+          }
+        ],
+        cubacao: [{ volumes: estacas.slice(1).map((x) => [x, 300, 0]) }],
+        drenagem: [{ tipo: 'STC 73-15', lado: 'D', s0: 0, s1: 500, classe: 'ESC' }]
+      }
+    }
+    const envP = await chamar('modelo_da_obra', {
+      acao: 'enviar',
+      obra_id: O,
+      arquivo_base64: Buffer.from(JSON.stringify(projeto)).toString('base64')
+    })
+    check(
+      'modelo 4D: dados de projeto montados, vinculados e com a conferência',
+      envP.importado === true &&
+        envP.classes.find((k) => k.classe === 'BASE')?.pecas === 25 &&
+        envP.classes.find((k) => k.classe === 'ESC')?.servico === sEsc.codigo &&
+        envP.conferencia?.some((a) => /seção em V/.test(a)) &&
+        envP.conferencia?.some((a) => /Volumes pelas seções/.test(a)),
+      JSON.stringify(envP.conferencia ?? envP.erros)
+    )
+    if (envP.id) await chamar('modelo_da_obra', { acao: 'excluir', id: envP.id, confirmar: true })
+    const vazioP = await chamar('modelo_da_obra', { acao: 'listar', obra_id: O })
+    check('modelo 4D: modelo de dados de projeto excluído', vazioP.length === 0)
   }
 
   // ── 9. Papéis ──────────────────────────────────────────────────────────────────────────────────

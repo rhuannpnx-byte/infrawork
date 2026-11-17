@@ -1,10 +1,15 @@
 import { validarModelo, type Modelo4D } from './contrato'
 import { converterHtml, ehHtmlDeModelo } from './converter-html'
+import { ehArquivoDeProjeto, montarProjeto } from './projeto'
 
-/** Lê o texto de um arquivo de modelo: o HTML da construção digital ou o JSON do contrato `infrawork-4d`. */
+/**
+ * Lê o texto de um arquivo de modelo: o HTML da construção digital ou o JSON do contrato `infrawork-4d`, com a
+ * geometria pronta (versão 1) ou com os dados de projeto (versão 2), que o InfraWork monta. `avisos` é a conferência
+ * da montagem, para quem importa ver antes de gravar.
+ */
 export function lerModelo(
   texto: string
-): { modelo: Modelo4D; origem: 'html' | 'iw4d' } | { erros: string[] } {
+): { modelo: Modelo4D; origem: 'html' | 'iw4d'; avisos?: string[] } | { erros: string[] } {
   const t = texto.trimStart()
   if (t.startsWith('<') || ehHtmlDeModelo(t.slice(0, 500))) {
     if (!ehHtmlDeModelo(texto))
@@ -21,6 +26,12 @@ export function lerModelo(
     json = JSON.parse(texto)
   } catch {
     return { erros: ['O arquivo não é um HTML de modelo nem um JSON válido.'] }
+  }
+  if (ehArquivoDeProjeto(json)) {
+    const r = montarProjeto(json)
+    if ('erros' in r) return r
+    const v = validarModelo(r.modelo)
+    return 'erros' in v ? v : { modelo: v.modelo, origem: 'iw4d', avisos: r.avisos }
   }
   const v = validarModelo(json)
   return 'erros' in v ? v : { modelo: v.modelo, origem: 'iw4d' }

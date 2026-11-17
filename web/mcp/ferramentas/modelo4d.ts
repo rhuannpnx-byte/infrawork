@@ -138,7 +138,8 @@ export const modelo4d = ferramenta({
     'Modelo 3D da obra no contrato infrawork-4d, ligado ao plano pela estaca (beta). acao: contrato (o formato ' +
     'do arquivo) | contexto (prompt com o contrato, o estaqueamento e os serviços da linha de base: use para ' +
     'gerar o modelo já com o código do serviço em cada classe) | enviar (HTML da construção digital ou JSON ' +
-    'do contrato, em arquivo_base64 ou url; vincula sozinho pelo código do serviço e pelo nome) | listar ' +
+    'do contrato, com a geometria pronta ou com os dados de projeto, que o sistema monta; em arquivo_base64 ' +
+    'ou url; vincula sozinho pelo código do serviço e pelo nome e devolve a conferência da montagem) | listar ' +
     '(modelos, classes e vínculos) | vincular (eixo do modelo → local; classe → serviço) | ativar | estado ' +
     '(previsto e realizado por serviço e a situação das peças numa data) | excluir. Serviço vinculado passa a ' +
     'exigir local com estacas no lançamento; produção sem estaca não aparece no 3D.',
@@ -244,6 +245,7 @@ export const modelo4d = ferramenta({
         return {
           importado: true,
           id,
+          ...(lido.avisos?.length ? { conferencia: lido.avisos } : {}),
           eixos_vinculados: eixos.length,
           classes: resumo.classes.map((k) => ({
             classe: k.id,

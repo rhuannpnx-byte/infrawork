@@ -45,7 +45,8 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 - A cena 3D do Acompanhamento 4D (CesiumJS) lê os tokens em tempo de execução
   (`features/modelo4d/components/cores.ts`): as situações usam `success` (concluído), `module-planejamento`
   (adiantado), `accent` (em execução) e `danger` (atrasado). As cores de material (`--m4d-corte`, `--m4d-aterro`,
-  `--m4d-granular`, `--m4d-betume`, `--m4d-asfalto`, `--m4d-concreto`, `--m4d-metal`, `--m4d-madeira`, `--m4d-solo`,
+  `--m4d-granular`, `--m4d-betume`, `--m4d-asfalto`, `--m4d-concreto`, `--m4d-metal`, `--m4d-madeira`, `--m4d-grama`,
+  `--m4d-solo`,
   `--m4d-sinal-*`, `--m4d-contexto`, `--m4d-fantasma`) não mudam com o tema: a cena é a obra sobre a imagem de
   satélite.
 - Token novo entra nos dois temas. `src/styles/theme.test.ts` falha se o código usar variável que o tema não define.

@@ -1,6 +1,7 @@
 /**
- * Contrato do modelo 4D do InfraWork (`infrawork-4d`, versão 1). A descrição para quem gera o arquivo está em
- * `docs/MODELO-4D.md`; este arquivo é a fonte dos tipos e da validação.
+ * Contrato do modelo 4D do InfraWork (`infrawork-4d`, versão 1: a geometria pronta). A descrição para quem gera
+ * o arquivo está em `docs/MODELO-4D.md`; este arquivo é a fonte dos tipos e da validação. O arquivo com os dados
+ * de projeto (versão 2) é montado nesta forma por `projeto.ts`.
  *
  * Coordenadas locais em metros: `x` (leste), `n` (norte) e `z` (cota). Posição ao longo do eixo (`s`) em metros
  * desde a estaca 0 do projeto (estaca 100 = 2000).
@@ -63,6 +64,7 @@ export const MATERIAIS = [
   'concreto',
   'metal',
   'madeira',
+  'grama',
   'sinal-branco',
   'sinal-amarelo',
   'sinal-vermelho',
@@ -184,7 +186,11 @@ export function validarModelo(json: unknown): { modelo: Modelo4D } | { erros: st
       erros: ['Falta `formato: "infrawork-4d"`: o arquivo não é um modelo 4D do InfraWork.']
     }
   if (m.versao !== 1)
-    erros.push(`Versão ${String(m.versao)} do contrato não é aceita (a atual é a 1).`)
+    erros.push(
+      m.versao === 2
+        ? 'A versão 2 do contrato leva os dados de projeto no bloco `projeto`, que não veio no arquivo.'
+        : `Versão ${String(m.versao)} do contrato não é aceita (1 = geometria pronta, 2 = dados de projeto).`
+    )
   if (!num(m.origem?.e) || !num(m.origem?.n) || !lerFuso(m.origem?.fuso))
     erros.push(
       'Falta a `origem` com `e`, `n` e `fuso` (ex.: "22S"): é ela que põe a obra no terreno e na imagem de satélite.'
