@@ -5,6 +5,7 @@ import {
   Box,
   ChevronLeft,
   ChevronRight,
+  Crosshair,
   FileText,
   Link2,
   Pause,
@@ -37,7 +38,10 @@ import {
 import { contar } from '@/lib/rotulos'
 import { useBaseline } from '@/features/planejamento/hooks/planejamentos'
 import { gravarExibicao, lerExibicao, type Exibicao } from './aparencia'
+import { ANDAR_PADRAO, type OpcoesAndar } from './caminhada'
 import { ExibicaoPopover } from './ExibicaoPopover'
+import { gravarVistas, lerVistas, type Vista } from './vistas'
+import { VistasPopover } from './VistasPopover'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
 import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
@@ -117,6 +121,8 @@ export function Pagina4D({
     setExibicao(e)
     gravarExibicao(e)
   }
+  const [opcoesAndar, setOpcoesAndar] = useState<OpcoesAndar>(ANDAR_PADRAO)
+  const [versaoVistas, setVersaoVistas] = useState(0)
   // passeio pela pista: a estaca (em metros do modelo) onde a câmera está, ou null fora do passeio
   const [passeio, setPasseio] = useState<number | null>(null)
   const [dirigindo, setDirigindo] = useState(false)
@@ -202,6 +208,36 @@ export function Pagina4D({
   }, [tocando, velocidade, fim])
 
   const instante = fimDoDia(Math.max(inicio, Math.min(fim, t)))
+
+  const idModelo = registro?.id
+  const vistas = useMemo(
+    () => (idModelo ? lerVistas(idModelo) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [idModelo, versaoVistas]
+  )
+  const salvarVista = (nome: string): void => {
+    const camera = cena.current?.camera()
+    if (!idModelo || !camera) return
+    const nova: Vista = {
+      id: crypto.randomUUID(),
+      nome,
+      camera,
+      t: instante,
+      modo,
+      ocultas: [...ocultas],
+      exibicao
+    }
+    if (gravarVistas(idModelo, [...vistas, nova])) toast.success('Vista salva neste navegador.')
+    else toast.error('O navegador não deixou guardar a vista.')
+    setVersaoVistas((n) => n + 1)
+  }
+  const aplicarVista = (v: Vista): void => {
+    setT(v.t)
+    setModo(v.modo)
+    setOcultas(new Set(v.ocultas))
+    mudarExibicao(v.exibicao)
+    cena.current?.irParaCamera(v.camera)
+  }
   const periodo = useMemo<[number, number] | null>(
     () =>
       de && ate
@@ -475,7 +511,14 @@ export function Pagina4D({
         <Segmentado
           rotulo="Botão esquerdo do mouse"
           valor={mouse}
-          aoMudar={setMouse}
+          aoMudar={(m) => {
+            setMouse(m)
+            // andar e percorrer a pista disputam a câmera: um sai quando o outro entra
+            if (m === 'andar') {
+              setDirigindo(false)
+              setPasseio(null)
+            }
+          }}
           tamanho="sm"
           opcoes={[
             {
@@ -488,6 +531,11 @@ export function Pagina4D({
               valor: 'mover',
               rotulo: 'Mover',
               titulo: 'Arrastar move o terreno (Ctrl ou o botão do meio giram a cena)'
+            },
+            {
+              valor: 'andar',
+              rotulo: 'Andar',
+              titulo: 'Anda pela obra com o teclado (W, A, S, D ou setas); arrastar olha em volta'
             }
           ]}
         />
@@ -499,11 +547,26 @@ export function Pagina4D({
           onClick={() => {
             setDirigindo(false)
             setPasseio(passeio == null ? (modelo?.eixos[0]?.sMin ?? 0) : null)
+            if (mouse === 'andar') setMouse('orbitar')
           }}
         >
           Percorrer a pista
         </Button>
         <ExibicaoPopover valor={exibicao} aoMudar={mudarExibicao} />
+        {registro ? (
+          <VistasPopover
+            vistas={vistas}
+            aoSalvar={salvarVista}
+            aoAplicar={aplicarVista}
+            aoExcluir={(id) => {
+              gravarVistas(
+                registro.id,
+                vistas.filter((v) => v.id !== id)
+              )
+              setVersaoVistas((n) => n + 1)
+            }}
+          />
+        ) : null}
         {(modelos.data?.length ?? 0) > 1 ? (
           <div className="ml-auto flex items-center gap-1">
             <div className="w-56">
@@ -669,6 +732,8 @@ export function Pagina4D({
                 periodo={periodo}
                 ocultas={ocultas}
                 mouse={mouse}
+                andar={opcoesAndar}
+                passeando={passeio != null}
                 exibicao={exibicao}
                 selecionada={selecionada}
                 aoEscolher={setSelecionada}
@@ -721,9 +786,65 @@ export function Pagina4D({
                   </Button>
                 </div>
               ) : null}
+              {mouse === 'andar' ? (
+                <div
+                  role="group"
+                  aria-label="Andar pela obra"
+                  className="absolute left-3 top-3 flex max-w-[calc(100%-9.5rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded border border-border bg-bg-panel px-3 py-1.5 shadow-[var(--sombra-flutuante)]"
+                >
+                  <Segmentado
+                    rotulo="Velocidade ao andar"
+                    valor={String(opcoesAndar.velocidade)}
+                    aoMudar={(v) => setOpcoesAndar({ ...opcoesAndar, velocidade: Number(v) })}
+                    tamanho="sm"
+                    opcoes={[
+                      { valor: '2', rotulo: 'A pé', titulo: '2 m/s' },
+                      { valor: '8', rotulo: 'Devagar', titulo: '8 m/s' },
+                      { valor: '25', rotulo: 'Rápido', titulo: '25 m/s' },
+                      { valor: '70', rotulo: 'Voo', titulo: '70 m/s' }
+                    ]}
+                  />
+                  {(
+                    [
+                      [
+                        'gravidade',
+                        'Gravidade',
+                        'Os olhos seguem o chão; sem ela, voa para onde olha'
+                      ],
+                      [
+                        'colisao',
+                        'Colisão',
+                        'Sem ela dá para atravessar o chão e ver bueiros e drenos'
+                      ],
+                      ['terceira', 'Terceira pessoa', 'Mostra um boneco e põe a câmera atrás dele']
+                    ] as const
+                  ).map(([k, rotulo, dica]) => (
+                    <label
+                      key={k}
+                      className="flex items-center gap-1.5 text-sm text-text"
+                      title={dica}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={opcoesAndar[k]}
+                        onChange={(e) => setOpcoesAndar({ ...opcoesAndar, [k]: e.target.checked })}
+                        className="accent-[color:var(--accent)]"
+                      />
+                      {rotulo}
+                    </label>
+                  ))}
+                  <span className="text-xs text-text-muted">
+                    W A S D ou setas movem · arrastar olha · Shift corre · Q e E descem e sobem
+                  </span>
+                  <Button size="sm" variant="secondary" onClick={() => setMouse('orbitar')}>
+                    Sair
+                  </Button>
+                </div>
+              ) : null}
               {selecionada != null && modelo.pecas[selecionada] ? (
                 <Ficha
                   i={selecionada}
+                  aoAproximar={() => cena.current?.focar(selecionada)}
                   estado={estado}
                   modelo={modelo}
                   local={eixoLocal(modelo.pecas[selecionada].eixo)}
@@ -807,7 +928,8 @@ function Ficha({
   local,
   servico,
   instante,
-  aoFechar
+  aoFechar,
+  aoAproximar
 }: {
   i: number
   estado: Estado4D | null
@@ -816,6 +938,7 @@ function Ficha({
   servico: { codigo: string; descricao: string; unidade: string | null } | undefined
   instante: number
   aoFechar: () => void
+  aoAproximar: () => void
 }): ReactNode {
   const p = modelo.pecas[i]
   const c = modelo.modelo.classes[p.classe]
@@ -858,6 +981,9 @@ function Ficha({
             {onde}
           </p>
         </div>
+        <IconButton aria-label="Aproximar a peça" title="Aproximar a peça" onClick={aoAproximar}>
+          <Crosshair size={14} />
+        </IconButton>
         <IconButton aria-label="Fechar a ficha" onClick={aoFechar}>
           <X size={14} />
         </IconButton>

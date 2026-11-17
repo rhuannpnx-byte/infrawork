@@ -1,8 +1,19 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react'
 import {
   BoundingSphere,
+  BoxGeometry,
   Cartesian2,
   Cartesian3,
+  Cartographic,
+  Color,
   ColorGeometryInstanceAttribute,
   ComponentDatatype,
   DistanceDisplayConditionGeometryInstanceAttribute,
@@ -12,6 +23,7 @@ import {
   GeometryInstance,
   HeadingPitchRange,
   JulianDate,
+  Matrix3,
   Matrix4,
   PolylineGeometry,
   PrimitiveType,
@@ -36,13 +48,15 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   ShadowMode,
+  Transforms,
   UrlTemplateImageryProvider
 } from '@cesium/engine'
 import '@cesium/engine/Source/Widget/CesiumWidget.css'
 import { situacao, type Estado4D } from '../lib/estado'
-import { utmParaGeo } from '../lib/geo'
-import type { ModeloPronto } from '../lib/preparar'
+import { geoParaUtm, utmParaGeo } from '../lib/geo'
+import { cotaNaGrade, type ModeloPronto } from '../lib/preparar'
 import { RelevoRegional, type MosaicoRelevo } from '../lib/relevo'
+import { Superficie } from '../lib/superficie'
 import {
   ARESTAS,
   FORCA_ARESTA,
@@ -51,20 +65,32 @@ import {
   fragmento,
   type Exibicao
 } from './aparencia'
+import { iniciarCaminhada, type OpcoesAndar } from './caminhada'
 import { cor, coresDosMateriais, mistura, type Rgb } from './cores'
-import { CuboVista, type CuboVistaRef, type FaceCubo } from './CuboVista'
+import { CuboVista, type CuboVistaRef, type VistaCubo } from './CuboVista'
 
 // os operários, as texturas e os dados do Cesium são servidos pelo próprio site (ver vite.config.ts)
 ;(globalThis as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = '/cesium/'
 
 export type Modo4D = 'previsto' | 'realizado' | 'comparar' | 'projeto'
-export type ModoMouse = 'orbitar' | 'mover'
+export type ModoMouse = 'orbitar' | 'mover' | 'andar'
+
+/** Posição da câmera para guardar numa vista: o ponto no mundo e para onde ela olha. */
+export interface CameraSalva {
+  p: [number, number, number]
+  rumo: number
+  inclinacao: number
+}
 
 export interface CenaRef {
   irPara: (eixo: number, s: number) => void
   vistaGeral: () => void
   /** Põe a câmera sobre a pista na estaca `s`, olhando para a frente (ou para trás). */
   percorrer: (eixo: number, s: number, paraTras?: boolean) => void
+  /** Centra e aproxima a peça. */
+  focar: (peca: number) => void
+  camera: () => CameraSalva | null
+  irParaCamera: (c: CameraSalva) => void
 }
 
 interface Props {
@@ -77,6 +103,9 @@ interface Props {
   periodo: [number, number] | null
   ocultas: ReadonlySet<string>
   mouse: ModoMouse
+  andar: OpcoesAndar
+  /** No passeio pela pista (e no Andar) a câmera segue a obra, não o terreno natural. */
+  passeando: boolean
   exibicao: Exibicao
   selecionada: number | null
   aoEscolher: (peca: number | null) => void
@@ -135,6 +164,9 @@ interface Palco {
   /** Estilo e luz com que as primitivas foram montadas. */
   aparencia: string
   arestas: PostProcessStage
+  /** Fatias que já existem na data mostrada (1) ou não (0). */
+  ativa: Uint8Array
+  boneco: Primitive | null
 }
 
 const aparenciaDasPecas = (e: Exibicao): PerInstanceColorAppearance =>
@@ -147,7 +179,21 @@ const aparenciaDasPecas = (e: Exibicao): PerInstanceColorAppearance =>
   })
 
 export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
-  { modelo, estado, t, modo, periodo, ocultas, mouse, exibicao, selecionada, aoEscolher, rotulo },
+  {
+    modelo,
+    estado,
+    t,
+    modo,
+    periodo,
+    ocultas,
+    mouse,
+    andar,
+    passeando,
+    exibicao,
+    selecionada,
+    aoEscolher,
+    rotulo
+  },
   ref
 ): ReactNode {
   const caixa = useRef<HTMLDivElement>(null)
@@ -165,6 +211,11 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
   useEffect(() => {
     exibicaoRef.current = exibicao
   }, [exibicao])
+  const andarRef = useRef(andar)
+  useEffect(() => {
+    andarRef.current = andar
+  }, [andar])
+  const superficie = useMemo(() => new Superficie(modelo), [modelo])
 
   const origem = modelo.modelo.origem
   const fuso = modelo.fuso
@@ -195,6 +246,28 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     const raio = w.camera.getPickRay(new Cartesian2(c.clientWidth / 2, c.clientHeight / 2))
     const p = raio ? w.scene.globe.pick(raio, w.scene) : undefined
     return p ? { p, dist: Cartesian3.distance(w.camera.positionWC, p) } : null
+  }
+
+  /** Centra e aproxima uma peça, mantendo o rumo da câmera. */
+  const focar = (i: number): void => {
+    const w = palco.current?.w
+    const pc = modelo.pecas[i]
+    if (!w || !pc) return
+    const pos = modelo.malhas[pc.classe].pos
+    const pts: Cartesian3[] = []
+    const salto = Math.max(1, Math.floor((pc.v1 - pc.v0) / 60))
+    for (let v = pc.v0; v < pc.v1; v += salto)
+      pts.push(mundo(pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]))
+    if (!pts.length) return
+    const esfera = BoundingSphere.fromPoints(pts)
+    w.camera.flyToBoundingSphere(esfera, {
+      duration: 0.6,
+      offset: new HeadingPitchRange(
+        w.camera.heading,
+        Math.max(CesiumMath.toRadians(-70), Math.min(CesiumMath.toRadians(-18), w.camera.pitch)),
+        Math.max(12, esfera.radius * 3.2)
+      )
+    })
   }
 
   const vistaGeral = (): void => {
@@ -235,6 +308,23 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
         }
       })
       w.scene.requestRender()
+    },
+    focar,
+    camera: () => {
+      const c = palco.current?.w.camera
+      if (!c) return null
+      return {
+        p: [c.positionWC.x, c.positionWC.y, c.positionWC.z],
+        rumo: c.heading,
+        inclinacao: c.pitch
+      }
+    },
+    irParaCamera: (v) => {
+      palco.current?.w.camera.flyTo({
+        destination: new Cartesian3(v.p[0], v.p[1], v.p[2]),
+        orientation: { heading: v.rumo, pitch: v.inclinacao, roll: 0 },
+        duration: 0.8
+      })
     }
   }))
 
@@ -281,6 +371,8 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     // sol do meio da tarde (15 h de Brasília), para o relevo e as sombras ficarem legíveis
     w.clock.currentTime = JulianDate.fromIso8601('2026-06-21T18:00:00Z')
     scene.globe.depthTestAgainstTerrain = true
+    // fundo cor de céu: dentro de um corte a câmera fica abaixo do terreno natural e o Cesium não desenha o céu
+    scene.backgroundColor = new Color(0.56, 0.74, 0.94, 1)
     scene.screenSpaceCameraController.enableCollisionDetection = true
     scene.screenSpaceCameraController.minimumZoomDistance = 2
 
@@ -311,7 +403,9 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       arestas: new PostProcessStage({
         fragmentShader: ARESTAS,
         uniforms: { forca: FORCA_ARESTA[exibicaoRef.current.estilo] }
-      })
+      }),
+      ativa: new Uint8Array(modelo.fatias.length),
+      boneco: null
     }
     scene.postProcessStages.add(p.arestas)
     palco.current = p
@@ -508,6 +602,11 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       const alvo = scene.pick(e.position) as { id?: unknown } | undefined
       aoEscolherRef.current(typeof alvo?.id === 'number' ? alvo.id : null)
     }, ScreenSpaceEventType.LEFT_CLICK)
+    // duplo clique centra e aproxima a peça
+    mao.setInputAction((e: { position: Cartesian2 }) => {
+      const alvo = scene.pick(e.position) as { id?: unknown } | undefined
+      if (typeof alvo?.id === 'number') focar(alvo.id)
+    }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK)
 
     return () => {
       vivo = false
@@ -532,7 +631,93 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     c.tiltEventTypes = mouse === 'orbitar' ? [CameraEventType.LEFT_DRAG, ...orbita] : orbita
     c.rotateEventTypes = mouse === 'orbitar' ? move : [CameraEventType.LEFT_DRAG, ...move]
     c.zoomEventTypes = [CameraEventType.WHEEL, CameraEventType.RIGHT_DRAG, CameraEventType.PINCH]
-  }, [mouse, modelo, montada])
+    // andando ou percorrendo a pista, quem segura a câmera é a obra: a colisão do Cesium com o terreno natural
+    // a levantaria nos cortes
+    c.enableInputs = mouse !== 'andar'
+    c.enableCollisionDetection = mouse !== 'andar' && !passeando
+    if (mouse !== 'andar' && !passeando) return
+    // Dentro de um corte a câmera fica abaixo do terreno natural (que ali foi escavado). O Cesium, achando que
+    // ela está debaixo da terra, desenharia o avesso do terreno por cima da cena. O campo é interno do Cesium: se
+    // mudar de nome numa versão nova, o efeito é só esse avesso aparecer nos cortes.
+    const cena = palco.current!.w.scene
+    return cena.preRender.addEventListener(() => {
+      const interno = cena as unknown as { _cameraUnderground?: boolean }
+      if (interno._cameraUnderground) interno._cameraUnderground = false
+    })
+  }, [mouse, passeando, modelo, montada])
+
+  // modo Andar: teclado e mouse movem quem anda, sobre a obra onde ela já existe e sobre o terreno fora dela
+  useEffect(() => {
+    const p = palco.current
+    const alvo = caixa.current
+    if (mouse !== 'andar' || !p || !p.pronto || !alvo || !fuso || !origem) return
+    const { scene } = p.w
+    const carto = new Cartographic()
+    let ultimo = 0
+    const boneco = (pe: Cartesian3 | null, rumo: number): void => {
+      if (!pe) {
+        if (p.boneco) p.boneco.show = false
+        return
+      }
+      if (!p.boneco) {
+        const parte = (dim: [number, number, number], alto: number, c: Rgb): GeometryInstance =>
+          new GeometryInstance({
+            geometry: BoxGeometry.fromDimensions({
+              dimensions: new Cartesian3(...dim),
+              vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT
+            }),
+            modelMatrix: Matrix4.fromTranslation(new Cartesian3(0, 0, alto)),
+            attributes: { color: new ColorGeometryInstanceAttribute(c[0], c[1], c[2], 1) }
+          })
+        p.boneco = scene.primitives.add(
+          new Primitive({
+            geometryInstances: [
+              parte([0.5, 0.28, 1.45], 0.725, cor('chart-laranja')),
+              parte([0.24, 0.24, 0.26], 1.58, cor('m4d-madeira')),
+              parte([0.32, 0.32, 0.1], 1.75, cor('m4d-sinal-branco'))
+            ],
+            appearance: new PerInstanceColorAppearance({ translucent: false, closed: true }),
+            asynchronous: false
+          })
+        ) as Primitive
+      }
+      p.boneco.show = true
+      p.boneco.modelMatrix = Matrix4.multiplyByMatrix3(
+        Transforms.eastNorthUpToFixedFrame(pe),
+        Matrix3.fromRotationZ(-rumo),
+        new Matrix4()
+      )
+    }
+    return iniciarCaminhada({
+      w: p.w,
+      alvo,
+      opcoes: () => andarRef.current,
+      paraLocal: (q) => {
+        Cartographic.fromCartesian(q, undefined, carto)
+        const [e, n] = geoParaUtm(
+          CesiumMath.toDegrees(carto.longitude),
+          CesiumMath.toDegrees(carto.latitude),
+          fuso
+        )
+        return [e - origem.e, n - origem.n, carto.height]
+      },
+      paraMundo: (x, n, z) => mundo(x - modelo.centro[0], n - modelo.centro[1], z),
+      chao: (x, n) => {
+        const q = superficie.em(x, n)
+        if (q && p.ativa[q.fatia]) return (ultimo = q.z)
+        // fora da obra (ou onde ela ainda não existe na data), o terreno que a cena desenha
+        Cartographic.fromCartesian(
+          mundo(x - modelo.centro[0], n - modelo.centro[1], 0),
+          undefined,
+          carto
+        )
+        const z = scene.globe.getHeight(carto) ?? cotaNaGrade(modelo.grades, x, n, 'atual')
+        return z == null || Number.isNaN(z) ? ultimo : (ultimo = z)
+      },
+      boneco
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mouse, modelo, montada, superficie])
 
   // estilo, luz e efeitos: troca o shader das peças e liga ou desliga sombras, sombra de contato e arestas
   useEffect(() => {
@@ -646,6 +831,7 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
         if ((cod[i] & 15) === SOME && classes[pecas[i].classe].terreno) cod[i] = FALTA
     })
     if (selecionada != null && selecionada < n) cod[selecionada] |= ESCOLHIDA
+    p.ativa = ativa
 
     malhas.forEach((m, ic) => {
       const prim = p.prims[ic]
@@ -724,22 +910,15 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
   }, [modelo, estado, t, modo, periodo, ocultas, selecionada, montada])
 
   const girarPeloCubo = useRef<{ p: Cartesian3; dist: number } | null>(null)
-  const olhar = (face: FaceCubo): void => {
+  const olhar = (vista: VistaCubo): void => {
     const w = palco.current?.w
     const alvo = pivo()
     if (!w || !alvo) return
-    const rumo = {
-      topo: w.camera.heading,
-      norte: Math.PI,
-      sul: 0,
-      leste: -Math.PI / 2,
-      oeste: Math.PI / 2
-    }[face]
     w.camera.flyToBoundingSphere(new BoundingSphere(alvo.p, 1), {
       duration: 0.5,
       offset: new HeadingPitchRange(
-        rumo,
-        CesiumMath.toRadians(face === 'topo' ? -89.5 : -18),
+        vista.rumo ?? w.camera.heading,
+        vista.inclinacao,
         Math.max(40, alvo.dist)
       )
     })
@@ -775,8 +954,18 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
   }
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div ref={caixa} role="img" aria-label={rotulo} className="h-full w-full" />
-      <CuboVista ref={cubo} aoEscolher={olhar} aoArrastar={arrastarCubo} />
+      <div
+        ref={caixa}
+        role={mouse === 'andar' ? 'application' : 'img'}
+        tabIndex={mouse === 'andar' ? 0 : undefined}
+        aria-label={
+          mouse === 'andar'
+            ? `${rotulo}. Andar: W, A, S e D ou as setas movem, arrastar olha em volta, Shift corre.`
+            : rotulo
+        }
+        className="h-full w-full focus-visible:outline-none"
+      />
+      <CuboVista ref={cubo} aoOlhar={olhar} aoArrastar={arrastarCubo} aoInicio={vistaGeral} />
       {fase ? (
         <div
           role="status"

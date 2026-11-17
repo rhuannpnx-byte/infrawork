@@ -150,7 +150,12 @@ Regras que valem para todos:
   põe a câmera na altura de quem dirige. O menu "Exibição" escolhe o estilo (Realista, com a textura de cada
   material; Sombreado, em cor lisa; Linhas, com superfícies claras e arestas), a luz (Frontal, que parte de quem
   olha e é o padrão, ou Sol, com sombras projetadas) e a sombra de contato, que some enquanto a câmera se move. A
-  escolha fica guardada no navegador.
+  escolha fica guardada no navegador. O cubo aceita clique nas faces, nas arestas e nos cantos (vistas a 45°), tem
+  a casa (vista geral) e o anel do norte. "Andar" (ao lado de Orbitar e Mover) anda pela obra com W, A, S, D ou
+  as setas, arrastando para olhar, com velocidade, Gravidade, Colisão e Terceira pessoa numa barra sobre a cena; o
+  chão é a obra onde ela já existe na data e o terreno fora dela (`lib/superficie.ts`). Duplo clique numa peça (ou
+  "Aproximar" na ficha) centra e aproxima. "Vistas" guarda a câmera com a data, o modo, o que está oculto e a
+  exibição; ficam no navegador de quem salvou.
 
 ## Verificação
 
