@@ -88,7 +88,11 @@ O modelo 3D da obra segue o contrato `infrawork-4d` (`web/docs/MODELO-4D.md`). A
   Imagery da Esri; as duas origens e o `wasm-unsafe-eval` que o Cesium pede estão na CSP do `vercel.json`. Mudou a
   cena ou a CSP: sirva o build com a política e abra a página (o roteiro está em `web/DESIGN.md`, "Verificação");
 - o modelo precisa de `origem` com fuso UTM: é o que põe a obra no terreno. A cena lê as cores dos tokens do tema em
-  tempo de execução.
+  tempo de execução;
+- a aparência das peças é shader nosso (`components/aparencia.ts`): a cor de cada peça vem do estado e o canal alfa
+  leva o padrão do material, que só modula a cor. Confira a cena com a placa de vídeo de verdade (Playwright com
+  `channel: 'chromium'` e `--use-angle=d3d11`): o navegador de teste padrão desenha por software, leva minutos num
+  modelo grande e não mostra o que o usuário vê.
 
 ## Publicação na Vercel
 

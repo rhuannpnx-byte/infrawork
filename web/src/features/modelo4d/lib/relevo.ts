@@ -175,15 +175,27 @@ export class RelevoRegional {
       return out
 
     const ajustes = await this.ajustes()
+    // amostras vizinhas caem perto do mesmo ponto do eixo: a de cima (ou a da esquerda) serve de dica e poupa
+    // procurar no eixo inteiro. Só vale com as amostras próximas entre si (blocos de perto)
+    const passo = ((norte - sul) * 111000) / (altura - 1)
+    const dicas = m.eixos.map(() => new Int32Array(largura).fill(-1))
     for (let i = 0; i < total; i++) {
       const [e, n] = geoParaUtm(lons[i], lats[i], m.fuso)
       const x = e - o.e
       const y = n - o.n
-      if (x < xa || x > xb || y < na || y > nb) continue
+      const c = i % largura
+      if (x < xa || x > xb || y < na || y > nb) {
+        for (const dica of dicas) dica[c] = -1
+        continue
+      }
       let d = Infinity
       let delta = 0
       m.eixos.forEach((eixo, ie) => {
-        const q = eixo.projetar(x, y)
+        const dica = dicas[ie]
+        const perto = passo > 150 ? -1 : dica[c] >= 0 ? dica[c] : c > 0 ? dica[c - 1] : -1
+        const q = eixo.projetar(x, y, perto >= 0 ? perto : undefined)
+        // longe do eixo a dica deixa de ser confiável: a próxima amostra procura de novo
+        dica[c] = q.d < ALCANCE ? q.i : -1
         if (q.d >= d) return
         d = q.d
         const f = Math.max(0, (q.s - eixo.sMin) / PASSO_AJUSTE)

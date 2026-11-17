@@ -30,6 +30,8 @@ import {
   KeyboardEventModifier,
   PerInstanceColorAppearance,
   PolylineColorAppearance,
+  PostProcessStage,
+  PostProcessStageLibrary,
   Primitive,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -41,6 +43,14 @@ import { situacao, type Estado4D } from '../lib/estado'
 import { utmParaGeo } from '../lib/geo'
 import type { ModeloPronto } from '../lib/preparar'
 import { RelevoRegional, type MosaicoRelevo } from '../lib/relevo'
+import {
+  ARESTAS,
+  FORCA_ARESTA,
+  PADRAO_DO_MATERIAL,
+  VERTICE,
+  fragmento,
+  type Exibicao
+} from './aparencia'
 import { cor, coresDosMateriais, mistura, type Rgb } from './cores'
 import { CuboVista, type CuboVistaRef, type FaceCubo } from './CuboVista'
 
@@ -67,7 +77,7 @@ interface Props {
   periodo: [number, number] | null
   ocultas: ReadonlySet<string>
   mouse: ModoMouse
-  sombras: boolean
+  exibicao: Exibicao
   selecionada: number | null
   aoEscolher: (peca: number | null) => void
   rotulo: string
@@ -122,10 +132,22 @@ interface Palco {
   cantos: Cartesian3[][]
   recorte: string
   pronto: boolean
+  /** Estilo e luz com que as primitivas foram montadas. */
+  aparencia: string
+  arestas: PostProcessStage
 }
 
+const aparenciaDasPecas = (e: Exibicao): PerInstanceColorAppearance =>
+  new PerInstanceColorAppearance({
+    flat: false,
+    translucent: false,
+    closed: false,
+    vertexShaderSource: VERTICE,
+    fragmentShaderSource: fragmento(e.estilo, e.luz)
+  })
+
 export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
-  { modelo, estado, t, modo, periodo, ocultas, mouse, sombras, selecionada, aoEscolher, rotulo },
+  { modelo, estado, t, modo, periodo, ocultas, mouse, exibicao, selecionada, aoEscolher, rotulo },
   ref
 ): ReactNode {
   const caixa = useRef<HTMLDivElement>(null)
@@ -139,6 +161,10 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
   useEffect(() => {
     aoEscolherRef.current = aoEscolher
   }, [aoEscolher])
+  const exibicaoRef = useRef(exibicao)
+  useEffect(() => {
+    exibicaoRef.current = exibicao
+  }, [exibicao])
 
   const origem = modelo.modelo.origem
   const fuso = modelo.fuso
@@ -254,7 +280,6 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     w.clock.shouldAnimate = false
     // sol do meio da tarde (15 h de Brasília), para o relevo e as sombras ficarem legíveis
     w.clock.currentTime = JulianDate.fromIso8601('2026-06-21T18:00:00Z')
-    scene.globe.enableLighting = true
     scene.globe.depthTestAgainstTerrain = true
     scene.screenSpaceCameraController.enableCollisionDetection = true
     scene.screenSpaceCameraController.minimumZoomDistance = 2
@@ -281,8 +306,14 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       codigo: new Uint8Array(modelo.pecas.length).fill(255),
       cantos: [],
       recorte: '',
-      pronto: false
+      pronto: false,
+      aparencia: `${exibicaoRef.current.estilo}|${exibicaoRef.current.luz}`,
+      arestas: new PostProcessStage({
+        fragmentShader: ARESTAS,
+        uniforms: { forca: FORCA_ARESTA[exibicaoRef.current.estilo] }
+      })
     }
+    scene.postProcessStages.add(p.arestas)
     palco.current = p
     vistaGeral()
 
@@ -325,6 +356,8 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     // peças: uma primitiva por classe, uma instância por peça (cor e visibilidade próprias)
     const materiais = coresDosMateriais()
     const cima = new Cartesian3()
+    const cimaL = new Cartesian3()
+    const cimaN = new Cartesian3()
     const montar = async (): Promise<void> => {
       for (let ic = 0; ic < modelo.malhas.length; ic++) {
         if (!vivo) return
@@ -336,13 +369,23 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
           const nv = pc.v1 - pc.v0
           const pos = new Float64Array(nv * 3)
           const nor = new Float32Array(nv * 3)
-          // base local da peça: leste, norte e a vertical no primeiro vértice (exata ali, linear em volta)
+          // base local da peça: leste, norte e a vertical no primeiro vértice (exata ali, linear em volta). A
+          // vertical também varia com a posição: com a cota perto de 1.000 m, uma vertical fixa por peça abriria
+          // frestas de milímetros entre peças vizinhas
           const x0 = m.pos[3 * pc.v0]
           const n0 = m.pos[3 * pc.v0 + 1]
           const o = mundo(x0, n0, 0)
           const le = mundo(x0 + 40, n0, 0)
           const no = mundo(x0, n0 + 40, 0)
           Ellipsoid.WGS84.geodeticSurfaceNormal(o, cima)
+          Ellipsoid.WGS84.geodeticSurfaceNormal(le, cimaL)
+          Ellipsoid.WGS84.geodeticSurfaceNormal(no, cimaN)
+          const cex = (cimaL.x - cima.x) / 40
+          const cey = (cimaL.y - cima.y) / 40
+          const cez = (cimaL.z - cima.z) / 40
+          const cnx = (cimaN.x - cima.x) / 40
+          const cny = (cimaN.y - cima.y) / 40
+          const cnz = (cimaN.z - cima.z) / 40
           const ex = (le.x - o.x) / 40
           const ey = (le.y - o.y) / 40
           const ez = (le.z - o.z) / 40
@@ -353,9 +396,9 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
             const dx = m.pos[3 * (pc.v0 + v)] - x0
             const dn = m.pos[3 * (pc.v0 + v) + 1] - n0
             const z = m.pos[3 * (pc.v0 + v) + 2]
-            pos[3 * v] = o.x + dx * ex + dn * nx + z * cima.x
-            pos[3 * v + 1] = o.y + dx * ey + dn * ny + z * cima.y
-            pos[3 * v + 2] = o.z + dx * ez + dn * nz + z * cima.z
+            pos[3 * v] = o.x + dx * ex + dn * nx + z * (cima.x + dx * cex + dn * cnx)
+            pos[3 * v + 1] = o.y + dx * ey + dn * ny + z * (cima.y + dx * cey + dn * cny)
+            pos[3 * v + 2] = o.z + dx * ez + dn * nz + z * (cima.z + dx * cez + dn * cnz)
           }
           for (let v = 0; v + 2 < nv; v += 3) {
             const ax = pos[3 * v + 3] - pos[3 * v]
@@ -411,7 +454,13 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
                 boundingSphere: BoundingSphere.fromVertices(pos as unknown as number[])
               }),
               attributes: {
-                color: new ColorGeometryInstanceAttribute(c[0], c[1], c[2], 1),
+                // o alfa leva o padrão do material para o shader (a peça é opaca)
+                color: new ColorGeometryInstanceAttribute(
+                  c[0],
+                  c[1],
+                  c[2],
+                  PADRAO_DO_MATERIAL[modelo.materiais[pc.material]] / 255
+                ),
                 show: new ShowGeometryInstanceAttribute(true)
               }
             })
@@ -419,11 +468,7 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
         }
         const prim = new Primitive({
           geometryInstances: instancias,
-          appearance: new PerInstanceColorAppearance({
-            flat: false,
-            translucent: false,
-            closed: false
-          }),
+          appearance: aparenciaDasPecas(exibicaoRef.current),
           asynchronous: false,
           releaseGeometryInstances: true,
           shadows: ShadowMode.ENABLED
@@ -489,15 +534,46 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     c.zoomEventTypes = [CameraEventType.WHEEL, CameraEventType.RIGHT_DRAG, CameraEventType.PINCH]
   }, [mouse, modelo, montada])
 
+  // estilo, luz e efeitos: troca o shader das peças e liga ou desliga sombras, sombra de contato e arestas
   useEffect(() => {
-    const w = palco.current?.w
-    if (!w) return
-    w.scene.shadowMap.enabled = sombras
-    w.scene.shadowMap.softShadows = true
-    w.scene.shadowMap.maximumDistance = 1200
-    w.scene.globe.shadows = sombras ? ShadowMode.RECEIVE_ONLY : ShadowMode.DISABLED
-    w.scene.requestRender()
-  }, [sombras, modelo, montada])
+    const p = palco.current
+    if (!p) return
+    const { scene } = p.w
+    const sol = exibicao.luz === 'sol'
+    const sombras = sol && exibicao.sombras
+    scene.globe.enableLighting = sol
+    scene.shadowMap.enabled = sombras
+    scene.shadowMap.softShadows = true
+    scene.shadowMap.maximumDistance = 1200
+    scene.shadowMap.darkness = 0.55
+    scene.globe.shadows = sombras ? ShadowMode.RECEIVE_ONLY : ShadowMode.DISABLED
+    const oclusao = scene.postProcessStages.ambientOcclusion
+    const contato = exibicao.contato && PostProcessStageLibrary.isAmbientOcclusionSupported(scene)
+    oclusao.enabled = contato
+    oclusao.uniforms.intensity = 2.2
+    oclusao.uniforms.bias = 0.12
+    oclusao.uniforms.lengthCap = 0.6
+    oclusao.uniforms.stepCount = 16
+    // a sombra de contato custa metade dos quadros: sai enquanto a câmera se move e volta quando ela para
+    const parar = p.w.camera.moveStart.addEventListener(() => {
+      oclusao.enabled = false
+    })
+    const voltar = p.w.camera.moveEnd.addEventListener(() => {
+      oclusao.enabled = contato
+      scene.requestRender()
+    })
+    ;(p.arestas.uniforms as { forca: number }).forca = FORCA_ARESTA[exibicao.estilo]
+    const chave = `${exibicao.estilo}|${exibicao.luz}`
+    if (chave !== p.aparencia) {
+      p.aparencia = chave
+      for (const prim of p.prims) if (prim) prim.appearance = aparenciaDasPecas(exibicao)
+    }
+    scene.requestRender()
+    return () => {
+      parar()
+      voltar()
+    }
+  }, [exibicao, modelo, montada])
 
   // estado → cor e visibilidade das peças, e recorte do terreno onde a obra existe
   useEffect(() => {
@@ -518,6 +594,7 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     const frente = cor('accent')
     const apagado = cor('m4d-contexto')
     const destaque = cor('chart-laranja')
+    const padrao = modelo.materiais.map((m) => PADRAO_DO_MATERIAL[m])
 
     let dentro: Uint8Array | null = null
     if (estado && periodo && modo !== 'projeto') {
@@ -599,7 +676,7 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
           Math.round(c[0] * 255),
           Math.round(c[1] * 255),
           Math.round(c[2] * 255),
-          255
+          tipo === FALTA ? 0 : padrao[pecas[i].material]
         ])
       }
     })
@@ -628,7 +705,14 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     const assinatura = trechos.map((r) => `${r[0]}-${r[r.length - 1]}`).join(',')
     if (assinatura !== p.recorte) {
       p.recorte = assinatura
-      const poligonos = trechos.map((r) => {
+      const poligonos = trechos.map((r0) => {
+        // cada polígono entra uma fatia no seguinte: sem a sobra, fica um fio de terreno na emenda
+        const prox = r0[r0.length - 1] + 1
+        const segue =
+          ativa[prox] === 1 &&
+          fatias[prox].eixo === fatias[prox - 1].eixo &&
+          fatias[prox].s0 === fatias[prox - 1].s1
+        const r = segue ? [...r0, prox] : r0
         const esq = r.map((k) => p.cantos[k][0])
         const dir = r.map((k) => p.cantos[k][1])
         const fim = p.cantos[r[r.length - 1]]

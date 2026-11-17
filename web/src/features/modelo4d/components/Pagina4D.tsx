@@ -36,6 +36,8 @@ import {
 } from '@/lib/format/posicao'
 import { contar } from '@/lib/rotulos'
 import { useBaseline } from '@/features/planejamento/hooks/planejamentos'
+import { gravarExibicao, lerExibicao, type Exibicao } from './aparencia'
+import { ExibicaoPopover } from './ExibicaoPopover'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { useProducao } from '@/features/acompanhamento/hooks/producao'
 import { useCurvaSValor } from '@/features/acompanhamento/hooks/curva-valor'
@@ -110,7 +112,11 @@ export function Pagina4D({
   const [ate, setAte] = useState<string | null>(null)
   const [ocultas, setOcultas] = useState<ReadonlySet<string>>(new Set())
   const [mouse, setMouse] = useState<ModoMouse>('orbitar')
-  const [sombras, setSombras] = useState(true)
+  const [exibicao, setExibicao] = useState<Exibicao>(lerExibicao)
+  const mudarExibicao = (e: Exibicao): void => {
+    setExibicao(e)
+    gravarExibicao(e)
+  }
   // passeio pela pista: a estaca (em metros do modelo) onde a câmera está, ou null fora do passeio
   const [passeio, setPasseio] = useState<number | null>(null)
   const [dirigindo, setDirigindo] = useState(false)
@@ -497,15 +503,7 @@ export function Pagina4D({
         >
           Percorrer a pista
         </Button>
-        <label className="flex items-center gap-1.5 text-sm text-text">
-          <input
-            type="checkbox"
-            checked={sombras}
-            onChange={(e) => setSombras(e.target.checked)}
-            className="accent-[color:var(--accent)]"
-          />
-          Sombras
-        </label>
+        <ExibicaoPopover valor={exibicao} aoMudar={mudarExibicao} />
         {(modelos.data?.length ?? 0) > 1 ? (
           <div className="ml-auto flex items-center gap-1">
             <div className="w-56">
@@ -671,7 +669,7 @@ export function Pagina4D({
                 periodo={periodo}
                 ocultas={ocultas}
                 mouse={mouse}
-                sombras={sombras}
+                exibicao={exibicao}
                 selecionada={selecionada}
                 aoEscolher={setSelecionada}
                 rotulo={`Modelo 3D da obra em ${dataBR(toLocalISO(new Date(instante)))}`}

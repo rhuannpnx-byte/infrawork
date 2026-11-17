@@ -76,7 +76,7 @@ const PASSO = 20
 /** Intervalo entre seções acima disto é falha do levantamento: não se desenha. */
 const SALTO = 80
 /** Quanto a pegada passa do off-set, para o recorte do terreno não deixar fresta. */
-const FOLGA = 0.6
+const FOLGA = 0.25
 
 const sem = (t: string): string => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 

@@ -147,7 +147,10 @@ Regras que valem para todos:
   à esquerda, a ficha do elemento sobre a cena e a linha do tempo no rodapé. Na cena: o cubo de orientação no canto
   (clicar numa face leva à vista; arrastar gira em torno do centro da tela), o botão esquerdo orbita em torno do
   ponto sob o cursor ou move o terreno (controle "Orbitar | Mover"), a roda aproxima no cursor e "Percorrer a pista"
-  põe a câmera na altura de quem dirige.
+  põe a câmera na altura de quem dirige. O menu "Exibição" escolhe o estilo (Realista, com a textura de cada
+  material; Sombreado, em cor lisa; Linhas, com superfícies claras e arestas), a luz (Frontal, que parte de quem
+  olha e é o padrão, ou Sol, com sombras projetadas) e a sombra de contato, que some enquanto a câmera se move. A
+  escolha fica guardada no navegador.
 
 ## Verificação
 
