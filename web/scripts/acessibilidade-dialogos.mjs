@@ -34,7 +34,9 @@ const CENARIOS = [
   ['/planejamento/equipes', 'Nova equipe'],
   ['/planejamento/equipes', 'Novo encarregado'],
   ['/acompanhamento/viagens', 'Nova ficha'],
-  ['/acompanhamento/lancar', 'Importar planilha']
+  ['/acompanhamento/lancar', 'Importar planilha'],
+  ['/acompanhamento/4d', 'Importar modelo'],
+  ['/acompanhamento/4d', 'Prompt do modelo']
 ]
 
 const TEMA = process.env.E2E_TEMA === 'dark' ? 'dark' : 'light'

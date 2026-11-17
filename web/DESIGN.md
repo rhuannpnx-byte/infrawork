@@ -42,6 +42,11 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 - Gráficos usam `--chart-1…6`; as séries do cronograma (uma cor por serviço) usam `--serie-1…10`, mais escuras no
   claro e mais claras no escuro; superfícies flutuantes usam `--popover`, `--sombra-flutuante` e `--veu` (fundo atrás
   de diálogo).
+- A cena 3D do Acompanhamento 4D lê os tokens em tempo de execução (`features/modelo4d/components/cores.ts`): as
+  situações usam `success` (concluído), `module-planejamento` (adiantado), `accent` (em execução) e `danger`
+  (atrasado). As cores de material (`--m4d-corte`, `--m4d-aterro`, `--m4d-granular`, `--m4d-betume`, `--m4d-asfalto`,
+  `--m4d-concreto`, `--m4d-metal`, `--m4d-sinal`, `--m4d-solo`, `--m4d-terreno`) não mudam com o tema; o fundo da cena
+  (`--m4d-ceu`), a peça que falta (`--m4d-fantasma`) e o contexto (`--m4d-contexto`) mudam.
 - Token novo entra nos dois temas. `src/styles/theme.test.ts` falha se o código usar variável que o tema não define.
 
 ## Tipografia
@@ -135,6 +140,9 @@ Regras que valem para todos:
   aberta nele.
 - Início com obra selecionada é o painel da obra: carimbo, situação (avanço, valor executado, término, serviços,
   último lançamento), curva S em valor, faixa da obra, serviços, alertas, últimos lançamentos e prontidão.
+- Página em beta leva `selo: 'beta'` no item de `modules.ts` (aparece ao lado do nome no menu) e o `Badge` "beta" no
+  cabeçalho. Hoje: Acompanhamento 4D (`/acompanhamento/4d`), com a cena no centro, as camadas e o avanço por serviço
+  à esquerda, a ficha do elemento sobre a cena e a linha do tempo no rodapé.
 
 ## Verificação
 

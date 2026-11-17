@@ -618,6 +618,80 @@ try {
     )
   }
 
+  // ── 8b. Acompanhamento 4D: contrato, contexto do plano, envio com vínculo pelo código, estado e exclusão ──
+  {
+    const contrato = await chamar('modelo_da_obra', { acao: 'contrato' })
+    check('modelo 4D: contrato disponível', /infrawork-4d/.test(contrato.contrato))
+    const ctx4 = await chamar('modelo_da_obra', { acao: 'contexto', obra_id: O })
+    check(
+      'modelo 4D: o prompt traz os serviços e o estaqueamento da obra',
+      ctx4.prompt.includes(sBase.codigo) && ctx4.prompt.includes('Eixo principal'),
+      ctx4.linha_de_base?.nome
+    )
+    const estacas = Array.from({ length: 26 }, (_, i) => i * 20)
+    const modelo = {
+      formato: 'infrawork-4d',
+      versao: 1,
+      nome: 'Modelo MCP',
+      eixos: [{ id: 'E1', nome: 'Eixo', pontos: estacas.map((x) => [x, x, 0, 100]) }],
+      classes: [
+        { id: 'ESC', nome: 'Escavação', disciplina: 'Terraplenagem', servico: sEsc.codigo, terreno: true },
+        { id: 'BASE', nome: 'Base', disciplina: 'Pavimentação', servico: sBase.codigo },
+        { id: 'FAIXA', nome: 'Faixa de domínio', disciplina: 'Contexto', contexto: true }
+      ],
+      secoes: estacas.map((x) => ({ s: x, perfil: [[-6, 100], [0, 100.1], [6, 100]] })),
+      camadas: [
+        { classe: 'ESC', s0: 0, s1: 500, faixas: [[-6, 6]], quantidade: 1000 },
+        { classe: 'BASE', s0: 0, s1: 500, faixas: [[-4, 4]], elevacao: 0.1 }
+      ],
+      elementos: [
+        { id: 'fx', classe: 'FAIXA', geo: { t: 'linha', pts: [[0, 20, 100], [500, 20, 100]], largura: 0.5 } }
+      ]
+    }
+    const ruim = await chamar('modelo_da_obra', {
+      acao: 'enviar',
+      obra_id: O,
+      arquivo_base64: Buffer.from('{"formato":"outro"}').toString('base64')
+    })
+    check('modelo 4D: arquivo fora do contrato é recusado com o motivo', ruim.importado === false && ruim.erros.length > 0, ruim.erros?.[0])
+    const env = await chamar('modelo_da_obra', {
+      acao: 'enviar',
+      obra_id: O,
+      arquivo_base64: Buffer.from(JSON.stringify(modelo)).toString('base64')
+    })
+    check(
+      'modelo 4D: enviado e vinculado pelo código do serviço',
+      env.importado === true &&
+        env.eixos_vinculados === 1 &&
+        env.classes.find((k) => k.classe === 'BASE')?.servico === sBase.codigo &&
+        env.classes.find((k) => k.classe === 'ESC')?.servico === sEsc.codigo &&
+        env.falta_vincular.length === 0,
+      JSON.stringify(env.falta_vincular)
+    )
+    const lista4 = await chamar('modelo_da_obra', { acao: 'listar', obra_id: O })
+    check(
+      'modelo 4D: listado como ativo, com os vínculos',
+      lista4.length === 1 && lista4[0].ativo === true && lista4[0].vinculos.classes.length === 2
+    )
+    const pars4 = await chamar('consultar', {
+      tabela: 'servico_parametro',
+      filtros: [{ coluna: 'item_orcamentario_id', op: 'eq', valor: sBase.id }]
+    })
+    check('modelo 4D: serviço vinculado passa a exigir o local no lançamento', (pars4.linhas ?? pars4)[0]?.exige_local === true)
+    const est4 = await chamar('modelo_da_obra', { acao: 'estado', obra_id: O })
+    const sv4 = est4.servicos.find((x) => x.codigo === sBase.codigo)
+    check(
+      'modelo 4D: estado na data com previsto e realizado por serviço e a situação das peças',
+      !!sv4 && sv4.quantidade_plano > 0 && est4.classes.find((k) => k.classe === 'BASE')?.situacao != null,
+      JSON.stringify(sv4)
+    )
+    const p4 = await chamar('modelo_da_obra', { acao: 'excluir', id: env.id })
+    check('modelo 4D: excluir sem confirmar mostra o impacto', p4.precisa_confirmar === true)
+    const x4 = await chamar('modelo_da_obra', { acao: 'excluir', id: env.id, confirmar: true })
+    const vazio4 = await chamar('modelo_da_obra', { acao: 'listar', obra_id: O })
+    check('modelo 4D: excluído', x4.excluido === env.id && vazio4.length === 0)
+  }
+
   // ── 9. Papéis ──────────────────────────────────────────────────────────────────────────────────
   if (process.env.E2E_APONTADOR && process.env.E2E_APONTADOR_SENHA) {
     const apt = await conectar(process.env.E2E_APONTADOR, process.env.E2E_APONTADOR_SENHA)

@@ -149,6 +149,10 @@ const AcompanhamentoPerformancePage = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/performance'),
   'AcompanhamentoPerformancePage'
 )
+const Acompanhamento4DPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/4d'),
+  'Acompanhamento4DPage'
+)
 const AcompanhamentoComparativoPage = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/comparativo'),
   'AcompanhamentoComparativoPage'
@@ -451,6 +455,11 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: 'performance',
       component: AcompanhamentoPerformancePage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: '4d',
+      component: Acompanhamento4DPage
     }),
     createRoute({
       getParentRoute: () => acompanhamentoLayout,

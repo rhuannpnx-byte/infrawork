@@ -94,7 +94,12 @@ export function MenuModulo(): ReactNode {
                             'aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-transparent'
                           )}
                         >
-                          {item.label}
+                          <span className="truncate">{item.label}</span>
+                          {item.selo ? (
+                            <span className="ml-1.5 shrink-0 rounded border border-border-strong px-1 text-2xs font-normal text-text-muted">
+                              {item.selo}
+                            </span>
+                          ) : null}
                         </a>
                       </li>
                     )

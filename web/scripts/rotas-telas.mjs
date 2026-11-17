@@ -41,6 +41,7 @@ export const ROTAS = [
   '/acompanhamento/fotos',
   '/acompanhamento/comparativo',
   '/acompanhamento/performance',
+  '/acompanhamento/4d',
   '/acompanhamento/equipes',
   '/acompanhamento/transporte',
   '/acompanhamento/alertas',

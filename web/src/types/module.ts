@@ -11,6 +11,8 @@ export interface ModuleNavItem {
    * houver obra ativa, o item é renderizado desabilitado com tooltip.
    */
   requiresObra?: boolean
+  /** Selo curto ao lado do nome no menu (ex.: "beta"). */
+  selo?: string
 }
 
 export interface ModuleSection {

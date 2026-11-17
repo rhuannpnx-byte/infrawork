@@ -43,7 +43,7 @@ pode ser revogado). O banco guarda só o hash.
 
 ## Ferramentas
 
-32 ferramentas, agrupadas por área com o campo `acao` (cabe no limite de 40 de clientes como o Cursor):
+33 ferramentas, agrupadas por área com o campo `acao` (cabe no limite de 40 de clientes como o Cursor):
 
 - **Contexto:** `quem_sou`, `consultar` (leitura genérica de tabelas/views permitidas, paginando).
 - **Gerencial:** `obras`, `usuarios`, `trechos`.
@@ -53,7 +53,7 @@ pode ser revogado). O banco guarda só o hash.
 - **Planejamento:** `planos`, `tarefas`, `dependencias_marcos`, `cronograma`, `quantidades_locais`, `calendarios`,
   `equipes`.
 - **Acompanhamento:** `producao`, `parametros_servico`, `transporte`, `viagens`, `frota`, `alertas`, `fotos`,
-  `analises`.
+  `analises`, `modelo_da_obra` (modelo 3D ligado ao plano; o contrato do arquivo está em `docs/MODELO-4D.md`).
 
 Além das ferramentas: o recurso `infrawork://guia` (ordem das operações e regras do domínio, para a IA ler antes) e os
 prompts `montar_obra`, `importar_orcamento`, `planejar_quantidades`, `lancar_viagens`, `situacao_obra`.

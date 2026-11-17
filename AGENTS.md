@@ -68,6 +68,19 @@ Ao mexer em tela do `web/`:
   diálogo novo entra na lista deste último). A tabela dos roteiros está em `web/DESIGN.md`;
 - o app de campo (`campo/`) segue a mesma identidade, com os tokens em `campo/src/styles/theme.css`.
 
+## Acompanhamento 4D (beta)
+
+O modelo 3D da obra segue o contrato `infrawork-4d` (`web/docs/MODELO-4D.md`). Ao mexer nele:
+
+- o contrato vive em três lugares que mudam juntos: os tipos e a validação (`web/src/features/modelo4d/lib/contrato.ts`),
+  o texto entregue a quem gera o modelo (`contrato-texto.ts`, usado no prompt da tela e no MCP) e o `docs/MODELO-4D.md`
+  (um teste cobra que o texto seja o mesmo);
+- as bibliotecas de `features/modelo4d/lib/` são TS puro, sem DOM: o web e o MCP (`modelo_da_obra`) usam as mesmas;
+- o vínculo é por classe (classe → serviço, eixo → local) e a estaca decide o estado; o previsto vem dos trechos de
+  tarefa da linha de base (`planejamento_tarefa_wp`) e o realizado só dos lançamentos com estaca;
+- a cena lê as cores dos tokens do tema em tempo de execução; o `three` fica num pedaço próprio do build, carregado só
+  nessa página (`vite.config.ts`).
+
 ## Publicação na Vercel
 
 Os projetos `infrawork-web` (raiz `web/`) e `infrawork-campo` (raiz `campo/`) estão ligados ao GitHub
