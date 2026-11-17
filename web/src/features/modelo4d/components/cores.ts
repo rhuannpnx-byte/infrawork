@@ -1,32 +1,44 @@
-import { Color, SRGBColorSpace } from 'three'
-import type { Classe4D } from '../lib/contrato'
+import type { Material } from '../lib/contrato'
+
+export type Rgb = [r: number, g: number, b: number]
 
 let tela: CanvasRenderingContext2D | null = null
 
-/** Cor de um token do tema, já no espaço de trabalho do three (o tema é em oklch, que o three não lê). */
-export function cor(nome: string): Color {
+/** Cor de um token do tema em sRGB de 0 a 1 (o tema é em oklch, que a cena 3D não lê). */
+export function cor(nome: string): Rgb {
   const valor = getComputedStyle(document.documentElement).getPropertyValue(`--${nome}`).trim()
   tela ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })
-  if (!tela || !valor) return new Color(0.5, 0.5, 0.5)
+  if (!tela || !valor) return [0.5, 0.5, 0.5]
   tela.clearRect(0, 0, 1, 1)
   tela.fillStyle = valor
   tela.fillRect(0, 0, 1, 1)
   const [r, g, b] = tela.getImageData(0, 0, 1, 1).data
-  return new Color().setRGB(r / 255, g / 255, b / 255, SRGBColorSpace)
+  return [r / 255, g / 255, b / 255]
 }
 
-const sem = (t: string): string => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+export const mistura = (a: Rgb, b: Rgb, f: number): Rgb => [
+  a[0] + (b[0] - a[0]) * f,
+  a[1] + (b[1] - a[1]) * f,
+  a[2] + (b[2] - a[2]) * f
+]
 
-/** Token de material de uma classe, pelo nome: a cena mostra a obra com cara de obra nos modos previsto e realizado. */
-export function tokenDoMaterial(c: Classe4D): string {
-  if (c.contexto) return 'm4d-contexto'
-  const t = sem(`${c.id} ${c.nome} ${c.disciplina}`)
-  if (/sinaliza|placa|pintura de faixa/.test(t)) return 'm4d-sinal'
-  if (/corte|escava/.test(t)) return 'm4d-corte'
-  if (/aterro|terraplen|compacta/.test(t)) return 'm4d-aterro'
-  if (/imprima|pintura de liga|betum/.test(t)) return 'm4d-betume'
-  if (/tratamento superficial|tsd|cbuq|cauq|asfalt|micro|revest|capa/.test(t)) return 'm4d-asfalto'
-  if (/sub-?base|base|regulariza|subleito|granul|brita|paviment/.test(t)) return 'm4d-granular'
-  if (/defensa|cerca|metal|terminal/.test(t)) return 'm4d-metal'
-  return 'm4d-concreto'
+/** Cor de cada material do contrato, lida do tema. */
+export function coresDosMateriais(): Record<Material, Rgb> {
+  return {
+    corte: cor('m4d-corte'),
+    aterro: cor('m4d-aterro'),
+    solo: cor('m4d-solo'),
+    granular: cor('m4d-granular'),
+    betume: cor('m4d-betume'),
+    asfalto: cor('m4d-asfalto'),
+    concreto: cor('m4d-concreto'),
+    metal: cor('m4d-metal'),
+    madeira: cor('m4d-madeira'),
+    'sinal-branco': cor('m4d-sinal-branco'),
+    'sinal-amarelo': cor('m4d-sinal-amarelo'),
+    'sinal-vermelho': cor('m4d-sinal-vermelho'),
+    'sinal-verde': cor('m4d-sinal-verde'),
+    'sinal-azul': cor('m4d-sinal-azul'),
+    contexto: cor('m4d-contexto')
+  }
 }

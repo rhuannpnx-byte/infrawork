@@ -42,11 +42,12 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 - Gráficos usam `--chart-1…6`; as séries do cronograma (uma cor por serviço) usam `--serie-1…10`, mais escuras no
   claro e mais claras no escuro; superfícies flutuantes usam `--popover`, `--sombra-flutuante` e `--veu` (fundo atrás
   de diálogo).
-- A cena 3D do Acompanhamento 4D lê os tokens em tempo de execução (`features/modelo4d/components/cores.ts`): as
-  situações usam `success` (concluído), `module-planejamento` (adiantado), `accent` (em execução) e `danger`
-  (atrasado). As cores de material (`--m4d-corte`, `--m4d-aterro`, `--m4d-granular`, `--m4d-betume`, `--m4d-asfalto`,
-  `--m4d-concreto`, `--m4d-metal`, `--m4d-sinal`, `--m4d-solo`, `--m4d-terreno`) não mudam com o tema; o fundo da cena
-  (`--m4d-ceu`), a peça que falta (`--m4d-fantasma`) e o contexto (`--m4d-contexto`) mudam.
+- A cena 3D do Acompanhamento 4D (CesiumJS) lê os tokens em tempo de execução
+  (`features/modelo4d/components/cores.ts`): as situações usam `success` (concluído), `module-planejamento`
+  (adiantado), `accent` (em execução) e `danger` (atrasado). As cores de material (`--m4d-corte`, `--m4d-aterro`,
+  `--m4d-granular`, `--m4d-betume`, `--m4d-asfalto`, `--m4d-concreto`, `--m4d-metal`, `--m4d-madeira`, `--m4d-solo`,
+  `--m4d-sinal-*`, `--m4d-contexto`, `--m4d-fantasma`) não mudam com o tema: a cena é a obra sobre a imagem de
+  satélite.
 - Token novo entra nos dois temas. `src/styles/theme.test.ts` falha se o código usar variável que o tema não define.
 
 ## Tipografia
@@ -142,7 +143,10 @@ Regras que valem para todos:
   último lançamento), curva S em valor, faixa da obra, serviços, alertas, últimos lançamentos e prontidão.
 - Página em beta leva `selo: 'beta'` no item de `modules.ts` (aparece ao lado do nome no menu) e o `Badge` "beta" no
   cabeçalho. Hoje: Acompanhamento 4D (`/acompanhamento/4d`), com a cena no centro, as camadas e o avanço por serviço
-  à esquerda, a ficha do elemento sobre a cena e a linha do tempo no rodapé.
+  à esquerda, a ficha do elemento sobre a cena e a linha do tempo no rodapé. Na cena: o cubo de orientação no canto
+  (clicar numa face leva à vista; arrastar gira em torno do centro da tela), o botão esquerdo orbita em torno do
+  ponto sob o cursor ou move o terreno (controle "Orbitar | Mover"), a roda aproxima no cursor e "Percorrer a pista"
+  põe a câmera na altura de quem dirige.
 
 ## Verificação
 

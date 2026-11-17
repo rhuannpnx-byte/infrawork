@@ -6,6 +6,8 @@
  * desde a estaca 0 do projeto (estaca 100 = 2000).
  */
 
+import { lerFuso } from './geo'
+
 export type Pt = [x: number, n: number, z: number]
 
 export interface Eixo4D {
@@ -44,9 +46,31 @@ export interface Classe4D {
   unidade?: string
   /** Só contexto: aparece sempre, em cor neutra, e não entra no 4D. */
   contexto?: boolean
-  /** O avanço desta classe leva o terreno do atual para o de projeto. */
+  /** Terraplenagem: onde ela avança, o terreno natural dá lugar à obra. */
   terreno?: boolean
+  /** Material da classe (ver `MATERIAIS`); sem ele, o InfraWork escolhe pelo nome. */
+  material?: Material
 }
+
+/** Materiais que a cena sabe pintar. */
+export const MATERIAIS = [
+  'corte',
+  'aterro',
+  'solo',
+  'granular',
+  'betume',
+  'asfalto',
+  'concreto',
+  'metal',
+  'madeira',
+  'sinal-branco',
+  'sinal-amarelo',
+  'sinal-vermelho',
+  'sinal-verde',
+  'sinal-azul',
+  'contexto'
+] as const
+export type Material = (typeof MATERIAIS)[number]
 
 /** Seção transversal da plataforma: pontos `[afastamento, cota]`, da esquerda (negativo) para a direita. */
 export interface Secao4D {
@@ -55,26 +79,45 @@ export interface Secao4D {
   perfil: [number, number][]
 }
 
+/** Faixa de afastamento `[de, até]` de uma camada; o terceiro número sobe ou desce só essa faixa (metros). */
+export type FaixaCamada = [de: number, ate: number, elevacao?: number]
+
 /** Camada sobre a plataforma entre duas estacas; a leitura a corta em fatias, uma por intervalo de seção. */
 export interface Camada4D {
   classe: string
   eixo?: string
   s0: number
   s1: number
-  /** Faixas de afastamento `[de, até]` que a camada ocupa na seção. */
-  faixas: [number, number][]
-  /** Metros acima do perfil da seção (para empilhar as camadas). */
+  /** Faixas de afastamento que a camada ocupa na seção. */
+  faixas: FaixaCamada[]
+  /** Topo da camada em relação ao perfil acabado da seção, em metros (negativo = abaixo dele). */
   elevacao?: number
+  /** Espessura em metros: com ela a camada é um sólido, do topo para baixo. */
+  espessura?: number
+  material?: Material
   quantidade?: number
   nome?: string
 }
 
 export type Geo4D =
-  /** Fita ou prisma ao longo de uma polilinha. */
-  | { t: 'linha'; pts: Pt[]; largura: number; altura?: number }
+  /**
+   * Peça ao longo de uma polilinha. Sem `perfil`, é um prisma de `largura` × `altura`. Com `perfil` (pontos
+   * `[lateral, vertical]` da seção da peça, fechada), ele é extrudado: sarjeta, meio-fio, valeta. `postes` e `fios`
+   * fazem cerca e defensa.
+   */
+  | {
+      t: 'linha'
+      pts: Pt[]
+      largura: number
+      altura?: number
+      perfil?: [number, number][]
+      postes?: { passo: number; altura: number; lado?: number }
+      /** Alturas dos fios (ou da lâmina) sobre a polilinha, em metros. */
+      fios?: number[]
+    }
   /** Caixa: `dim` = [ao longo do rumo, transversal, altura]; `rumo` em radianos a partir do leste. */
   | { t: 'caixa'; p: Pt; dim: [number, number, number]; rumo?: number }
-  /** Bueiro: tubular (`diametro`) ou celular (`largura` e `altura`), com `linhas` lado a lado. */
+  /** Bueiro: tubular (`diametro`) ou celular (`largura` e `altura`), com `linhas` lado a lado, testas e alas. */
   | {
       t: 'tubo'
       p0: Pt
@@ -83,6 +126,15 @@ export type Geo4D =
       largura?: number
       altura?: number
       linhas?: number
+    }
+  /** Placa em poste: `rumo` é para onde a face olha; `forma` e as medidas da chapa em metros. */
+  | {
+      t: 'placa'
+      p: Pt
+      rumo: number
+      forma: 'circulo' | 'losango' | 'octogono' | 'triangulo' | 'retangulo'
+      largura: number
+      altura?: number
     }
   /** Malha pronta: `pos` em trincas x, n, z; `idx` opcional. */
   | { t: 'malha'; pos: number[]; idx?: number[] }
@@ -96,6 +148,9 @@ export interface Elemento4D {
   s0?: number
   s1?: number
   quantidade?: number
+  material?: Material
+  /** Assenta a peça no terreno natural (cerca, placa, poste): a cota da geometria vira altura sobre ele. */
+  no_terreno?: boolean
   geo: Geo4D
 }
 
@@ -103,8 +158,11 @@ export interface Modelo4D {
   formato: 'infrawork-4d'
   versao: 1
   nome: string
-  /** UTM do ponto (0, 0) local. */
-  origem?: { e: number; n: number; fuso?: string }
+  /**
+   * UTM do ponto (0, 0) local e o fuso ("22S"). É o que põe a obra no lugar certo do terreno e da imagem de
+   * satélite.
+   */
+  origem: { e: number; n: number; fuso: string }
   eixos: Eixo4D[]
   terreno?: BlocoTerreno4D[]
   classes: Classe4D[]
@@ -127,6 +185,10 @@ export function validarModelo(json: unknown): { modelo: Modelo4D } | { erros: st
     }
   if (m.versao !== 1)
     erros.push(`Versão ${String(m.versao)} do contrato não é aceita (a atual é a 1).`)
+  if (!num(m.origem?.e) || !num(m.origem?.n) || !lerFuso(m.origem?.fuso))
+    erros.push(
+      'Falta a `origem` com `e`, `n` e `fuso` (ex.: "22S"): é ela que põe a obra no terreno e na imagem de satélite.'
+    )
   if (!Array.isArray(m.eixos) || m.eixos.length === 0)
     erros.push('O modelo precisa de ao menos um eixo.')
   const eixos = new Set<string>()
@@ -169,9 +231,11 @@ export function validarModelo(json: unknown): { modelo: Modelo4D } | { erros: st
           ? pt(g.p) && Array.isArray(g.dim) && g.dim.length === 3 && g.dim.every(num)
           : g?.t === 'tubo'
             ? pt(g.p0) && pt(g.p1) && (num(g.diametro) || (num(g.largura) && num(g.altura)))
-            : g?.t === 'malha'
-              ? Array.isArray(g.pos) && g.pos.length >= 9 && g.pos.length % 3 === 0
-              : false
+            : g?.t === 'placa'
+              ? pt(g.p) && num(g.rumo) && num(g.largura) && typeof g.forma === 'string'
+              : g?.t === 'malha'
+                ? Array.isArray(g.pos) && g.pos.length >= 9 && g.pos.length % 3 === 0
+                : false
     if (!ok) geoRuim++
   }
   for (const c of m.camadas ?? []) {

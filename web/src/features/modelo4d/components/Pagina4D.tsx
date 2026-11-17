@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, Box, FileText, Link2, Trash2, Upload, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Box,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Link2,
+  Pause,
+  Play,
+  Trash2,
+  Upload,
+  X
+} from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,6 +30,7 @@ import { dataBR, toLocalISO } from '@/lib/format/local-date'
 import {
   divisorMetrosPorUnidade,
   formatMarcadorCompacto,
+  marcadorToMetros,
   metrosToMarcador,
   parseMarcador
 } from '@/lib/format/posicao'
@@ -39,7 +52,7 @@ import {
 import { Estado4D, situacao, type Lancamento, type Situacao, type Vinculos } from '../lib/estado'
 import { montarLancamentos } from '../lib/plano'
 import { montarPrompt } from '../lib/prompt'
-import { Cena4D, type Cena4DRef, type Modo4D } from './Cena4D'
+import { CenaCesium, type CenaRef, type Modo4D, type ModoMouse } from './CenaCesium'
 import { ImportarModeloDialog, PromptModeloDialog, VincularModeloDialog } from './Dialogos4D'
 import { DIA, LinhaDoTempo } from './LinhaDoTempo'
 
@@ -96,8 +109,12 @@ export function Pagina4D({
   const [de, setDe] = useState<string | null>(null)
   const [ate, setAte] = useState<string | null>(null)
   const [ocultas, setOcultas] = useState<ReadonlySet<string>>(new Set())
-  const [mostrarFalta, setMostrarFalta] = useState(true)
-  const [exagero, setExagero] = useState('1')
+  const [mouse, setMouse] = useState<ModoMouse>('orbitar')
+  const [sombras, setSombras] = useState(true)
+  // passeio pela pista: a estaca (em metros do modelo) onde a câmera está, ou null fora do passeio
+  const [passeio, setPasseio] = useState<number | null>(null)
+  const [dirigindo, setDirigindo] = useState(false)
+  const [paraTras, setParaTras] = useState(false)
   const [selecionada, setSelecionada] = useState<number | null>(null)
   const [estaca, setEstaca] = useState('')
   const [erroEstaca, setErroEstaca] = useState<string | null>(null)
@@ -105,7 +122,7 @@ export function Pagina4D({
   const [velocidade, setVelocidade] = useState(30)
   const [hoje] = useState(() => fimDoDia(Date.now()))
   const [t, setT] = useState(hoje)
-  const cena = useRef<Cena4DRef>(null)
+  const cena = useRef<CenaRef>(null)
 
   const locais = useMemo(() => trechos.data ?? [], [trechos.data])
   const vinculos = useMemo<Vinculos>(() => {
@@ -212,6 +229,40 @@ export function Pagina4D({
     const id = modelo?.modelo.eixos[ie]?.id
     return id ? (vinculos.eixos[id] as ObraTrecho | undefined) : undefined
   }
+
+  // passeio: a câmera segue a estaca; dirigindo, anda a 25 m/s e para no fim do eixo
+  useEffect(() => {
+    if (passeio != null) cena.current?.percorrer(0, passeio, paraTras)
+  }, [passeio, paraTras])
+  useEffect(() => {
+    if (!dirigindo || !modelo) return
+    const e = modelo.eixos[0]
+    let antes = performance.now()
+    const id = window.setInterval(() => {
+      const agora = performance.now()
+      const passo = ((agora - antes) / 1000) * 25 * (paraTras ? -1 : 1)
+      antes = agora
+      setPasseio((s) => {
+        if (s == null) return s
+        const n = Math.max(e.sMin, Math.min(e.sMax, s + passo))
+        if (n === e.sMin || n === e.sMax) setDirigindo(false)
+        return n
+      })
+    }, 40)
+    return () => window.clearInterval(id)
+  }, [dirigindo, paraTras, modelo])
+  const andar = (d: number): void => {
+    if (!modelo) return
+    const e = modelo.eixos[0]
+    setPasseio((s) => (s == null ? s : Math.max(e.sMin, Math.min(e.sMax, s + d))))
+  }
+  const rotuloPasseio = ((): string => {
+    if (passeio == null) return ''
+    const l = eixoLocal(0)
+    if (!l) return `est. ${formatNumber(passeio / 20, 0)}`
+    const m = marcadorToMetros(passeio / divisorMetrosPorUnidade(l), l)
+    return formatMarcadorCompacto(Math.max(0, m), l)
+  })()
 
   function irParaEstaca(): void {
     if (!modelo) return
@@ -371,7 +422,8 @@ export function Pagina4D({
               valor: 'comparar',
               rotulo: 'Comparar',
               titulo: 'Cada peça na cor da situação: previsto contra realizado'
-            }
+            },
+            { valor: 'projeto', rotulo: 'Projeto', titulo: 'A obra pronta, como no projeto' }
           ]}
         />
         <DateRangePopover
@@ -415,27 +467,44 @@ export function Pagina4D({
           </Button>
         </form>
         <Segmentado
-          rotulo="Exagero vertical"
-          valor={exagero}
-          aoMudar={setExagero}
+          rotulo="Botão esquerdo do mouse"
+          valor={mouse}
+          aoMudar={setMouse}
           tamanho="sm"
           opcoes={[
-            { valor: '1', rotulo: '1×', titulo: 'Relevo na escala real' },
             {
-              valor: '3',
-              rotulo: '3×',
-              titulo: 'Relevo três vezes mais alto, para ler cortes e aterros'
+              valor: 'orbitar',
+              rotulo: 'Orbitar',
+              titulo:
+                'Arrastar gira a cena em torno do ponto sob o cursor (Shift arrasta o terreno)'
+            },
+            {
+              valor: 'mover',
+              rotulo: 'Mover',
+              titulo: 'Arrastar move o terreno (Ctrl ou o botão do meio giram a cena)'
             }
           ]}
         />
+        <Button
+          type="button"
+          variant={passeio == null ? 'secondary' : 'default'}
+          size="sm"
+          title="Põe a câmera sobre a pista, na altura de quem dirige"
+          onClick={() => {
+            setDirigindo(false)
+            setPasseio(passeio == null ? (modelo?.eixos[0]?.sMin ?? 0) : null)
+          }}
+        >
+          Percorrer a pista
+        </Button>
         <label className="flex items-center gap-1.5 text-sm text-text">
           <input
             type="checkbox"
-            checked={mostrarFalta}
-            onChange={(e) => setMostrarFalta(e.target.checked)}
+            checked={sombras}
+            onChange={(e) => setSombras(e.target.checked)}
             className="accent-[color:var(--accent)]"
           />
-          Mostrar o que falta
+          Sombras
         </label>
         {(modelos.data?.length ?? 0) > 1 ? (
           <div className="ml-auto flex items-center gap-1">
@@ -556,8 +625,11 @@ export function Pagina4D({
                                   : ' · fora da linha de base'}
                               </span>
                             ) : (
-                              <span className="block text-xs text-text-muted">
-                                sem serviço vinculado
+                              <span
+                                className="block text-xs text-text-muted"
+                                title="Sem serviço, a cena não sabe quando a classe é feita: ela aparece só no modo Projeto"
+                              >
+                                sem serviço: só no modo Projeto
                               </span>
                             )}
                           </span>
@@ -590,7 +662,7 @@ export function Pagina4D({
             />
           ) : modelo ? (
             <>
-              <Cena4D
+              <CenaCesium
                 ref={cena}
                 modelo={modelo}
                 estado={estado}
@@ -598,13 +670,59 @@ export function Pagina4D({
                 modo={modo}
                 periodo={periodo}
                 ocultas={ocultas}
-                mostrarFalta={mostrarFalta}
-                exagero={Number(exagero)}
+                mouse={mouse}
+                sombras={sombras}
                 selecionada={selecionada}
                 aoEscolher={setSelecionada}
                 rotulo={`Modelo 3D da obra em ${dataBR(toLocalISO(new Date(instante)))}`}
               />
-              <Legenda modo={modo} mostrarFalta={mostrarFalta} comEstado={!!estado} />
+              <Legenda modo={modo} comEstado={!!estado} />
+              {passeio != null ? (
+                <div className="absolute bottom-12 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded border border-border bg-bg-panel px-2 py-1.5 shadow-[var(--sombra-flutuante)]">
+                  <IconButton aria-label="Recuar 20 metros" onClick={() => andar(-20)}>
+                    <ChevronLeft size={14} />
+                  </IconButton>
+                  <IconButton
+                    aria-label={dirigindo ? 'Parar' : 'Dirigir pela pista'}
+                    onClick={() => setDirigindo((v) => !v)}
+                  >
+                    {dirigindo ? <Pause size={14} /> : <Play size={14} />}
+                  </IconButton>
+                  <IconButton aria-label="Avançar 20 metros" onClick={() => andar(20)}>
+                    <ChevronRight size={14} />
+                  </IconButton>
+                  <input
+                    type="range"
+                    aria-label="Posição na pista"
+                    aria-valuetext={rotuloPasseio}
+                    min={modelo.eixos[0].sMin}
+                    max={modelo.eixos[0].sMax}
+                    step={10}
+                    value={passeio}
+                    onChange={(e) => setPasseio(Number(e.target.value))}
+                    className="w-48 accent-[color:var(--accent)]"
+                  />
+                  <span className="w-20 text-sm tabular text-text">{rotuloPasseio}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title="Inverte o sentido em que a câmera olha e anda"
+                    onClick={() => setParaTras((v) => !v)}
+                  >
+                    {paraTras ? 'Sentido decrescente' : 'Sentido crescente'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setDirigindo(false)
+                      setPasseio(null)
+                    }}
+                  >
+                    Sair
+                  </Button>
+                </div>
+              ) : null}
               {selecionada != null && modelo.pecas[selecionada] ? (
                 <Ficha
                   i={selecionada}
@@ -654,16 +772,8 @@ function Aviso({ children, acao }: { children: ReactNode; acao?: ReactNode }): R
   )
 }
 
-function Legenda({
-  modo,
-  mostrarFalta,
-  comEstado
-}: {
-  modo: Modo4D
-  mostrarFalta: boolean
-  comEstado: boolean
-}): ReactNode {
-  if (!comEstado) return null
+function Legenda({ modo, comEstado }: { modo: Modo4D; comEstado: boolean }): ReactNode {
+  if (!comEstado || modo === 'projeto') return null
   const itens: [string, string][] =
     modo === 'comparar'
       ? [
@@ -688,15 +798,6 @@ function Legenda({
           <span className={`size-2.5 rounded-sm ${cor}`} aria-hidden /> {rotulo}
         </li>
       ))}
-      {mostrarFalta ? (
-        <li className="flex items-center gap-1.5">
-          <span
-            className="size-2.5 rounded-sm border border-border-strong bg-bg-elevated"
-            aria-hidden
-          />{' '}
-          falta fazer
-        </li>
-      ) : null}
     </ul>
   )
 }
@@ -749,7 +850,7 @@ function Ficha({
   return (
     <section
       aria-label="Elemento escolhido"
-      className="absolute right-3 top-3 max-h-[calc(100%-1.5rem)] w-72 overflow-y-auto rounded border border-border bg-bg-panel p-3 shadow-[var(--sombra-flutuante)]"
+      className="absolute right-3 top-32 max-h-[calc(100%-9.5rem)] w-72 overflow-y-auto rounded border border-border bg-bg-panel p-3 shadow-[var(--sombra-flutuante)]"
     >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
@@ -771,7 +872,7 @@ function Ficha({
             : 'Classe sem serviço vinculado: aparece só como contexto.'}
         </p>
       ) : (
-        <dl className="mt-2 flex flex-col gap-2 text-sm">
+        <div className="mt-2 flex flex-col gap-2 text-sm">
           {sit ? (
             <div className="flex items-center gap-1.5">
               <span className={`size-2.5 rounded-sm ${COR_SITUACAO[sit]}`} aria-hidden />
@@ -780,29 +881,29 @@ function Ficha({
             </div>
           ) : null}
           <div>
-            <dt className="text-xs text-text-muted">Serviço</dt>
-            <dd className="text-text">
+            <p className="text-xs text-text-muted">Serviço</p>
+            <p className="text-text">
               {servico ? `${servico.codigo} · ${servico.descricao}` : '—'}
-            </dd>
+            </p>
           </div>
           <div>
-            <dt className="text-xs text-text-muted">Previsto</dt>
-            <dd className="text-text">
+            <p className="text-xs text-text-muted">Previsto</p>
+            <p className="text-text">
               {dados.janela
                 ? dia(dados.janela[0]) === dia(dados.janela[1])
                   ? `${dia(dados.janela[0])} · ${pct(dados.prev)} na data`
                   : `${dia(dados.janela[0])} a ${dia(dados.janela[1])} · ${pct(dados.prev)} na data`
                 : 'A linha de base não passa por esta estaca.'}
-            </dd>
+            </p>
           </div>
           <div>
-            <dt className="text-xs text-text-muted">Realizado</dt>
-            <dd className="text-text">
+            <p className="text-xs text-text-muted">Realizado</p>
+            <p className="text-text">
               {pct(dados.real)} na data
               {dados.lancamentos.length
                 ? ` · ${contar(dados.lancamentos.length, 'lançamento', 'lançamentos')} nesta estaca`
                 : ' · nenhum lançamento nesta estaca'}
-            </dd>
+            </p>
           </div>
           {dados.lancamentos.length ? (
             <ul className="divide-y divide-border border-t border-border text-xs">
@@ -821,7 +922,7 @@ function Ficha({
               ))}
             </ul>
           ) : null}
-        </dl>
+        </div>
       )}
     </section>
   )

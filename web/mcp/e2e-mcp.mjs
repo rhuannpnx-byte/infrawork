@@ -633,6 +633,7 @@ try {
       formato: 'infrawork-4d',
       versao: 1,
       nome: 'Modelo MCP',
+      origem: { e: 500000, n: 8000000, fuso: '22S' },
       eixos: [{ id: 'E1', nome: 'Eixo', pontos: estacas.map((x) => [x, x, 0, 100]) }],
       classes: [
         { id: 'ESC', nome: 'Escavação', disciplina: 'Terraplenagem', servico: sEsc.codigo, terreno: true },

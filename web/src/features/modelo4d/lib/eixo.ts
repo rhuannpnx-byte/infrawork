@@ -61,19 +61,24 @@ export class EixoCalc {
     return [q.x + q.tn * o, q.n - q.tx * o, q.z]
   }
 
-  /** Estaca e afastamento do ponto do eixo mais próximo de (x, n). */
-  projetar(x: number, n: number): { d: number; s: number; o: number } {
+  /**
+   * Estaca e afastamento do ponto do eixo mais próximo de (x, n). Com `perto` (índice de um ponto do eixo já
+   * sabido próximo), procura só em volta dele: serve para muitos pontos vizinhos.
+   */
+  projetar(x: number, n: number, perto?: number): { d: number; s: number; o: number; i: number } {
     const p = this.p
     let bi = 0
     let bd = Infinity
-    for (let i = 0; i < p.length; i += 4) {
+    const ini = perto == null ? 0 : Math.max(0, perto - 60)
+    const fim = perto == null ? p.length : Math.min(p.length, perto + 60)
+    for (let i = ini; i < fim; i += 4) {
       const d = (p[i][1] - x) ** 2 + (p[i][2] - n) ** 2
       if (d < bd) {
         bd = d
         bi = i
       }
     }
-    let melhor = { d: Infinity, s: p[bi][0], o: 0 }
+    let melhor = { d: Infinity, s: p[bi][0], o: 0, i: bi }
     for (let i = Math.max(0, bi - 6); i < Math.min(p.length - 1, bi + 6); i++) {
       const a = p[i]
       const b = p[i + 1]
@@ -84,7 +89,7 @@ export class EixoCalc {
       const d = Math.hypot(x - (a[1] + dx * t), n - (a[2] + dn * t))
       if (d < melhor.d) {
         const cr = dx * (n - a[2]) - dn * (x - a[1])
-        melhor = { d, s: a[0] + (b[0] - a[0]) * t, o: cr > 0 ? -d : d }
+        melhor = { d, s: a[0] + (b[0] - a[0]) * t, o: cr > 0 ? -d : d, i }
       }
     }
     return melhor

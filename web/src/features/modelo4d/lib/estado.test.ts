@@ -15,6 +15,7 @@ function modelo(): Modelo4D {
     formato: 'infrawork-4d',
     versao: 1,
     nome: 'Teste',
+    origem: { e: 500000, n: 8000000, fuso: '22S' },
     eixos: [{ id: 'E1', nome: 'Eixo', pontos: s.map((x) => [x, x, 0, 100]) }],
     classes: [
       { id: 'ATERRO', nome: 'Aterro', disciplina: 'Terraplenagem', terreno: true },
@@ -303,7 +304,7 @@ describe('conversor do HTML', () => {
     signs: [{ code: 'R-1', s: 10, est: '0+10,00', p: [10, 8, 100] }],
     info: { STC: 'Sarjeta triangular de concreto', DES: 'Dissipador de energia' }
   }
-  const html = `<html><title>Obra X</title><script type="application/json" id="data">${JSON.stringify(dados)}</script></html>`
+  const html = `<html><title>Obra X</title><script>const l0=-51*r</script><script type="application/json" id="data">${JSON.stringify(dados)}</script></html>`
 
   it('gera um modelo válido com as classes e as quantidades', () => {
     const r = converterHtml(html)
@@ -317,7 +318,7 @@ describe('conversor do HTML', () => {
       'TERRA.ATERRO': 3,
       'PAV.1': 3,
       'PAV.2': 3,
-      'SIN.HORIZONTAL': 3,
+      'SIN.HORIZONTAL': 6,
       'DREN.STC': 4,
       'DREN.DES': 1,
       'OAC.BUEIROS': 1,

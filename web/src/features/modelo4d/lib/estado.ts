@@ -122,13 +122,20 @@ export class Estado4D {
     const comQtd = modelo.malhas.map(
       (m) => m.pecas.length > 0 && m.pecas.every((i) => pecas[i].qtd != null)
     )
+    // piso do peso: 2% da média da classe, para a peça de quantidade zero (talude sem volume no intervalo) não
+    // ficar para sempre sem previsto nem realizado
+    const piso = modelo.malhas.map((m, ic) => {
+      if (!comQtd[ic]) return 0
+      const soma = m.pecas.reduce((t, i) => t + (pecas[i].qtd ?? 0), 0)
+      return Math.max(1e-6, (soma / m.pecas.length) * 0.02)
+    })
     const peso = new Float32Array(n)
     const grupos = new Map<string, number[]>()
     for (let i = 0; i < n; i++) {
       const p = pecas[i]
       const item = vinculos.classes[modelo.modelo.classes[p.classe].id]
       const tr = vinculos.eixos[modelo.modelo.eixos[p.eixo].id]
-      peso[i] = comQtd[p.classe] ? Math.max(p.qtd ?? 0, 1e-6) : Math.max(p.s1 - p.s0, 1)
+      peso[i] = comQtd[p.classe] ? Math.max(p.qtd ?? 0, piso[p.classe]) : Math.max(p.s1 - p.s0, 1)
       if (!item || !tr) continue
       const d = divisorMetrosPorUnidade(tr)
       const a = marcadorToMetros(p.s0 / d, tr)

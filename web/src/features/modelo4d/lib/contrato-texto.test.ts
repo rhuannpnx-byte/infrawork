@@ -15,10 +15,6 @@ describe('contrato do modelo 4D', () => {
   it('o exemplo do contrato é um modelo válido', () => {
     const json = /```json\n([\s\S]*?)\n```/.exec(CONTRATO_TEXTO)![1]
     const exemplo = JSON.parse(json.replace(/"<[^"]*base64>"/g, '"AAAA"'))
-    exemplo.classes.push(
-      { id: 'DREN.STC', nome: 'Sarjeta', disciplina: 'Drenagem' },
-      { id: 'OAC.BUEIROS', nome: 'Bueiros', disciplina: 'Obras de arte correntes' }
-    )
     const v = validarModelo(exemplo)
     expect('erros' in v ? v.erros : []).toEqual([])
   })

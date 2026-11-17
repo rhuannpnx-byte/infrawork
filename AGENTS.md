@@ -78,8 +78,13 @@ O modelo 3D da obra segue o contrato `infrawork-4d` (`web/docs/MODELO-4D.md`). A
 - as bibliotecas de `features/modelo4d/lib/` são TS puro, sem DOM: o web e o MCP (`modelo_da_obra`) usam as mesmas;
 - o vínculo é por classe (classe → serviço, eixo → local) e a estaca decide o estado; o previsto vem dos trechos de
   tarefa da linha de base (`planejamento_tarefa_wp`) e o realizado só dos lançamentos com estaca;
-- a cena lê as cores dos tokens do tema em tempo de execução; o `three` fica num pedaço próprio do build, carregado só
-  nessa página (`vite.config.ts`).
+- a cena é em CesiumJS (`@cesium/engine`), num pedaço próprio do build carregado só nessa página; os operários e
+  as texturas dele são copiados para `/cesium` pelo plugin de `vite.config.ts`. O terreno do entorno vem do relevo
+  aberto de 30 m (AWS Terrain Tiles) ajustado ao levantamento do projeto (`lib/relevo.ts`), e a imagem, do World
+  Imagery da Esri; as duas origens e o `wasm-unsafe-eval` que o Cesium pede estão na CSP do `vercel.json`. Mudou a
+  cena ou a CSP: sirva o build com a política e abra a página (o roteiro está em `web/DESIGN.md`, "Verificação");
+- o modelo precisa de `origem` com fuso UTM: é o que põe a obra no terreno. A cena lê as cores dos tokens do tema em
+  tempo de execução.
 
 ## Publicação na Vercel
 

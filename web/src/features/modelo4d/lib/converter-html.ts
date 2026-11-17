@@ -1,22 +1,69 @@
-import type { Camada4D, Classe4D, Elemento4D, Modelo4D, Pt, Secao4D } from './contrato'
+import type {
+  Camada4D,
+  Classe4D,
+  Elemento4D,
+  FaixaCamada,
+  Material,
+  Modelo4D,
+  Pt,
+  Secao4D
+} from './contrato'
 import { EixoCalc } from './eixo'
 
 /**
  * Converte o HTML da "construção digital" (visualizador autônomo com os dados nos blocos `data` e `ext`) no contrato
  * `infrawork-4d`. Ficam de fora o terreno detalhado (arquivos externos ao HTML), o roteiro de visita, o mapa
- * regional, os empréstimos e a desapropriação.
+ * regional, as jazidas, os empréstimos e a desapropriação.
  */
 
 type Json = Record<string, unknown>
 
-const NOME_DRENAGEM: Record<string, [largura: number, altura: number]> = {
-  STC: [1.0, 0],
-  MFC: [0.4, 0.2],
-  SZC: [1.0, 0],
-  VPCC: [1.2, 0],
-  VPAC: [1.2, 0],
-  DPS: [0.6, 0]
+/** Seção de cada peça de drenagem (lateral, vertical), como nos projetos-tipo: sarjeta, meio-fio e valetas. */
+const PERFIL_DRENAGEM: Record<string, [number, number][]> = {
+  STC: [
+    [-0.6, -0.1],
+    [-0.6, 0.03],
+    [-0.5, 0.03],
+    [0, -0.13],
+    [0.5, 0.03],
+    [0.6, 0.03],
+    [0.6, -0.1]
+  ],
+  MFC: [
+    [-0.09, -0.3],
+    [-0.09, 0.16],
+    [-0.06, 0.19],
+    [0.09, 0.19],
+    [0.09, -0.3]
+  ],
+  SZC: [
+    [-0.7, -0.1],
+    [-0.7, 0.04],
+    [-0.6, 0.04],
+    [-0.35, -0.17],
+    [0.35, -0.17],
+    [0.6, 0.04],
+    [0.7, 0.04],
+    [0.7, -0.1]
+  ],
+  VPCC: [
+    [-0.8, -0.12],
+    [-0.8, 0.06],
+    [-0.65, 0.06],
+    [-0.32, -0.3],
+    [0.32, -0.3],
+    [0.65, 0.06],
+    [0.8, 0.06],
+    [0.8, -0.12]
+  ],
+  DPS: [
+    [-0.15, -0.15],
+    [0.15, -0.15],
+    [0.15, 0.15],
+    [-0.15, 0.15]
+  ]
 }
+PERFIL_DRENAGEM.VPAC = PERFIL_DRENAGEM.VPCC
 
 const CAIXA_DISPOSITIVO: Record<string, [number, number, number]> = {
   EDA: [1.2, 1.2, 0.4],
@@ -52,10 +99,52 @@ function bytes(b64: string): Uint8Array {
 const titulo = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
 const r2 = (v: number): number => Math.round(v * 100) / 100
 const P = (p: number[]): Pt => [r2(p[0]), r2(p[1]), r2(p[2])]
+const numero = (t: string): number => Number(t.replace(/\./g, '').replace(',', '.'))
 
 /** Diz se o texto parece o HTML da construção digital (para escolher o leitor certo na importação). */
 export function ehHtmlDeModelo(texto: string): boolean {
   return texto.includes('<script') && texto.includes('id="data"')
+}
+
+/** Fuso UTM do HTML: o visualizador converte latitude e longitude com o meridiano central escrito no código. */
+function fusoDoHtml(html: string): string | undefined {
+  const m = /l0\s*=\s*(-?\d+(?:\.\d+)?)\s*\*\s*r/.exec(html)
+  if (m) {
+    const zona = Math.floor((Number(m[1]) + 180) / 6) + 1
+    if (zona >= 1 && zona <= 60) return `${zona}S`
+  }
+  // sem a conversão no código, vale o fuso escrito nos textos ("UTM 22S")
+  const t = /UTM\s*(\d{1,2})\s*([NS])\b/.exec(html)
+  return t ? `${t[1]}${t[2]}` : undefined
+}
+
+function placa(
+  codigo: string,
+  dim: string
+): {
+  forma: 'circulo' | 'losango' | 'octogono' | 'triangulo' | 'retangulo'
+  largura: number
+  altura?: number
+  material: Material
+} {
+  const medidas = [...dim.matchAll(/\d+(?:,\d+)?/g)].map((x) => numero(x[0]))
+  if (/^R-1$/.test(codigo)) return { forma: 'octogono', largura: 0.75, material: 'sinal-vermelho' }
+  if (/^R-2$/.test(codigo)) return { forma: 'triangulo', largura: 0.9, material: 'sinal-vermelho' }
+  if (/^R-/.test(codigo))
+    return {
+      forma: 'circulo',
+      largura: Math.max(0.6, (medidas[0] ?? 0.4) * 1.6),
+      material: 'sinal-vermelho'
+    }
+  if (/^A-/.test(codigo)) return { forma: 'losango', largura: 1.0, material: 'sinal-amarelo' }
+  if (/^M[QP]/.test(codigo))
+    return { forma: 'retangulo', largura: 0.5, altura: 0.7, material: 'sinal-azul' }
+  return {
+    forma: 'retangulo',
+    largura: Math.min(3.5, medidas[0] ?? 1.2),
+    altura: Math.min(1.5, medidas[1] ?? 0.6),
+    material: 'sinal-verde'
+  }
 }
 
 export function converterHtml(html: string): { modelo: Modelo4D } | { erros: string[] } {
@@ -88,7 +177,7 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
     elementos.push({ id: `${e.classe}#${++seq}`, ...e })
   }
 
-  // plataforma: 9 pontos por seção (off-set, borda, acostamento, pista, eixo e o espelho do lado direito)
+  // plataforma acabada: 9 pontos por seção (off-set, borda, acostamento, pista, eixo e o espelho do lado direito)
   const secoes: Secao4D[] = sec.map((r) => {
     const [s, , , cp, , Lba, Lbz, Loa, Loz, Rba, Rbz, Roa, Roz] = r
     const wL = -Lba
@@ -106,23 +195,49 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
       [wR, cp + sr * wR],
       [Roa, Roz]
     ]
-    return { s, perfil: perfil.map(([o, z]) => [r2(o), r2(z + 0.03)]) }
+    return { s, perfil: perfil.map(([o, z]) => [r2(o), r2(z)]) }
   })
 
-  // terraplenagem: por intervalo de seção, com o volume da cubação
+  // pavimento: uma camada por nome, na maior largura e espessura informadas, empilhadas de baixo para cima
+  const s0 = sec[0][0]
+  const s1 = sec[sec.length - 1][0]
+  const pav = new Map<string, { s0: number; s1: number; larg: number; esp: number }>()
+  for (const p of ((M.pav as Json | undefined)?.seg as Json[] | undefined) ?? []) {
+    const nome = String(p.cam ?? '').trim()
+    if (!nome) continue
+    const larg = Number(p.larg) || 7
+    // o quadro traz a espessura (m) no começo da linha das camadas que têm corpo: "0,20 149.031,00 …"
+    const m = /^\s*(0,\d+)\s/.exec(String(p.raw ?? ''))
+    const esp = m ? numero(m[1]) : 0
+    const a = pav.get(nome)
+    if (!a) pav.set(nome, { s0: Number(p.s0), s1: Number(p.s1), larg, esp })
+    else {
+      a.s0 = Math.min(a.s0, Number(p.s0))
+      a.s1 = Math.max(a.s1, Number(p.s1))
+      a.larg = Math.max(a.larg, larg)
+      a.esp = Math.max(a.esp, esp)
+    }
+  }
+  const pilha = [...pav]
+  const espessuraTotal = pilha.reduce((t, [, p]) => t + p.esp, 0)
+  const larguraPavimento = Math.max(0, ...pilha.map(([, p]) => p.larg))
+
+  // terraplenagem: por intervalo de seção, com o volume da cubação; sob o pavimento ela para no subleito
   const corte = classe({
     id: 'TERRA.CORTE',
     nome: 'Escavação (corte)',
     disciplina: 'Terraplenagem',
     unidade: 'm³',
-    terreno: true
+    terreno: true,
+    material: 'corte'
   })
   const aterro = classe({
     id: 'TERRA.ATERRO',
     nome: 'Aterro compactado',
     disciplina: 'Terraplenagem',
     unidade: 'm³',
-    terreno: true
+    terreno: true,
+    material: 'aterro'
   })
   const cub = ((M.cub as number[][] | undefined) ?? []).slice().sort((a, b) => a[0] - b[0])
   let ic = 0
@@ -139,66 +254,79 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
     }
     if (B[0] - A[0] > 80) continue
     const wR = -A[5] + (A[9] - 3.5)
-    const fc: [number, number][] = []
-    const fa: [number, number][] = []
+    const meia = Math.min(larguraPavimento / 2, -A[5], wR)
+    const miolo: FaixaCamada[] =
+      meia > 0 && espessuraTotal > 0
+        ? [
+            [A[5], -meia],
+            [-meia, meia, -espessuraTotal],
+            [meia, wR]
+          ]
+        : [[A[5], wR]]
+    const fc: FaixaCamada[] = []
+    const fa: FaixaCamada[] = []
     ;(A[8] > A[6] ? fc : fa).push([-1e6, A[5]])
     ;(A[12] > A[10] ? fc : fa).push([wR, 1e6])
-    ;(vc > va ? fc : fa).push([A[5], wR])
+    ;(vc > va ? fc : fa).push(...miolo)
     if (fc.length)
       camadas.push({ classe: corte, s0: A[0], s1: B[0], faixas: fc, quantidade: r2(vc) })
     if (fa.length)
       camadas.push({ classe: aterro, s0: A[0], s1: B[0], faixas: fa, quantidade: r2(va) })
   }
 
-  // pavimento: uma camada por nome, da primeira à última estaca, na maior largura informada
-  const s0 = sec[0][0]
-  const s1 = sec[sec.length - 1][0]
-  const pav = new Map<string, { s0: number; s1: number; larg: number }>()
-  for (const p of ((M.pav as Json | undefined)?.seg as Json[] | undefined) ?? []) {
-    const nome = String(p.cam ?? '').trim()
-    if (!nome) continue
-    const a = pav.get(nome)
-    const larg = Number(p.larg) || 7
-    if (!a) pav.set(nome, { s0: Number(p.s0), s1: Number(p.s1), larg })
-    else {
-      a.s0 = Math.min(a.s0, Number(p.s0))
-      a.s1 = Math.max(a.s1, Number(p.s1))
-      a.larg = Math.max(a.larg, larg)
-    }
-  }
-  let ordem = 0
-  for (const [nome, p] of pav) {
-    ordem++
+  // camadas do pavimento, do topo para baixo: a última do quadro é a de cima e fica no perfil acabado
+  let acima = 0
+  const nomes = new Map<string, string>()
+  pilha.forEach(([nome], i) => nomes.set(nome, `PAV.${i + 1}`))
+  for (const [nome, p] of [...pilha].reverse()) {
+    const id = nomes.get(nome)!
     camadas.push({
-      classe: classe({ id: `PAV.${ordem}`, nome: titulo(nome), disciplina: 'Pavimentação' }),
+      classe: id,
       s0: Math.max(p.s0, s0),
       s1: Math.min(p.s1, s1),
       faixas: [[-p.larg / 2, p.larg / 2]],
-      elevacao: 0.05 * ordem
+      // a película (imprimação, regularização) fica um fio acima da camada de baixo, para não se confundir com ela
+      elevacao: r2(-acima + (p.esp > 0 ? 0 : 0.004)),
+      espessura: p.esp > 0 ? p.esp : undefined
     })
+    acima += p.esp
   }
-  if (pav.size) {
+  pilha.forEach(([nome], i) =>
+    classe({ id: `PAV.${i + 1}`, nome: titulo(nome), disciplina: 'Pavimentação' })
+  )
+  if (pilha.length) {
+    const sh = classe({
+      id: 'SIN.HORIZONTAL',
+      nome: 'Sinalização horizontal',
+      disciplina: 'Sinalização',
+      material: 'sinal-branco'
+    })
     camadas.push({
-      classe: classe({
-        id: 'SIN.HORIZONTAL',
-        nome: 'Sinalização horizontal',
-        disciplina: 'Sinalização'
-      }),
+      classe: sh,
       s0,
       s1,
       faixas: [
         [-3.53, -3.38],
-        [-0.14, -0.02],
-        [0.02, 0.14],
         [3.38, 3.53]
       ],
-      elevacao: 0.05 * (ordem + 1)
+      elevacao: 0.012
+    })
+    camadas.push({
+      classe: sh,
+      s0,
+      s1,
+      faixas: [
+        [-0.16, -0.04],
+        [0.04, 0.16]
+      ],
+      elevacao: 0.012,
+      material: 'sinal-amarelo'
     })
   }
 
-  // drenagem linear
+  // drenagem linear, com a seção de cada peça
   const segs = (M.segs ?? {}) as Record<string, number[][][]>
-  for (const [k, [largura, altura]] of Object.entries(NOME_DRENAGEM)) {
+  for (const k of ['STC', 'MFC', 'SZC', 'VPCC', 'VPAC', 'DPS']) {
     const id = `DREN.${k}`
     for (const pts of segs[k] ?? []) {
       if (pts.length < 2) continue
@@ -211,10 +339,11 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
           id,
           nome: `${k} · ${info[k] ?? 'Drenagem'}`,
           disciplina: 'Drenagem',
-          unidade: 'm'
+          unidade: 'm',
+          material: 'concreto'
         }),
         quantidade: r2(comp),
-        geo: { t: 'linha', pts: pts.map(P), largura, altura }
+        geo: { t: 'linha', pts: pts.map(P), largura: 1, perfil: PERFIL_DRENAGEM[k] }
       })
     }
   }
@@ -229,7 +358,8 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
       id: `DREN.${t}`,
       nome: `${t} · ${info[t] ?? 'Dispositivo de drenagem'}`,
       disciplina: 'Drenagem',
-      unidade: 'un'
+      unidade: 'un',
+      material: 'concreto'
     })
     const base = {
       classe: id,
@@ -240,21 +370,31 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
     }
     const caminho = caminhos[String(i)]
     if (caminho && caminho.length >= 2) {
-      // descida d'água: vale a estaca do dispositivo, então vai como malha de um elemento só
+      // descida d'água: canal em U pelo talude; vale a estaca do dispositivo, então vai como malha de um elemento só
       const pos: number[] = []
+      const canal: [number, number][] = [
+        [-0.55, 0.3],
+        [-0.45, 0.3],
+        [-0.45, 0.08],
+        [0.45, 0.08],
+        [0.45, 0.3],
+        [0.55, 0.3]
+      ]
       for (let j = 0; j < caminho.length - 1; j++) {
         const a = caminho[j]
         const b = caminho[j + 1]
         const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
-        const ox = (-(b[1] - a[1]) / l) * 0.5
-        const on = ((b[0] - a[0]) / l) * 0.5
-        const q = [
-          [a[0] + ox, a[1] + on, a[2] + 0.15],
-          [a[0] - ox, a[1] - on, a[2] + 0.15],
-          [b[0] + ox, b[1] + on, b[2] + 0.15],
-          [b[0] - ox, b[1] - on, b[2] + 0.15]
+        const ux = (b[1] - a[1]) / l
+        const un = -(b[0] - a[0]) / l
+        const em = (q: number[], c: [number, number]): number[] => [
+          q[0] + ux * c[0],
+          q[1] + un * c[0],
+          q[2] + c[1]
         ]
-        for (const k of [0, 2, 1, 1, 2, 3]) pos.push(r2(q[k][0]), r2(q[k][1]), r2(q[k][2]))
+        for (let c = 0; c < canal.length - 1; c++) {
+          const q = [em(a, canal[c]), em(a, canal[c + 1]), em(b, canal[c]), em(b, canal[c + 1])]
+          for (const v of [0, 2, 1, 1, 2, 3]) pos.push(r2(q[v][0]), r2(q[v][1]), r2(q[v][2]))
+        }
       }
       el({ ...base, geo: { t: 'malha', pos } })
       return
@@ -279,12 +419,14 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
     if (!p0 || !p1) continue
     const D = Number(b.D) || 1
     const B = Number(b.B) || 0
+    const celular = /CC/.test(String(b.tipo ?? '').split(' ')[0])
     el({
       classe: classe({
         id: 'OAC.BUEIROS',
         nome: 'Bueiros',
         disciplina: 'Obras de arte correntes',
-        unidade: 'm'
+        unidade: 'm',
+        material: 'concreto'
       }),
       nome: `${String(b.tipo ?? 'Bueiro')} · est. ${String(b.est ?? '')}`,
       s0: Number(b.s),
@@ -292,15 +434,16 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
       quantidade: Number(b.L) || undefined,
       geo: {
         t: 'tubo',
-        p0: P(p0),
-        p1: P(p1),
+        // as bocas vêm na geratriz superior; a peça é desenhada a partir da base
+        p0: [r2(p0[0]), r2(p0[1]), r2(p0[2] - D)],
+        p1: [r2(p1[0]), r2(p1[1]), r2(p1[2] - D)],
         linhas: Number(b.linhas) || 1,
-        ...(B ? { largura: B, altura: D } : { diametro: D })
+        ...(celular ? { largura: B || D, altura: D } : { diametro: D })
       }
     })
   }
 
-  // defensas e terminais
+  // defensas (lâmina e postes) e terminais
   const oc = (M.oc ?? {}) as Record<string, Json[]>
   for (const d of oc.DEFENSA ?? []) {
     const prof = d.prof as number[][] | undefined
@@ -310,10 +453,22 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
         id: 'OC.DEFENSA',
         nome: 'Defensa metálica',
         disciplina: 'Obras complementares',
-        unidade: 'm'
+        unidade: 'm',
+        material: 'metal'
       }),
       quantidade: Number(d.len) || undefined,
-      geo: { t: 'linha', pts: prof.map(([s, o]) => P(eixo.ponto(s, o))), largura: 0.3, altura: 0.7 }
+      geo: {
+        t: 'linha',
+        pts: prof.map(([s, o]) => P(eixo.ponto(s, o))),
+        largura: 0.08,
+        perfil: [
+          [-0.04, 0.45],
+          [0.04, 0.45],
+          [0.04, 0.78],
+          [-0.04, 0.78]
+        ],
+        postes: { passo: 4, altura: 0.8, lado: 0.12 }
+      }
     })
   }
   for (const t of oc.TERMINAL ?? []) {
@@ -324,7 +479,8 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
         id: 'OC.TERMINAL',
         nome: 'Terminal de defensa',
         disciplina: 'Obras complementares',
-        unidade: 'un'
+        unidade: 'un',
+        material: 'metal'
       }),
       s0: s,
       s1: s,
@@ -338,7 +494,7 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
     })
   }
 
-  // cercas
+  // cercas: mourões e fios, assentados no terreno
   for (const f of (X.fences as Json[] | undefined) ?? []) {
     const b = bytes(String(f.xyz ?? ''))
     const v = new Float32Array(b.buffer.slice(0, b.length - (b.length % 12)))
@@ -359,43 +515,71 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
               id: 'OC.CERCA_FAUNA',
               nome: 'Cerca de condução de fauna',
               disciplina: 'Obras complementares',
-              unidade: 'm'
+              unidade: 'm',
+              material: 'madeira'
             })
           : classe({
               id: 'OC.CERCA',
               nome: 'Cerca',
               disciplina: 'Obras complementares',
-              unidade: 'm'
+              unidade: 'm',
+              material: 'madeira'
             })
     el({
       classe: c,
       quantidade: Number(f.len) || undefined,
-      geo: { t: 'linha', pts, largura: 0.15, altura: 1.4 }
+      no_terreno: true,
+      geo: {
+        t: 'linha',
+        pts,
+        largura: 0.1,
+        fios:
+          k === 'exist'
+            ? [0.6, 1.3]
+            : k === 'fauna'
+              ? [0.2, 0.5, 0.8, 1.1, 1.4, 1.7]
+              : [0.35, 0.7, 1.05, 1.4],
+        postes: {
+          passo: k === 'exist' ? 5 : 2.5,
+          altura: k === 'fauna' ? 1.9 : 1.6,
+          lado: 0.1
+        }
+      }
     })
   }
 
-  // placas
+  // placas: poste e chapa na forma do código, de frente para quem vem pela pista
   for (const g of (M.signs as Json[] | undefined) ?? []) {
     const p = g.p as number[] | undefined
     if (!p) continue
     const s = Number(g.s)
     const c = eixo.em(s)
+    const direita = String(g.side ?? 'LD') !== 'LE'
+    const { material, ...chapa } = placa(String(g.code ?? ''), String(g.dim ?? ''))
     el({
       classe: classe({
         id: 'SIN.VERTICAL',
         nome: 'Sinalização vertical',
         disciplina: 'Sinalização',
-        unidade: 'un'
+        unidade: 'un',
+        material: 'sinal-branco'
       }),
       nome: `${String(g.code ?? 'Placa')} · est. ${String(g.est ?? '')}`,
       s0: s,
       s1: s,
       quantidade: 1,
-      geo: { t: 'caixa', p: P(p), dim: [0.12, 0.8, 2.4], rumo: r2(Math.atan2(c.tn, c.tx)) }
+      material,
+      no_terreno: true,
+      geo: {
+        t: 'placa',
+        p: P(p),
+        rumo: r2(direita ? Math.atan2(-c.tn, -c.tx) : Math.atan2(c.tn, c.tx)),
+        ...chapa
+      }
     })
   }
 
-  // contexto: faixa de domínio, interferências e jazidas
+  // contexto: faixa de domínio e interferências
   for (const pts of segs.FXD ?? []) {
     if (pts.length < 2) continue
     el({
@@ -405,7 +589,8 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
         disciplina: 'Contexto',
         contexto: true
       }),
-      geo: { t: 'linha', pts: pts.map(P), largura: 0.6 }
+      no_terreno: true,
+      geo: { t: 'linha', pts: pts.map(P), largura: 0.4, fios: [0.15] }
     })
   }
   for (const it of (M.interf as Json[] | undefined) ?? []) {
@@ -419,35 +604,25 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
         contexto: true
       }),
       nome: `${String(it.tipo ?? 'Interferência')} · est. ${String(it.est ?? '')}`,
-      geo: { t: 'caixa', p: P(p), dim: [0.4, 0.4, 8] }
+      no_terreno: true,
+      geo: { t: 'caixa', p: P(p), dim: [0.3, 0.3, 9] }
     })
   }
-  for (const j of (X.polys as Json[] | undefined) ?? []) {
-    const b = bytes(String(j.xyz ?? ''))
-    const v = new Float32Array(b.buffer.slice(0, b.length - (b.length % 4)))
-    const bi = bytes(String(j.idx ?? ''))
-    const idx = Array.from(new Uint16Array(bi.buffer.slice(0, bi.length - (bi.length % 2))))
-    if (v.length < 9 || idx.length < 3) continue
-    el({
-      classe: classe({
-        id: 'CTX.JAZIDA',
-        nome: 'Jazidas e empréstimos concentrados',
-        disciplina: 'Contexto',
-        contexto: true
-      }),
-      nome: String(j.full ?? j.name ?? 'Jazida'),
-      geo: { t: 'malha', pos: Array.from(v, r2), idx }
-    })
-  }
-
   const origem = M.origin as number[] | undefined
+  const fuso = fusoDoHtml(html)
+  if (!origem || !fuso)
+    return {
+      erros: [
+        'O HTML não traz a origem das coordenadas ou o fuso UTM: sem eles não dá para pôr a obra no terreno.'
+      ]
+    }
   const nome = /<title>([^<]*)<\/title>/.exec(html)?.[1]?.trim() || 'Modelo 3D'
   return {
     modelo: {
       formato: 'infrawork-4d',
       versao: 1,
       nome,
-      origem: origem ? { e: origem[0], n: origem[1] } : undefined,
+      origem: { e: origem[0], n: origem[1], fuso },
       eixos: [{ id: 'E1', nome: 'Eixo principal', pontos: axis }],
       terreno: ((M.overview as Json[] | undefined) ?? []).map((o) => ({
         nx: Number(o.nx),
@@ -457,10 +632,7 @@ export function converterHtml(html: string): { modelo: Modelo4D } | { erros: str
         ytop: Number(o.ytop),
         zb: Number(o.zb),
         atual: String(o.T),
-        projeto: o.D ? String(o.D) : undefined,
-        imagem: o.des ? String(o.des) : undefined,
-        imagem_larg: o.tw ? Number(o.tw) : undefined,
-        imagem_alt: o.th ? Number(o.th) : undefined
+        projeto: o.D ? String(o.D) : undefined
       })),
       classes,
       secoes,
