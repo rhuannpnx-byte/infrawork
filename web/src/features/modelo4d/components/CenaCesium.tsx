@@ -82,6 +82,12 @@ export interface CameraSalva {
   inclinacao: number
 }
 
+/** Linha desenhada sobre a cena (marca da seção, medição), em coordenadas do modelo: x, n e cota. */
+export interface LinhaDaCena {
+  pontos: [number, number, number][]
+  tom: 'accent' | 'destaque'
+}
+
 export interface CenaRef {
   irPara: (eixo: number, s: number) => void
   vistaGeral: () => void
@@ -111,6 +117,11 @@ interface Props {
   /** No passeio pela pista (e no Andar) a câmera segue a obra, não o terreno natural. */
   passeando: boolean
   exibicao: Exibicao
+  /** Peças escondidas uma a uma (além das classes ocultas). */
+  pecasOcultas: ReadonlySet<number>
+  linhas: LinhaDaCena[]
+  /** Medindo, o clique devolve o ponto clicado (x, n e cota do modelo) em vez de escolher a peça. */
+  aoMedir: ((ponto: [number, number, number]) => void) | null
   selecionada: number | null
   aoEscolher: (peca: number | null) => void
   rotulo: string
@@ -194,6 +205,9 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     andar,
     passeando,
     exibicao,
+    pecasOcultas,
+    linhas,
+    aoMedir,
     selecionada,
     aoEscolher,
     rotulo
@@ -219,6 +233,10 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
   useEffect(() => {
     andarRef.current = andar
   }, [andar])
+  const aoMedirRef = useRef(aoMedir)
+  useEffect(() => {
+    aoMedirRef.current = aoMedir
+  }, [aoMedir])
   const superficie = useMemo(() => new Superficie(modelo), [modelo])
 
   const origem = modelo.modelo.origem
@@ -617,6 +635,23 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
     // clique sem arrasto escolhe a peça sob o cursor
     const mao = new ScreenSpaceEventHandler(scene.canvas)
     mao.setInputAction((e: { position: Cartesian2 }) => {
+      if (aoMedirRef.current) {
+        // medindo: o ponto da obra sob o cursor ou, fora dela, o do terreno
+        const raio = camera.getPickRay(e.position)
+        const q =
+          (scene.pickPositionSupported ? scene.pickPosition(e.position) : undefined) ??
+          (raio ? scene.globe.pick(raio, scene) : undefined)
+        if (q) {
+          const c = Cartographic.fromCartesian(q)
+          const [x, n] = geoParaUtm(
+            CesiumMath.toDegrees(c.longitude),
+            CesiumMath.toDegrees(c.latitude),
+            fuso
+          )
+          aoMedirRef.current([x - origem.e, n - origem.n, c.height])
+        }
+        return
+      }
       const alvo = scene.pick(e.position) as { id?: unknown } | undefined
       aoEscolherRef.current(typeof alvo?.id === 'number' ? alvo.id : null)
     }, ScreenSpaceEventType.LEFT_CLICK)
@@ -848,6 +883,7 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       for (const i of f.pecas)
         if ((cod[i] & 15) === SOME && classes[pecas[i].classe].terreno) cod[i] = FALTA
     })
+    for (const i of pecasOcultas) if (i < n) cod[i] = SOME
     if (selecionada != null && selecionada < n) cod[selecionada] |= ESCOLHIDA
     p.ativa = ativa
 
@@ -925,7 +961,47 @@ export const CenaCesium = forwardRef<CenaRef, Props>(function CenaCesium(
       p.w.scene.globe.clippingPolygons = new ClippingPolygonCollection({ polygons: poligonos })
     }
     p.w.scene.requestRender()
-  }, [modelo, estado, t, modo, periodo, ocultas, selecionada, montada])
+  }, [modelo, estado, t, modo, periodo, ocultas, pecasOcultas, selecionada, montada])
+
+  // linhas por cima da cena: a marca da seção transversal e a medição
+  useEffect(() => {
+    const p = palco.current
+    const validas = linhas.filter((l) => l.pontos.length >= 2)
+    if (!p || !p.pronto || !validas.length) return
+    const { scene } = p.w
+    const aparencia = new PolylineColorAppearance({ translucent: true })
+    const prim = scene.primitives.add(
+      new Primitive({
+        geometryInstances: validas.map((l) => {
+          const c = cor(l.tom === 'accent' ? 'accent' : 'chart-laranja')
+          return new GeometryInstance({
+            geometry: new PolylineGeometry({
+              positions: l.pontos.map(([x, n, z]) =>
+                mundo(x - modelo.centro[0], n - modelo.centro[1], z)
+              ),
+              width: 3,
+              vertexFormat: PolylineColorAppearance.VERTEX_FORMAT
+            }),
+            attributes: {
+              color: new ColorGeometryInstanceAttribute(c[0], c[1], c[2], 1),
+              depthFailColor: new ColorGeometryInstanceAttribute(c[0], c[1], c[2], 0.6)
+            }
+          })
+        }),
+        appearance: aparencia,
+        depthFailAppearance: aparencia,
+        asynchronous: false
+      })
+    ) as Primitive
+    scene.requestRender()
+    return () => {
+      if (!scene.isDestroyed()) {
+        scene.primitives.remove(prim)
+        scene.requestRender()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, modelo, montada])
 
   const girarPeloCubo = useRef<{ p: Cartesian3; dist: number } | null>(null)
   const olhar = (vista: VistaCubo): void => {

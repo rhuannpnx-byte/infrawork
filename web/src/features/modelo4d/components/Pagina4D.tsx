@@ -6,10 +6,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Crosshair,
+  Eye,
+  EyeOff,
   FileText,
+  Layers,
   Link2,
   Pause,
   Play,
+  Ruler,
   Trash2,
   Upload,
   X
@@ -40,6 +44,8 @@ import { useBaseline } from '@/features/planejamento/hooks/planejamentos'
 import { gravarExibicao, lerExibicao, type Exibicao } from './aparencia'
 import { ANDAR_PADRAO, type OpcoesAndar } from './caminhada'
 import { ExibicaoPopover } from './ExibicaoPopover'
+import { SecaoTransversal } from './SecaoTransversal'
+import { LeitorDeSecoes } from '../lib/secao'
 import { baixar, formatoDeVideo, gravarSimulacao } from './gravacao'
 import { SIMULACAO_PADRAO, type OpcoesSimulacao } from './simulacao'
 import { SimulacaoPopover } from './SimulacaoPopover'
@@ -135,6 +141,11 @@ export function Pagina4D({
   const [erroEstaca, setErroEstaca] = useState<string | null>(null)
   const [tocando, setTocando] = useState(false)
   const [sim, setSim] = useState<OpcoesSimulacao>(SIMULACAO_PADRAO)
+  // seção transversal: a estaca (metros do modelo) mostrada no painel, ou null com o painel fechado
+  const [secaoS, setSecaoS] = useState<number | null>(null)
+  const [medindo, setMedindo] = useState(false)
+  const [medida, setMedida] = useState<[number, number, number][]>([])
+  const [pecasOcultas, setPecasOcultas] = useState<ReadonlySet<number>>(new Set())
   const [gravando, setGravando] = useState<number | null>(null)
   const cancelarVideo = useRef<AbortController | null>(null)
   const alvoCamera = useRef<number | null>(null)
@@ -388,13 +399,53 @@ export function Pagina4D({
     const e = modelo.eixos[0]
     setPasseio((s) => (s == null ? s : Math.max(e.sMin, Math.min(e.sMax, s + d))))
   }
-  const rotuloPasseio = ((): string => {
-    if (passeio == null) return ''
+  /** Posição do modelo (metros desde a estaca 0) no rótulo do local da obra. */
+  const rotuloDaEstaca = (s: number): string => {
     const l = eixoLocal(0)
-    if (!l) return `est. ${formatNumber(passeio / 20, 0)}`
-    const m = marcadorToMetros(passeio / divisorMetrosPorUnidade(l), l)
+    if (!l) return `est. ${formatNumber(s / 20, 0)}`
+    const m = marcadorToMetros(s / divisorMetrosPorUnidade(l), l)
     return formatMarcadorCompacto(Math.max(0, m), l)
-  })()
+  }
+  const rotuloPasseio = passeio == null ? '' : rotuloDaEstaca(passeio)
+
+  const leitor = useMemo(() => (modelo ? new LeitorDeSecoes(modelo) : null), [modelo])
+  const secao = useMemo(
+    () => (leitor && secaoS != null ? leitor.em(0, secaoS) : null),
+    [leitor, secaoS]
+  )
+  // o que da seção já existe na data, para esmaecer o resto (no modo Projeto tudo aparece inteiro)
+  const feitoNaSecao = useMemo(() => {
+    if (!estado || modo === 'projeto' || !secao) return null
+    estado.calcular(instante)
+    const grau = modo === 'previsto' ? estado.prev : estado.real
+    const prontas = new Set<number>()
+    for (const i of [...secao.formas.map((f) => f.peca), ...secao.marcas.map((m) => m.peca)])
+      if (i != null && estado.vinculada[i] && grau[i] >= 0.999) prontas.add(i)
+    return (i: number): boolean => prontas.has(i)
+  }, [estado, modo, secao, instante])
+  const abrirSecao = (): void => {
+    const lim = leitor?.limites(0)
+    if (!modelo || !lim) return
+    const p = selecionada != null ? modelo.pecas[selecionada] : null
+    const s = p && p.eixo === 0 ? (p.s0 + p.s1) / 2 : (passeio ?? lim[0])
+    setSecaoS(Math.max(lim[0], Math.min(lim[1], s)))
+  }
+  const linhasDaCena = useMemo(() => {
+    const out: { pontos: [number, number, number][]; tom: 'accent' | 'destaque' }[] = []
+    if (modelo && secao) {
+      const e = modelo.eixos[0]
+      out.push({
+        tom: 'accent',
+        pontos: secao.perfil.map(([o, z]): [number, number, number] => {
+          const q = e.ponto(secao.s, o)
+          return [q[0], q[1], z + 0.35]
+        })
+      })
+    }
+    if (medida.length >= 2)
+      out.push({ tom: 'destaque', pontos: medida.map(([x, n, z]) => [x, n, z + 0.15]) })
+    return out
+  }, [modelo, secao, medida])
 
   function irParaEstaca(): void {
     if (!modelo) return
@@ -643,6 +694,32 @@ export function Pagina4D({
           Percorrer a pista
         </Button>
         <ExibicaoPopover valor={exibicao} aoMudar={mudarExibicao} />
+        <Button
+          type="button"
+          size="sm"
+          variant={secaoS == null ? 'secondary' : 'default'}
+          aria-pressed={secaoS != null}
+          title="Seção transversal na estaca: terreno, camadas e dispositivos"
+          onClick={() => (secaoS == null ? abrirSecao() : setSecaoS(null))}
+        >
+          <Layers size={14} aria-hidden />
+          Seção
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={medindo ? 'default' : 'secondary'}
+          aria-pressed={medindo}
+          title="Medir distância, desnível e rampa entre pontos clicados na cena"
+          onClick={() => {
+            setMedindo((v) => !v)
+            setMedida([])
+            if (mouse === 'andar') setMouse('orbitar')
+          }}
+        >
+          <Ruler size={14} aria-hidden />
+          Medir
+        </Button>
         <SimulacaoPopover
           valor={sim}
           aoMudar={setSim}
@@ -744,6 +821,20 @@ export function Pagina4D({
           aria-label="Camadas e avanço"
           className="hidden w-72 shrink-0 overflow-y-auto border-r border-border bg-bg-panel px-3 py-3 md:block"
         >
+          {ocultas.size > 0 || pecasOcultas.size > 0 ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mb-3 w-full"
+              onClick={() => {
+                setOcultas(new Set())
+                setPecasOcultas(new Set())
+              }}
+            >
+              <Eye size={14} aria-hidden />
+              Mostrar tudo
+            </Button>
+          ) : null}
           {disciplinas.map((d) => (
             <div key={d} className="mb-3">
               <h3 className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
@@ -757,42 +848,55 @@ export function Pagina4D({
                     const r = s ? resumo.get(vinculos.classes[c.id]!) : undefined
                     return (
                       <li key={c.id}>
-                        <label className="flex items-start gap-2 text-sm text-text">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 accent-[color:var(--accent)]"
-                            checked={!ocultas.has(c.id)}
-                            onChange={(e) => {
-                              const n = new Set(ocultas)
-                              if (e.target.checked) n.delete(c.id)
-                              else n.add(c.id)
-                              setOcultas(n)
-                            }}
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate" title={c.nome}>
-                              {c.nome}
+                        <div className="flex items-start gap-1">
+                          <label className="flex min-w-0 flex-1 items-start gap-2 text-sm text-text">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 accent-[color:var(--accent)]"
+                              checked={!ocultas.has(c.id)}
+                              onChange={(e) => {
+                                const n = new Set(ocultas)
+                                if (e.target.checked) n.delete(c.id)
+                                else n.add(c.id)
+                                setOcultas(n)
+                              }}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate" title={c.nome}>
+                                {c.nome}
+                              </span>
+                              {c.contexto ? null : s ? (
+                                <span
+                                  className="block truncate text-xs text-text-muted"
+                                  title={`${s.codigo} · ${s.descricao}`}
+                                >
+                                  {s.codigo}
+                                  {r && r.total > 0
+                                    ? ` · previsto ${pct(r.previsto / r.total)} · realizado ${pct(r.realizado / r.total)}`
+                                    : ' · fora da linha de base'}
+                                </span>
+                              ) : (
+                                <span
+                                  className="block text-xs text-text-muted"
+                                  title="Sem serviço, a cena não sabe quando a classe é feita: ela aparece só no modo Projeto"
+                                >
+                                  sem serviço: só no modo Projeto
+                                </span>
+                              )}
                             </span>
-                            {c.contexto ? null : s ? (
-                              <span
-                                className="block truncate text-xs text-text-muted"
-                                title={`${s.codigo} · ${s.descricao}`}
-                              >
-                                {s.codigo}
-                                {r && r.total > 0
-                                  ? ` · previsto ${pct(r.previsto / r.total)} · realizado ${pct(r.realizado / r.total)}`
-                                  : ' · fora da linha de base'}
-                              </span>
-                            ) : (
-                              <span
-                                className="block text-xs text-text-muted"
-                                title="Sem serviço, a cena não sabe quando a classe é feita: ela aparece só no modo Projeto"
-                              >
-                                sem serviço: só no modo Projeto
-                              </span>
-                            )}
-                          </span>
-                        </label>
+                          </label>
+                          <IconButton
+                            aria-label={`Isolar ${c.nome}`}
+                            title="Isolar: esconde as outras classes"
+                            onClick={() =>
+                              setOcultas(
+                                new Set(classes.filter((k) => k.id !== c.id).map((k) => k.id))
+                              )
+                            }
+                          >
+                            <Crosshair size={13} />
+                          </IconButton>
+                        </div>
                         {r && r.total > 0 ? (
                           <BarraAvanco
                             className="ml-5 mt-1"
@@ -809,161 +913,203 @@ export function Pagina4D({
           ))}
         </aside>
 
-        <div className="relative min-w-0 flex-1">
-          {pronto.isLoading ? (
-            <Carregando texto="Montando o modelo…" className="px-5" />
-          ) : pronto.error ? (
-            <ErroConsulta
-              erro={pronto.error}
-              oQue="o arquivo do modelo"
-              aoTentar={() => void pronto.refetch()}
-              className="m-5"
-            />
-          ) : modelo ? (
-            <>
-              <CenaCesium
-                ref={cena}
-                modelo={modelo}
-                estado={estado}
-                t={instante}
-                modo={modo}
-                periodo={periodo}
-                ocultas={ocultas}
-                mouse={mouse}
-                andar={opcoesAndar}
-                passeando={passeio != null}
-                exibicao={exibicao}
-                selecionada={selecionada}
-                aoEscolher={setSelecionada}
-                rotulo={`Modelo 3D da obra em ${dataBR(toLocalISO(new Date(instante)))}`}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="relative min-h-0 flex-1">
+            {pronto.isLoading ? (
+              <Carregando texto="Montando o modelo…" className="px-5" />
+            ) : pronto.error ? (
+              <ErroConsulta
+                erro={pronto.error}
+                oQue="o arquivo do modelo"
+                aoTentar={() => void pronto.refetch()}
+                className="m-5"
               />
-              <Legenda modo={modo} comEstado={!!estado} />
-              {sim.texto && (tocando || gravando != null) ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute bottom-14 left-3 rounded bg-[color:var(--sobre-foto)] px-2.5 py-1.5 text-sm text-[color:var(--na-foto)]"
-                >
-                  {linhasDoTexto(instante).map((l, i) => (
-                    <p key={l} className={i === 0 ? 'font-semibold' : undefined}>
-                      {l}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-              {passeio != null ? (
-                <div className="absolute bottom-12 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded border border-border bg-bg-panel px-2 py-1.5 shadow-[var(--sombra-flutuante)]">
-                  <IconButton aria-label="Recuar 20 metros" onClick={() => andar(-20)}>
-                    <ChevronLeft size={14} />
-                  </IconButton>
-                  <IconButton
-                    aria-label={dirigindo ? 'Parar' : 'Dirigir pela pista'}
-                    onClick={() => setDirigindo((v) => !v)}
-                  >
-                    {dirigindo ? <Pause size={14} /> : <Play size={14} />}
-                  </IconButton>
-                  <IconButton aria-label="Avançar 20 metros" onClick={() => andar(20)}>
-                    <ChevronRight size={14} />
-                  </IconButton>
-                  <input
-                    type="range"
-                    aria-label="Posição na pista"
-                    aria-valuetext={rotuloPasseio}
-                    min={modelo.eixos[0].sMin}
-                    max={modelo.eixos[0].sMax}
-                    step={10}
-                    value={passeio}
-                    onChange={(e) => setPasseio(Number(e.target.value))}
-                    className="w-48 accent-[color:var(--accent)]"
-                  />
-                  <span className="w-20 text-sm tabular text-text">{rotuloPasseio}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    title="Inverte o sentido em que a câmera olha e anda"
-                    onClick={() => setParaTras((v) => !v)}
-                  >
-                    {paraTras ? 'Sentido decrescente' : 'Sentido crescente'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      setDirigindo(false)
-                      setPasseio(null)
-                    }}
-                  >
-                    Sair
-                  </Button>
-                </div>
-              ) : null}
-              {mouse === 'andar' ? (
-                <div
-                  role="group"
-                  aria-label="Andar pela obra"
-                  className="absolute left-3 top-3 flex max-w-[calc(100%-9.5rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded border border-border bg-bg-panel px-3 py-1.5 shadow-[var(--sombra-flutuante)]"
-                >
-                  <Segmentado
-                    rotulo="Velocidade ao andar"
-                    valor={String(opcoesAndar.velocidade)}
-                    aoMudar={(v) => setOpcoesAndar({ ...opcoesAndar, velocidade: Number(v) })}
-                    tamanho="sm"
-                    opcoes={[
-                      { valor: '2', rotulo: 'A pé', titulo: '2 m/s' },
-                      { valor: '8', rotulo: 'Devagar', titulo: '8 m/s' },
-                      { valor: '25', rotulo: 'Rápido', titulo: '25 m/s' },
-                      { valor: '70', rotulo: 'Voo', titulo: '70 m/s' }
-                    ]}
-                  />
-                  {(
-                    [
-                      [
-                        'gravidade',
-                        'Gravidade',
-                        'Os olhos seguem o chão; sem ela, voa para onde olha'
-                      ],
-                      [
-                        'colisao',
-                        'Colisão',
-                        'Sem ela dá para atravessar o chão e ver bueiros e drenos'
-                      ],
-                      ['terceira', 'Terceira pessoa', 'Mostra um boneco e põe a câmera atrás dele']
-                    ] as const
-                  ).map(([k, rotulo, dica]) => (
-                    <label
-                      key={k}
-                      className="flex items-center gap-1.5 text-sm text-text"
-                      title={dica}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={opcoesAndar[k]}
-                        onChange={(e) => setOpcoesAndar({ ...opcoesAndar, [k]: e.target.checked })}
-                        className="accent-[color:var(--accent)]"
-                      />
-                      {rotulo}
-                    </label>
-                  ))}
-                  <span className="text-xs text-text-muted">
-                    W A S D ou setas movem · arrastar olha · Shift corre · Q e E descem e sobem
-                  </span>
-                  <Button size="sm" variant="secondary" onClick={() => setMouse('orbitar')}>
-                    Sair
-                  </Button>
-                </div>
-              ) : null}
-              {selecionada != null && modelo.pecas[selecionada] ? (
-                <Ficha
-                  i={selecionada}
-                  aoAproximar={() => cena.current?.focar(selecionada)}
-                  estado={estado}
+            ) : modelo ? (
+              <>
+                <CenaCesium
+                  ref={cena}
                   modelo={modelo}
-                  local={eixoLocal(modelo.pecas[selecionada].eixo)}
-                  servico={servicoDe(classes[modelo.pecas[selecionada].classe].id)}
-                  instante={instante}
-                  aoFechar={() => setSelecionada(null)}
+                  estado={estado}
+                  t={instante}
+                  modo={modo}
+                  periodo={periodo}
+                  ocultas={ocultas}
+                  mouse={mouse}
+                  andar={opcoesAndar}
+                  passeando={passeio != null}
+                  exibicao={exibicao}
+                  pecasOcultas={pecasOcultas}
+                  linhas={linhasDaCena}
+                  aoMedir={medindo ? (p) => setMedida((m) => [...m, p]) : null}
+                  selecionada={selecionada}
+                  aoEscolher={setSelecionada}
+                  rotulo={`Modelo 3D da obra em ${dataBR(toLocalISO(new Date(instante)))}`}
                 />
-              ) : null}
-            </>
+                <Legenda modo={modo} comEstado={!!estado} />
+                {sim.texto && (tocando || gravando != null) ? (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute bottom-14 left-3 rounded bg-[color:var(--sobre-foto)] px-2.5 py-1.5 text-sm text-[color:var(--na-foto)]"
+                  >
+                    {linhasDoTexto(instante).map((l, i) => (
+                      <p key={l} className={i === 0 ? 'font-semibold' : undefined}>
+                        {l}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+                {passeio != null ? (
+                  <div className="absolute bottom-12 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded border border-border bg-bg-panel px-2 py-1.5 shadow-[var(--sombra-flutuante)]">
+                    <IconButton aria-label="Recuar 20 metros" onClick={() => andar(-20)}>
+                      <ChevronLeft size={14} />
+                    </IconButton>
+                    <IconButton
+                      aria-label={dirigindo ? 'Parar' : 'Dirigir pela pista'}
+                      onClick={() => setDirigindo((v) => !v)}
+                    >
+                      {dirigindo ? <Pause size={14} /> : <Play size={14} />}
+                    </IconButton>
+                    <IconButton aria-label="Avançar 20 metros" onClick={() => andar(20)}>
+                      <ChevronRight size={14} />
+                    </IconButton>
+                    <input
+                      type="range"
+                      aria-label="Posição na pista"
+                      aria-valuetext={rotuloPasseio}
+                      min={modelo.eixos[0].sMin}
+                      max={modelo.eixos[0].sMax}
+                      step={10}
+                      value={passeio}
+                      onChange={(e) => setPasseio(Number(e.target.value))}
+                      className="w-48 accent-[color:var(--accent)]"
+                    />
+                    <span className="w-20 text-sm tabular text-text">{rotuloPasseio}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Inverte o sentido em que a câmera olha e anda"
+                      onClick={() => setParaTras((v) => !v)}
+                    >
+                      {paraTras ? 'Sentido decrescente' : 'Sentido crescente'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setDirigindo(false)
+                        setPasseio(null)
+                      }}
+                    >
+                      Sair
+                    </Button>
+                  </div>
+                ) : null}
+                {mouse === 'andar' ? (
+                  <div
+                    role="group"
+                    aria-label="Andar pela obra"
+                    className="absolute left-3 top-3 flex max-w-[calc(100%-9.5rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded border border-border bg-bg-panel px-3 py-1.5 shadow-[var(--sombra-flutuante)]"
+                  >
+                    <Segmentado
+                      rotulo="Velocidade ao andar"
+                      valor={String(opcoesAndar.velocidade)}
+                      aoMudar={(v) => setOpcoesAndar({ ...opcoesAndar, velocidade: Number(v) })}
+                      tamanho="sm"
+                      opcoes={[
+                        { valor: '2', rotulo: 'A pé', titulo: '2 m/s' },
+                        { valor: '8', rotulo: 'Devagar', titulo: '8 m/s' },
+                        { valor: '25', rotulo: 'Rápido', titulo: '25 m/s' },
+                        { valor: '70', rotulo: 'Voo', titulo: '70 m/s' }
+                      ]}
+                    />
+                    {(
+                      [
+                        [
+                          'gravidade',
+                          'Gravidade',
+                          'Os olhos seguem o chão; sem ela, voa para onde olha'
+                        ],
+                        [
+                          'colisao',
+                          'Colisão',
+                          'Sem ela dá para atravessar o chão e ver bueiros e drenos'
+                        ],
+                        [
+                          'terceira',
+                          'Terceira pessoa',
+                          'Mostra um boneco e põe a câmera atrás dele'
+                        ]
+                      ] as const
+                    ).map(([k, rotulo, dica]) => (
+                      <label
+                        key={k}
+                        className="flex items-center gap-1.5 text-sm text-text"
+                        title={dica}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={opcoesAndar[k]}
+                          onChange={(e) =>
+                            setOpcoesAndar({ ...opcoesAndar, [k]: e.target.checked })
+                          }
+                          className="accent-[color:var(--accent)]"
+                        />
+                        {rotulo}
+                      </label>
+                    ))}
+                    <span className="text-xs text-text-muted">
+                      W A S D ou setas movem · arrastar olha · Shift corre · Q e E descem e sobem
+                    </span>
+                    <Button size="sm" variant="secondary" onClick={() => setMouse('orbitar')}>
+                      Sair
+                    </Button>
+                  </div>
+                ) : null}
+                {selecionada != null && modelo.pecas[selecionada] ? (
+                  <Ficha
+                    i={selecionada}
+                    aoAproximar={() => cena.current?.focar(selecionada)}
+                    aoOcultar={() => {
+                      setPecasOcultas(new Set([...pecasOcultas, selecionada]))
+                      setSelecionada(null)
+                    }}
+                    estado={estado}
+                    modelo={modelo}
+                    local={eixoLocal(modelo.pecas[selecionada].eixo)}
+                    servico={servicoDe(classes[modelo.pecas[selecionada].classe].id)}
+                    instante={instante}
+                    aoFechar={() => setSelecionada(null)}
+                  />
+                ) : null}
+                {medindo ? (
+                  <Medicao
+                    pontos={medida}
+                    onde={(x, n) => {
+                      const q = modelo.eixos[0].projetar(x, n)
+                      return `${rotuloDaEstaca(q.s)} · ${formatNumber(Math.abs(q.o), 1)} m à ${q.o < 0 ? 'esquerda' : 'direita'}`
+                    }}
+                    aoDesfazer={() => setMedida((m) => m.slice(0, -1))}
+                    aoLimpar={() => setMedida([])}
+                    aoFechar={() => {
+                      setMedindo(false)
+                      setMedida([])
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+          </div>
+          {secaoS != null && modelo ? (
+            <SecaoTransversal
+              secao={secao}
+              rotulo={rotuloDaEstaca(secaoS)}
+              feito={feitoNaSecao}
+              aoAndar={(d) => {
+                const lim = leitor?.limites(0)
+                if (lim) setSecaoS(Math.max(lim[0], Math.min(lim[1], secaoS + d)))
+              }}
+              aoFechar={() => setSecaoS(null)}
+            />
           ) : null}
         </div>
       </div>
@@ -987,6 +1133,80 @@ export function Pagina4D({
       />
       {dialogos}
     </div>
+  )
+}
+
+/** Medição entre pontos clicados na cena: distância no plano, inclinada, desnível e rampa de cada trecho. */
+function Medicao({
+  pontos,
+  onde,
+  aoDesfazer,
+  aoLimpar,
+  aoFechar
+}: {
+  pontos: [number, number, number][]
+  onde: (x: number, n: number) => string
+  aoDesfazer: () => void
+  aoLimpar: () => void
+  aoFechar: () => void
+}): ReactNode {
+  const trechos = pontos.slice(1).map((b, i) => {
+    const a = pontos[i]
+    const plano = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const desnivel = b[2] - a[2]
+    return { plano, desnivel, inclinada: Math.hypot(plano, desnivel) }
+  })
+  const total = trechos.reduce((t, x) => t + x.plano, 0)
+  const m = (v: number): string => `${formatNumber(v, 2)} m`
+  return (
+    <section
+      aria-label="Medição"
+      className="absolute left-3 top-3 max-h-[calc(100%-5rem)] w-80 overflow-y-auto rounded border border-border bg-bg-panel p-3 text-sm text-text shadow-[var(--sombra-flutuante)]"
+    >
+      <div className="flex items-center gap-2">
+        <h3 className="flex-1 text-sm font-semibold">Medição</h3>
+        <IconButton aria-label="Fechar a medição" onClick={aoFechar}>
+          <X size={14} />
+        </IconButton>
+      </div>
+      {pontos.length === 0 ? (
+        <p className="mt-1 text-text-muted">Clique em dois ou mais pontos da cena.</p>
+      ) : (
+        <ol className="mt-2 flex flex-col gap-2">
+          {pontos.map((p, i) => (
+            <li key={i} className="border-l-2 border-border-strong pl-2">
+              <p className="text-xs text-text-muted">
+                Ponto {i + 1} · {onde(p[0], p[1])} · cota {formatNumber(p[2], 2)} m
+              </p>
+              {i > 0 ? (
+                <p className="tabular">
+                  {m(trechos[i - 1].plano)} no plano · {m(trechos[i - 1].inclinada)} inclinada ·
+                  desnível {m(trechos[i - 1].desnivel)}
+                  {trechos[i - 1].plano > 0.01
+                    ? ` · rampa ${formatNumber((trechos[i - 1].desnivel / trechos[i - 1].plano) * 100, 1)}%`
+                    : ''}
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
+      {trechos.length > 1 ? (
+        <p className="mt-2 font-medium tabular">
+          Total: {m(total)} no plano · desnível {m(pontos[pontos.length - 1][2] - pontos[0][2])}
+        </p>
+      ) : null}
+      {pontos.length > 0 ? (
+        <div className="mt-2 flex gap-2">
+          <Button size="sm" variant="secondary" onClick={aoDesfazer}>
+            Desfazer o último
+          </Button>
+          <Button size="sm" variant="ghost" onClick={aoLimpar}>
+            Limpar
+          </Button>
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -1038,7 +1258,8 @@ function Ficha({
   servico,
   instante,
   aoFechar,
-  aoAproximar
+  aoAproximar,
+  aoOcultar
 }: {
   i: number
   estado: Estado4D | null
@@ -1048,6 +1269,7 @@ function Ficha({
   instante: number
   aoFechar: () => void
   aoAproximar: () => void
+  aoOcultar: () => void
 }): ReactNode {
   const p = modelo.pecas[i]
   const c = modelo.modelo.classes[p.classe]
@@ -1092,6 +1314,9 @@ function Ficha({
         </div>
         <IconButton aria-label="Aproximar a peça" title="Aproximar a peça" onClick={aoAproximar}>
           <Crosshair size={14} />
+        </IconButton>
+        <IconButton aria-label="Ocultar a peça" title="Ocultar a peça" onClick={aoOcultar}>
+          <EyeOff size={14} />
         </IconButton>
         <IconButton aria-label="Fechar a ficha" onClick={aoFechar}>
           <X size={14} />

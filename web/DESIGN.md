@@ -158,7 +158,12 @@ Regras que valem para todos:
   exibição; ficam no navegador de quem salvou. "Simulação" define como a linha do tempo toca: a duração (o plano
   inteiro, ou só o período destacado), a câmera (parada, sobrevoando a pista ou acompanhando a frente de serviço)
   e a data, a semana e o avanço em valor escritos na cena; e grava o vídeo da simulação (720p ou 1080p), que o
-  navegador baixa em MP4 ou WebM.
+  navegador baixa em MP4 ou WebM. "Seção" abre, embaixo da cena, a seção transversal na estaca (a da peça
+  escolhida, andando de 20 em 20 m): terreno natural, perfil acabado, corte e aterro, camadas com a espessura e os
+  dispositivos, nas cores dos materiais, com o que ainda não foi feito na data esmaecido e a marca da estaca na
+  cena. "Medir" lista distância no plano, inclinada, desnível e rampa entre os pontos clicados, com a estaca e o
+  afastamento de cada um. Na lista de classes, o alvo isola a classe; na ficha, o olho cortado esconde a peça;
+  "Mostrar tudo" desfaz os dois.
 
 ## Verificação
 
