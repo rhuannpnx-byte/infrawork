@@ -16,7 +16,6 @@ import {
   viagens
 } from './acompanhamento'
 import { analises } from './analises'
-import { modelo4d } from './modelo4d'
 
 /** Todas as ferramentas do MCP (a ordem é a da lista mostrada aos clientes). */
 export const FERRAMENTAS = [
@@ -51,6 +50,5 @@ export const FERRAMENTAS = [
   frota,
   alertas,
   fotos,
-  analises,
-  modelo4d
+  analises
 ] as unknown as Ferramenta[]

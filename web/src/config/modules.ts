@@ -299,14 +299,6 @@ export const MODULES: ModuleConfig[] = [
             route: '/acompanhamento/performance',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
-          },
-          {
-            icon: 'box',
-            label: 'Acompanhamento 4D',
-            route: '/acompanhamento/4d',
-            requiresObra: true,
-            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio'],
-            selo: 'beta'
           }
         ]
       },

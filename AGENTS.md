@@ -68,32 +68,6 @@ Ao mexer em tela do `web/`:
   diálogo novo entra na lista deste último). A tabela dos roteiros está em `web/DESIGN.md`;
 - o app de campo (`campo/`) segue a mesma identidade, com os tokens em `campo/src/styles/theme.css`.
 
-## Acompanhamento 4D (beta)
-
-O modelo 3D da obra segue o contrato `infrawork-4d` (`web/docs/MODELO-4D.md`). Ao mexer nele:
-
-- o contrato vive em três lugares que mudam juntos: os tipos e a validação (`web/src/features/modelo4d/lib/contrato.ts`),
-  o texto entregue a quem gera o modelo (`contrato-texto.ts`, usado no prompt da tela e no MCP) e o `docs/MODELO-4D.md`
-  (um teste cobra que o texto seja o mesmo);
-- o arquivo vem em geometria pronta (versão 1) ou em dados de projeto (versão 2: notas de serviço, cubação,
-  seção-tipo e quadros). A versão 2 é montada na versão 1 por `lib/projeto.ts`, com os projetos-tipo de
-  `lib/catalogo.ts` (dispositivo novo entra lá, pelo código do projeto); o que a montagem acha estranho sai em
-  `avisos`, que a importação e o MCP mostram. Geometria de rodovia melhora no motor, não em quem gera o arquivo;
-- as bibliotecas de `features/modelo4d/lib/` são TS puro, sem DOM: o web e o MCP (`modelo_da_obra`) usam as mesmas;
-- o vínculo é por classe (classe → serviço, eixo → local) e a estaca decide o estado; o previsto vem dos trechos de
-  tarefa da linha de base (`planejamento_tarefa_wp`) e o realizado só dos lançamentos com estaca;
-- a cena é em CesiumJS (`@cesium/engine`), num pedaço próprio do build carregado só nessa página; os operários e
-  as texturas dele são copiados para `/cesium` pelo plugin de `vite.config.ts`. O terreno do entorno vem do relevo
-  aberto de 30 m (AWS Terrain Tiles) ajustado ao levantamento do projeto (`lib/relevo.ts`), e a imagem, do World
-  Imagery da Esri; as duas origens e o `wasm-unsafe-eval` que o Cesium pede estão na CSP do `vercel.json`. Mudou a
-  cena ou a CSP: sirva o build com a política e abra a página (o roteiro está em `web/DESIGN.md`, "Verificação");
-- o modelo precisa de `origem` com fuso UTM: é o que põe a obra no terreno. A cena lê as cores dos tokens do tema em
-  tempo de execução;
-- a aparência das peças é shader nosso (`components/aparencia.ts`): a cor de cada peça vem do estado e o canal alfa
-  leva o padrão do material, que só modula a cor. Confira a cena com a placa de vídeo de verdade (Playwright com
-  `channel: 'chromium'` e `--use-angle=d3d11`): o navegador de teste padrão desenha por software, leva minutos num
-  modelo grande e não mostra o que o usuário vê.
-
 ## Publicação na Vercel
 
 Os projetos `infrawork-web` (raiz `web/`) e `infrawork-campo` (raiz `campo/`) estão ligados ao GitHub

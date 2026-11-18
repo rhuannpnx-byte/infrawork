@@ -22,8 +22,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@cesium/core": "^0.1.1",
-    "@cesium/engine": "^26.5.0",
     "@fontsource-variable/archivo": "^5.3.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@supabase/supabase-js": "^2.106.1",

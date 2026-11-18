@@ -110,7 +110,7 @@ export function Sidebar({ aoNavegar }: { aoNavegar?: () => void }): ReactNode {
                       {visibleFor(section.items, role).map((item) => (
                         <ItemMenu
                           key={item.route}
-                          rotulo={item.selo ? `${item.label} (${item.selo})` : item.label}
+                          rotulo={item.label}
                           recuado
                           ativo={pathname === item.route}
                           bloqueado={!!item.requiresObra && !obraId}

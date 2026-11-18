@@ -42,13 +42,6 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 - Gráficos usam `--chart-1…6`; as séries do cronograma (uma cor por serviço) usam `--serie-1…10`, mais escuras no
   claro e mais claras no escuro; superfícies flutuantes usam `--popover`, `--sombra-flutuante` e `--veu` (fundo atrás
   de diálogo).
-- A cena 3D do Acompanhamento 4D (CesiumJS) lê os tokens em tempo de execução
-  (`features/modelo4d/components/cores.ts`): as situações usam `success` (concluído), `module-planejamento`
-  (adiantado), `accent` (em execução) e `danger` (atrasado). As cores de material (`--m4d-corte`, `--m4d-aterro`,
-  `--m4d-granular`, `--m4d-betume`, `--m4d-asfalto`, `--m4d-concreto`, `--m4d-metal`, `--m4d-madeira`, `--m4d-grama`,
-  `--m4d-solo`,
-  `--m4d-sinal-*`, `--m4d-contexto`, `--m4d-fantasma`) não mudam com o tema: a cena é a obra sobre a imagem de
-  satélite.
 - Token novo entra nos dois temas. `src/styles/theme.test.ts` falha se o código usar variável que o tema não define.
 
 ## Tipografia
@@ -142,28 +135,6 @@ Regras que valem para todos:
   aberta nele.
 - Início com obra selecionada é o painel da obra: carimbo, situação (avanço, valor executado, término, serviços,
   último lançamento), curva S em valor, faixa da obra, serviços, alertas, últimos lançamentos e prontidão.
-- Página em beta leva `selo: 'beta'` no item de `modules.ts` (aparece ao lado do nome no menu) e o `Badge` "beta" no
-  cabeçalho. Hoje: Acompanhamento 4D (`/acompanhamento/4d`), com a cena no centro, as camadas e o avanço por serviço
-  à esquerda, a ficha do elemento sobre a cena e a linha do tempo no rodapé. Na cena: o cubo de orientação no canto
-  (clicar numa face leva à vista; arrastar gira em torno do centro da tela), o botão esquerdo orbita em torno do
-  ponto sob o cursor ou move o terreno (controle "Orbitar | Mover"), a roda aproxima no cursor e "Percorrer a pista"
-  põe a câmera na altura de quem dirige. O menu "Exibição" escolhe o estilo (Realista, com a textura de cada
-  material; Sombreado, em cor lisa; Linhas, com superfícies claras e arestas), a luz (Frontal, que parte de quem
-  olha e é o padrão, ou Sol, com sombras projetadas) e a sombra de contato, que some enquanto a câmera se move. A
-  escolha fica guardada no navegador. O cubo aceita clique nas faces, nas arestas e nos cantos (vistas a 45°), tem
-  a casa (vista geral) e o anel do norte. "Andar" (ao lado de Orbitar e Mover) anda pela obra com W, A, S, D ou
-  as setas, arrastando para olhar, com velocidade, Gravidade, Colisão e Terceira pessoa numa barra sobre a cena; o
-  chão é a obra onde ela já existe na data e o terreno fora dela (`lib/superficie.ts`). Duplo clique numa peça (ou
-  "Aproximar" na ficha) centra e aproxima. "Vistas" guarda a câmera com a data, o modo, o que está oculto e a
-  exibição; ficam no navegador de quem salvou. "Simulação" define como a linha do tempo toca: a duração (o plano
-  inteiro, ou só o período destacado), a câmera (parada, sobrevoando a pista ou acompanhando a frente de serviço)
-  e a data, a semana e o avanço em valor escritos na cena; e grava o vídeo da simulação (720p ou 1080p), que o
-  navegador baixa em MP4 ou WebM. "Seção" abre, embaixo da cena, a seção transversal na estaca (a da peça
-  escolhida, andando de 20 em 20 m): terreno natural, perfil acabado, corte e aterro, camadas com a espessura e os
-  dispositivos, nas cores dos materiais, com o que ainda não foi feito na data esmaecido e a marca da estaca na
-  cena. "Medir" lista distância no plano, inclinada, desnível e rampa entre os pontos clicados, com a estaca e o
-  afastamento de cada um. Na lista de classes, o alvo isola a classe; na ficha, o olho cortado esconde a peça;
-  "Mostrar tudo" desfaz os dois.
 
 ## Verificação
 

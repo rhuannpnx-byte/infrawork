@@ -975,8 +975,7 @@ await sbAp.auth.signOut()
     ['lb_premissas_diff', { _planejamento_id: plan.id }],
     ['set_recurso_preco_vigente', { _preco_id: np.id }],
     ['obra_prontidao', { _obra_id: obraId }],
-    ['importar_orcamento', { _obra_id: obraId, _itens: [], _alocacoes: [], _servicos: [], _opcoes: {} }],
-    ['modelo4d_registrar', { _obra_id: obraId, _id: crypto.randomUUID(), _nome: 'Modelo', _origem: 'iw4d', _tamanho_bytes: 1, _resumo: {} }]
+    ['importar_orcamento', { _obra_id: obraId, _itens: [], _alocacoes: [], _servicos: [], _opcoes: {} }]
   ]
   for (const [f, a] of sensiveis) {
     const an = await semLogin.rpc(f, a)
@@ -989,31 +988,6 @@ await sbAp.auth.signOut()
     const cliente = await u.cli.c.rpc(f, a)
     check(`${f}: engenheiro da obra chama, cliente não`, !daObra.error && !!cliente.error, daObra.error?.message?.slice(0, 80))
   }
-  // modelo 4D (0062): registra com os vínculos numa transação, liga o local obrigatório do serviço e só quem planeja mexe
-  {
-    const modeloId = crypto.randomUUID()
-    const reg = await sb.rpc('modelo4d_registrar', {
-      _obra_id: obraTr.id, _id: modeloId, _nome: 'Modelo e2e', _origem: 'iw4d', _tamanho_bytes: 10,
-      _resumo: { classes: [] }, _eixos: [{ eixo: 'E1', trecho_id: tr.id }],
-      _vinculos: [{ classe: 'BASE', item_orcamentario_id: svTr.id }]
-    })
-    const [m4] = await q('modelo4d', (t) => t.select('id, ativo, storage_path').eq('id', modeloId))
-    const [par] = await q('servico_parametro', (t) => t.select('exige_local').eq('item_orcamentario_id', svTr.id))
-    check('modelo 4D: registra, fica ativo e o serviço vinculado passa a exigir o local', !reg.error && m4?.ativo === true && m4.storage_path === `${obraTr.id}/${modeloId}.iw4d.json.gz` && par?.exige_local === true, reg.error?.message)
-    const emArea = await sb.rpc('modelo4d_vincular', { _modelo_id: modeloId, _eixos: [{ eixo: 'E1', trecho_id: crypto.randomUUID() }], _vinculos: [] })
-    check('modelo 4D: eixo do modelo só se liga a um eixo da própria obra', !!emArea.error, emArea.error?.message?.slice(0, 70))
-    const direto = await sb.from('modelo4d_vinculo').insert({ modelo_id: modeloId, classe: 'X', item_orcamentario_id: svTr.id })
-    check('modelo 4D: vínculo só pelas funções (insert direto recusado)', !!direto.error, direto.error?.code)
-    const outroLe = await u.admB.c.from('modelo4d').select('id').eq('id', modeloId)
-    const outroApaga = await u.admB.c.rpc('modelo4d_excluir', { _modelo_id: modeloId })
-    const semLoginLe = await semLogin.from('modelo4d').select('id').limit(1)
-    check('modelo 4D: outra empresa não lê nem exclui; anônimo não lê', (outroLe.data ?? []).length === 0 && !!outroApaga.error && !!semLoginLe.error, `${outroApaga.error?.code} / ${semLoginLe.error?.code}`)
-    const fora = await sb.rpc('modelo4d_excluir', { _modelo_id: modeloId })
-    const resto = await q('modelo4d_vinculo', (t) => t.select('classe').eq('modelo_id', modeloId))
-    check('modelo 4D: excluir devolve o caminho do arquivo e leva os vínculos', fora.data === m4?.storage_path && resto.length === 0, fora.error?.message)
-    await q('servico_parametro', (t) => t.update({ exige_local: false }).eq('item_orcamentario_id', svTr.id).select())
-  }
-
   const precoA = await u.admA.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
   const precoB = await u.admB.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
   check('receita_preco_em: a outra empresa recebe vazio', precoA.data != null && !precoB.error && precoB.data == null, `A=${precoA.data} B=${precoB.data}`)
