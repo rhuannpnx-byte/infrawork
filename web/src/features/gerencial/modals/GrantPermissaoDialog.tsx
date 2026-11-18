@@ -12,7 +12,9 @@ import {
 import { Campo } from '@/components/ui/campo'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Carregando } from '@/components/ui/estado'
 import { rotuloPapel } from '@/lib/rotulos'
+import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { useClientes, useEngenheiros, useGrantPermissao } from '../hooks'
 import { falhaDoServidor } from '../lib/falha-servidor'
 
@@ -34,16 +36,22 @@ export function GrantPermissaoDialog({
   obraCodigo,
   existingUserIds
 }: Props): ReactNode {
-  const { data: engenheiros = [] } = useEngenheiros(obraEmpresaId)
-  const { data: clientes = [] } = useClientes(obraEmpresaId)
+  const consultaEngenheiros = useEngenheiros(obraEmpresaId)
+  const consultaClientes = useClientes(obraEmpresaId)
+  const engenheiros = consultaEngenheiros.data ?? []
+  const clientes = consultaClientes.data ?? []
+  const carregando = consultaEngenheiros.isLoading || consultaClientes.isLoading
   const grant = useGrantPermissao()
   const [userId, setUserId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [tentou, setTentou] = useState(false)
 
-  // Engenheiros, clientes e apontadores recebem permissão direta (o apoio herda do engenheiro).
-  const disponiveis = [...engenheiros, ...clientes].filter((e) => !existingUserIds.includes(e.id))
-  const semDisponiveis = disponiveis.length === 0
+  // Engenheiros, clientes e apontadores recebem permissão direta (o apoio herda do engenheiro; o administrador
+  // da empresa e o administrador geral já veem todas as obras).
+  const candidatos = [...engenheiros, ...clientes]
+  const disponiveis = candidatos.filter((e) => !existingUserIds.includes(e.id))
+  const semCandidatos = !carregando && candidatos.length === 0
+  const semDisponiveis = carregando || disponiveis.length === 0
 
   useEffect(() => {
     if (!open) {
@@ -82,10 +90,24 @@ export function GrantPermissaoDialog({
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
-          {semDisponiveis ? (
+          {carregando ? (
+            <Carregando texto="Carregando os usuários da empresa…" className="py-2" />
+          ) : semCandidatos ? (
+            <div className="space-y-2 text-sm text-text-muted">
+              <p>
+                Esta empresa ainda não tem engenheiro, cliente nem apontador cadastrado, então não
+                há a quem conceder acesso.
+              </p>
+              <p>
+                O administrador da empresa e o administrador geral já veem todas as obras, sem
+                precisar de acesso. Para liberar a obra a outra pessoa, cadastre o usuário em
+                Gerencial › Usuários e depois volte aqui.
+              </p>
+            </div>
+          ) : semDisponiveis ? (
             <p className="text-sm text-text-muted">
               Todos os engenheiros, clientes e apontadores desta empresa já têm acesso a esta obra.
-              Para liberar outra pessoa, cadastre o usuário em Usuários.
+              Para liberar outra pessoa, cadastre o usuário em Gerencial › Usuários.
             </p>
           ) : (
             <Campo
@@ -107,9 +129,22 @@ export function GrantPermissaoDialog({
         </DialogBody>
         <DialogFooter>
           {semDisponiveis ? (
-            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-              Fechar
-            </Button>
+            <>
+              <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+                Fechar
+              </Button>
+              {carregando ? null : (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false)
+                    navigateActiveTab('/gerencial/usuarios')
+                  }}
+                >
+                  Cadastrar usuário
+                </Button>
+              )}
+            </>
           ) : (
             <>
               <Button

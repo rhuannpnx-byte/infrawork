@@ -302,7 +302,7 @@ export function ObraDetailPage(): ReactNode {
               <EmptyState
                 icon="key-round"
                 title="Nenhum usuário com acesso"
-                description="Conceda acesso a um engenheiro, cliente ou apontador da empresa para que ele veja esta obra. O apoio herda o acesso do seu engenheiro."
+                description="Conceda acesso a um engenheiro, cliente ou apontador da empresa para que ele veja esta obra. O apoio herda o acesso do seu engenheiro; o administrador da empresa e o administrador geral já veem todas as obras."
                 action={
                   <Button variant="default" size="sm" onClick={() => setOpenGrant(true)}>
                     <Plus size={12} /> Conceder acesso

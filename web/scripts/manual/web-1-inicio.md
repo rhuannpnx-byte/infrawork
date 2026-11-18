@@ -359,6 +359,10 @@ No topo ficam os botões [[Voltar]], [[Desabilitar]], [[Editar dados]] e [[Conce
 2. Escolha o usuário. A lista traz os engenheiros, clientes e apontadores ativos que ainda não têm acesso.
 3. Clique em [[Conceder acesso]].
 
+:::nota
+O administrador da empresa e o administrador geral veem todas as obras da empresa sem precisar de acesso. Se a empresa ainda não tem engenheiro, cliente nem apontador, a janela avisa e oferece [[Cadastrar usuário]]: cadastre a pessoa em Gerencial › Usuários e depois volte para conceder o acesso.
+:::
+
 **Revogar acesso.** Clique em [[Revogar]] na linha do usuário e confirme. Os apoios ligados a um engenheiro perdem o acesso junto com ele.
 
 **Desabilitar.** Tira a obra da seleção no web e no aplicativo, sem apagar nada. [[Reabilitar]] desfaz.
