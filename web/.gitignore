@@ -13,3 +13,6 @@ mcp/dist/
 capturas/
 fumaca.png
 acessibilidade*.json
+
+# HTML e PDFs intermediários do manual do usuário (scripts/manual/gerar.mjs); os PDFs finais ficam em ../manuais/
+scripts/manual/saida/
