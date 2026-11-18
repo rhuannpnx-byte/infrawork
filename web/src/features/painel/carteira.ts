@@ -4,7 +4,10 @@ import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import type { StatusComparativo } from '@/types/acompanhamento'
 
-/** Situação de uma obra na entrada do sistema (Início sem obra escolhida). */
+/** Traçado de um eixo da obra: pontos [longitude, latitude]. */
+export type Tracado = Array<[number, number]>
+
+/** Situação de uma obra na home (Início). */
 export interface ObraNaCarteira {
   rodovia: string | null
   trecho: string | null
@@ -19,6 +22,21 @@ export interface ObraNaCarteira {
   semPlano: number
   /** Nenhum serviço com previsto: sem linha de base vigente (o resumo devolve 0% nesse caso). */
   semLinhaBase: boolean
+  /** Eixos com traçado importado (KML/DXF); vazio quando a obra ainda não tem traçado. */
+  tracados: Tracado[]
+}
+
+/** Um lançamento de produção recente, de qualquer obra da empresa. */
+export interface AtividadeRecente {
+  id: string
+  obra_id: string
+  data: string
+  created_at: string
+  qtd: number
+  unidade: string | null
+  servico_display_nome: string | null
+  encarregado_display_nome: string | null
+  equipe_display_nome: string | null
 }
 
 interface LinhaObra {
@@ -37,8 +55,12 @@ interface LinhaServico {
   obra_id: string
   status: StatusComparativo
 }
+interface LinhaTrecho {
+  obra_id: string
+  geometry_geojson: { type: string; coordinates: number[][] } | null
+}
 
-const VAZIA: ObraNaCarteira = {
+const VAZIA: Omit<ObraNaCarteira, 'tracados'> = {
   rodovia: null,
   trecho: null,
   extensaoKm: null,
@@ -52,17 +74,24 @@ const VAZIA: ObraNaCarteira = {
   semLinhaBase: true
 }
 
+const SEM_ATIVIDADE: AtividadeRecente[] = []
+
 /**
- * As obras da empresa numa consulta por fonte (cadastro, resumo do acompanhamento e previsto × realizado), em vez de
- * uma rodada por obra. O resumo e os serviços são do escritório: o cliente vê só o cadastro.
+ * A carteira de obras da empresa numa consulta por fonte (cadastro, traçado, resumo do acompanhamento, previsto ×
+ * realizado e produção recente), em vez de uma rodada por obra. Resumo, serviços e produção são do escritório: o
+ * cliente vê o cadastro e o traçado.
  */
 export function useCarteira(
   obraIds: string[],
-  interno: boolean
+  interno: boolean,
+  desde: string
 ): {
   porObra: Map<string, ObraNaCarteira>
+  atividade: AtividadeRecente[]
+  lancamentosPeriodo: number | null
   carregandoCadastro: boolean
   carregandoSituacao: boolean
+  carregandoAtividade: boolean
   erro: unknown
   tentarDeNovo: () => void
 } {
@@ -80,6 +109,22 @@ export function useCarteira(
         .in('id', ids)
       if (error) throw error
       return (data ?? []) as LinhaObra[]
+    }
+  })
+
+  // o traçado só enfeita o cartão: se falhar, o cartão mostra o quadro sem mapa, sem aviso de erro
+  const tracados = useQuery({
+    queryKey: ['painel', 'carteira', 'tracados', ids],
+    enabled: tem,
+    staleTime: 30 * 60 * 1000,
+    queryFn: async (): Promise<LinhaTrecho[]> => {
+      const { data, error } = await supabase
+        .from('obra_trecho')
+        .select('obra_id, geometry_geojson')
+        .in('obra_id', ids)
+        .not('geometry_geojson', 'is', null)
+      if (error) throw error
+      return (data ?? []) as LinhaTrecho[]
     }
   })
 
@@ -114,14 +159,57 @@ export function useCarteira(
       )
   })
 
+  const atividade = useQuery({
+    queryKey: ['painel', 'carteira', 'atividade', ids],
+    enabled: tem && interno,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<AtividadeRecente[]> => {
+      const { data, error } = await supabase
+        .from('vw_acompanhamento_producao_enriquecida')
+        .select(
+          'id, obra_id, data, created_at, qtd, unidade, servico_display_nome, encarregado_display_nome, equipe_display_nome'
+        )
+        .in('obra_id', ids)
+        .order('created_at', { ascending: false })
+        .order('id')
+        .limit(8)
+      if (error) throw error
+      return (data ?? []) as AtividadeRecente[]
+    }
+  })
+
+  const periodo = useQuery({
+    queryKey: ['painel', 'carteira', 'lancamentos', ids, desde],
+    enabled: tem && interno,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await supabase
+        .from('acompanhamento_producao')
+        .select('id', { count: 'exact', head: true })
+        .in('obra_id', ids)
+        .gte('data', desde)
+      if (error) throw error
+      return count ?? 0
+    }
+  })
+
   const porObra = useMemo(() => {
-    const mapa = new Map<string, ObraNaCarteira>(ids.map((id) => [id, { ...VAZIA }]))
+    const mapa = new Map<string, ObraNaCarteira>(ids.map((id) => [id, { ...VAZIA, tracados: [] }]))
     for (const o of cadastro.data ?? []) {
       const alvo = mapa.get(o.id)
       if (!alvo) continue
       alvo.rodovia = o.rodovia
       alvo.trecho = o.trecho
       alvo.extensaoKm = o.extensao_km == null ? null : Number(o.extensao_km)
+    }
+    for (const t of tracados.data ?? []) {
+      const g = t.geometry_geojson
+      const alvo = mapa.get(t.obra_id)
+      if (!alvo || g?.type !== 'LineString' || !Array.isArray(g.coordinates)) continue
+      const pontos = g.coordinates
+        .filter((c) => Number.isFinite(c[0]) && Number.isFinite(c[1]))
+        .map((c) => [c[0], c[1]] as [number, number])
+      if (pontos.length >= 2) alvo.tracados.push(pontos)
     }
     for (const r of resumo.data ?? []) {
       const alvo = mapa.get(r.obra_id)
@@ -140,15 +228,20 @@ export function useCarteira(
     }
     for (const c of mapa.values()) c.semLinhaBase = c.servicos === c.semPlano
     return mapa
-  }, [ids, cadastro.data, resumo.data, servicos.data])
+  }, [ids, cadastro.data, tracados.data, resumo.data, servicos.data])
 
   return {
     porObra,
+    atividade: atividade.data ?? SEM_ATIVIDADE,
+    lancamentosPeriodo: periodo.data ?? null,
     carregandoCadastro: cadastro.isLoading,
     carregandoSituacao: resumo.isLoading || servicos.isLoading,
-    erro: cadastro.error ?? resumo.error ?? servicos.error ?? null,
+    carregandoAtividade: atividade.isLoading || periodo.isLoading,
+    erro:
+      cadastro.error ?? resumo.error ?? servicos.error ?? atividade.error ?? periodo.error ?? null,
     tentarDeNovo: () => {
-      for (const c of [cadastro, resumo, servicos]) if (c.error) void c.refetch()
+      for (const c of [cadastro, resumo, servicos, atividade, periodo])
+        if (c.error) void c.refetch()
     }
   }
 }

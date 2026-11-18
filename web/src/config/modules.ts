@@ -242,6 +242,12 @@ export const MODULES: ModuleConfig[] = [
           // Fotos & Mapa, Previsto × Realizado). Os demais excluem 'cliente'
           // explicitamente — ambiente do cliente é só acompanhamento da obra.
           {
+            icon: 'layout-dashboard',
+            label: 'Painel da obra',
+            route: '/acompanhamento/painel',
+            requiresObra: true
+          },
+          {
             icon: 'clipboard-pen',
             label: 'Lançar produção',
             route: '/acompanhamento/lancar',

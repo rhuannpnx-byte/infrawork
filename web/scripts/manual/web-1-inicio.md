@@ -70,7 +70,7 @@ Abra o endereço do InfraWork no navegador. Quem ainda não entrou vê a tela de
 2. No campo **Senha**, digite a sua senha. O ícone de olho ao lado mostra ou oculta o que foi digitado.
 3. Clique em [[Entrar]].
 
-O sistema abre na página **Início**. Na primeira vez, ele pede para escolher a obra (veja o capítulo 4).
+O sistema abre na página **Início**, com as obras da empresa. Clique numa obra para escolhê-la (veja também o capítulo 4).
 
 :::dica
 Se aparecer o aviso **Caps Lock ativado**, desligue a tecla Caps Lock antes de digitar a senha.
@@ -141,7 +141,7 @@ Este capítulo resume, na ordem certa, tudo o que é preciso para levar uma obra
 16. **Dia a dia.** A produção chega do campo; o escritório confere em **Acompanhamento › Produção**, corrige quando preciso e acompanha os painéis.
 
 :::dica
-A página **Início** traz o quadro **Prontidão da obra**, que lista as etapas que ainda faltam e leva direto à tela de cada uma pelo botão [[Resolver]].
+O **Painel da obra** (Acompanhamento › Painel da obra) traz o quadro **Prontidão da obra**, que lista as etapas que ainda faltam e leva direto à tela de cada uma pelo botão [[Resolver]].
 :::
 
 <!-- quebra -->
@@ -232,11 +232,31 @@ As listas do sistema seguem o mesmo padrão:
 
 # Página Início
 
-A página **Início** é o painel da obra escolhida. Ela responde, numa tela só, como a obra está e o que pede atenção.
+A página **Início** é a entrada do sistema: reúne as obras da empresa e mostra, numa tela só, como está a carteira e o que pede ação. Ela abre ao entrar, pelo logotipo e pelo primeiro ícone da barra de módulos.
 
-![Painel da obra na página Início](inicio.jpg)
+## O que a página mostra
 
-## O que o painel mostra
+- **Saudação e data**, com o nome da empresa. O administrador tem o botão [[Nova obra]], e o administrador geral também [[Trocar empresa]].
+- **Resumo da carteira:**
+  - **Obras em andamento**, entre todas as obras da empresa;
+  - **Avanço físico médio** das obras com linha de base vigente;
+  - **Alertas críticos** abertos e em quantas obras;
+  - **Lançamentos em 7 dias**, com a data da última produção.
+- **Suas obras:** um cartão por obra, com as em andamento primeiro. O cartão mostra a imagem de satélite com o traçado do eixo (quando o traçado já foi importado em Locais), a situação, o código, a extensão, o avanço físico, os serviços atrasados ou em risco e o último lançamento. A obra em uso tem o selo **obra em uso**. Com obras em situações diferentes, os botões acima dos cartões filtram por situação.
+- **Pendências:** o que precisa de ação em todas as obras: alertas críticos abertos, serviços atrasados, obra em andamento sem linha de base vigente e obra em andamento sem lançamento há 7 dias ou mais. Cada item escolhe a obra e abre a tela onde se resolve.
+- **Atividade recente:** os últimos lançamentos de produção das obras, com quantidade, encarregado e data.
+
+Clique no cartão para escolher a obra e abrir o **Painel da obra**. O botão [[Lançar]] do cartão escolhe a obra e vai direto ao lançamento de produção.
+
+:::nota
+O administrador geral escolhe antes a empresa, numa lista com o número de obras de cada uma.
+:::
+
+## Painel da obra
+
+O **Painel da obra**, em **Acompanhamento › Painel da obra**, responde numa tela só como a obra escolhida está e o que pede atenção nela.
+
+![Painel da obra](inicio.jpg)
 
 - **Identificação:** obra, trecho, extensão, linha de base em uso, situação e data de controle.
 - **Indicadores:**
@@ -258,17 +278,9 @@ Os botões [[Abrir o dashboard]] e [[Lançar produção]] ficam no topo do paine
 Sem linha de base vigente, o painel não tem previsto para comparar, e as áreas que dependem dele avisam **sem linha de base vigente**.
 :::
 
-## Sem obra escolhida
-
-Sem obra, a página Início mostra as obras da empresa, com as em andamento primeiro. Cada linha traz a situação da obra, o avanço físico, os serviços atrasados ou em risco e o último lançamento. Clique na obra para abrir o painel dela, ou em [[Lançar]] para ir direto ao lançamento de produção.
-
-Ao lado, o quadro **Pede atenção** junta o que precisa de ação em todas as obras: alertas críticos abertos, serviços atrasados, obra em andamento sem linha de base vigente e obra em andamento sem lançamento há 7 dias ou mais. Cada item escolhe a obra e abre a tela onde se resolve.
-
-O administrador também tem ali o botão [[Cadastrar obra]]. O administrador geral escolhe antes a empresa, numa lista com o número de obras de cada uma.
-
 ## O que o cliente vê
 
-O usuário com papel Cliente vê um painel reduzido: a identificação, o término previsto, os serviços e a situação da obra. Os indicadores financeiros, a curva S, a faixa da obra, os alertas, os lançamentos e a prontidão não aparecem para ele.
+Na página Início, o cliente vê os cartões das obras liberadas para ele, sem o resumo, as pendências e a atividade. No Painel da obra, vê a identificação, o término previsto, os serviços e a situação da obra; os indicadores financeiros, a curva S, a faixa da obra, os alertas, os lançamentos e a prontidão não aparecem para ele.
 
 <!-- quebra -->
 

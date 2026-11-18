@@ -1,10 +1,7 @@
 import { type ReactNode } from 'react'
-import { useCurrentScope } from '@/hooks/useCurrentScope'
-import { PainelObra } from '@/features/painel/PainelObra'
-import { InicioSemObra } from '@/features/painel/InicioSemObra'
+import { Inicio } from '@/features/painel/Inicio'
 
-/** Início: o painel da obra em uso; sem obra, as obras da empresa e o que pede atenção nelas. */
+/** Início: a home da carteira de obras da empresa (o painel de cada obra fica em Acompanhamento › Painel da obra). */
 export function HomePage(): ReactNode {
-  const { obra } = useCurrentScope()
-  return obra ? <PainelObra obraId={obra.id} /> : <InicioSemObra />
+  return <Inicio />
 }
