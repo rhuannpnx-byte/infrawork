@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { lazy, Suspense, useRef, useState, type ReactNode } from 'react'
 import {
   Search,
   ChevronDown,
@@ -9,12 +9,11 @@ import {
   PanelLeft,
   Sun,
   Moon,
-  Monitor,
-  Check
+  Smartphone
 } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { useThemeStore, type TemaPreferencia } from '@/stores/theme-store'
+import { useThemeStore } from '@/stores/theme-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useEmpresas } from '@/features/gerencial/hooks'
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from '@/components/ui/dropdown'
@@ -24,6 +23,9 @@ import { cn } from '@/lib/utils'
 import infraworkIcon from '@/assets/infrawork-icon.png'
 import { PontoEstado, TokensIADialog } from '@/features/gerencial/modals/TokensIADialog'
 import { useStatusMcp } from '@/features/gerencial/hooks/mcp'
+
+// o gerador do QR code só é baixado quando a janela abre
+const AppCampoDialog = lazy(() => import('@/components/modals/AppCampoDialog'))
 
 /** Barra superior: menu, marca, obra em uso, busca, tema e usuário. */
 export function TitleBar(): ReactNode {
@@ -79,12 +81,6 @@ export function TitleBar(): ReactNode {
     </header>
   )
 }
-
-const TEMAS: { valor: TemaPreferencia; rotulo: string; icone: ReactNode }[] = [
-  { valor: 'light', rotulo: 'Claro', icone: <Sun size={12} /> },
-  { valor: 'dark', rotulo: 'Escuro', icone: <Moon size={12} /> },
-  { valor: 'system', rotulo: 'Seguir o sistema', icone: <Monitor size={12} /> }
-]
 
 function BotaoTema(): ReactNode {
   const tema = useThemeStore((s) => s.tema)
@@ -155,8 +151,13 @@ export function UserMenu(): ReactNode {
   const empresa = useAuthStore((s) => s.empresa)
   const signOut = useAuthStore((s) => s.signOut)
   const [tokensAberto, setTokensAberto] = useState(false)
-  const preferencia = useThemeStore((s) => s.preferencia)
-  const setPreferencia = useThemeStore((s) => s.setPreferencia)
+  const [appAberto, setAppAberto] = useState(false)
+  const [appUsado, setAppUsado] = useState(false)
+  // as janelas abrem de um item do menu, que some ao abrir: ao fechar, o foco volta ao avatar
+  const avatarRef = useRef<HTMLButtonElement>(null)
+  const devolverFoco = (): void => {
+    requestAnimationFrame(() => avatarRef.current?.focus())
+  }
 
   if (!profile) return null
 
@@ -171,8 +172,10 @@ export function UserMenu(): ReactNode {
     <>
       <Dropdown
         align="end"
+        className="min-w-[240px]"
         trigger={
           <button
+            ref={avatarRef}
             type="button"
             className="h-8 pl-1 pr-1.5 rounded hover:bg-bg-hover flex items-center gap-1.5 text-text"
             aria-label="Menu do usuário"
@@ -192,13 +195,14 @@ export function UserMenu(): ReactNode {
           {empresa ? empresa.nome : 'Acesso global'}
         </div>
         <DropdownSeparator />
-        <DropdownLabel>Tema</DropdownLabel>
-        {TEMAS.map((t) => (
-          <DropdownItem key={t.valor} onClick={() => setPreferencia(t.valor)}>
-            {t.icone} {t.rotulo}
-            {preferencia === t.valor ? <Check size={12} className="text-accent" /> : null}
-          </DropdownItem>
-        ))}
+        <DropdownItem
+          onClick={() => {
+            setAppUsado(true)
+            setAppAberto(true)
+          }}
+        >
+          <Smartphone size={12} /> App de campo (celular)…
+        </DropdownItem>
         <DropdownSeparator />
         <DropdownLabel>IA (MCP)</DropdownLabel>
         <StatusMcpMenu />
@@ -210,7 +214,24 @@ export function UserMenu(): ReactNode {
           <LogOut size={12} /> Sair
         </DropdownItem>
       </Dropdown>
-      <TokensIADialog open={tokensAberto} onOpenChange={setTokensAberto} />
+      <TokensIADialog
+        open={tokensAberto}
+        onOpenChange={(aberto) => {
+          setTokensAberto(aberto)
+          if (!aberto) devolverFoco()
+        }}
+      />
+      {appUsado ? (
+        <Suspense fallback={null}>
+          <AppCampoDialog
+            open={appAberto}
+            onOpenChange={(aberto) => {
+              setAppAberto(aberto)
+              if (!aberto) devolverFoco()
+            }}
+          />
+        </Suspense>
+      ) : null}
     </>
   )
 }

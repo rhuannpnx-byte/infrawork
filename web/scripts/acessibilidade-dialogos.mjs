@@ -7,9 +7,11 @@ import { join } from 'node:path'
 import { AxeBuilder } from '@axe-core/playwright'
 import { URL_BASE, abrirSessao } from './sessao-telas.mjs'
 
-// rota e nome acessível do botão que abre o diálogo (texto ou aria-label)
+// rota e nome acessível do botão que abre o diálogo (texto ou aria-label); `menu` = abre antes esse menu e o
+// gatilho é um item dele
 const CENARIOS = [
   ['/', 'Buscar páginas, obras e ações', { exato: false }],
+  ['/', 'App de campo (celular)…', { menu: 'Menu do usuário' }],
   ['/', 'Configurações'],
   ['/', 'Atalhos de teclado'],
   ['/gerencial/empresas', 'Nova empresa'],
@@ -50,7 +52,13 @@ for (const [rota, botao, opcoes] of CENARIOS) {
     await page.waitForTimeout(2200)
     rotaAberta = rota
   }
-  const gatilho = page.getByRole('button', { name: botao, exact: opcoes?.exato ?? true }).first()
+  if (opcoes?.menu) {
+    await page.getByRole('button', { name: opcoes.menu, exact: true }).first().click()
+    await page.waitForTimeout(300)
+  }
+  const gatilho = page
+    .getByRole(opcoes?.menu ? 'menuitem' : 'button', { name: botao, exact: opcoes?.exato ?? true })
+    .first()
   if (!(await gatilho.count()) || !(await gatilho.isEnabled().catch(() => false))) {
     console.log(`? ${rota} › ${botao} — botão ausente ou desabilitado`)
     continue

@@ -4,6 +4,7 @@ import { LoginPage, RedefinirSenhaPage } from './routes/LoginPage'
 import { OAuthConsentimento, PEDIDO_OAUTH } from './OAuthConsentimento'
 import { CurvasDeNivel } from '@/components/layout/CurvasDeNivel'
 import { Carregando } from '@/components/ui/estado'
+import { URL_APP_CAMPO } from '@/config/app-campo'
 
 export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   const status = useAuthStore((s) => s.status)
@@ -39,7 +40,6 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
 
   // apontador: só o app de campo
   if (role === 'apontador') {
-    const url = import.meta.env.VITE_CAMPO_URL as string | undefined
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-3 bg-bg px-6 text-center">
         <h1 className="text-xl font-semibold text-text">Use o app de campo</h1>
@@ -47,14 +47,12 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
           Seu acesso é de apontador: produção, viagens e fotos são lançadas pelo aplicativo de campo
           do InfraWork.
         </p>
-        {url ? (
-          <a
-            href={url}
-            className="inline-flex h-9 items-center rounded border border-accent bg-accent px-3.5 text-sm font-semibold text-[color:var(--on-accent)] hover:bg-accent-hover"
-          >
-            Abrir o app de campo
-          </a>
-        ) : null}
+        <a
+          href={URL_APP_CAMPO}
+          className="inline-flex h-9 items-center rounded border border-accent bg-accent px-3.5 text-sm font-semibold text-[color:var(--on-accent)] hover:bg-accent-hover"
+        >
+          Abrir o app de campo
+        </a>
         <button
           type="button"
           onClick={() => void signOut()}

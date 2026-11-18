@@ -205,9 +205,9 @@ Os atalhos com G não funcionam enquanto o cursor está num campo de texto, e a 
 
 ## Menu do usuário e configurações
 
-O avatar, no canto superior direito, abre o menu com o seu nome, o e-mail e a empresa. Nele ficam:
+O tema claro ou escuro troca pelo botão do sol e da lua, ao lado do avatar. O avatar, no canto superior direito, abre o menu com o seu nome, o e-mail e a empresa. Nele ficam:
 
-- **Tema:** Claro, Escuro ou Seguir o sistema.
+- **App de campo (celular)**, que abre uma janela com o QR code do endereço do aplicativo de campo. Aponte a câmera do celular para o código, entre com o seu e-mail e a sua senha e instale o aplicativo (manual do aplicativo de campo).
 - **Conectar IA, tokens e status**, para ligar um assistente de inteligência artificial ao InfraWork (capítulo 11).
 - **Sair.**
 
