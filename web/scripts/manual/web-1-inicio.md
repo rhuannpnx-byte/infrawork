@@ -260,7 +260,11 @@ Sem linha de base vigente, o painel não tem previsto para comparar, e as áreas
 
 ## Sem obra escolhida
 
-Sem obra, a página Início mostra a lista das obras disponíveis. Clique numa delas para começar.
+Sem obra, a página Início mostra as obras da empresa, com as em andamento primeiro. Cada linha traz a situação da obra, o avanço físico, os serviços atrasados ou em risco e o último lançamento. Clique na obra para abrir o painel dela, ou em [[Lançar]] para ir direto ao lançamento de produção.
+
+Ao lado, o quadro **Pede atenção** junta o que precisa de ação em todas as obras: alertas críticos abertos, serviços atrasados, obra em andamento sem linha de base vigente e obra em andamento sem lançamento há 7 dias ou mais. Cada item escolhe a obra e abre a tela onde se resolve.
+
+O administrador também tem ali o botão [[Cadastrar obra]]. O administrador geral escolhe antes a empresa, numa lista com o número de obras de cada uma.
 
 ## O que o cliente vê
 
