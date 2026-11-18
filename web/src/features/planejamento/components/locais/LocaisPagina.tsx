@@ -40,7 +40,8 @@ import {
   useTrechosQuantidadeTemplatesAtuais,
   useUpdateTrecho
 } from '../../hooks/trechos'
-import { useAgrupadoresTrecho } from '../../hooks/quantidades'
+import { useAgrupadoresTrecho, useQuantidadesNasTarefas } from '../../hooks/quantidades'
+import { usePlanejamentoAtivo } from '../../hooks/planejamentos'
 import {
   comprimentoEfetivo,
   estacaFinalTexto,
@@ -53,6 +54,7 @@ import { EixoDialog } from '../../modals/EixoDialog'
 import { ImportarKmlTrechoDialog } from '../../modals/ImportarKmlTrechoDialog'
 import { VisualizarMapaTrechoDialog } from '../../modals/VisualizarMapaTrechoDialog'
 import { QuantidadesTrechoDialog } from '../../modals/QuantidadesTrechoDialog'
+import { QuantidadesNasTarefasDialog } from '../../modals/QuantidadesNasTarefasDialog'
 import { ImportarQuantidadesDialog } from '../../modals/ImportarQuantidadesDialog'
 
 const CABECALHO =
@@ -70,6 +72,10 @@ export function LocaisPagina(): ReactNode {
   const { data: obra } = useObra(obraId)
   const { data: agrupadores = [] } = useAgrupadoresTrecho(obraId)
   const templates = useTrechosQuantidadeTemplatesAtuais(trechos.map((t) => t.id))
+  // local sem grade: a quantidade pode estar só nas tarefas do plano (cronograma importado ou digitado)
+  const { data: plano } = usePlanejamentoAtivo(obraId)
+  const { data: nasTarefas } = useQuantidadesNasTarefas(plano?.id)
+  const [tarefasDe, setTarefasDe] = useState<ObraTrecho | null>(null)
   const confirm = useConfirm()
   const [novo, setNovo] = useState<null | 'eixo' | 'area'>(null)
   const [editar, setEditar] = useState<ObraTrecho | null>(null)
@@ -201,8 +207,10 @@ export function LocaisPagina(): ReactNode {
                         obraId={obraId}
                         readOnly={readOnly}
                         template={templates.get(t.id) ?? null}
+                        nTarefas={nasTarefas?.get(t.id)?.length ?? 0}
                         onEditar={() => setEditar(t)}
                         onQuantidades={() => setQuantidadesDe(t)}
+                        onNasTarefas={() => setTarefasDe(t)}
                         confirm={confirm}
                       />
                     ))}
@@ -237,8 +245,10 @@ export function LocaisPagina(): ReactNode {
                         obraId={obraId}
                         readOnly={readOnly}
                         template={templates.get(t.id) ?? null}
+                        nTarefas={nasTarefas?.get(t.id)?.length ?? 0}
                         onEditar={() => setEditar(t)}
                         onQuantidades={() => setQuantidadesDe(t)}
+                        onNasTarefas={() => setTarefasDe(t)}
                         confirm={confirm}
                       />
                     ))}
@@ -274,6 +284,17 @@ export function LocaisPagina(): ReactNode {
           obraNome={obraNome}
         />
       ) : null}
+      {tarefasDe ? (
+        <QuantidadesNasTarefasDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setTarefasDe(null)
+          }}
+          trecho={tarefasDe}
+          servicos={nasTarefas?.get(tarefasDe.id) ?? []}
+          planoNome={plano?.nome ?? ''}
+        />
+      ) : null}
     </div>
   )
 }
@@ -283,16 +304,21 @@ function LinhaLocal({
   obraId,
   readOnly,
   template,
+  nTarefas,
   onEditar,
   onQuantidades,
+  onNasTarefas,
   confirm
 }: {
   trecho: ObraTrecho
   obraId: string
   readOnly: boolean
   template: TrechoQuantidadeVersaoCompleta | null
+  /** Serviços com quantidade nas tarefas do plano neste local (usado quando o local não tem grade). */
+  nTarefas: number
   onEditar: () => void
   onQuantidades: () => void
+  onNasTarefas: () => void
   confirm: ReturnType<typeof useConfirm>
 }): ReactNode {
   const updTrecho = useUpdateTrecho()
@@ -492,30 +518,44 @@ function LinhaLocal({
           </>
         ) : null}
         <td className="px-2 py-1.5">
-          <button
-            type="button"
-            disabled={ehEixo && comp <= 0}
-            onClick={onQuantidades}
-            className={cn(
-              BOTAO_CELULA,
-              nServ === 0 && 'border-dashed border-border-strong text-text-muted'
-            )}
-            style={nServ > 0 ? { borderColor: trecho.cor } : undefined}
-            title={
-              ehEixo && comp <= 0
-                ? 'Defina as estacas do eixo antes'
+          {nServ === 0 && nTarefas > 0 ? (
+            // sem grade, mas com quantidade nas tarefas do plano (cronograma importado ou digitado)
+            <button
+              type="button"
+              onClick={onNasTarefas}
+              className={BOTAO_CELULA}
+              style={{ borderColor: trecho.cor }}
+              title={`${contar(nTarefas, 'serviço', 'serviços')} com quantidade nas tarefas do plano, sem grade neste local`}
+            >
+              <ClipboardList size={12} />
+              {contar(nTarefas, 'serviço', 'serviços')} nas tarefas
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={ehEixo && comp <= 0}
+              onClick={onQuantidades}
+              className={cn(
+                BOTAO_CELULA,
+                nServ === 0 && 'border-dashed border-border-strong text-text-muted'
+              )}
+              style={nServ > 0 ? { borderColor: trecho.cor } : undefined}
+              title={
+                ehEixo && comp <= 0
+                  ? 'Defina as estacas do eixo antes'
+                  : nServ === 0
+                    ? 'Informar as quantidades por serviço'
+                    : `Versão ${template!.numero}: ${contar(nServ, 'serviço', 'serviços')} em ${contar(template!.segmentos.length, 'faixa', 'faixas')}`
+              }
+            >
+              <ClipboardList size={12} />
+              {ehEixo && comp <= 0
+                ? 'Sem estacas'
                 : nServ === 0
-                  ? 'Informar as quantidades por serviço'
-                  : `Versão ${template!.numero}: ${contar(nServ, 'serviço', 'serviços')} em ${contar(template!.segmentos.length, 'faixa', 'faixas')}`
-            }
-          >
-            <ClipboardList size={12} />
-            {ehEixo && comp <= 0
-              ? 'Sem estacas'
-              : nServ === 0
-                ? 'Sem quantidades'
-                : `${contar(nServ, 'serviço', 'serviços')}, versão ${template!.numero}`}
-          </button>
+                  ? 'Sem quantidades'
+                  : `${contar(nServ, 'serviço', 'serviços')}, versão ${template!.numero}`}
+            </button>
+          )}
         </td>
         <td className="whitespace-nowrap px-2 py-1.5 text-right">
           {ocupado ? (

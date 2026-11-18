@@ -148,6 +148,10 @@ O botão **Vincular mapa** liga o eixo ao traçado num arquivo .kml ou .kmz, par
 A soma das quantidades de um serviço em todos os locais não pode passar da quantidade orçada. Locais usados por tarefas do cronograma não podem ser removidos.
 :::
 
+:::nota
+Quando as quantidades foram informadas direto nas tarefas do cronograma (por exemplo, num cronograma importado), o local não tem grade e o botão mostra **N serviços nas tarefas**. Ele abre, só para leitura, as quantidades de cada serviço somadas das tarefas do plano em uso, com as faixas que elas ocupam. Para mudá-las, edite as tarefas no cronograma, num plano em edição.
+:::
+
 ### Importar as quantidades por planilha
 
 Para obras grandes, as quantidades vêm de uma planilha, como a nota de serviço ou a planilha de volumes do projeto:

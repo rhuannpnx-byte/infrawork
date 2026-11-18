@@ -28,6 +28,8 @@ const CENARIOS = [
   ['/orcamento/obra/reajustes', 'Novo reajuste'],
   ['/planejamento/trechos', 'Novo eixo'],
   ['/planejamento/trechos', 'Nova área'],
+  // só aparece em local sem grade com quantidade nas tarefas (cronograma importado)
+  ['/planejamento/trechos', 'nas tarefas', { exato: false }],
   ['/planejamento/cronograma', 'Plano'],
   ['/planejamento/cronograma', 'Marcos'],
   ['/planejamento/cronograma', 'Criar tarefas'],
