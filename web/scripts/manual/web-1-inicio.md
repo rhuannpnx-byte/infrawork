@@ -141,7 +141,7 @@ Este capítulo resume, na ordem certa, tudo o que é preciso para levar uma obra
 16. **Dia a dia.** A produção chega do campo; o escritório confere em **Acompanhamento › Produção**, corrige quando preciso e acompanha os painéis.
 
 :::dica
-O **Painel da obra** (Acompanhamento › Painel da obra) traz o quadro **Prontidão da obra**, que lista as etapas que ainda faltam e leva direto à tela de cada uma pelo botão [[Resolver]].
+A **Visão geral** do Orçamento e a do Planejamento trazem o quadro **Prontidão da obra**, que lista as etapas que ainda faltam e leva direto à tela de cada uma pelo botão [[Resolver]].
 :::
 
 <!-- quebra -->
@@ -246,41 +246,15 @@ A página **Início** é a entrada do sistema: reúne as obras da empresa e most
 - **Pendências:** o que precisa de ação em todas as obras: alertas críticos abertos, serviços atrasados, obra em andamento sem linha de base vigente e obra em andamento sem lançamento há 7 dias ou mais. Cada item escolhe a obra e abre a tela onde se resolve.
 - **Atividade recente:** os últimos lançamentos de produção das obras, com quantidade, encarregado e data.
 
-Clique no cartão para escolher a obra e abrir o **Painel da obra**. O botão [[Lançar]] do cartão escolhe a obra e vai direto ao lançamento de produção.
+Clique no cartão para escolher a obra e abrir o **Dashboard** dela (seção 9.6). O botão [[Lançar]] do cartão escolhe a obra e vai direto ao lançamento de produção.
 
 :::nota
 O administrador geral escolhe antes a empresa, numa lista com o número de obras de cada uma.
 :::
 
-## Painel da obra
-
-O **Painel da obra**, em **Acompanhamento › Painel da obra**, responde numa tela só como a obra escolhida está e o que pede atenção nela.
-
-![Painel da obra](inicio.jpg)
-
-- **Identificação:** obra, trecho, extensão, linha de base em uso, situação e data de controle.
-- **Indicadores:**
-  - **Avanço físico**, com a marca do previsto até hoje;
-  - **Valor executado**, comparado ao previsto na linha de base;
-  - **Término previsto**, com os dias que faltam ou há quanto tempo o prazo venceu;
-  - **Serviços** atrasados, em risco, em andamento e concluídos;
-  - **Último lançamento**, que mostra se a produção está em dia.
-- **Curva S** do previsto e do realizado, com o atalho para o valor agregado.
-- **Faixa da obra:** onde cada serviço já foi executado ao longo do eixo.
-- **Serviços:** os oito primeiros, com os atrasados no topo.
-- **Pede atenção:** os alertas críticos da obra.
-- **Últimos lançamentos** de produção.
-- **Prontidão da obra:** as etapas de implantação que ainda faltam, cada uma com o botão [[Resolver]], que leva à tela certa.
-
-Os botões [[Abrir o dashboard]] e [[Lançar produção]] ficam no topo do painel.
-
-:::nota
-Sem linha de base vigente, o painel não tem previsto para comparar, e as áreas que dependem dele avisam **sem linha de base vigente**.
-:::
-
 ## O que o cliente vê
 
-Na página Início, o cliente vê os cartões das obras liberadas para ele, sem o resumo, as pendências e a atividade. No Painel da obra, vê a identificação, o término previsto, os serviços e a situação da obra; os indicadores financeiros, a curva S, a faixa da obra, os alertas, os lançamentos e a prontidão não aparecem para ele.
+Na página Início, o cliente vê os cartões das obras liberadas para ele, sem o resumo, as pendências e a atividade. O cartão abre o **Previsto e realizado** da obra, já que o Dashboard é do escritório.
 
 <!-- quebra -->
 

@@ -21,8 +21,9 @@ import type { AuthObra } from '@/types/auth'
 import { useCarteira, type AtividadeRecente, type ObraNaCarteira } from './carteira'
 import { MapaTracado } from './MapaTracado'
 
-/** Página da obra aberta pelo cartão. */
-const ROTA_PAINEL = '/acompanhamento/painel'
+/** Página aberta pelo cartão da obra: o Dashboard; o cliente, que não vê o Dashboard, vai ao previsto e realizado. */
+const ROTA_OBRA = '/acompanhamento'
+const ROTA_OBRA_CLIENTE = '/acompanhamento/comparativo'
 const ORDEM_STATUS = ['em_andamento', 'planejamento', 'paralisado', 'concluido']
 /** Cor do ponto da situação, no selo sobre a imagem. */
 const PONTO_STATUS: Record<string, string> = {
@@ -573,7 +574,7 @@ function CartaoObra({
           <h3 className="mt-0.5 text-base font-semibold leading-snug text-text">
             <button
               type="button"
-              onClick={() => aoAbrir(obra.id, ROTA_PAINEL)}
+              onClick={() => aoAbrir(obra.id, interno ? ROTA_OBRA : ROTA_OBRA_CLIENTE)}
               className="line-clamp-2 text-left focus-visible:outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-accent"
             >
               {obra.nome}

@@ -129,10 +129,6 @@ const AcompanhamentoIndex = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento'),
   'AcompanhamentoIndex'
 )
-const AcompanhamentoPainelPage = lazyRouteComponent(
-  () => import('@/app/routes/acompanhamento/painel'),
-  'AcompanhamentoPainelPage'
-)
 const AcompanhamentoCalendarioPage = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/calendario'),
   'AcompanhamentoCalendarioPage'
@@ -420,11 +416,6 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: '/',
       component: AcompanhamentoIndex
-    }),
-    createRoute({
-      getParentRoute: () => acompanhamentoLayout,
-      path: 'painel',
-      component: AcompanhamentoPainelPage
     }),
     createRoute({
       getParentRoute: () => acompanhamentoLayout,
