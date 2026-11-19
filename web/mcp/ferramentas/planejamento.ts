@@ -5,6 +5,7 @@ import { contar, eq, gravar, ler } from '../lib/banco'
 import { calcularSemGravar, recalcularPlano } from '../lib/motor'
 import { aplicarComando } from '@/features/cronograma/motor/edicao'
 import { isoParaSeg } from '@/features/cronograma/motor/tempo'
+import { ehCritica, limiteCriticoDe } from '@/features/cronograma/motor/critico'
 
 const OBRA = z.string().uuid().describe('id da obra')
 const PLANO = z.string().uuid().describe('id do plano (planejamento)')
@@ -671,7 +672,8 @@ export const cronograma = ferramenta({
   descricao:
     'Motor do cronograma (o mesmo do web). acao: calcular (calcula e grava datas, folgas, caminho crítico e ' +
     'perfis diário/semanal — necessário antes de promover a LB) | ler (resultado calculado: tarefas com início, ' +
-    'fim, duração, folga e críticas; avisos) | comando (como arrastar no Gantt: inicio = fixa o início numa data; ' +
+    'fim, duração, folga e críticas — caminho crítico = tarefas de menor folga total, as que definem o término; ' +
+    'o motor mede a folga até o prazo do contrato; avisos) | comando (como arrastar no Gantt: inicio = fixa o início numa data; ' +
     'fim = término desejado → nº de equipes; dependencia = liga duas tarefas; compactar = puxa tudo para o mais ' +
     'cedo possível).',
   entrada: {
@@ -704,6 +706,7 @@ export const cronograma = ferramenta({
     if (a.acao === 'ler') {
       const { entrada, resultado } = await calcularSemGravar(plan)
       const nomes = new Map(entrada.tarefas.map((t) => [t.id, t.nome]))
+      const limite = limiteCriticoDe(resultado)
       const lista = [...resultado.tarefas.values()]
         .map((t) => ({
           id: t.id,
@@ -712,7 +715,7 @@ export const cronograma = ferramenta({
           fim: new Date(t.fim * 1000).toISOString().slice(0, 16),
           duracao_dias_uteis: Math.round(t.duracao_dias_uteis * 100) / 100,
           folga_total_dias: Math.floor(t.folga_total_h / 24 + 1e-9),
-          critica: t.folga_total_h <= 1e-6
+          critica: ehCritica(t.folga_total_h, limite)
         }))
         .filter((t) => !a.so_criticas || t.critica)
         .sort((x, y) => x.inicio.localeCompare(y.inicio))

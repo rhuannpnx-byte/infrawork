@@ -35,7 +35,7 @@ describe('seta da predecessora', () => {
     const r = rotaDaLigacao('TI', pred, caixa(260, 340, 50))
     expect(r[0]).toEqual([200, 10])
     expect(r).toHaveLength(3)
-    expect(r[2]).toEqual([263, 45])
+    expect(r[2]).toEqual([264, 45])
   })
 
   it('sucessora que começa antes do fim da predecessora: contorna e entra de lado', () => {
@@ -48,10 +48,40 @@ describe('seta da predecessora', () => {
       expect(r[i][0] === r[i - 1][0] || r[i][1] === r[i - 1][1]).toBe(true)
   })
 
-  it('início-início sai do início da predecessora; término-término chega no fim da sucessora', () => {
-    expect(rotaDaLigacao('II', pred, caixa(300, 380, 50))[0]).toEqual([100, 10])
+  it('início-início: sai pela esquerda e entra pela esquerda, na altura do meio da barra', () => {
+    const ii = rotaDaLigacao('II', pred, caixa(300, 380, 50))
+    expect(ii).toEqual([
+      [100, 10],
+      [92, 10],
+      [92, 50],
+      [300, 50]
+    ])
+  })
+
+  it('término-término: sai pela direita e entra pela direita da sucessora', () => {
     const tt = rotaDaLigacao('TT', pred, caixa(120, 300, 50))
-    expect(tt[tt.length - 1]).toEqual([300, 50])
+    expect(tt).toEqual([
+      [200, 10],
+      [308, 10],
+      [308, 50],
+      [300, 50]
+    ])
+  })
+
+  it('o último trecho antes da ponta tem ao menos 8 px, em todos os tipos', () => {
+    for (const tipo of ['TI', 'II', 'TT', 'IT', 'EST'] as const)
+      for (const suc of [
+        caixa(150, 240, 50),
+        caixa(260, 340, 50),
+        caixa(20, 80, 50),
+        caixa(20, 80, -30)
+      ]) {
+        const r = rotaDaLigacao(tipo, pred, suc)
+        const [a, b] = r.slice(-2)
+        expect(Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])).toBeGreaterThanOrEqual(8)
+        for (let i = 1; i < r.length; i++)
+          expect(r[i][0] === r[i - 1][0] || r[i][1] === r[i - 1][1]).toBe(true)
+      }
   })
 })
 

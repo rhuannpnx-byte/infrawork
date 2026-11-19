@@ -10,7 +10,8 @@ const DIA_MS = 86_400_000
 const ALTURA_LINHA = 20
 const ALTURA_BARRA = 11
 const ALTURA_RESUMO = 5
-const FOLGA_SETA = 6
+/** Trecho reto antes da ponta da seta (com menos, a ponta sai torta). */
+const PONTA = 8
 
 const COR = {
   cabecalho: '1F2937',
@@ -71,34 +72,88 @@ export function escalaDoPlano(inicioISO: string, fimISO: string): EscalaGantt {
 }
 
 /**
- * Caminho da seta entre duas tarefas, em pixels. Sai da ponta da predecessora (fim nas ligações T*, início nas I*)
- * e chega na ponta da sucessora (início nas *I, fim nas *T), sempre em trechos horizontais e verticais.
+ * Caminho da seta entre duas tarefas, em pixels, só com trechos horizontais e verticais (como no MS Project):
+ * - TI: sai do fim da predecessora e desce (ou sobe) no começo da sucessora; se a sucessora começa antes do fim da
+ *   predecessora, contorna pela divisa das linhas e entra pela esquerda;
+ * - II: sai do início da predecessora pela esquerda e entra pela esquerda da sucessora;
+ * - TT: sai do fim da predecessora pela direita e entra pela direita da sucessora;
+ * - IT: sai do início da predecessora e entra pela direita da sucessora.
+ * O trecho final tem ao menos `PONTA` pixels, para a ponta da seta sair reta.
  */
 export function rotaDaLigacao(
   tipo: LigacaoGantt['tipo'],
   pred: { x0: number; x1: number; yMeio: number },
   suc: { x0: number; x1: number; yMeio: number; yTopo: number; yBase: number }
 ): Array<[number, number]> {
-  const saiDoFim = tipo === 'TI' || tipo === 'TT' || tipo === 'EST'
-  const chegaNoInicio = tipo === 'TI' || tipo === 'II' || tipo === 'EST'
-  const sai = saiDoFim ? 1 : -1
-  const entra = chegaNoInicio ? 1 : -1
-  const p0: [number, number] = [saiDoFim ? pred.x1 : pred.x0, pred.yMeio]
-  const p1: [number, number] = [chegaNoInicio ? suc.x0 : suc.x1, suc.yMeio]
-  if (pred.yMeio === suc.yMeio) return [p0, p1]
-  const abaixo = suc.yMeio > pred.yMeio
-  const xDobra = p0[0] + sai * FOLGA_SETA
-  const xChegada = p1[0] - entra * FOLGA_SETA
-  // caminho direto: desce (ou sobe) e entra pela borda da sucessora, quando ela começa depois da dobra
-  if (sai === entra && (xChegada - xDobra) * sai >= 0) {
-    const xDesce = p1[0] + entra * 3
-    return [p0, [xDesce, p0[1]], [xDesce, abaixo ? suc.yTopo : suc.yBase]]
-  }
-  // volta: contorna pela divisa das linhas e entra de lado
+  const y0 = pred.yMeio
+  const y1 = suc.yMeio
+  const abaixo = y1 > y0
   const yDivisa = abaixo
     ? suc.yTopo - (ALTURA_LINHA - ALTURA_BARRA) / 2
     : suc.yBase + (ALTURA_LINHA - ALTURA_BARRA) / 2
-  return [p0, [xDobra, p0[1]], [xDobra, yDivisa], [xChegada, yDivisa], [xChegada, p1[1]], p1]
+
+  if (tipo === 'II') {
+    const x = Math.min(pred.x0, suc.x0) - PONTA
+    return [
+      [pred.x0, y0],
+      [x, y0],
+      [x, y1],
+      [suc.x0, y1]
+    ]
+  }
+  if (tipo === 'TT') {
+    const x = Math.max(pred.x1, suc.x1) + PONTA
+    return [
+      [pred.x1, y0],
+      [x, y0],
+      [x, y1],
+      [suc.x1, y1]
+    ]
+  }
+  if (tipo === 'IT') {
+    if (suc.x1 + PONTA <= pred.x0 - 2) {
+      const x = suc.x1 + PONTA
+      return [
+        [pred.x0, y0],
+        [x, y0],
+        [x, y1],
+        [suc.x1, y1]
+      ]
+    }
+    const xa = pred.x0 - PONTA
+    const xb = suc.x1 + PONTA
+    return [
+      [pred.x0, y0],
+      [xa, y0],
+      [xa, yDivisa],
+      [xb, yDivisa],
+      [xb, y1],
+      [suc.x1, y1]
+    ]
+  }
+  // TI (e por estacas, que liga o fim de uma ao começo da outra)
+  if (y0 === y1)
+    return [
+      [pred.x1, y0],
+      [suc.x0, y1]
+    ]
+  const xDesce = suc.x0 + 4
+  if (xDesce >= pred.x1 + 2)
+    return [
+      [pred.x1, y0],
+      [xDesce, y0],
+      [xDesce, abaixo ? suc.yTopo : suc.yBase]
+    ]
+  const xa = pred.x1 + PONTA
+  const xb = suc.x0 - PONTA
+  return [
+    [pred.x1, y0],
+    [xa, y0],
+    [xa, yDivisa],
+    [xb, yDivisa],
+    [xb, y1],
+    [suc.x0, y1]
+  ]
 }
 
 export interface AbaGanttEntrada {

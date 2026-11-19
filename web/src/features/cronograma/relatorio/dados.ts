@@ -13,6 +13,7 @@ import type { ItemTreeNode, RecursoGrupo, TaxaRegime } from '@/types/orcamento'
 import type { ResultadoCalculo } from '../motor/calculo'
 import type { PlanoEntrada, TipoDependencia } from '../motor/tipos'
 import { jornadaReferencia } from '../motor/calendario'
+import { ehCritica, limiteCriticoDe } from '../motor/critico'
 import { diaDoFim, segParaData } from '../motor/tempo'
 import { montarGantt, numerarHierarquia, type OpcoesGantt } from '../visoes/gantt-dados'
 import { montarHistograma } from '../visoes/histograma'
@@ -54,6 +55,7 @@ export function ganttDoPlano(
   numerarHierarquia(dados.linhas)
   const spec = r.calendarios[r.calendarioPadraoId]
   const cal = spec ? new Calendar(spec) : null
+  const limite = limiteCriticoDe(r)
   const dias = (v: number): number => Math.round(v * 10) / 10
 
   const linhas: LinhaGantt[] = dados.linhas.map((l) => {
@@ -71,7 +73,7 @@ export function ganttDoPlano(
         : l.barra && cal
           ? dias(Math.max(0, getWorkDaysBetween(cal, l.barra.inicio, l.barra.fim)))
           : null,
-      critica: !!t && t.folga_total_h <= 1e-6
+      critica: !!t && ehCritica(t.folga_total_h, limite)
     }
   })
 

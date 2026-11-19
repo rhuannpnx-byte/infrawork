@@ -234,9 +234,9 @@ function CorpoGantt({ obraId, calc, somenteLeitura, baseline }: ContextoPlano): 
                 <Caixa
                   marcado={ui.gantt.critico}
                   onMudar={(v) => ui.setGantt({ critico: v })}
-                  dica="Contorna as tarefas sem folga total"
+                  dica="Contorna as tarefas de menor folga total, que definem o término do plano"
                 >
-                  Destacar tarefas sem folga
+                  Destacar o caminho crítico
                 </Caixa>
                 <Caixa marcado={ui.gantt.marcos} onMudar={(v) => ui.setGantt({ marcos: v })}>
                   Marcos

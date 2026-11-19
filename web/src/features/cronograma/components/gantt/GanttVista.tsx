@@ -39,6 +39,7 @@ import {
   type InfoBarra,
   type ModoGantt
 } from './GanttLinhaTempo'
+import { ehCritica, limiteCriticoDe } from '../../motor/critico'
 
 export type AcoesGantt = AcoesCronograma
 
@@ -557,6 +558,7 @@ export function GanttVista({
     },
     [resultado, tarefasDe, eixo]
   )
+  const limiteCritico = useMemo(() => (resultado ? limiteCriticoDe(resultado) : null), [resultado])
   const infoBarra = useCallback(
     (l: LinhaGantt): InfoBarra => {
       const t = l.id ? porId.get(l.id) : undefined
@@ -564,7 +566,7 @@ export function GanttVista({
       return {
         cor: corLinha(l),
         moverInicio: !!t && !t.asap && !somenteLeitura,
-        critica: ui.gantt.critico && !!r && r.folga_total_h <= 1e-6,
+        critica: ui.gantt.critico && !!r && ehCritica(r.folga_total_h, limiteCritico),
         rotulo: t?.exib?.aparencia?.rotulo === false ? '' : l.texto,
         grau: grauLinha(l),
         fimPrevisto:
@@ -574,7 +576,7 @@ export function GanttVista({
         equipes: t && r && !t.is_indireto ? Math.max(1, Math.round(t.qtd_equipes || 1)) : null
       }
     },
-    [porId, resultado, corLinha, somenteLeitura, ui.gantt.critico, grauLinha]
+    [porId, resultado, corLinha, somenteLeitura, ui.gantt.critico, grauLinha, limiteCritico]
   )
 
   // ── menus e comandos (comuns às visões) ──

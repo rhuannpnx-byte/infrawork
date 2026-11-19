@@ -242,6 +242,8 @@ Com o cronograma calculado, **Mais › Relatório de viabilidade (Excel)** gera 
 
 O relatório usa o plano inteiro, mesmo com filtro aplicado na tela. Quando o plano tem tarefas-resumo, o Gantt segue a estrutura delas; sem tarefas-resumo, segue o agrupamento por local e serviço escolhido na tela.
 
+No Gantt do relatório, as tarefas do **caminho crítico** aparecem em vermelho. São as de menor folga total, que definem o término do plano: o cálculo mede a folga até o prazo do contrato, então, quando o plano termina antes do prazo, as tarefas críticas ficam com a folga igual a essa distância. Se o prazo estourar, é crítica toda tarefa sem folga. A mesma regra vale para a opção **Destacar o caminho crítico** do Gantt da tela.
+
 :::nota
 Nas abas de materiais, as linhas não são somadas, porque cada material tem a sua unidade. Em mão de obra e equipamentos, a última linha soma a necessidade da semana.
 :::
