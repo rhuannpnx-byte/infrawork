@@ -112,7 +112,8 @@
   opacity: 0;
   transition: opacity 0.12s ease-out;
 }
-th:hover > .ajuste-coluna::after {
+th:hover > .ajuste-coluna::after,
+.celula-ajustavel:hover > .ajuste-coluna::after {
   opacity: 1;
 }
 .ajuste-coluna:hover::after,

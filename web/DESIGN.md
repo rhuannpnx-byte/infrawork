@@ -103,7 +103,8 @@ Regras que valem para todos:
 - Toda `<table>` com `<thead>` ganha largura de coluna ajustável sem código na tela (`lib/tabelas/colunas-ajustaveis`,
   ligado no `AppShell`): alça na borda direita do cabeçalho, setas do teclado com ela em foco, duplo clique volta ao
   automático, largura guardada no navegador por tela e cabeçalho. Tabela com colunas fixas de deslocamento calculado
-  (ou grade com largura própria) fica de fora com `data-sem-ajuste`.
+  (ou grade com largura própria) fica de fora com `data-sem-ajuste`. Grade que não é `<table>` (ex.: a planilha
+  orçamentária virtualizada) usa `useLargurasColunas` (`lib/tabelas`) e `AlcaColuna` (`ui/alca-coluna`) no título.
 
 ## Texto
 

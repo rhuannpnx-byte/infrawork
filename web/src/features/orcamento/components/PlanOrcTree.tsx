@@ -30,6 +30,8 @@ import { toast } from 'sonner'
 import { Dropdown, DropdownItem } from '@/components/ui/dropdown'
 import { Popover } from '@/components/ui/popover'
 import { Carregando } from '@/components/ui/estado'
+import { AlcaColuna } from '@/components/ui/alca-coluna'
+import { useLargurasColunas } from '@/lib/tabelas/useLargurasColunas'
 import { fmtBRL, fmtPct2, parseBR } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { useDeleteItem, useReorderItem, useUpsertItem } from '../hooks/plan-orc'
@@ -79,6 +81,18 @@ interface Props {
 }
 
 const ROW_HEIGHT = 28
+
+/** Larguras padrão das colunas da planilha; o usuário ajusta no cabeçalho e o navegador guarda. */
+const COLUNAS_PLANILHA = {
+  item: 410,
+  un: 60,
+  qtd: 126,
+  vendaUnit: 130,
+  vendaTotal: 130,
+  custoTotal: 130,
+  lucro: 80
+}
+type LargurasPlanilha = Record<keyof typeof COLUNAS_PLANILHA, number>
 /** Só algarismos, ponto e vírgula: o que o `parseBR` entende como número. */
 const NUMERO = /^\d[\d.,]*$/
 const FILTROS: AlocStatus[] = ['sem', 'saldo', 'rateado', 'unico']
@@ -142,6 +156,13 @@ export function PlanOrcTree({
     return out
   }, [flat, expandedIds, permitidos])
 
+  const {
+    larguras: w,
+    definir,
+    restaurar
+  } = useLargurasColunas('grade:/orcamento/obra/plan-orc', COLUNAS_PLANILHA)
+  const somaLarguras = Object.values(w).reduce((a, b) => a + b, 0)
+
   const virtualizer = useVirtualizer({
     count: visible.length,
     getScrollElement: () => parentRef.current,
@@ -201,7 +222,7 @@ export function PlanOrcTree({
 
   return (
     <div data-density="compact" ref={parentRef} className="h-full overflow-auto">
-      <div className="min-w-[860px]">
+      <div style={{ minWidth: 32 + 26 + somaLarguras + 80 }}>
         <div className="flex items-center text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim bg-bg-elevated border-b border-border-strong sticky top-0 z-10">
           <div
             className="shrink-0 flex items-center justify-center"
@@ -298,26 +319,89 @@ export function PlanOrcTree({
               ) : null}
             </Popover>
           </div>
-          <div className="px-2 py-1.5" style={{ width: 410 }}>
+          <div
+            className="px-2 py-1.5 relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.item }}
+          >
             Item
+            <AlcaColuna
+              rotulo="Item"
+              largura={w.item}
+              aoMudar={(v, f) => definir('item', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
-          <div className="px-2 py-1.5 text-center" style={{ width: 60 }}>
+          <div
+            className="px-2 py-1.5 text-center relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.un }}
+          >
             Un.
+            <AlcaColuna
+              rotulo="Un."
+              largura={w.un}
+              aoMudar={(v, f) => definir('un', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
-          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 126 }}>
+          <div
+            className="px-2 py-1.5 text-right tabular-nums relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.qtd }}
+          >
             Qtd
+            <AlcaColuna
+              rotulo="Qtd"
+              largura={w.qtd}
+              aoMudar={(v, f) => definir('qtd', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
-          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
+          <div
+            className="px-2 py-1.5 text-right tabular-nums relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.vendaUnit }}
+          >
             Venda unit.
+            <AlcaColuna
+              rotulo="Venda unit."
+              largura={w.vendaUnit}
+              aoMudar={(v, f) => definir('vendaUnit', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
-          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
+          <div
+            className="px-2 py-1.5 text-right tabular-nums relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.vendaTotal }}
+          >
             Venda total
+            <AlcaColuna
+              rotulo="Venda total"
+              largura={w.vendaTotal}
+              aoMudar={(v, f) => definir('vendaTotal', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
-          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 130 }}>
+          <div
+            className="px-2 py-1.5 text-right tabular-nums relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.custoTotal }}
+          >
             Custo total
+            <AlcaColuna
+              rotulo="Custo total"
+              largura={w.custoTotal}
+              aoMudar={(v, f) => definir('custoTotal', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
-          <div className="px-2 py-1.5 text-right tabular-nums" style={{ width: 80 }}>
+          <div
+            className="px-2 py-1.5 text-right tabular-nums relative shrink-0 overflow-hidden celula-ajustavel"
+            style={{ width: w.lucro }}
+          >
             Lucro %
+            <AlcaColuna
+              rotulo="Lucro %"
+              largura={w.lucro}
+              aoMudar={(v, f) => definir('lucro', v, f)}
+              aoRestaurar={restaurar}
+            />
           </div>
           <div className="px-2 py-1.5 text-center flex-1" style={{ minWidth: 80 }}>
             Ações
@@ -359,6 +443,7 @@ export function PlanOrcTree({
                   onRatear={() => onRatear(node)}
                   onRemoverAlocacao={() => onRemoverAlocacao(node)}
                   onDragStart={(e) => onDragStart(e, node)}
+                  w={w}
                 />
               </div>
             )
@@ -418,6 +503,8 @@ interface RowProps {
   onRatear: () => void
   onRemoverAlocacao: () => void
   onDragStart: (e: DragEvent) => void
+  /** Larguras das colunas (ajustáveis no cabeçalho). */
+  w: LargurasPlanilha
 }
 
 const PlanOrcRow = memo(function PlanOrcRow({
@@ -438,7 +525,8 @@ const PlanOrcRow = memo(function PlanOrcRow({
   onMover,
   onRatear,
   onRemoverAlocacao,
-  onDragStart
+  onDragStart,
+  w
 }: RowProps): ReactNode {
   const upsert = useUpsertItem()
   const del = useDeleteItem()
@@ -523,8 +611,8 @@ const PlanOrcRow = memo(function PlanOrcRow({
       </div>
       {/* Código + descrição (com indentação) */}
       <div
-        className="px-2 flex items-center gap-1 truncate"
-        style={{ width: 410, paddingLeft: `${node.depth * 14 + 4}px` }}
+        className="px-2 flex shrink-0 items-center gap-1 truncate"
+        style={{ width: w.item, paddingLeft: `${node.depth * 14 + 4}px` }}
       >
         {isEtapa ? (
           <button
@@ -578,12 +666,15 @@ const PlanOrcRow = memo(function PlanOrcRow({
       </div>
 
       {/* Unidade */}
-      <div className="px-2 text-xs text-text-muted text-center" style={{ width: 60 }}>
+      <div
+        className="px-2 shrink-0 overflow-hidden text-xs text-text-muted text-center"
+        style={{ width: w.un }}
+      >
         {isReceita ? (node.unidade ?? '—') : '—'}
       </div>
 
       {/* Quantidade */}
-      <div className="px-1" style={{ width: 126 }}>
+      <div className="px-1 shrink-0 overflow-hidden" style={{ width: w.qtd }}>
         {isReceita ? (
           <PlanOrcInlineCell
             value={node.quantidade !== null ? String(node.quantidade) : ''}
@@ -601,7 +692,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
       </div>
 
       {/* Venda unitária */}
-      <div className="px-1" style={{ width: 130 }}>
+      <div className="px-1 shrink-0 overflow-hidden" style={{ width: w.vendaUnit }}>
         {isReceita ? (
           <PlanOrcInlineCell
             value={node.venda_unitaria !== null ? String(node.venda_unitaria) : ''}
@@ -619,12 +710,18 @@ const PlanOrcRow = memo(function PlanOrcRow({
       </div>
 
       {/* Venda total */}
-      <div className="px-2 text-xs text-right tabular-nums text-text" style={{ width: 130 }}>
+      <div
+        className="px-2 shrink-0 overflow-hidden text-xs text-right tabular-nums text-text"
+        style={{ width: w.vendaTotal }}
+      >
         {fmtBRL(node.venda_total_calc)}
       </div>
 
       {/* Custo total (apropriado dos serviços) */}
-      <div className="px-2 text-xs text-right tabular-nums text-text-muted" style={{ width: 130 }}>
+      <div
+        className="px-2 shrink-0 overflow-hidden text-xs text-right tabular-nums text-text-muted"
+        style={{ width: w.custoTotal }}
+      >
         {fmtBRL(node.custo_total_calc)}
       </div>
 
@@ -638,7 +735,7 @@ const PlanOrcRow = memo(function PlanOrcRow({
               ? 'text-warn'
               : 'text-success'
         )}
-        style={{ width: 80 }}
+        style={{ width: w.lucro, flexShrink: 0, overflow: 'hidden' }}
       >
         {node.lucratividade_perc_calc !== null ? fmtPct2(node.lucratividade_perc_calc) : '—'}
       </div>

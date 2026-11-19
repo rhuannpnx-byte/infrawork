@@ -317,3 +317,16 @@ export function iniciarColunasAjustaveis(): () => void {
   agendar()
   return () => observador.disconnect()
 }
+
+// ─── Grades que não são <table> (ex.: planilha orçamentária virtualizada) ───
+
+/** Larguras guardadas de uma grade própria (mesmo armazenamento das tabelas). */
+export function lerLarguras(chave: string): number[] | null {
+  const v = lerGuardadas()[chave]
+  return Array.isArray(v) && v.every((n) => typeof n === 'number' && Number.isFinite(n)) ? v : null
+}
+
+/** Guarda (ou apaga, com `null`) as larguras de uma grade própria. */
+export function gravarLarguras(chave: string, larguras: number[] | null): void {
+  gravarGuardadas(chave, larguras)
+}
