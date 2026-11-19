@@ -40,7 +40,7 @@ import { DIA, diaDoFim, inicioDoDia, segParaData, segParaTimestamp, segundaDaSem
 import { calcularIndiretos, type ResultadoIndireto } from './indiretos'
 import { calcularControle, type ResultadoControle } from './controle'
 import type { PlanoEntrada } from './tipos'
-import { ehCritica, limiteCriticoDe } from './critico'
+import { criterioCritico } from './critico'
 
 export interface WpResultado extends WpPlano {
   ordem: number
@@ -484,7 +484,7 @@ function usoDosRecursos(p: Project): ResultadoCalculo['recursos'] {
 
 /** Payload de planejamento_gravar_calculo a partir do resultado. */
 export function payloadGravacao(e: PlanoEntrada, r: ResultadoCalculo): Record<string, unknown> {
-  const limite = limiteCriticoDe(r)
+  const critica = criterioCritico(e, r)
   const tarefas = [...r.tarefas.values()].map((t) => ({
     id: t.id,
     inicio_em: segParaTimestamp(t.inicio),
@@ -494,7 +494,7 @@ export function payloadGravacao(e: PlanoEntrada, r: ResultadoCalculo): Record<st
     duracao_dias_uteis: Math.round(t.duracao_dias_uteis * 100) / 100,
     folga_total_h: Math.round(t.folga_total_h * 10000) / 10000,
     folga_livre_h: Math.round(t.folga_livre_h * 10000) / 10000,
-    critico: ehCritica(t.folga_total_h, limite),
+    critico: critica(t.folga_total_h),
     restricao_limite: t.restricao_limite,
     violacoes: t.violacoes
   }))
