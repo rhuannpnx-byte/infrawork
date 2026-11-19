@@ -106,8 +106,8 @@ export interface ObraTrecho {
   unidade_custom_divisor_m: number | null
   /** Valor da unidade no inicio da polilinha (ex: 5 = trecho comeca no km 5). */
   marcador_valor_inicial: number
-  /** GeoJSON LineString completo (com sentido ja aplicado se invertido na UI). */
-  geometry_geojson: GeoJSON.LineString | null
+  /** Eixo: GeoJSON LineString (o traçado). Área: GeoJSON Polygon (o contorno). */
+  geometry_geojson: GeoJSON.LineString | GeoJSON.Polygon | null
   geometry_bounds: { south: number; west: number; north: number; east: number } | null
   geometry_comprimento_m: number | null
   geometry_sentido: 'natural' | 'invertido'

@@ -62,6 +62,7 @@ import { VisualizarMapaTrechoDialog } from '../../modals/VisualizarMapaTrechoDia
 import { QuantidadesTrechoDialog } from '../../modals/QuantidadesTrechoDialog'
 import { QuantidadesNasTarefasDialog } from '../../modals/QuantidadesNasTarefasDialog'
 import { ImportarQuantidadesDialog } from '../../modals/ImportarQuantidadesDialog'
+import { MapaAreaDialog } from '../../modals/MapaAreaDialog'
 
 const CABECALHO =
   'border-y border-border bg-bg-elevated text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
@@ -270,7 +271,7 @@ export function LocaisPagina(): ReactNode {
           {areas.length > 0 ? (
             <Secao
               titulo="Áreas"
-              nota={`${contar(areas.length, 'área', 'áreas')} sem estacas (OAE, jazida, canteiro…). A tarefa ocupa a área inteira.`}
+              nota={`${contar(areas.length, 'área', 'áreas')} sem estacas (OAE, jazida, canteiro…). A tarefa ocupa a área inteira; o contorno do mapa é opcional e aparece no mapa das fotos.`}
               semRecuo
             >
               <div className="overflow-x-auto">
@@ -280,6 +281,7 @@ export function LocaisPagina(): ReactNode {
                       <th className="w-14 px-4 py-2 text-left font-semibold">Cor</th>
                       <th className="w-20 px-2 py-2 text-left font-semibold">Ordem</th>
                       <th className="w-full px-2 py-2 text-left font-semibold">Nome</th>
+                      <th className="w-[140px] px-2 py-2 text-left font-semibold">Mapa</th>
                       <th className="w-[190px] px-2 py-2 text-left font-semibold">Quantidades</th>
                       <th className="w-24 px-2 py-2" aria-label="Ações" />
                     </tr>
@@ -572,7 +574,38 @@ function LinhaLocal({
               </button>
             </td>
           </>
-        ) : null}
+        ) : (
+          <td className="px-2 py-1.5">
+            <button
+              type="button"
+              disabled={readOnly && !comMapa}
+              onClick={() => setMapaDialog('visualizar')}
+              aria-label={
+                comMapa ? `Contorno da área ${trecho.nome}` : `Vincular mapa da área ${trecho.nome}`
+              }
+              className={cn(
+                BOTAO_CELULA,
+                !comMapa && 'border-dashed border-border-strong text-text-muted'
+              )}
+              style={comMapa ? { borderColor: trecho.cor } : undefined}
+              title={
+                comMapa
+                  ? 'Ver o contorno da área no mapa'
+                  : 'Vincular o contorno de um arquivo KML ou KMZ (opcional)'
+              }
+            >
+              {comMapa ? (
+                <>
+                  <MapPinned size={12} /> Contorno
+                </>
+              ) : (
+                <>
+                  <MapIcon size={12} /> Vincular mapa
+                </>
+              )}
+            </button>
+          </td>
+        )}
         <td className="px-2 py-1.5">
           {nServ === 0 && nTarefas > 0 ? (
             // sem grade, mas com quantidade nas tarefas do plano (cronograma importado ou digitado)
@@ -662,7 +695,16 @@ function LinhaLocal({
             modo={mapaDialog === 'editar' ? 'editar' : mapaDialog === 'trocar' ? 'trocar' : 'novo'}
           />
         </>
-      ) : null}
+      ) : (
+        <MapaAreaDialog
+          open={mapaDialog === 'visualizar'}
+          onOpenChange={(o) => {
+            if (!o) setMapaDialog(null)
+          }}
+          trecho={trecho}
+          readOnly={readOnly}
+        />
+      )}
     </>
   )
 }

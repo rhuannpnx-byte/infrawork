@@ -3,7 +3,7 @@ import { DOMParser } from '@xmldom/xmldom'
 import length from '@turf/length'
 import bbox from '@turf/bbox'
 import { lineString } from '@turf/helpers'
-import { parseKmzOrKml } from '@/lib/kml/parse'
+import { areaDaColecao, parseAreaKmzOrKml, parseKmzOrKml } from '@/lib/kml/parse'
 
 const g = globalThis as Record<string, unknown>
 if (!g.DOMParser) g.DOMParser = DOMParser
@@ -23,6 +23,40 @@ export async function geometriaDeKml(base64: string, nome = 'trecho.kml'): Promi
     geometry_geojson: r.geometry as Geometria['geometry_geojson'],
     geometry_bounds: r.bounds,
     geometry_comprimento_m: r.comprimentoM,
+    geometry_importado_em: new Date().toISOString()
+  }
+}
+
+export interface GeometriaArea {
+  geometry_geojson: { type: 'Polygon'; coordinates: number[][][] }
+  geometry_bounds: { south: number; west: number; north: number; east: number }
+  geometry_comprimento_m: null
+  geometry_importado_em: string
+}
+
+/** Contorno de área: de um KML/KMZ em base64 (primeiro polígono) ou de coordenadas [lng, lat] do anel. */
+export async function geometriaDeArea(
+  kmlBase64: string | undefined,
+  coords: number[][] | undefined
+): Promise<GeometriaArea> {
+  const r = kmlBase64
+    ? await parseAreaKmzOrKml(
+        new File([Buffer.from(kmlBase64.replace(/^data:[^,]*,/, ''), 'base64')], 'area.kml')
+      )
+    : areaDaColecao({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'Polygon', coordinates: [coords ?? []] }
+          }
+        ]
+      })
+  return {
+    geometry_geojson: r.geometry as GeometriaArea['geometry_geojson'],
+    geometry_bounds: r.bounds,
+    geometry_comprimento_m: null,
     geometry_importado_em: new Date().toISOString()
   }
 }

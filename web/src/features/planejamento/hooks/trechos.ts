@@ -104,7 +104,7 @@ export interface UpdateTrechoInput {
   unidade_custom_label?: string | null
   unidade_custom_divisor_m?: number | null
   marcador_valor_inicial?: number
-  geometry_geojson?: GeoJSON.LineString | null
+  geometry_geojson?: GeoJSON.LineString | GeoJSON.Polygon | null
   geometry_bounds?: ObraTrecho['geometry_bounds']
   geometry_comprimento_m?: number | null
   geometry_sentido?: 'natural' | 'invertido'

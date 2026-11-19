@@ -76,6 +76,23 @@ try {
     unidade_espaco_padrao: 'km'
   })
   check('eixo de 5 km criado', !!principal?.id)
+  const patio = await chamar('trechos', { acao: 'criar', obra_id: O, nome: 'Pátio', tipo: 'area' })
+  const contorno = await chamar('trechos', {
+    acao: 'geometria',
+    obra_id: O,
+    id: patio.id,
+    coordenadas: [
+      [-49.25, -16.68],
+      [-49.24, -16.68],
+      [-49.24, -16.67],
+      [-49.25, -16.67]
+    ]
+  })
+  check(
+    'área recebe o contorno (polígono fechado) pelo MCP',
+    contorno.contorno === 5 && contorno.limites.north === -16.67,
+    JSON.stringify(contorno)
+  )
 
   // ── 2. Recursos e composições ──────────────────────────────────────────────────────────────────
   const imp = await chamar('recursos', {
@@ -389,7 +406,9 @@ try {
   const etapa = (k) => pront.etapas.find((e) => e.chave === k)?.situacao
   check(
     'prontidão: composições e linha de base ok, produção pendente',
-    etapa('composicoes') === 'ok' && etapa('linha_base') === 'ok' && etapa('producao') === 'pendente',
+    etapa('composicoes') === 'ok' &&
+      etapa('linha_base') === 'ok' &&
+      etapa('producao') === 'pendente',
     pront.etapas.map((e) => `${e.chave}:${e.situacao}`).join(' ')
   )
   const exVigente = await tentar('quantidades_locais', {

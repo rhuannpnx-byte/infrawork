@@ -85,6 +85,78 @@ export async function parseKmzOrKml(file: File): Promise<ParsedKmlResult> {
   }
 }
 
+export interface ParsedKmlArea {
+  /** Contorno da área (anel externo), em [lng, lat], fechado. */
+  geometry: GeoJSON.Polygon
+  /** Quantos contornos o arquivo tinha; a UI avisa quando há mais de um (vale o primeiro). */
+  totalPoligonos: number
+  bounds: { south: number; west: number; north: number; east: number }
+}
+
+/**
+ * Contorno de uma área (OAE, jazida, canteiro) num KML/KMZ: o primeiro polígono do arquivo; sem polígono, uma
+ * polilinha fechada (o último ponto igual ao primeiro) vira o contorno.
+ */
+export async function parseAreaKmzOrKml(file: File): Promise<ParsedKmlArea> {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(
+      `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Limite: 10 MB.`
+    )
+  }
+  const doc = new DOMParser().parseFromString(await readAsKmlText(file), 'application/xml')
+  if (doc.getElementsByTagName('parsererror').length > 0) {
+    throw new Error('Arquivo invalido: XML malformado.')
+  }
+  const fc = kmlToGeoJSON(doc) as GeoJSON.FeatureCollection
+  return areaDaColecao(fc)
+}
+
+/** Separado da leitura do arquivo para testar sem DOM. */
+export function areaDaColecao(fc: GeoJSON.FeatureCollection): ParsedKmlArea {
+  const aneis: number[][][] = []
+  const juntar = (g: GeoJSON.Geometry | null | undefined): void => {
+    if (!g) return
+    if (g.type === 'Polygon') {
+      if (g.coordinates[0]?.length) aneis.push(g.coordinates[0])
+    } else if (g.type === 'MultiPolygon') {
+      for (const p of g.coordinates) if (p[0]?.length) aneis.push(p[0])
+    } else if (g.type === 'GeometryCollection') {
+      g.geometries.forEach(juntar)
+    }
+  }
+  for (const f of fc.features ?? []) juntar(f.geometry)
+  if (aneis.length === 0) {
+    // sem polígono: polilinha fechada
+    for (const f of fc.features ?? []) {
+      const g = f.geometry
+      if (g?.type !== 'LineString' || g.coordinates.length < 4) continue
+      const [a, b] = [g.coordinates[0], g.coordinates[g.coordinates.length - 1]]
+      if (Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9) aneis.push(g.coordinates)
+    }
+  }
+  if (aneis.length === 0) {
+    throw new Error(
+      'Nenhum polígono encontrado no arquivo. Desenhe o contorno da área como polígono no Google Earth.'
+    )
+  }
+  const anel = aneis[0].map((c) => [c[0], c[1]])
+  if (anel.length < 4) throw new Error('O polígono precisa de pelo menos 3 pontos.')
+  const [p0, pn] = [anel[0], anel[anel.length - 1]]
+  if (p0[0] !== pn[0] || p0[1] !== pn[1]) anel.push([p0[0], p0[1]])
+  const lng = anel.map((c) => c[0])
+  const lat = anel.map((c) => c[1])
+  return {
+    geometry: { type: 'Polygon', coordinates: [anel] },
+    totalPoligonos: aneis.length,
+    bounds: {
+      south: Math.min(...lat),
+      west: Math.min(...lng),
+      north: Math.max(...lat),
+      east: Math.max(...lng)
+    }
+  }
+}
+
 // ─── Helpers privados ───────────────────────────────────────────────────────
 
 async function readAsKmlText(file: File): Promise<string> {

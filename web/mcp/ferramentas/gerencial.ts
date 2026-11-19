@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ctxAtual, fn, rpc } from '../contexto'
 import { CONFIRMAR, exigir, ferramenta, pedirConfirmacao } from '../ferramenta'
 import { contar, eq, gravar, ler } from '../lib/banco'
-import { geometriaDeCoordenadas, geometriaDeKml } from '../lib/geo'
+import { geometriaDeArea, geometriaDeCoordenadas, geometriaDeKml } from '../lib/geo'
 import { recalcularEmEdicao } from './planejamento-extra'
 
 const OBRA = z.string().uuid().describe('id da obra')
@@ -228,7 +228,8 @@ export const trechos = ferramenta({
     'Locais da obra: eixos (com estaqueamento; posições em metros internos a partir do início) e áreas (OAE, ' +
     'pátio…). Unidade de exibição km | m | estaca | custom (rótulo e divisor em metros). geometry_sentido ' +
     'natural|invertido (numeração contra o desenho). acao: listar | criar | editar | excluir | geometria (KML/KMZ ' +
-    'em base64 ou coordenadas [[lng,lat],…]; calcula comprimento e limites) | sincronizar_tarefas (reaplica os ' +
+    'em base64 ou coordenadas [[lng,lat],…]; eixo: a polilinha, calcula comprimento e limites; área: o contorno ' +
+    '(polígono), que aparece no mapa das fotos) | sincronizar_tarefas (reaplica os ' +
     'locais nas tarefas depois de mudar comprimento/estaqueamento).',
   entrada: {
     acao: z.enum(['listar', 'criar', 'editar', 'excluir', 'geometria', 'sincronizar_tarefas']),
@@ -314,6 +315,20 @@ export const trechos = ferramenta({
         return { excluido: id() }
       }
       case 'geometria': {
+        const [loc] = await ler<{ tipo: string }>('obra_trecho', {
+          colunas: 'tipo',
+          filtros: [eq('id', id())]
+        })
+        if (loc?.tipo === 'area') {
+          if (!a.kml_base64 && !a.coordenadas)
+            throw new Error('Informe kml_base64 ou coordenadas do contorno da área.')
+          const ga = await geometriaDeArea(a.kml_base64, a.coordenadas)
+          await gravar('obra_trecho', 'update', { ...ga }, [eq('id', id())])
+          return {
+            contorno: ga.geometry_geojson.coordinates[0].length,
+            limites: ga.geometry_bounds
+          }
+        }
         const g = a.kml_base64
           ? await geometriaDeKml(a.kml_base64)
           : geometriaDeCoordenadas(exigir(a.coordenadas, 'coordenadas (ou kml_base64)', a.acao))

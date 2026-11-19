@@ -22,8 +22,8 @@ export interface MapaTrechoMarcador {
 }
 
 interface Props {
-  /** GeoJSON LineString. Coordenadas em [lng, lat]. Ordem ja "aplicada" pelo caller. */
-  geometry: GeoJSON.LineString
+  /** Eixo: LineString (ordem já "aplicada" pelo caller). Área: Polygon (o contorno). Coordenadas em [lng, lat]. */
+  geometry: GeoJSON.LineString | GeoJSON.Polygon
   /** Cor da polilinha (hex). */
   cor: string
   /** Marcadores intermediarios (km/estaca/etc). Inicio e fim sao sempre desenhados separadamente. */
@@ -83,6 +83,23 @@ export function MapaTrecho({
       addBaseMapEsri(map, L)
       mapRef.current = map
 
+      if (geometry.type === 'Polygon') {
+        // área: o contorno preenchido de leve, sem marcadores
+        const anel = (geometry.coordinates[0] ?? []).map((c) => [c[1], c[0]] as [number, number])
+        if (anel.length < 3) {
+          map.setView([-15.78, -47.93], 4)
+          return
+        }
+        const poligono = L.polygon(anel, {
+          color: cor,
+          weight: 3,
+          opacity: 0.95,
+          fillColor: cor,
+          fillOpacity: 0.2
+        }).addTo(map)
+        map.fitBounds(poligono.getBounds(), { padding: [24, 24], maxZoom: 18 })
+        return
+      }
       const coords = geometry.coordinates
       if (coords.length < 2) {
         map.setView([-15.78, -47.93], 4)

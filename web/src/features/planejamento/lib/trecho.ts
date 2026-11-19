@@ -21,8 +21,20 @@ type TrechoBase = Pick<
   | 'geometry_sentido'
 >
 
+/** Traçado do eixo (null em área ou sem mapa). */
+export function linhaDoTrecho(t: Pick<ObraTrecho, 'geometry_geojson'>): GeoJSON.LineString | null {
+  const g = t.geometry_geojson
+  return g?.type === 'LineString' && g.coordinates.length >= 2 ? g : null
+}
+
+/** Contorno da área (null em eixo ou sem mapa). */
+export function poligonoDoTrecho(t: Pick<ObraTrecho, 'geometry_geojson'>): GeoJSON.Polygon | null {
+  const g = t.geometry_geojson
+  return g?.type === 'Polygon' && (g.coordinates[0]?.length ?? 0) >= 4 ? g : null
+}
+
 export const temGeometria = (t: Pick<ObraTrecho, 'geometry_geojson'>): boolean =>
-  !!t.geometry_geojson && t.geometry_geojson.coordinates.length >= 2
+  !!linhaDoTrecho(t) || !!poligonoDoTrecho(t)
 
 /** Comprimento do eixo em metros internos (área → 0). */
 export function comprimentoEfetivo(t: TrechoBase): number {

@@ -36,6 +36,7 @@ import { parseKmzOrKml, type ParsedKmlResult } from '@/lib/kml/parse'
 import { formatMarcadorCompacto, type TrechoCtx } from '@/lib/format/posicao'
 import { MapaTrecho, type MapaTrechoMarcador } from '@/features/planejamento/components/MapaTrecho'
 import { useSalvarGeometriaTrecho } from '@/features/planejamento/hooks/trechos'
+import { linhaDoTrecho } from '@/features/planejamento/lib/trecho'
 import { TRECHO_CORES_PADRAO, type ObraTrecho, type UnidadeEspacoPadrao } from '@/types/gerencial'
 
 // ─── Tipos auxiliares ───────────────────────────────────────────────────
@@ -107,14 +108,12 @@ export function ImportarKmlTrechoDialog({
   // ─── Pre-carrega conforme modo ─────────────────────────────────────────
   useEffect(() => {
     if (!open) return
-    const temGeom =
-      !!trecho?.geometry_geojson &&
-      !!trecho.geometry_bounds &&
-      trecho.geometry_comprimento_m != null
+    const linha = trecho ? linhaDoTrecho(trecho) : null
+    const temGeom = !!linha && !!trecho?.geometry_bounds && trecho?.geometry_comprimento_m != null
 
     if (modo === 'editar' && trecho && temGeom) {
       setParsed({
-        geometry: trecho.geometry_geojson!,
+        geometry: linha!,
         bounds: trecho.geometry_bounds!,
         comprimentoM: Number(trecho.geometry_comprimento_m),
         totalLineStrings: 1

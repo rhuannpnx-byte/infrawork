@@ -20,6 +20,7 @@ import {
   marcadoresDoTrecho,
   posicionarMarcadores
 } from '@/features/planejamento/lib/marcadores-mapa'
+import { linhaDoTrecho, poligonoDoTrecho } from '@/features/planejamento/lib/trecho'
 
 interface Props {
   fotos: FotoEnriquecida[]
@@ -151,10 +152,18 @@ export function MapaFotosSatelite({
   const { obraId } = useCurrentScope()
   const { data: trechosObra } = useObraTrechos(obraId)
   const trechos = useMemo<TrechoGeo[]>(
+    () => (trechosObra ?? []).filter((t): t is TrechoGeo => !!linhaDoTrecho(t)),
+    [trechosObra]
+  )
+  // Áreas com contorno importado (OAE, jazida, canteiro): ajudam a situar as fotos tiradas nelas.
+  const areas = useMemo(
     () =>
-      (trechosObra ?? []).filter(
-        (t): t is TrechoGeo => (t.geometry_geojson?.coordinates?.length ?? 0) >= 2
-      ),
+      (trechosObra ?? []).flatMap((t) => {
+        const p = poligonoDoTrecho(t)
+        return p
+          ? [{ id: t.id, nome: t.nome, cor: t.cor, anel: p.coordinates[0] as number[][] }]
+          : []
+      }),
     [trechosObra]
   )
   // Régua de cada trecho (km, estaca…) como definida na importação, já posicionada sobre a linha.
@@ -167,8 +176,9 @@ export function MapaFotosSatelite({
     [trechos]
   )
   const legendaTrechos = useMemo<LegendaItem[]>(
-    () => (mostrarTrechos ? trechos.map((t) => ({ label: t.nome, cor: t.cor })) : []),
-    [trechos, mostrarTrechos]
+    () =>
+      mostrarTrechos ? [...trechos, ...areas].map((t) => ({ label: t.nome, cor: t.cor })) : [],
+    [trechos, areas, mostrarTrechos]
   )
 
   const validas = useMemo<Valida[]>(
@@ -409,6 +419,22 @@ export function MapaFotosSatelite({
         .bindTooltip(esc(t.nome), { sticky: true, direction: 'top' })
         .addTo(lay)
     }
+    for (const a of areas) {
+      L.polygon(
+        a.anel.map((c) => [c[1], c[0]] as [number, number]),
+        {
+          pane: 'trechos',
+          renderer: rnd,
+          color: a.cor,
+          weight: 2.5,
+          opacity: 0.95,
+          fillColor: a.cor,
+          fillOpacity: 0.18
+        }
+      )
+        .bindTooltip(esc(a.nome), { sticky: true, direction: 'top' })
+        .addTo(lay)
+    }
   }
 
   // ── Render: MARCADORES DOS TRECHOS (redesenha no zoom/pan: só o que está na tela, desbastado) ──
@@ -624,6 +650,7 @@ export function MapaFotosSatelite({
     validas,
     sequencias,
     trechos,
+    areas,
     marcadoresTrechos,
     corPor,
     mostrarFotos,
@@ -643,6 +670,7 @@ export function MapaFotosSatelite({
     if (mostrarTrechos)
       for (const t of trechos)
         for (const c of t.geometry_geojson.coordinates) pts.push([c[1], c[0]])
+    if (mostrarTrechos) for (const a of areas) for (const c of a.anel) pts.push([c[1], c[0]])
     if (pts.length === 0) {
       map.setView([-15.78, -47.93], 4, { animate: false })
       return
@@ -663,7 +691,7 @@ export function MapaFotosSatelite({
         ],
         { padding: [40, 40], maxZoom: 16, animate: false }
       )
-  }, [ready, validas, mostrarFotos, trechos, mostrarTrechos])
+  }, [ready, validas, mostrarFotos, trechos, areas, mostrarTrechos])
 
   // ResizeObserver — invalida tamanho quando o container muda.
   useEffect(() => {
