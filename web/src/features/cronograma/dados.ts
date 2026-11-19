@@ -144,9 +144,12 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
         )
         .eq('obra_id', obra)
         .order('ordem')
+        .order('id')
     ),
-    todos(() => c.from('servico').select('id, codigo, nome, unidade').eq('obra_id', obra)),
-    todos(() => c.from('equipe').select('id, nome, is_sistema').eq('obra_id', obra)),
+    todos(() =>
+      c.from('servico').select('id, codigo, nome, unidade').eq('obra_id', obra).order('id')
+    ),
+    todos(() => c.from('equipe').select('id, nome, is_sistema').eq('obra_id', obra).order('id')),
     todos(() =>
       c
         .from('vw_planejamento_tarefa_completa')
@@ -160,15 +163,22 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
         .from('planejamento_dependencia')
         .select('id, predecessora_id, sucessora_id, tipo, atraso_min, atraso_max, dias_uteis')
         .eq('planejamento_id', planejamentoId)
+        .order('id')
     ),
     todos(() =>
-      c.from('planejamento_marco').select('*').eq('planejamento_id', planejamentoId).order('ordem')
+      c
+        .from('planejamento_marco')
+        .select('*')
+        .eq('planejamento_id', planejamentoId)
+        .order('ordem')
+        .order('id')
     ),
     todos(() =>
       c
         .from('planejamento_recurso_limite')
         .select('id, recurso_id, grupo_id, maximo')
         .eq('planejamento_id', planejamentoId)
+        .order('id')
     )
   ])
   const tarefasRows = emPreOrdem(tarefasRaw as Record<string, unknown>[])
@@ -197,6 +207,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
         .from('planejamento_lb_premissa')
         .select('tarefa_id, equipe')
         .eq('planejamento_id', planejamentoId)
+        .order('tarefa_id')
     )
     const porServico = new Map<string, EquipeServico>()
     for (const x of prem as { equipe: Record<string, unknown> | null }[]) {
@@ -211,6 +222,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
         .select('*')
         .eq('planejamento_id', planejamentoId)
         .order('ordem')
+        .order('id')
     )
     wpsCongelados = (wps as Record<string, unknown>[]).map((w) => ({
       tarefa_id: w.tarefa_id as string,
@@ -231,6 +243,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
           .select('id, nome, padrao, semana, ordem')
           .eq('obra_id', obra)
           .order('ordem')
+          .order('id')
       ),
       todos(() =>
         c
@@ -240,8 +253,15 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
           )
           .eq('calendario.obra_id', obra)
           .order('ordem')
+          .order('id')
       ),
-      todos(() => c.from('obra_produtividade_mes').select('ano_mes, fator').eq('obra_id', obra)),
+      todos(() =>
+        c
+          .from('obra_produtividade_mes')
+          .select('ano_mes, fator')
+          .eq('obra_id', obra)
+          .order('ano_mes')
+      ),
       c.rpc('obra_equipes_vivas', { _obra_id: obra }).then(({ data, error }) => {
         if (error) throw error
         return (data as Record<string, unknown>[] | null) ?? []
@@ -251,6 +271,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
           .from('servico_dependencia')
           .select('predecessor_id, sucessor_id, atraso_dias')
           .eq('obra_id', obra)
+          .order('id')
       )
     ])
     calendarios = (cals as Record<string, unknown>[]).map((k) => ({
@@ -285,7 +306,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
   const taxaPct = new Map<string, number>()
   if (regimes.length) {
     const rs = await todos(() =>
-      c.from('encargos_sociais_regime').select('id, total_perc_calc').in('id', regimes)
+      c.from('encargos_sociais_regime').select('id, total_perc_calc').in('id', regimes).order('id')
     )
     for (const r of rs as Record<string, unknown>[])
       taxaPct.set(r.id as string, n(r.total_perc_calc))
