@@ -2,7 +2,8 @@
  * Locais da obra (as "locations" do DynaRoad): eixos com estaqueamento (mapa opcional) e áreas sem estacas, cada um
  * com a sua planilha de quantidades por serviço. É daqui que as tarefas tiram posição e quantidade.
  */
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ClipboardList,
@@ -33,18 +34,19 @@ import { gerarPlanilhaQuantidades } from '@/lib/quantidades/boq-xlsx'
 import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
 import { TRECHO_CORES_PADRAO, type ObraTrecho } from '@/types/gerencial'
-import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 import {
+  fetchTemplateAtual,
   useDeleteTrecho,
   useObraTrechos,
-  useTrechosQuantidadeTemplatesAtuais,
   useUpdateTrecho
 } from '../../hooks/trechos'
 import {
   useAgrupadoresTrecho,
   useExcluirQuantidadesTrechos,
-  useQuantidadesNasTarefas
+  useQuantidadesNasTarefas,
+  useQuantidadesResumo
 } from '../../hooks/quantidades'
+import type { ResumoQuantidadesLocal } from '../../lib/quantidades-leitura'
 import { useCadeiaTrava } from '../../hooks/planejamentos'
 import { QuantidadesPorLocal } from './QuantidadesPorLocal'
 import { usePlanejamentoAtivo } from '../../hooks/planejamentos'
@@ -78,7 +80,13 @@ export function LocaisPagina(): ReactNode {
   const { data: trechos = [], isPending, error, refetch } = useObraTrechos(obraId)
   const { data: obra } = useObra(obraId)
   const { data: agrupadores = [] } = useAgrupadoresTrecho(obraId)
-  const templates = useTrechosQuantidadeTemplatesAtuais(trechos.map((t) => t.id))
+  // versão, contagens e total por serviço de cada local; as faixas só vêm ao abrir um local ou exportar
+  const { data: resumo, isPending: resumoPendente } = useQuantidadesResumo(obraId)
+  const totaisPorLocal = useMemo(
+    () => new Map([...(resumo ?? [])].map(([id, r]) => [id, r.totais])),
+    [resumo]
+  )
+  const qc = useQueryClient()
   // local sem grade: a quantidade pode estar só nas tarefas do plano (cronograma importado ou digitado)
   const { data: plano } = usePlanejamentoAtivo(obraId)
   const { data: nasTarefas } = useQuantidadesNasTarefas(plano?.id)
@@ -91,7 +99,7 @@ export function LocaisPagina(): ReactNode {
   const [exportando, setExportando] = useState(false)
   const { data: trava } = useCadeiaTrava(obraId)
   const excluirQtd = useExcluirQuantidadesTrechos()
-  const comQuantidades = trechos.filter((t) => (templates.get(t.id)?.segmentos.length ?? 0) > 0)
+  const comQuantidades = trechos.filter((t) => (resumo?.get(t.id)?.faixas ?? 0) > 0)
 
   const excluirQuantidades = async (): Promise<void> => {
     const ok = await confirm({
@@ -120,12 +128,7 @@ export function LocaisPagina(): ReactNode {
   const obraNome = obra?.nome ?? scope.obra?.nome ?? ''
 
   const exportar = async (): Promise<void> => {
-    const usados = new Set<string>()
-    templates.forEach((tpl) => tpl?.colunas.forEach((c) => usados.add(c.item_orcamentario_id)))
-    const servicos = (usados.size ? agrupadores.filter((a) => usados.has(a.id)) : agrupadores).map(
-      (a) => ({ id: a.id, codigo: a.codigo, descricao: a.descricao, unidade: a.unidade })
-    )
-    if (servicos.length === 0) {
+    if (agrupadores.length === 0) {
       toast.error('O orçamento ainda não tem serviços para levar à planilha.')
       return
     }
@@ -135,6 +138,26 @@ export function LocaisPagina(): ReactNode {
     }
     setExportando(true)
     try {
+      // as faixas e os valores de cada local com quantidades (uma chamada por local)
+      const templates = new Map(
+        await Promise.all(
+          comQuantidades.map(
+            async (t) =>
+              [
+                t.id,
+                await qc.fetchQuery({
+                  queryKey: ['quantidades', 'template-atual', t.id],
+                  queryFn: () => fetchTemplateAtual(t.id)
+                })
+              ] as const
+          )
+        )
+      )
+      const usados = new Set<string>()
+      templates.forEach((tpl) => tpl?.colunas.forEach((c) => usados.add(c.item_orcamentario_id)))
+      const servicos = (
+        usados.size ? agrupadores.filter((a) => usados.has(a.id)) : agrupadores
+      ).map((a) => ({ id: a.id, codigo: a.codigo, descricao: a.descricao, unidade: a.unidade }))
       const blob = await gerarPlanilhaQuantidades({
         obraNome,
         servicos,
@@ -254,7 +277,8 @@ export function LocaisPagina(): ReactNode {
                         trecho={t}
                         obraId={obraId}
                         readOnly={readOnly}
-                        template={templates.get(t.id) ?? null}
+                        resumo={resumo?.get(t.id) ?? null}
+                        resumoPendente={resumoPendente}
                         nTarefas={nasTarefas?.get(t.id)?.length ?? 0}
                         onEditar={() => setEditar(t)}
                         onQuantidades={() => setQuantidadesDe(t)}
@@ -293,7 +317,8 @@ export function LocaisPagina(): ReactNode {
                         trecho={t}
                         obraId={obraId}
                         readOnly={readOnly}
-                        template={templates.get(t.id) ?? null}
+                        resumo={resumo?.get(t.id) ?? null}
+                        resumoPendente={resumoPendente}
                         nTarefas={nasTarefas?.get(t.id)?.length ?? 0}
                         onEditar={() => setEditar(t)}
                         onQuantidades={() => setQuantidadesDe(t)}
@@ -310,7 +335,7 @@ export function LocaisPagina(): ReactNode {
           {trechos.length > 0 ? (
             <QuantidadesPorLocal
               trechos={trechos}
-              templates={templates}
+              totais={totaisPorLocal}
               agrupadores={agrupadores}
               onAbrirLocal={setQuantidadesDe}
             />
@@ -361,7 +386,8 @@ function LinhaLocal({
   trecho,
   obraId,
   readOnly,
-  template,
+  resumo,
+  resumoPendente,
   nTarefas,
   onEditar,
   onQuantidades,
@@ -371,7 +397,9 @@ function LinhaLocal({
   trecho: ObraTrecho
   obraId: string
   readOnly: boolean
-  template: TrechoQuantidadeVersaoCompleta | null
+  /** Versão atual das quantidades do local; `null` = local sem quantidades. */
+  resumo: ResumoQuantidadesLocal | null
+  resumoPendente: boolean
   /** Serviços com quantidade nas tarefas do plano neste local (usado quando o local não tem grade). */
   nTarefas: number
   onEditar: () => void
@@ -391,7 +419,7 @@ function LinhaLocal({
   const oLocal = ehEixo ? 'o eixo' : 'a área'
   const comMapa = temGeometria(trecho)
   const comp = comprimentoEfetivo(trecho)
-  const nServ = template?.colunas.length ?? 0
+  const nServ = resumo?.servicos ?? 0
   const ocupado = updTrecho.isPending || delTrecho.isPending
 
   const remover = async (): Promise<void> => {
@@ -607,7 +635,11 @@ function LinhaLocal({
           </td>
         )}
         <td className="px-2 py-1.5">
-          {nServ === 0 && nTarefas > 0 ? (
+          {resumoPendente ? (
+            <span role="status" className="text-xs text-text-muted">
+              Carregando…
+            </span>
+          ) : nServ === 0 && nTarefas > 0 ? (
             // sem grade, mas com quantidade nas tarefas do plano (cronograma importado ou digitado)
             <button
               type="button"
@@ -634,7 +666,7 @@ function LinhaLocal({
                   ? 'Defina as estacas do eixo antes'
                   : nServ === 0
                     ? 'Informar as quantidades por serviço'
-                    : `Versão ${template!.numero}: ${contar(nServ, 'serviço', 'serviços')} em ${contar(template!.segmentos.length, 'faixa', 'faixas')}`
+                    : `Versão ${resumo!.numero}: ${contar(nServ, 'serviço', 'serviços')} em ${contar(resumo!.faixas, 'faixa', 'faixas')}`
               }
             >
               <ClipboardList size={12} />
@@ -642,7 +674,7 @@ function LinhaLocal({
                 ? 'Sem estacas'
                 : nServ === 0
                   ? 'Sem quantidades'
-                  : `${contar(nServ, 'serviço', 'serviços')}, versão ${template!.numero}`}
+                  : `${contar(nServ, 'serviço', 'serviços')}, versão ${resumo!.numero}`}
             </button>
           )}
         </td>

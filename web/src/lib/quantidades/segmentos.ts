@@ -6,7 +6,6 @@
  * - sequências contíguas (o zero fecha), janelas alinhadas a múltiplos de N, quantidade numa faixa e a estaca em
  *   que a massa acumulada atinge uma fração (inverso), usadas por "criar tarefas" e "dividir por estaca".
  */
-import { distribuirProporcional } from './distribuir'
 import { type SegmentoAnalitico, type TrechoUnidadeConfig } from './grade'
 
 export interface SegmentoValores {
@@ -85,20 +84,48 @@ export function gerarSegmentos(cfg: TrechoUnidadeConfig, passo: Passo): Segmento
   return out
 }
 
-/** Redistribui os valores de uma grade em outra, proporcionalmente ao comprimento (conserva a soma). */
+/**
+ * Redistribui os valores de uma grade em outra, proporcionalmente ao comprimento (conserva a soma).
+ *
+ * Com a grade em ordem e sem sobreposição (o caso de sempre), a primeira faixa que toca cada segmento sai por busca
+ * binária: milhares de faixas contra milhares de faixas custam o que custa percorrê-las uma vez, e não o produto.
+ */
 export function reamostrarSegmentos(
   origem: readonly SegmentoValores[],
   grade: readonly SegmentoAnalitico[]
 ): SegmentoValores[] {
   const acc = grade.map(() => ({}) as Record<string, number>)
-  for (const s of origem)
-    for (const [id, v] of Object.entries(s.valores)) {
-      if (!(v > 0)) continue
-      for (const [ordem, parte] of distribuirProporcional(s.ini, s.fim, v, [...grade])) {
-        const k = grade.findIndex((g) => g.ordem === ordem)
-        if (k >= 0) acc[k]![id] = (acc[k]![id] ?? 0) + parte
+  let emOrdem = true
+  for (let k = 1; k < grade.length && emOrdem; k++)
+    if (grade[k]!.posicao_inicio_m < grade[k - 1]!.posicao_fim_m - 1e-9) emOrdem = false
+  for (const s of origem) {
+    const comp = s.fim - s.ini
+    if (!Number.isFinite(comp) || !(comp > 0)) continue
+    let k = 0
+    if (emOrdem) {
+      // primeira faixa da grade que termina depois do início do segmento
+      let lo = 0
+      let hi = grade.length
+      while (lo < hi) {
+        const meio = (lo + hi) >> 1
+        if (grade[meio]!.posicao_fim_m > s.ini) hi = meio
+        else lo = meio + 1
+      }
+      k = lo
+    }
+    for (; k < grade.length; k++) {
+      const g = grade[k]!
+      if (emOrdem && g.posicao_inicio_m >= s.fim) break
+      const parte = Math.min(s.fim, g.posicao_fim_m) - Math.max(s.ini, g.posicao_inicio_m)
+      if (!(parte > 0)) continue
+      const fracao = parte / comp
+      const dest = acc[k]!
+      for (const id in s.valores) {
+        const v = s.valores[id]!
+        if (v > 0 && Number.isFinite(v)) dest[id] = (dest[id] ?? 0) + v * fracao
       }
     }
+  }
   return grade.map((g, k) => ({
     ini: g.posicao_inicio_m,
     fim: g.posicao_fim_m,

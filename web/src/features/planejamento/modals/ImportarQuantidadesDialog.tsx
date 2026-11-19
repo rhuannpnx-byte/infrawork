@@ -452,8 +452,18 @@ export function ImportarQuantidadesDialog({
     })
   }, [locaisLidos, destLocais, destCols, trechos, templates, agrupadores, estender])
 
+  // Local que já existe, sem quantidade na planilha e sem quantidade gravada, fica de fora: não há o que gravar, e
+  // uma versão vazia faria o local aparecer como "com quantidades" (acontecia com a área em branco do modelo).
   const ativos = useMemo(
-    () => planos.filter((p) => p.destino.modo !== 'nao' && p.itens.size > 0),
+    () =>
+      planos.filter(
+        (p) =>
+          p.destino.modo !== 'nao' &&
+          p.itens.size > 0 &&
+          (p.destino.modo === 'criar' ||
+            p.erros.length > 0 ||
+            p.linhas.some((l) => l.importado > 0 || l.atual > 0))
+      ),
     [planos]
   )
   // O banco guarda milésimos e confere Σ dos locais ≤ orçado: grava (e confere aqui) já arredondado, com a soma de

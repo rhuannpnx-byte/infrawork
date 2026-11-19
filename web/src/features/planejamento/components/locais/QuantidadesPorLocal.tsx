@@ -8,9 +8,7 @@ import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import { contar } from '@/lib/rotulos'
 import type { ObraTrecho } from '@/types/gerencial'
-import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
 import type { AgrupadorTrecho } from '../../hooks/quantidades'
-import { segmentosDoTemplate } from '../../lib/trecho'
 import { quantidadesPorLocal } from '../../lib/quantidades-por-local'
 
 const TH =
@@ -19,23 +17,17 @@ const num = (v: number): string => formatNumber(v, 3)
 
 export function QuantidadesPorLocal({
   trechos,
-  templates,
+  totais,
   agrupadores,
   onAbrirLocal
 }: {
   trechos: ObraTrecho[]
-  templates: Map<string, TrechoQuantidadeVersaoCompleta | null>
+  /** id do local → (id do serviço → total no local) */
+  totais: ReadonlyMap<string, Readonly<Record<string, number>>>
   agrupadores: AgrupadorTrecho[]
   onAbrirLocal: (t: ObraTrecho) => void
 }): ReactNode {
-  const linhas = useMemo(
-    () =>
-      quantidadesPorLocal(
-        agrupadores,
-        new Map(trechos.map((t) => [t.id, segmentosDoTemplate(templates.get(t.id))]))
-      ),
-    [agrupadores, trechos, templates]
-  )
+  const linhas = useMemo(() => quantidadesPorLocal(agrupadores, totais), [agrupadores, totais])
   const comQuantidade = linhas.filter((l) => l.nosLocais > 0).length
   const faltam = linhas.filter((l) => l.semLocal > 0).length
   const passam = linhas.filter((l) => l.semLocal < 0).length

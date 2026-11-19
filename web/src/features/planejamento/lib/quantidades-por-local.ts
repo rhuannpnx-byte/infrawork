@@ -1,8 +1,8 @@
 /**
- * Quantidade de cada serviço em cada local (a soma das faixas da versão atual), com o total nos locais, o orçado e
- * o que ainda não foi para nenhum local. Unidades diferentes ficam em linhas diferentes: nada soma entre serviços.
+ * Quantidade de cada serviço em cada local (a soma das faixas da versão atual, que o banco entrega pronta), com o
+ * total nos locais, o orçado e o que ainda não foi para nenhum local. Unidades diferentes ficam em linhas
+ * diferentes: nada soma entre serviços.
  */
-import type { SegmentoValores } from '@/lib/quantidades/segmentos'
 
 export interface ServicoQuantidade {
   id: string
@@ -27,17 +27,17 @@ const TOL = 0.0005
 
 export function quantidadesPorLocal(
   servicos: ServicoQuantidade[],
-  segmentosPorLocal: Map<string, SegmentoValores[]>
+  /** id do local → (id do serviço → total no local) */
+  totaisPorLocal: ReadonlyMap<string, Readonly<Record<string, number>>>
 ): LinhaPorLocal[] {
   const total = new Map<string, Map<string, number>>()
-  for (const [local, segs] of segmentosPorLocal)
-    for (const s of segs)
-      for (const [item, v] of Object.entries(s.valores)) {
-        if (!(v > 0)) continue
-        const m = total.get(item) ?? new Map<string, number>()
-        m.set(local, (m.get(local) ?? 0) + v)
-        total.set(item, m)
-      }
+  for (const [local, totais] of totaisPorLocal)
+    for (const [item, v] of Object.entries(totais)) {
+      if (!(v > 0)) continue
+      const m = total.get(item) ?? new Map<string, number>()
+      m.set(local, v)
+      total.set(item, m)
+    }
   return servicos
     .filter((s) => s.quantidade > TOL || total.has(s.id))
     .map((servico) => {

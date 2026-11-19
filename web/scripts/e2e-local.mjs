@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs'
 import { supabase as sb } from '../src/lib/supabase/client'
 import { carregarPlanoEntrada } from '../src/features/cronograma/dados'
+import { fetchTemplateAtual } from '../src/features/planejamento/hooks/trechos'
 import { calcularPlano, payloadGravacao } from '../src/features/cronograma/motor/calculo'
 
 const URL = process.env.VITE_SUPABASE_URL ?? ''
@@ -588,6 +589,22 @@ const segs = (a, b) => [
   { ini: 0, fim: 1000, label_ini: 'km 0', label_fim: 'km 1', valores: { [svTr.id]: a } },
   { ini: 1000, fim: 2000, label_ini: 'km 1', label_fim: 'km 2', valores: { [svTr.id]: b } }
 ]
+// migração 0067: um eixo com mais de 1.000 faixas é lido inteiro, numa chamada (a leitura pelas tabelas cortava em 1.000)
+const faixas1200 = Array.from({ length: 1200 }, (_, i) => ({ ini: i, fim: i + 1, label_ini: `m ${i}`, label_fim: `m ${i + 1}`, valores: { [svTr.id]: 1 } }))
+const salvo1200 = await rpc('trecho_salvar_quantidades', { _trecho_id: tr.id, _dados: { modo: 'simplificado', servicos: [svTr.id], segmentos: faixas1200 } })
+const lido1200 = await fetchTemplateAtual(tr.id)
+const soma1200 = (lido1200?.segmentos ?? []).reduce((t, s) => t + Object.values(s.valores).reduce((a, v) => a + v, 0), 0)
+check(
+  'quantidades do local lidas inteiras numa chamada (1.200 faixas, soma 1.200)',
+  salvo1200.segmentos === 1200 && lido1200?.segmentos.length === 1200 && soma1200 === 1200 && lido1200.colunas[0]?.item_orcamentario_id === svTr.id,
+  JSON.stringify({ faixas: lido1200?.segmentos.length, soma: soma1200 })
+)
+const resumo1200 = (await rpc('trechos_quantidades_resumo', { _obra_id: obraTr.id })).find((r) => r.trecho_id === tr.id)
+check(
+  'resumo dos locais: versão, faixas, serviços e total por serviço',
+  resumo1200?.faixas === 1200 && resumo1200.servicos === 1 && Number(resumo1200.totais[svTr.id]) === 1200 && resumo1200.numero === 1,
+  JSON.stringify(resumo1200)
+)
 const trAcima = await sb.rpc('trecho_salvar_quantidades', { _trecho_id: tr.id, _dados: { modo: 'analitico', servicos: [svTr.id], segmentos: segs(800, 900) } })
 check('trecho acima do orçamento é recusado (800 + 900 > 1.500)', !!trAcima.error && /acima do orçamento/.test(trAcima.error.message), trAcima.error?.message)
 const salvo = await rpc('trecho_salvar_quantidades', { _trecho_id: tr.id, _dados: { modo: 'analitico', servicos: [svTr.id], segmentos: segs(600, 900) } })
@@ -980,6 +997,7 @@ await sbAp.auth.signOut()
     ['recalcular_orcamento', { _obra_id: obraId }],
     ['trecho_sync_tarefas', { _obra_id: obraId }],
     ['trecho_excluir_quantidades', { _trecho_ids: [tr.id] }],
+    ['trecho_quantidades_atual', { _trecho_id: tr.id }],
     ['lb_premissas_diff', { _planejamento_id: plan.id }],
     ['set_recurso_preco_vigente', { _preco_id: np.id }],
     ['obra_prontidao', { _obra_id: obraId }],
@@ -999,6 +1017,13 @@ await sbAp.auth.signOut()
   const precoA = await u.admA.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
   const precoB = await u.admB.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
   check('receita_preco_em: a outra empresa recebe vazio', precoA.data != null && !precoB.error && precoB.data == null, `A=${precoA.data} B=${precoB.data}`)
+  const resumoAnon = await semLogin.rpc('trechos_quantidades_resumo', { _obra_id: obraTr.id })
+  const resumoB = await u.admB.c.rpc('trechos_quantidades_resumo', { _obra_id: obraTr.id })
+  check(
+    'trechos_quantidades_resumo: recusa anônimo e a outra empresa recebe vazio',
+    !!resumoAnon.error && !resumoB.error && Array.isArray(resumoB.data) && resumoB.data.length === 0,
+    `${resumoAnon.error?.code ?? 'passou'} / ${JSON.stringify(resumoB.data)?.slice(0, 60)}`
+  )
   const travaB = await u.admB.c.rpc('cadeia_trava_motivo', { _obra_id: obraId })
   check('cadeia_trava_motivo: a outra empresa recebe vazio', !travaB.error && travaB.data == null, String(travaB.data))
 

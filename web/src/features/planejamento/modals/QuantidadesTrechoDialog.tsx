@@ -3,7 +3,7 @@
  * escolhido (unidade, N unidades, N metros ou faixas livres), colunas = serviços do orçamento marcados à esquerda.
  * Versionado; Σ dos locais por serviço ≤ orçamento; tarefas "do template" acompanham ao salvar.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Download, History, Plus, RotateCcw, Save, Trash2, Upload } from 'lucide-react'
 import {
@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Campo } from '@/components/ui/campo'
+import { Carregando, ErroConsulta } from '@/components/ui/estado'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
@@ -115,10 +116,18 @@ export function QuantidadesTrechoDialog({
   const [erro, setErro] = useState<string | null>(null)
   const [importarOpen, setImportarOpen] = useState(false)
 
-  // recarrega o rascunho quando a versão salva muda (salvar, importar, restaurar)
+  // recarrega o rascunho quando a versão salva muda (salvar, importar, restaurar). Uma releitura da mesma versão com
+  // alterações ainda não salvas na tela não apaga o que foi digitado.
   const chave = `${atual?.id ?? 'novo'}:${q.dataUpdatedAt}`
+  const rascunho = useRef<{ versao: string; sujo: boolean } | null>(null)
+  useEffect(() => {
+    if (rascunho.current) rascunho.current.sujo = sujo
+  }, [sujo])
   useEffect(() => {
     if (!open || q.isPending) return
+    const versao = atual?.id ?? 'novo'
+    if (rascunho.current?.sujo && rascunho.current.versao === versao) return
+    rascunho.current = { versao, sujo: false }
     if (atual) {
       setSel(new Set(atual.colunas.map((c) => c.item_orcamentario_id)))
       setSegs(
@@ -549,7 +558,15 @@ export function QuantidadesTrechoDialog({
             </div>
           ) : null}
           <div className="flex-1 min-h-0">
-            {colunas.length === 0 ? (
+            {q.isPending ? (
+              <Carregando texto="Carregando as quantidades…" />
+            ) : q.error ? (
+              <ErroConsulta
+                erro={q.error}
+                oQue="as quantidades deste local"
+                aoTentar={() => void q.refetch()}
+              />
+            ) : colunas.length === 0 ? (
               <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
                 Marque à esquerda os serviços que têm quantidade neste local. Cada um vira uma
                 coluna.
@@ -602,7 +619,17 @@ export function QuantidadesTrechoDialog({
           Fechar
         </Button>
         {editavel ? (
-          <Button disabled={salvar.isPending} onClick={() => void gravar()}>
+          <Button
+            disabled={salvar.isPending || q.isPending || !!q.error}
+            title={
+              q.isPending
+                ? 'Aguarde as quantidades carregarem'
+                : q.error
+                  ? 'As quantidades não carregaram: tente de novo antes de salvar'
+                  : undefined
+            }
+            onClick={() => void gravar()}
+          >
             <Save size={12} /> {salvar.isPending ? 'Salvando…' : 'Salvar quantidades'}
           </Button>
         ) : null}

@@ -37,8 +37,6 @@ export interface TrechoQuantidadeColuna {
 }
 
 export interface TrechoQuantidadeSegmento {
-  id: string
-  versao_id: string
   ordem: number
   posicao_inicio_m: number
   posicao_fim_m: number

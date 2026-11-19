@@ -427,6 +427,24 @@ try {
     totais.length > 0 && totais.every((s) => typeof s.distribuido_nos_trechos === 'number'),
     JSON.stringify(totais.map((s) => [s.codigo, s.distribuido_nos_trechos]))
   )
+  check(
+    'totais: saldo sem local e divisão por trecho de cada serviço',
+    totais.every(
+      (s) =>
+        typeof s.sem_local === 'number' &&
+        Math.abs(
+          Object.values(s.por_trecho).reduce((t, v) => t + v, 0) - s.distribuido_nos_trechos
+        ) < 0.001
+    ),
+    JSON.stringify(totais.map((s) => [s.codigo, s.sem_local, s.por_trecho]))
+  )
+  const qtdLocal = await chamar('quantidades_locais', { acao: 'ler', trecho_id: principal.id })
+  check(
+    'quantidades do local lidas numa chamada (faixas com os valores por serviço)',
+    Array.isArray(qtdLocal.segmentos) &&
+      qtdLocal.segmentos.every((f) => typeof f.ini === 'number' && typeof f.valores === 'object'),
+    JSON.stringify({ modo: qtdLocal.modo, faixas: qtdLocal.segmentos.length })
+  )
 
   // ── 5. Produção ────────────────────────────────────────────────────────────────────────────────
   const ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10)

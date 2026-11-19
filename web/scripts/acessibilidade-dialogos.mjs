@@ -33,6 +33,8 @@ const CENARIOS = [
   ['/planejamento/trechos', 'Excluir quantidades…'],
   // só aparece em local sem grade com quantidade nas tarefas (cronograma importado)
   ['/planejamento/trechos', 'nas tarefas', { exato: false }],
+  // grade de quantidades de um local (só em local que já tem quantidades)
+  ['/planejamento/trechos', ', versão', { exato: false }],
   ['/planejamento/cronograma', 'Plano'],
   ['/planejamento/cronograma', 'Marcos'],
   ['/planejamento/cronograma', 'Criar tarefas'],

@@ -5,6 +5,10 @@ import { eq, gravar, ler } from '../lib/banco'
 import { ARQUIVO, abrirPlanilha } from '../lib/planilha'
 import { lerPlanilhaQuantidades } from '@/lib/quantidades/boq-xlsx'
 import { arredondarPreservandoSoma } from '@/lib/quantidades/segmentos'
+import type {
+  QuantidadesAtualBruto,
+  ResumoQuantidadesBruto
+} from '@/features/planejamento/lib/quantidades-leitura'
 import { depois } from './planejamento'
 
 const OBRA = z.string().uuid().describe('id da obra')
@@ -39,13 +43,14 @@ export const quantidadesLocais = ferramenta({
   titulo: 'Quantidades por local (trechos)',
   descricao:
     'Quantidades de cada serviço distribuídas ao longo dos locais (eixos por estaca e áreas), como no DynaRoad. ' +
-    'acao: ler (versão atual do trecho: segmentos × serviços) | versoes | salvar (substitui ou cria nova versão: ' +
+    'acao: ler (versão atual do trecho inteira: segmentos × serviços; num eixo comprido são milhares de ' +
+    'segmentos, prefira totais ou qtd_faixa quando só precisa das somas) | versoes | salvar (substitui ou cria nova versão: ' +
     'servicos = ids dos agrupadores, segmentos [{ini, fim, label_ini, label_fim, valores}] em metros internos; o ' +
     'banco recusa total acima do orçamento; as células são gravadas em milésimos, com a soma de cada serviço ' +
     'preservada) | restaurar (versão antiga) | excluir (apaga as quantidades e todas as versões dos locais em ' +
     'trechos, para importar de novo; recusa com plano vigente; tarefas "do trecho" do plano em edição ficam com ' +
-    'zero até a nova importação) | totais (quanto de cada serviço já foi ' +
-    'distribuído nos trechos) | ler_planilha (lê uma planilha de quantidades no padrão DynaRoad e devolve as ' +
+    'zero até a nova importação) | totais (por serviço: orçado, quanto já está nos trechos, quanto ainda não ' +
+    'tem local e a divisão por trecho) | ler_planilha (lê uma planilha de quantidades no padrão DynaRoad e devolve as ' +
     'abas/colunas/linhas para você montar os segmentos) | mapeamento (colunas da planilha → serviço) | ' +
     'salvar_mapeamento | criar_tarefas (gera tarefas do plano a partir das quantidades: modo sequencia|local|' +
     'janela, janela_m, sentido) | disponivel (quanto do serviço está no trecho e quanto ainda cabe) | ' +
@@ -105,6 +110,8 @@ export const quantidadesLocais = ferramenta({
       'trecho_restaurar_versao',
       'trecho_excluir_quantidades',
       'trechos_servico_totais',
+      'trecho_quantidades_atual',
+      'trechos_quantidades_resumo',
       'trecho_servico_total',
       'trecho_servico_disponivel',
       'trecho_qtd_faixa',
@@ -126,51 +133,28 @@ export const quantidadesLocais = ferramenta({
         })
       }
       case 'ler': {
-        const [t] = await ler<{ id: string; modo: string }>('trecho_quantidade_template', {
-          colunas: 'id, modo',
-          filtros: [eq('trecho_id', trecho())]
+        // a versão atual inteira numa chamada (a leitura pelas tabelas corta em 1.000 linhas e some com faixas)
+        const b = await rpc<QuantidadesAtualBruto | null>('trecho_quantidades_atual', {
+          _trecho_id: trecho()
         })
-        if (!t) return { modo: null, segmentos: [] }
-        const [v] = await ler<{ id: string; numero: number }>('trecho_quantidade_versao', {
-          colunas: 'id, numero, comentario, created_at',
-          filtros: [eq('template_id', t.id), eq('is_atual', true)]
-        })
-        if (!v) return { modo: t.modo, segmentos: [] }
-        const [segs, cols] = await Promise.all([
-          ler<{
-            id: string
-            posicao_inicio_m: number
-            posicao_fim_m: number
-            unidade_inicio_label: string
-            unidade_fim_label: string
-          }>('trecho_quantidade_segmento', {
-            filtros: [eq('versao_id', v.id)],
-            ordem: [{ coluna: 'ordem' }]
-          }),
-          ler<{ id: string; item_orcamentario_id: string }>('trecho_quantidade_coluna', {
-            filtros: [eq('versao_id', v.id)]
-          })
-        ])
-        const cel = segs.length
-          ? await ler<{ segmento_id: string; coluna_id: string; valor: number }>(
-              'trecho_quantidade_celula',
-              { filtros: [{ coluna: 'segmento_id', op: 'in', valor: segs.map((s) => s.id) }] }
-            )
-          : []
-        const itemDaCol = new Map(cols.map((c) => [c.id, c.item_orcamentario_id]))
+        if (!b) return { modo: null, segmentos: [] }
+        const itemDaColuna = b.colunas.map((c) => c.item_orcamentario_id)
         return {
-          modo: t.modo,
-          versao: v,
-          servicos: cols.map((c) => c.item_orcamentario_id),
-          segmentos: segs.map((s) => ({
-            ini: Number(s.posicao_inicio_m),
-            fim: Number(s.posicao_fim_m),
-            label_ini: s.unidade_inicio_label,
-            label_fim: s.unidade_fim_label,
+          modo: b.modo,
+          versao: {
+            id: b.versao.id,
+            numero: b.versao.numero,
+            comentario: b.versao.comentario,
+            created_at: b.versao.created_at
+          },
+          servicos: itemDaColuna,
+          segmentos: b.segmentos.map(([inicio, final, rotuloIni, rotuloFim, porColuna]) => ({
+            ini: Number(inicio),
+            fim: Number(final),
+            label_ini: rotuloIni,
+            label_fim: rotuloFim,
             valores: Object.fromEntries(
-              cel
-                .filter((c) => c.segmento_id === s.id)
-                .map((c) => [itemDaCol.get(c.coluna_id), Number(c.valor)])
+              Object.entries(porColuna).map(([k, v]) => [itemDaColuna[Number(k)], Number(v)])
             )
           }))
         }
@@ -235,14 +219,26 @@ export const quantidadesLocais = ferramenta({
           filtros: [eq('obra_id', obra), eq('tipo', 'servico_grupo')],
           ordem: [{ coluna: 'codigo' }]
         })
-        const totais = new Map(
-          (
-            await rpc<{ item_orcamentario_id: string; total: number }[]>('trechos_servico_totais', {
-              _obra_id: obra
-            })
-          ).map((x) => [x.item_orcamentario_id, Number(x.total)])
-        )
-        return servicos.map((s) => ({ ...s, distribuido_nos_trechos: totais.get(s.id) ?? 0 }))
+        const [totaisBrutos, resumo] = await Promise.all([
+          rpc<{ item_orcamentario_id: string; total: number }[]>('trechos_servico_totais', {
+            _obra_id: obra
+          }),
+          rpc<ResumoQuantidadesBruto[]>('trechos_quantidades_resumo', { _obra_id: obra })
+        ])
+        const totais = new Map(totaisBrutos.map((x) => [x.item_orcamentario_id, Number(x.total)]))
+        return servicos.map((s) => {
+          const nosTrechos = totais.get(s.id) ?? 0
+          return {
+            ...s,
+            distribuido_nos_trechos: nosTrechos,
+            sem_local: Math.round((Number(s.quantidade_referencia) - nosTrechos) * 1000) / 1000,
+            por_trecho: Object.fromEntries(
+              (resumo ?? [])
+                .filter((r) => Number(r.totais?.[s.id] ?? 0) > 0)
+                .map((r) => [r.trecho_id, Number(r.totais[s.id])])
+            )
+          }
+        })
       }
       case 'ler_planilha': {
         const wb = await abrirPlanilha(a)

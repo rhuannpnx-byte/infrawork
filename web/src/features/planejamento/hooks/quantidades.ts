@@ -3,6 +3,11 @@ import { supabase } from '@/lib/supabase/client'
 import { lerTodas } from '@/lib/supabase/paginar'
 import type { ModoQuantidade } from '@/types/quantidades'
 import {
+  montarResumo,
+  type ResumoQuantidadesBruto,
+  type ResumoQuantidadesLocal
+} from '../lib/quantidades-leitura'
+import {
   arredondarPreservandoSoma,
   type SegmentoValores as SegmentoTrecho
 } from '@/lib/quantidades/segmentos'
@@ -81,6 +86,23 @@ export function useAgrupadoresTrecho(
         quantidade: Number(g.quantidade_referencia ?? 0),
         totalTrechos: totais.get(g.id as string) ?? 0
       }))
+    }
+  })
+}
+
+/** Resumo das quantidades de todos os locais da obra, numa chamada (id do local → resumo). */
+export function useQuantidadesResumo(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<Map<string, ResumoQuantidadesLocal>>> {
+  return useQuery({
+    queryKey: ['quantidades', 'resumo', obraId],
+    enabled: !!obraId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('trechos_quantidades_resumo', {
+        _obra_id: obraId!
+      })
+      if (error) throw error
+      return montarResumo(data as ResumoQuantidadesBruto[] | null)
     }
   })
 }

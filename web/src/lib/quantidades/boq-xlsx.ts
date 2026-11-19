@@ -129,7 +129,8 @@ const texto = (v: unknown): string => {
 function lerAba(ws: ExcelJS.Worksheet, erros: ErroBoq[]): AbaBoq | null {
   const nome = ws.name
   const maxR = Math.min(ws.rowCount, 80)
-  const maxC = Math.min(ws.columnCount || 40, 60)
+  // até 400 colunas: com o teto antigo (60), serviço depois da coluna BH ficava de fora sem aviso
+  const maxC = Math.min(ws.columnCount || 40, 400)
   const cel = (r: number, c: number): string =>
     normalizarTexto(texto(ws.getRow(r).getCell(c).value))
   const bruto = (r: number, c: number): unknown => ws.getRow(r).getCell(c).value

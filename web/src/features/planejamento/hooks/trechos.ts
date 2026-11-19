@@ -7,9 +7,9 @@
 import { useMemo } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
-import { fetchCelulasDaVersao } from '@/lib/quantidades/celulas-fetch'
 import type { ObraTrecho, UnidadeEspacoPadrao } from '@/types/gerencial'
 import type { TrechoQuantidadeVersaoCompleta } from '@/types/quantidades'
+import { montarTemplate, type QuantidadesAtualBruto } from '../lib/quantidades-leitura'
 
 /**
  * Trechos da obra. `incluirSistema` (default false) controla se trecho-sistema
@@ -163,94 +163,17 @@ export function useSalvarGeometriaTrecho(): ReturnType<
 }
 
 /**
- * Carrega o template de quantidades MARCADO COMO ATUAL de um trecho, completo
- * (com colunas + segmentos + células). Usado pelo Grid do redesign pra
- * resolver qtd_link → valor calculado em tempo real.
+ * Quantidades atuais de um local (colunas, faixas e valores), numa chamada. `null` = local sem quantidades.
  *
- * Retorna NULL se o trecho não tem template ainda (caso comum em obras novas).
- *
- * Espelha a lógica de useVersaoTemplate em [hooks/quantidades.ts] — duplicado
- * aqui pra evitar dependência cruzada entre hooks/quantidades e o Grid (que
- * só precisa do template ativo, não da gestão de versões).
- */
-/**
- * Carrega o template+versão atual+colunas+segmentos+células de UM trecho.
- * Extraída do hook pra ser reaproveitada em useQueries (multi-trecho).
+ * Passa pela função do banco, e não pelas tabelas: a API corta toda consulta em 1.000 linhas sem avisar, e um eixo
+ * comprido tem milhares de faixas e dezenas de milhares de valores.
  */
 export async function fetchTemplateAtual(
   trechoId: string
 ): Promise<TrechoQuantidadeVersaoCompleta | null> {
-  const { data: tpl, error: tErr } = await supabase
-    .from('trecho_quantidade_template')
-    .select('id, modo')
-    .eq('trecho_id', trechoId)
-    .maybeSingle()
-  if (tErr) throw tErr
-  if (!tpl) return null
-
-  const { data: versao, error: vErr } = await supabase
-    .from('trecho_quantidade_versao')
-    .select('*')
-    .eq('template_id', tpl.id)
-    .eq('is_atual', true)
-    .maybeSingle()
-  if (vErr) throw vErr
-  if (!versao) return null
-
-  const [colRes, segRes] = await Promise.all([
-    supabase
-      .from('trecho_quantidade_coluna')
-      .select(
-        'id, versao_id, item_orcamentario_id, ordem, item:item_orcamentario_id(codigo, descricao, unidade_referencia)'
-      )
-      .eq('versao_id', versao.id)
-      .order('ordem'),
-    supabase
-      .from('trecho_quantidade_segmento')
-      .select('*')
-      .eq('versao_id', versao.id)
-      .order('ordem')
-  ])
-  if (colRes.error) throw colRes.error
-  if (segRes.error) throw segRes.error
-
-  // Células paginadas (evita o corte de 1000 linhas do PostgREST).
-  const celData = await fetchCelulasDaVersao(versao.id)
-  const valoresPorSeg = new Map<string, Record<string, number>>()
-  for (const c of celData) {
-    const r = valoresPorSeg.get(c.segmento_id) ?? {}
-    r[c.coluna_id] = Number(c.valor)
-    valoresPorSeg.set(c.segmento_id, r)
-  }
-
-  const colunas = (colRes.data ?? []).map((c) => {
-    const raw = (c as unknown as { item: unknown }).item
-    const it = (Array.isArray(raw) ? raw[0] : raw) as {
-      codigo: string
-      descricao: string
-      unidade_referencia: string | null
-    } | null
-    return {
-      id: c.id as string,
-      versao_id: c.versao_id as string,
-      item_orcamentario_id: c.item_orcamentario_id as string,
-      ordem: c.ordem as number,
-      codigo: it?.codigo ?? '',
-      nome: it ? `${it.codigo} ${it.descricao}` : '?',
-      unidade: it?.unidade_referencia ?? ''
-    }
-  })
-  return {
-    ...versao,
-    modo: tpl.modo,
-    colunas,
-    segmentos: (segRes.data ?? []).map((sg) => ({
-      ...sg,
-      posicao_inicio_m: Number(sg.posicao_inicio_m),
-      posicao_fim_m: Number(sg.posicao_fim_m),
-      valores: valoresPorSeg.get(sg.id) ?? {}
-    }))
-  } as TrechoQuantidadeVersaoCompleta
+  const { data, error } = await supabase.rpc('trecho_quantidades_atual', { _trecho_id: trechoId })
+  if (error) throw error
+  return data ? montarTemplate(data as QuantidadesAtualBruto) : null
 }
 
 export function useTrechoQuantidadeTemplateAtual(
@@ -264,12 +187,8 @@ export function useTrechoQuantidadeTemplateAtual(
 }
 
 /**
- * Carrega os templates atuais de N trechos em paralelo (via useQueries). Retorna
- * um Map<trechoId, template | null>. Usado no cronograma quando há tarefas
- * vinculadas em vários trechos diferentes — precisamos do template de cada um
- * pra computar qtd_alocada via computeLinkedQtd.
- *
- * Trechos sem template ou ainda carregando aparecem como NULL no Map.
+ * Quantidades atuais de vários locais, em paralelo (uma chamada por local). Local sem quantidades, ou ainda
+ * carregando, aparece como `null` no mapa.
  */
 export function useTrechosQuantidadeTemplatesAtuais(
   trechoIds: string[]

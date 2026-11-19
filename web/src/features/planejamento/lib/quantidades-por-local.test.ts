@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import type { SegmentoValores } from '@/lib/quantidades/segmentos'
 import { quantidadesPorLocal, type ServicoQuantidade } from './quantidades-por-local'
 
 const sv = (id: string, quantidade: number): ServicoQuantidade => ({
@@ -9,24 +8,16 @@ const sv = (id: string, quantidade: number): ServicoQuantidade => ({
   unidade: 'm³',
   quantidade
 })
-const seg = (valores: Record<string, number>): SegmentoValores => ({
-  ini: 0,
-  fim: 1,
-  label_ini: '',
-  label_fim: '',
-  valores
-})
-
 describe('quantidadesPorLocal', () => {
   const r = quantidadesPorLocal(
     [sv('A', 1000), sv('B', 100), sv('C', 50), sv('Z', 0)],
     new Map([
-      ['eixo1', [seg({ A: 300, B: 40 }), seg({ A: 200 })]],
-      ['area1', [seg({ A: 100, B: 70 })]]
+      ['eixo1', { A: 500, B: 40, Z: 0 }],
+      ['area1', { A: 100, B: 70 }]
     ])
   )
 
-  it('soma as faixas de cada local por serviço', () => {
+  it('põe o total de cada local na linha do serviço', () => {
     const a = r.find((l) => l.servico.id === 'A')!
     expect(Object.fromEntries(a.porLocal)).toEqual({ eixo1: 500, area1: 100 })
     expect(a.nosLocais).toBe(600)
