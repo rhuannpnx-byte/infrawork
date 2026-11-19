@@ -1,9 +1,42 @@
-// Fumaça das telas: entra no web e abre cada rota do menu, acusando erro de página, de console e tela de erro.
+// Fumaça das telas: entra no web e abre cada rota do menu, acusando erro de página, de console, tela de erro e
+// texto que transborda da caixa por cima do vizinho (ex.: etiqueta longa numa coluna de largura fixa).
 //   E2E_EMAIL=… E2E_PASSWORD=… E2E_EMPRESA_ID=… E2E_OBRA_ID=… [E2E_URL=http://localhost:5174] node scripts/fumaca-telas.mjs
 import { chromium } from 'playwright'
 import { ROTAS } from './rotas-telas.mjs'
 
 const URL = process.env.E2E_URL ?? 'http://localhost:5174'
+
+/**
+ * Caixas da tela visível cujo texto passa da borda direita sem corte (overflow visível): o texto fica por cima do
+ * vizinho. Rolagem, corte com reticências, gráficos e mapas ficam de fora.
+ */
+function textoTransbordando() {
+  const visivel = (e) => !!(e.offsetParent || e.getClientRects().length)
+  const raizes = [...document.querySelectorAll('main, [role="dialog"]')].filter(visivel)
+  const out = []
+  const vistos = new Set()
+  for (const raiz of raizes)
+    for (const el of raiz.querySelectorAll('*')) {
+      if (el.closest('svg, canvas, .leaflet-container, [data-sem-ajuste]')) continue
+      const cs = getComputedStyle(el)
+      if (cs.display === 'inline' || cs.display === 'contents' || cs.display === 'none') continue
+      if (cs.overflowX !== 'visible' || cs.position === 'fixed') continue
+      if (!el.clientWidth || el.scrollWidth <= el.clientWidth + 3) continue
+      const r = el.getBoundingClientRect()
+      const passa = [...el.querySelectorAll('*')].find(
+        (f) =>
+          [...f.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) &&
+          f.getBoundingClientRect().width > 0 &&
+          f.getBoundingClientRect().right > r.right + 3
+      )
+      if (!passa) continue
+      const texto = (passa.textContent || '').trim().slice(0, 40)
+      if (vistos.has(texto)) continue
+      vistos.add(texto)
+      out.push(`texto transbordando: "${texto}" (caixa de ${el.clientWidth}px, conteúdo de ${el.scrollWidth}px)`)
+    }
+  return out.slice(0, 5)
+}
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
@@ -61,6 +94,7 @@ for (const rota of ROTAS) {
   const telaDeErro =
     /algo deu errado|something went wrong|erro inesperado|unexpected application error/i.test(corpo)
   const semObra = /selecione uma (obra|empresa)/i.test(corpo)
+  for (const t of await page.evaluate(textoTransbordando)) erros.push(`${rota}: ${t}`)
   const novos = erros.slice(antes)
   const ok = !telaDeErro && !semObra && novos.length === 0
   if (!ok) falhas++

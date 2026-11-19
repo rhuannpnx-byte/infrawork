@@ -312,10 +312,11 @@ export function ObraDetailPage(): ReactNode {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-                    <th className="px-3 py-2">Usuário</th>
+                    <th className="w-[32%] px-3 py-2">Usuário</th>
+                    <th className="w-px whitespace-nowrap px-3 py-2">Papel</th>
                     <th className="px-3 py-2">Apoios que herdam</th>
                     <th className="px-3 py-2">Concedido por</th>
                     <th className="px-3 py-2">Concedido em</th>
@@ -331,20 +332,18 @@ export function ObraDetailPage(): ReactNode {
                         key={p.id}
                         className="border-b border-border last:border-b-0 hover:bg-bg-hover"
                       >
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-28 shrink-0">
-                              <Badge variant={variantePapel(p.usuario?.role)}>
-                                {rotuloPapel(p.usuario?.role)}
-                              </Badge>
-                            </span>
-                            <div className="min-w-0">
-                              <div className="text-text font-medium">{p.usuario?.nome ?? '—'}</div>
-                              <div className="text-xs text-text-muted">
-                                {p.usuario?.email ?? ''}
-                              </div>
-                            </div>
+                        <td className="max-w-0 px-3 py-2">
+                          <div className="truncate text-text font-medium">
+                            {p.usuario?.nome ?? '—'}
                           </div>
+                          <div className="truncate text-xs text-text-muted">
+                            {p.usuario?.email ?? ''}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <Badge variant={variantePapel(p.usuario?.role)}>
+                            {rotuloPapel(p.usuario?.role)}
+                          </Badge>
                         </td>
                         <td className="px-3 py-2">
                           {apoios.length === 0 ? (
