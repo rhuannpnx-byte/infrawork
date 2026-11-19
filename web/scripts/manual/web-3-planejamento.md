@@ -227,6 +227,25 @@ Marque **Valer para todas as tarefas** para transformar a dependência numa **re
 - O botão [[Plano]] abre as propriedades: nome, início, **Prazo** (quem terminar depois recebe ⚑), calendário padrão e o **Modo**. No modo **Controle**, a grade mostra o % executado e o término previsto de cada tarefa a partir da produção lançada.
 - **Mais › Compactar o cronograma** traz as tarefas para o início mais cedo possível e refaz as prioridades pela folga.
 
+### Relatório de viabilidade
+
+Com o cronograma calculado, **Mais › Relatório de viabilidade (Excel)** gera uma planilha que reúne o plano e o orçamento num arquivo só. Ela tem nove abas:
+
+| Aba | Conteúdo |
+|---|---|
+| Gantt | A estrutura de tópicos do plano, com duração, início, término e predecessoras, e a grade de tempo com as barras e as setas das ligações. A aba é protegida, só para visualização. |
+| Premissas | Datas e calendário do plano, as taxas que entram no resultado e o custo indireto, cadastrado e no plano. |
+| Orçamento | O resultado da obra (venda, custo direto, indireto, impostos, lucro e margem) e a planilha orçamentária com o resultado e a margem de cada item. |
+| Agrupadores | Os serviços do orçamento, com as receitas que cada um reúne, o rateio e a composição que o executa. |
+| Composições | Cada composição com a produção diária, o custo unitário e os recursos, com preço e custo por dia. |
+| Mão de obra, Equipamentos, Materiais e Combustíveis | Uma tabela por tipo de recurso, com a necessidade de cada recurso semana a semana. |
+
+O relatório usa o plano inteiro, mesmo com filtro aplicado na tela. Quando o plano tem tarefas-resumo, o Gantt segue a estrutura delas; sem tarefas-resumo, segue o agrupamento por local e serviço escolhido na tela.
+
+:::nota
+Nas abas de materiais, as linhas não são somadas, porque cada material tem a sua unidade. Em mão de obra e equipamentos, a última linha soma a necessidade da semana.
+:::
+
 ## Linha de base e replanejamento
 
 ### Travar a linha de base

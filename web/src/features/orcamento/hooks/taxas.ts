@@ -8,21 +8,24 @@ const TAXA_COLUNAS =
   'cprb_perc, outros_perc, total_perc_calc, vigencia_inicio, vigencia_fim, ' +
   'ativo, created_at'
 
+/** Regimes de taxas cadastrados na obra, do mais recente para o mais antigo. */
+export async function carregarTaxas(obraId: string): Promise<TaxaRegime[]> {
+  const { data, error } = await supabase
+    .from('encargos_sociais_regime')
+    .select(TAXA_COLUNAS)
+    .eq('obra_id', obraId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as unknown as TaxaRegime[]
+}
+
 export function useTaxas(
   obraId: string | null | undefined
 ): ReturnType<typeof useQuery<TaxaRegime[]>> {
   return useQuery({
     queryKey: ['orcamento', 'taxas', obraId],
     enabled: !!obraId,
-    queryFn: async (): Promise<TaxaRegime[]> => {
-      const { data, error } = await supabase
-        .from('encargos_sociais_regime')
-        .select(TAXA_COLUNAS)
-        .eq('obra_id', obraId!)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return (data ?? []) as unknown as TaxaRegime[]
-    }
+    queryFn: () => carregarTaxas(obraId!)
   })
 }
 

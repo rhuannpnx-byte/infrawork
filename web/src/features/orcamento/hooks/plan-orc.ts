@@ -37,40 +37,43 @@ export interface PlanOrcData {
   totais: { venda: number; agrupado: number }
 }
 
+/** Lê a planilha de venda da obra (itens e alocações) e monta a árvore. */
+export async function carregarPlanOrc(obraId: string): Promise<PlanOrcData> {
+  const [itensData, alocData] = await Promise.all([
+    lerTodas((de, ate) =>
+      supabase
+        .from('item_orcamentario')
+        .select(ITEM_COLUNAS)
+        .eq('obra_id', obraId)
+        .order('codigo')
+        .order('id')
+        .range(de, ate)
+    ),
+    lerTodas((de, ate) =>
+      supabase
+        .from('item_orc_alocacao')
+        .select(ALOC_COLUNAS)
+        .eq('obra_id', obraId)
+        .order('id')
+        .range(de, ate)
+    )
+  ])
+  const itens = itensData as unknown as ItemOrcamentario[]
+  const alocacoes = (alocData as unknown as ItemAlocacao[]).map((a) => ({
+    ...a,
+    valor: a.valor === null ? null : Number(a.valor),
+    fracao: Number(a.fracao)
+  }))
+  return buildPlanOrcTree(itens, alocacoes)
+}
+
 export function usePlanOrc(
   obraId: string | null | undefined
 ): ReturnType<typeof useQuery<PlanOrcData>> {
   return useQuery({
     queryKey: ['orcamento', 'plan-orc', obraId],
     enabled: !!obraId,
-    queryFn: async (): Promise<PlanOrcData> => {
-      const [itensData, alocData] = await Promise.all([
-        lerTodas((de, ate) =>
-          supabase
-            .from('item_orcamentario')
-            .select(ITEM_COLUNAS)
-            .eq('obra_id', obraId!)
-            .order('codigo')
-            .order('id')
-            .range(de, ate)
-        ),
-        lerTodas((de, ate) =>
-          supabase
-            .from('item_orc_alocacao')
-            .select(ALOC_COLUNAS)
-            .eq('obra_id', obraId!)
-            .order('id')
-            .range(de, ate)
-        )
-      ])
-      const itens = itensData as unknown as ItemOrcamentario[]
-      const alocacoes = (alocData as unknown as ItemAlocacao[]).map((a) => ({
-        ...a,
-        valor: a.valor === null ? null : Number(a.valor),
-        fracao: Number(a.fracao)
-      }))
-      return buildPlanOrcTree(itens, alocacoes)
-    }
+    queryFn: () => carregarPlanOrc(obraId!)
   })
 }
 

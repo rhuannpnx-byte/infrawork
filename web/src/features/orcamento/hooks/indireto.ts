@@ -3,24 +3,27 @@ import { invalidarCadeia } from '@/lib/query/cadeia'
 import { supabase } from '@/lib/supabase/client'
 import type { Indireto, IndiretoTipo } from '@/types/orcamento'
 
+/** Itens de custo indireto cadastrados na obra. */
+export async function carregarIndireto(obraId: string): Promise<Indireto[]> {
+  const { data, error } = await supabase
+    .from('indireto_item')
+    .select(
+      'id, obra_id, parent_id, codigo, descricao, tipo, valor_total, distribuicao_perc, ordem, created_at'
+    )
+    .eq('obra_id', obraId)
+    .order('ordem')
+    .order('codigo')
+  if (error) throw error
+  return (data ?? []) as Indireto[]
+}
+
 export function useIndireto(
   obraId: string | null | undefined
 ): ReturnType<typeof useQuery<Indireto[]>> {
   return useQuery({
     queryKey: ['orcamento', 'indireto', obraId],
     enabled: !!obraId,
-    queryFn: async (): Promise<Indireto[]> => {
-      const { data, error } = await supabase
-        .from('indireto_item')
-        .select(
-          'id, obra_id, parent_id, codigo, descricao, tipo, valor_total, distribuicao_perc, ordem, created_at'
-        )
-        .eq('obra_id', obraId!)
-        .order('ordem')
-        .order('codigo')
-      if (error) throw error
-      return (data ?? []) as Indireto[]
-    }
+    queryFn: () => carregarIndireto(obraId!)
   })
 }
 

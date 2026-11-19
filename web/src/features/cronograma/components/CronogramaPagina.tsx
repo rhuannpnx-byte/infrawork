@@ -8,6 +8,7 @@ import {
   ArrowRightLeft,
   CalendarClock,
   Diamond,
+  FileSpreadsheet,
   FolderPlus,
   ListPlus,
   Maximize2,
@@ -19,9 +20,11 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover } from '@/components/ui/popover'
-import { Dropdown, DropdownItem } from '@/components/ui/dropdown'
+import { Dropdown, DropdownItem, DropdownSeparator } from '@/components/ui/dropdown'
 import { Segmentado } from '@/components/ui/segmentado'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { downloadBlob, nomeComStamp } from '@/lib/files/download'
 import { useComandoVisao } from '../hooks/edicao'
 import { COLUNAS_GANTT, useCronogramaUi, type ColunaGantt } from '../store'
 import { GanttVista } from './gantt/GanttVista'
@@ -82,6 +85,43 @@ function CorpoGantt({ obraId, calc, somenteLeitura, baseline }: ContextoPlano): 
   const zoom = (fator: number): void => {
     const atual = ui.pxPorHora ?? escala ?? 2
     ui.setZoom(Math.max(0.005, Math.min(400, atual * fator)))
+  }
+
+  const { obra } = useCurrentScope()
+  const [gerandoRelatorio, setGerandoRelatorio] = useState(false)
+  // plano inteiro (sem o filtro da visão), na estrutura de tópicos escolhida na tela
+  const relatorioViabilidade = async (): Promise<void> => {
+    if (!calc.entrada || !calc.resultado || gerandoRelatorio) return
+    setGerandoRelatorio(true)
+    const aviso = toast.loading('Gerando o relatório de viabilidade…')
+    try {
+      const [{ carregarDadosViabilidade }, { gerarRelatorioViabilidade }] = await Promise.all([
+        import('../relatorio/dados'),
+        import('../relatorio/viabilidade-xlsx')
+      ])
+      const dados = await carregarDadosViabilidade({
+        obraId,
+        obra: { codigo: obra?.codigo ?? '', nome: obra?.nome ?? '' },
+        entrada: calc.entrada,
+        resultado: calc.resultado,
+        opcoesGantt: ui.gantt
+      })
+      const blob = await gerarRelatorioViabilidade(dados)
+      downloadBlob(
+        blob,
+        nomeComStamp(
+          `Relatório de viabilidade - ${obra?.codigo ?? 'obra'} - ${calc.entrada.plano.nome}`,
+          'xlsx'
+        )
+      )
+      toast.success('Relatório de viabilidade gerado.', { id: aviso })
+    } catch (x) {
+      toast.error(`Não foi possível gerar o relatório de viabilidade. ${(x as Error).message}`, {
+        id: aviso
+      })
+    } finally {
+      setGerandoRelatorio(false)
+    }
   }
 
   const compactar = useCallback(async () => {
@@ -286,6 +326,18 @@ function CorpoGantt({ obraId, calc, somenteLeitura, baseline }: ContextoPlano): 
               }
             >
               <Zap size={12} /> Compactar o cronograma
+            </DropdownItem>
+            <DropdownSeparator />
+            <DropdownItem
+              onClick={() => void relatorioViabilidade()}
+              disabled={!calc.resultado || gerandoRelatorio}
+              title={
+                !calc.resultado
+                  ? 'Calcule o cronograma antes de gerar o relatório'
+                  : 'Excel com o Gantt, as premissas, o orçamento, os agrupadores, as composições e os histogramas'
+              }
+            >
+              <FileSpreadsheet size={12} /> Relatório de viabilidade (Excel)
             </DropdownItem>
           </Dropdown>
         </GrupoBarra>
