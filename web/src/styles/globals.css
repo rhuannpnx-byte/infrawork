@@ -75,19 +75,15 @@
   }
 }
 
-/* Leaflet — força z-index baixo para o mapa não passar por cima de modais/popovers */
+/*
+ * Leaflet — o mapa não passa por cima de modais e popovers: o contêiner fica na altura 0 e isolado, então as alturas
+ * das camadas dele (200 a 1000) só valem lá dentro. As camadas ficam com a altura que o Leaflet e as telas dão: uma
+ * regra aqui nivelando todas (como já houve) faz a ordem virar a de criação, e o traçado da obra, criado depois,
+ * cobria os pontos das fotos.
+ */
 .leaflet-container {
   z-index: 0 !important;
-}
-.leaflet-pane,
-.leaflet-control,
-.leaflet-top,
-.leaflet-bottom {
-  z-index: 10 !important;
-}
-.leaflet-popup,
-.leaflet-tooltip {
-  z-index: 30 !important;
+  isolation: isolate;
 }
 
 /* Largura das colunas ajustável (lib/tabelas/colunas-ajustaveis.ts): alça na borda direita de cada cabeçalho */
