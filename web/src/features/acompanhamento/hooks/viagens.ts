@@ -228,7 +228,7 @@ export function useVeiculos(ids: string[]): ReturnType<typeof useQuery<Veiculo[]
   })
 }
 
-/** Veículos que a obra enxerga: os da FleetHub das obras vinculadas + os manuais (sem vínculo, todos). */
+/** Veículos que a obra enxerga: os cadastrados à mão + os da FleetHub das obras vinculadas (sem vínculo, só os manuais). */
 export function useVeiculosDaObra(
   obraId: string | null | undefined
 ): ReturnType<typeof useQuery<Veiculo[]>> {

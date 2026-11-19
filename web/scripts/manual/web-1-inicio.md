@@ -352,7 +352,7 @@ A obra já aparece no seletor. Rodovia, trecho, extensão e datas são preenchid
 
 No topo ficam os botões [[Voltar]], [[Desabilitar]], [[Editar dados]] e [[Conceder acesso]]. Abaixo, o resumo da obra e a lista **Usuários com acesso**, com quem concedeu e quando.
 
-**Editar dados.** Altere código, nome, rodovia, trecho, extensão em km, situação, data-base, início e término e clique em [[Salvar]]. Se a empresa usa a FleetHub, marque aqui as **Obras na FleetHub** correspondentes: as viagens desta obra passam a oferecer só os veículos dessas obras, além dos cadastrados à mão no InfraWork.
+**Editar dados.** Altere código, nome, rodovia, trecho, extensão em km, situação, data-base, início e término e clique em [[Salvar]]. Se a empresa usa a FleetHub, marque aqui as **Obras na FleetHub** correspondentes: as viagens desta obra passam a oferecer os veículos dessas obras, além dos cadastrados à mão no InfraWork. Enquanto a obra não estiver ligada a nenhuma obra da FleetHub, ela oferece só os veículos cadastrados à mão.
 
 **Conceder acesso.**
 

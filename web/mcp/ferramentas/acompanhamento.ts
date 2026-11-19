@@ -474,7 +474,8 @@ export const viagens = ferramenta({
     'diferença das estacas; dmt_origem rota | geometria | manual) e recusa a viagem sem DMT possível. A ' +
     'produção dos serviços por viagens é recomposta: uma por dia, serviço, local (a ponta na pista), equipe e ' +
     'encarregado (da ficha). acao: listar (período) | salvar (cria ou substitui a ficha inteira; id novo = ' +
-    'ficha nova) | excluir | veiculos (veículos que a obra enxerga, com a capacidade em m³).',
+    'ficha nova) | excluir | veiculos (veículos que a obra enxerga, com a capacidade em m³: os cadastrados à mão ' +
+    'e, da FleetHub, só os das obras vinculadas; obra sem vínculo não vê a frota da FleetHub).',
   entrada: {
     acao: z.enum(['listar', 'salvar', 'excluir', 'veiculos']),
     obra_id: OBRA,

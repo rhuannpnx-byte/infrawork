@@ -44,7 +44,8 @@ import {
   useExcluirFicha,
   useSalvarFicha,
   type FichaInput,
-  type FichaViagens
+  type FichaViagens,
+  type Veiculo
 } from '../../hooks/viagens'
 import { calcularDmt, pedeEstaca } from '../../lib/dmt'
 import { parseQtd } from '../../lib/parse-qtd'
@@ -76,6 +77,7 @@ const TH = 'px-2 py-2 text-2xs font-semibold uppercase tracking-[0.08em] text-te
 const txtNum = (v: number | null | undefined): string =>
   v === null || v === undefined ? '' : String(v).replace('.', ',')
 
+const SEM_VEICULOS: Veiculo[] = []
 export function FichaDialog({
   open,
   onOpenChange,
@@ -147,7 +149,8 @@ function Form({
 }): ReactNode {
   const { data: servicos = [] } = useServicosParametrizaveis(obraId)
   const { data: parametros } = useParametrosServicos(obraId)
-  const { data: daObra = [] } = useVeiculosDaObra(obraId)
+  const consultaVeiculos = useVeiculosDaObra(obraId)
+  const daObra = consultaVeiculos.data ?? SEM_VEICULOS
   // ficha antiga pode citar veículo que saiu da obra: busca só esses
   const citados = [
     ficha?.veiculo_id ?? '',
@@ -495,7 +498,15 @@ function Form({
                 onChange={(e) => setData(e.target.value)}
               />
             </Campo>
-            <Campo rotulo="Veículo" className="col-span-2">
+            <Campo
+              rotulo="Veículo"
+              className="col-span-2"
+              dica={
+                consultaVeiculos.isSuccess && caminhoes.length === 0
+                  ? 'Nenhum caminhão disponível nesta obra. Se a empresa usa a FleetHub, ligue a obra às obras de lá em Gerencial › Obras › Editar dados; os veículos cadastrados à mão em Gerencial › Frota aparecem sempre.'
+                  : undefined
+              }
+            >
               <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
                 <option value="">—</option>
                 {comAtual(caminhoes, veiculo).map((v) => (

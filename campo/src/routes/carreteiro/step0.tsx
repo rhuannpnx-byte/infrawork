@@ -121,7 +121,7 @@ export function CarreteiroStep0Route() {
           erro={faltaCaminhao && !veiculoId ? 'Escolha o caminhão para continuar.' : null}
           hint={
             veiculos.length === 0
-              ? 'Nenhum veículo cadastrado na frota da empresa'
+              ? 'Nenhum caminhão disponível nesta obra. Peça ao escritório para ligar a obra à FleetHub ou cadastrar os veículos.'
               : veiculoSugerido
                 ? 'O mesmo caminhão da última ficha. Toque para trocar.'
                 : undefined
