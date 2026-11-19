@@ -100,6 +100,10 @@ Regras que valem para todos:
 - Controle desabilitado diz o motivo no `title` (linha de base travada, falta de permissão).
 - Barra com muitos controles é dividida em grupos, com as ações raras num menu "Mais".
 - Gravação que falha e a tela não tratou vira aviso pelo `lib/query-client`; quando a tela avisa, o global se cala.
+- Toda `<table>` com `<thead>` ganha largura de coluna ajustável sem código na tela (`lib/tabelas/colunas-ajustaveis`,
+  ligado no `AppShell`): alça na borda direita do cabeçalho, setas do teclado com ela em foco, duplo clique volta ao
+  automático, largura guardada no navegador por tela e cabeçalho. Tabela com colunas fixas de deslocamento calculado
+  (ou grade com largura própria) fica de fora com `data-sem-ajuste`.
 
 ## Texto
 

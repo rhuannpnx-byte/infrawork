@@ -89,3 +89,48 @@
 .leaflet-tooltip {
   z-index: 30 !important;
 }
+
+/* Largura das colunas ajustável (lib/tabelas/colunas-ajustaveis.ts): alça na borda direita de cada cabeçalho */
+.ajuste-coluna {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 1;
+}
+.ajuste-coluna::after {
+  content: '';
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  right: 0;
+  width: 1px;
+  background: var(--border-strong);
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+}
+th:hover > .ajuste-coluna::after {
+  opacity: 1;
+}
+.ajuste-coluna:hover::after,
+.ajuste-coluna:focus-visible::after,
+.ajuste-coluna[data-arrastando]::after {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 1;
+}
+.ajuste-coluna:focus-visible {
+  outline: none;
+}
+/* com a largura fixada, o texto que não cabe é cortado com reticências em vez de invadir a coluna vizinha */
+table[data-colunas-ajustadas] > thead > tr > th,
+table[data-colunas-ajustadas] > tbody > tr > td,
+table[data-colunas-ajustadas] > tfoot > tr > td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -10,6 +10,7 @@ import { useActiveTab } from '@/stores/tabs-store'
 import { MODULES, getModuleByRoute, isBareRoute } from '@/config/modules'
 import { useCamadaModal } from '@/components/ui/camada-modal'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
+import { iniciarColunasAjustaveis } from '@/lib/tabelas/colunas-ajustaveis'
 
 /**
  * Chrome do app (fora dos routers das abas). A localização "atual" para fins de
@@ -27,6 +28,9 @@ export function AppShell({ children }: { children: ReactNode }): ReactNode {
   const estreito = useTelaEstreita()
   const activeTab = useActiveTab()
   const caminho = activeTab?.location.split('?')[0] ?? '/'
+
+  // largura das colunas ajustável em todas as tabelas (telas, diálogos e painéis)
+  useEffect(() => iniciarColunasAjustaveis(), [])
 
   // nome da página na aba do navegador e no histórico
   useEffect(() => {

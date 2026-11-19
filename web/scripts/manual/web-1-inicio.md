@@ -226,6 +226,7 @@ As listas do sistema seguem o mesmo padrão:
 - **Busca** no topo da tabela, que filtra as linhas enquanto você digita.
 - **Ordenação:** clique no título de uma coluna para ordenar; clique de novo para inverter.
 - **Colunas:** o botão [[Colunas]] escolhe quais colunas aparecem.
+- **Largura das colunas:** em qualquer tabela do sistema, arraste a borda direita do título da coluna para alargar ou estreitar. Com a borda em foco (tecla Tab), as setas para a esquerda e para a direita também ajustam. Duplo clique na borda volta a tabela às larguras automáticas. A largura escolhida fica guardada no navegador e volta quando você abre a tela de novo.
 - **Exportar:** o botão [[Exportar]] gera um arquivo PDF, uma planilha .xlsx ou um CSV com as linhas visíveis.
 
 <!-- quebra -->

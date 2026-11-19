@@ -218,7 +218,8 @@ export function CalendarioPrevExec({ pontos, servicos, obraNome, loading }: Prop
           aria-label={`Previsto e realizado por dia em ${MESES[mes]} de ${ano}`}
           className="overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
         >
-          <table className="text-xs border-collapse">
+          {/* colunas fixas à esquerda com deslocamento calculado sobre larguras fixas: fora do ajuste de largura */}
+          <table className="text-xs border-collapse" data-sem-ajuste>
             <thead className="sticky top-0 z-20">
               <tr className="bg-bg-elevated">
                 <th
