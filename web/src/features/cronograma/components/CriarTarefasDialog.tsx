@@ -28,7 +28,13 @@ import { useTrechosQuantidadeTemplatesAtuais } from '@/features/planejamento/hoo
 import { useItensSincronizaveis } from '@/features/planejamento/hooks/tarefas'
 import { useCriarTarefaIndireta } from '@/features/planejamento/hooks/indireto-config'
 import { IndiretoCampos } from './IndiretoCampos'
-import { FORM_INDIRETO_PADRAO, inputDoForm, type FormIndireto } from './indireto-form'
+import {
+  configsParaCriar,
+  FORM_INDIRETO_PADRAO,
+  inputDoConfig,
+  rotuloParcela,
+  type FormIndireto
+} from './indireto-form'
 import { segmentosDoTemplate } from '@/features/planejamento/lib/trecho'
 import {
   faixasDeDivisao,
@@ -128,6 +134,11 @@ function Conteudo({
   const itens = itensQ.data ?? []
   const diretos = useMemo(() => itens.filter((i) => !i.indireto_id), [itens])
   const nIndSel = [...sel.keys()].filter((id) => itens.find((x) => x.id === id)?.indireto_id).length
+  // no parcelado cada indireto vira uma tarefa por parcela
+  const nCriar =
+    sel.size -
+    nIndSel +
+    nIndSel * (formInd.distribuicao === 'parcelado' ? formInd.parcelas.length : 1)
   const segsPorTrecho = useMemo(() => {
     const m = new Map<string, SegmentoValores[]>()
     for (const t of e.trechos) m.set(t.id, segmentosDoTemplate(templates.get(t.id)))
@@ -379,21 +390,27 @@ function Conteudo({
       })
     }
     if (!diretas.length && !indiretas.length) return setErro('Escolha ao menos um serviço.')
-    const cfgInd = indiretas.length ? inputDoForm(formInd) : null
-    if (typeof cfgInd === 'string') return setErro(cfgInd)
+    const cfgsInd = indiretas.length ? configsParaCriar(formInd) : []
+    if (typeof cfgsInd === 'string') return setErro(cfgsInd)
     setSalvando(true)
     try {
       if (diretas.length)
         await criar.mutateAsync({ planejamentoId: planoId, tarefas: diretas, ordemInicial: ordem })
       ordem += diretas.length
+      // parcelado: uma tarefa por parcela, com a parcela no nome
       for (const item of indiretas) {
-        await criarIndireta.mutateAsync({
-          planejamento_id: planoId,
-          item_orcamentario_id: item,
-          config: cfgInd!,
-          parent_id: pai || null,
-          ordem: ordem++
-        })
+        const desc = itens.find((x) => x.id === item)?.descricao ?? ''
+        for (const cfg of cfgsInd) {
+          const rot = cfgsInd.length > 1 ? rotuloParcela(cfg) : null
+          await criarIndireta.mutateAsync({
+            planejamento_id: planoId,
+            item_orcamentario_id: item,
+            config: inputDoConfig(cfg),
+            parent_id: pai || null,
+            nome_custom: rot ? `${desc} (${rot})` : null,
+            ordem: ordem++
+          })
+        }
       }
       await invalidarCronograma(qc, planoId)
       void qc.invalidateQueries({ queryKey: ['planejamento', 'itens-sincronizaveis'] })
@@ -832,7 +849,7 @@ function Conteudo({
                 : `Parâmetros dos ${nIndSel} indiretos selecionados`}{' '}
               (podem ser mudados depois, na aba Indireto da tarefa).
             </p>
-            <IndiretoCampos valor={formInd} onMudar={setFormInd} obraId={obraId} />
+            <IndiretoCampos valor={formInd} onMudar={setFormInd} obraId={obraId} multiplas />
           </div>
         ) : null}
       </DialogBody>
@@ -862,7 +879,7 @@ function Conteudo({
             {salvando
               ? 'Criando…'
               : sel.size
-                ? `Criar ${contar(sel.size, 'tarefa', 'tarefas')}`
+                ? `Criar ${contar(nCriar, 'tarefa', 'tarefas')}`
                 : 'Criar tarefas'}
           </Button>
         )}

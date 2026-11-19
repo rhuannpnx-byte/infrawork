@@ -356,7 +356,11 @@ export const tarefas = ferramenta({
       .describe(
         'custo_periodicidade (dia|mes|ano), receita_modo (mesma_logica_custo | percentual_dos_servicos = receita ' +
           'orçada no ritmo do faturamento direto; mande receita_percentual 100), offset_dias_antes, ' +
-          'offset_dias_depois, receita_extrapola, aplica_taxas, taxa_regime_id'
+          'offset_dias_depois, receita_extrapola, aplica_taxas, taxa_regime_id; distribuicao continuo (padrão, ' +
+          'administração: unitário × períodos) | parcela (canteiro, mob/desmob: parcela_percentual 0–1 do valor ' +
+          'total orçado do item, parcela_ancora inicio|fim, parcela_dias = primeiros/últimos N dias úteis das ' +
+          'diretas). Pontual = uma tarefa com parcela 1; parcelado = uma tarefa por parcela do mesmo item (o banco ' +
+          'recusa soma acima de 100%)'
       ),
     notas: z.string().nullable().optional(),
     filtro_servico: z.string().uuid().optional().describe('listar: só um serviço'),

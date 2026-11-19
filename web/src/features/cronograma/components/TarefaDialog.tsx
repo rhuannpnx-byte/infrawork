@@ -32,6 +32,7 @@ import { segmentosDoTemplate } from '@/features/planejamento/lib/trecho'
 import { divisorMetrosPorUnidade } from '@/lib/format/posicao'
 import { quantidadeNaFaixa } from '@/lib/quantidades/segmentos'
 import { cn } from '@/lib/utils'
+import { contar } from '@/lib/rotulos'
 import type { CalculoCronograma } from '../hooks/calculo'
 import {
   traduzirErro,
@@ -201,6 +202,18 @@ function Conteudo({
   const [notas, setNotas] = useState(t.exib?.notas ?? '')
   const [ind, setInd] = useState(() => formDoConfig(t.indireto))
   const resInd = calc.resultado?.indiretos.find((x) => x.tarefa_id === t.id)
+  // parcelas do mesmo item no plano (pontual e parcelado gravam uma tarefa por parcela)
+  const parcelasDoItem = t.item_orcamentario_id
+    ? (calc.entrada?.tarefas ?? []).filter(
+        (x) =>
+          x.item_orcamentario_id === t.item_orcamentario_id &&
+          x.indireto?.distribuicao === 'parcela'
+      )
+    : []
+  const somaParcelas = parcelasDoItem.reduce(
+    (a, x) => a + Number(x.indireto?.parcela_percentual ?? 0),
+    0
+  )
 
   const corPadrao = (t.servico_id && cores.get(t.servico_id)) || 'var(--serie-1)'
   const n = Math.max(1, Math.round(lerNumero(qtdEquipes) ?? t.qtd_equipes))
@@ -1175,10 +1188,27 @@ function Conteudo({
                 ro={ro}
                 custoPeriodo={fmtBRL(t.indireto?.custo_unitario ?? t.custo_unitario_item ?? 0)}
               />
+              {parcelasDoItem.length > 0 ? (
+                <p
+                  className={cn(
+                    'text-xs',
+                    Math.abs(somaParcelas - 1) < 0.00005 ? 'text-text-muted' : 'text-warn'
+                  )}
+                >
+                  {contar(parcelasDoItem.length, 'parcela', 'parcelas')} deste item no plano,
+                  somando {fmtNum(somaParcelas * 100, 'auto')}% do valor orçado
+                  {somaParcelas < 0.99995
+                    ? `; faltam ${fmtNum((1 - somaParcelas) * 100, 'auto')}% (crie a parcela que falta em Criar tarefas).`
+                    : '.'}
+                </p>
+              ) : null}
               {resInd ? (
                 <Secao titulo="Resultado do cálculo">
                   <div className="grid grid-cols-4 gap-3 text-xs">
-                    <Resumo rotulo="Períodos" valor={fmtNum(resInd.periodos, 'auto')} />
+                    <Resumo
+                      rotulo={t.indireto?.distribuicao === 'parcela' ? 'Dias úteis' : 'Períodos'}
+                      valor={fmtNum(resInd.periodos, 'auto')}
+                    />
                     <Resumo rotulo="Custo" valor={fmtBRL(resInd.custo_total)} />
                     <Resumo rotulo="Receita" valor={fmtBRL(resInd.receita_total)} />
                     <Resumo rotulo="Taxas" valor={fmtBRL(resInd.custo_taxas)} />

@@ -32,9 +32,13 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   composição recalcula o orçamento no banco.
 - **Travas**: com LB vigente o orçamento fica travado; depois do 1º aditivo a planilha de venda só muda por
   **aditivos**. Reajuste por índices em **reajustes** (12 meses da data-base e entre reajustes).
-- **Indireto**: custo = valor unitário × períodos (não há modo verba). Receita: a mesma lógica (R$ por período) ou
-  no ritmo dos serviços diretos (receita_modo "percentual_dos_servicos"): em cada período, a receita orçada do
-  indireto × faturamento direto do período ÷ faturamento direto total; não há percentual a informar.
+- **Indireto**: três distribuições. *Contínuo* (administração, padrão): custo = valor unitário × períodos enquanto
+  durarem as diretas (± folgas). Receita: a mesma lógica (R$ por período) ou no ritmo dos serviços diretos
+  (receita_modo "percentual_dos_servicos"): em cada período, a receita orçada do indireto × faturamento direto do
+  período ÷ faturamento direto total. *Pontual* (canteiro): uma tarefa com distribuicao "parcela" e
+  parcela_percentual 1, nos primeiros ou últimos N dias úteis das diretas. *Parcelado* (mobilização/desmobilização):
+  uma tarefa por parcela do mesmo item (ex.: 0,5 nos primeiros 30 dias e 0,5 nos últimos 30); custo e receita da
+  parcela = percentual × valor total orçado do item, repartido por igual nos dias úteis; soma ≤ 100%.
 - **Rateio**: a receita pode ir para vários serviços; "compõe" diz se a quantidade dela forma a quantidade do serviço.
   Receita agrupada não pode ser excluída sem remover a alocação.
 - **Cronograma (motor do ApeX/DynaRoad)**: duração = quantidade ÷ (produção da composição × coef_producao × nº de

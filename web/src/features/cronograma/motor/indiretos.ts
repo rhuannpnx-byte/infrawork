@@ -4,6 +4,9 @@
  * período (dia útil, mês ou ano, fracionados); a receita é própria por período ou a orçada do item repartida pelo
  * faturamento das diretas (a parte delas que cai na janela); taxas sobre o faturamento total da janela.
  *
+ * Parcela (canteiro, mobilização/desmobilização): o percentual do valor total orçado do item (custo e receita) nos
+ * primeiros ou nos últimos N dias úteis da janela das diretas (sem as folgas), repartido por igual no tempo.
+ *
  * Correções em relação ao motor antigo (avaliação do cronograma): a folga "antes" era ignorada (somava dias úteis
  * negativos como zero) e a contagem de dias úteis ficava um dia curta; aqui a janela recua e avança pelo
  * `addWorkDays` do calendário do ApeX e os dias úteis vêm de `getWorkDaysBetween` sobre o intervalo [início, fim).
@@ -69,6 +72,10 @@ export function calcularIndiretos(
   const out: ResultadoIndireto[] = []
   for (const t of indiretas) {
     const cfg = t.indireto!
+    if (cfg.distribuicao === 'parcela') {
+      out.push(parcela(t, cfg, inicioGlobal, fimGlobal, cal, diretas, vendaDe))
+      continue
+    }
     const inicio =
       cfg.offset_dias_antes > 0
         ? cal.addWorkDays(inicioGlobal, -cfg.offset_dias_antes, true)
@@ -126,4 +133,52 @@ export function calcularIndiretos(
     })
   }
   return out
+}
+
+type TarefaIndireta = PlanoEntrada['tarefas'][number]
+
+function parcela(
+  t: TarefaIndireta,
+  cfg: NonNullable<TarefaIndireta['indireto']>,
+  inicioGlobal: number,
+  fimGlobal: number,
+  cal: Calendar,
+  diretas: ReadonlyMap<string, DiretaDatada>,
+  vendaDe: (id: string) => number
+): ResultadoIndireto {
+  const pct = Math.max(0, Math.min(1, Number(cfg.parcela_percentual ?? 0)))
+  const dias = Math.max(1, Math.round(Number(cfg.parcela_dias ?? 1)))
+  // a parcela não sai da janela das diretas: N maior que a obra = a obra inteira
+  let inicio: number, fim: number
+  if (cfg.parcela_ancora === 'fim') {
+    fim = fimGlobal
+    inicio = Math.max(inicioGlobal, cal.addWorkDays(fimGlobal, -dias, true))
+  } else {
+    inicio = inicioGlobal
+    fim = Math.min(fimGlobal, cal.addWorkDays(inicioGlobal, dias, false))
+  }
+  const diasUteis = fim > inicio ? Math.max(0, getWorkDaysBetween(cal, inicio, fim)) : 0
+  const custoItem =
+    Number(cfg.custo_unitario ?? t.custo_unitario_item ?? 0) * Number(t.quantidade_referencia ?? 0)
+  const receita = Number(t.venda_total_item ?? 0) * pct
+  let vendaDiretas = 0
+  for (const [id, d] of diretas) {
+    const a = Math.max(d.inicio, inicio),
+      b = Math.min(d.fim, fim)
+    const tot = d.fim - d.inicio
+    const frac = tot > 0 ? Math.max(0, b - a) / tot : a <= b ? 1 : 0
+    if (frac > 0) vendaDiretas += vendaDe(id) * frac
+  }
+  const taxas =
+    cfg.aplica_taxas && cfg.taxa_percentual ? (vendaDiretas + receita) * cfg.taxa_percentual : 0
+  return {
+    tarefa_id: t.id,
+    inicio,
+    fim,
+    dias_uteis: diasUteis,
+    periodos: Math.round(diasUteis * 1e6) / 1e6,
+    custo_total: Math.round(custoItem * pct * 100) / 100,
+    receita_total: Math.round(receita * 100) / 100,
+    custo_taxas: Math.round(taxas * 100) / 100
+  }
 }

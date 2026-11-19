@@ -27,6 +27,12 @@ export interface IndiretoConfigInput {
   receita_extrapola?: boolean
   aplica_taxas?: boolean
   taxa_regime_id?: string | null
+  /** contínuo (padrão) ou uma parcela do valor total do item */
+  distribuicao?: 'continuo' | 'parcela'
+  /** fração 0–1 */
+  parcela_percentual?: number | null
+  parcela_ancora?: 'inicio' | 'fim' | null
+  parcela_dias?: number | null
 }
 
 export interface CriarTarefaIndiretaInput {
@@ -83,5 +89,9 @@ function configToJsonb(c: Partial<IndiretoConfigInput>): Record<string, unknown>
   if (c.aplica_taxas !== undefined) out.aplica_taxas = c.aplica_taxas
   if (c.taxa_regime_id !== undefined && c.taxa_regime_id != null)
     out.taxa_regime_id = c.taxa_regime_id
+  if (c.distribuicao !== undefined) out.distribuicao = c.distribuicao
+  if (c.parcela_percentual != null) out.parcela_percentual = String(c.parcela_percentual)
+  if (c.parcela_ancora != null) out.parcela_ancora = c.parcela_ancora
+  if (c.parcela_dias != null) out.parcela_dias = c.parcela_dias
   return out
 }

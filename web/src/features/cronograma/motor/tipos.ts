@@ -151,6 +151,16 @@ export interface IndiretoConfig {
   /** percentual total do regime de taxas (decimal: 0,1508 = 15,08 %) */
   taxa_percentual: number | null
   taxa_regime_id?: string | null
+  /**
+   * continuo (administração): custo unitário × períodos na janela das diretas ± folgas.
+   * parcela (canteiro, mobilização/desmobilização): `parcela_percentual` do valor total orçado do item nos primeiros
+   * (`inicio`) ou nos últimos (`fim`) `parcela_dias` dias úteis da janela das diretas.
+   */
+  distribuicao?: 'continuo' | 'parcela'
+  /** fração 0–1 */
+  parcela_percentual?: number | null
+  parcela_ancora?: 'inicio' | 'fim' | null
+  parcela_dias?: number | null
 }
 
 export type TipoDependencia = 'FS' | 'SS' | 'FF' | 'SF' | 'EST'
