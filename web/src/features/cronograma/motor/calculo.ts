@@ -37,7 +37,7 @@ import {
   type WpPlano
 } from './obra'
 import { DIA, diaDoFim, inicioDoDia, segParaData, segParaTimestamp, segundaDaSemana } from './tempo'
-import { calcularIndiretos, type ResultadoIndireto } from './indiretos'
+import { calcularIndiretos, projetarIndiretos, type ResultadoIndireto } from './indiretos'
 import { calcularControle, type ResultadoControle } from './controle'
 import type { PlanoEntrada } from './tipos'
 import { criterioCritico } from './critico'
@@ -283,8 +283,35 @@ export function calcularPlano(e: PlanoEntrada, modelo: Uint8Array): PlanoCalcula
       entidades,
       (id) => resultado.tarefas.get(id)?.inicio ?? Number.MAX_SAFE_INTEGER
     )
+    projetarAtraso(e, resultado, calendarioPadrao(p))
   }
   return { projeto: p, obra, relatorio, resultado, entidades }
+}
+
+/**
+ * Término previsto da obra pelo controle (o maior término previsto das diretas; concluída vale o término real) e,
+ * se passar do planejado, o indireto contínuo a mais até lá.
+ */
+function projetarAtraso(e: PlanoEntrada, resultado: ResultadoCalculo, cal: Calendar): void {
+  const ctl = resultado.controle
+  if (!ctl || resultado.tarefas.size === 0) return
+  let fimPlanejado = -Infinity
+  let fimPrevisto = -Infinity
+  for (const [id, t] of resultado.tarefas) {
+    const c = ctl.tarefas[id]
+    fimPlanejado = Math.max(fimPlanejado, t.fim)
+    fimPrevisto = Math.max(
+      fimPrevisto,
+      c?.fim_previsto ?? (c?.concluida && c.fim_real ? c.fim_real : t.fim)
+    )
+  }
+  ctl.obra = { fim_planejado: fimPlanejado, fim_previsto: fimPrevisto }
+  ctl.indiretos = Object.fromEntries(
+    projetarIndiretos(e, resultado.indiretos, fimPlanejado, fimPrevisto, cal).map((x) => [
+      x.tarefa_id,
+      x
+    ])
+  )
 }
 
 /** Lê do projeto (já calculado ou editado) os resultados do plano. */

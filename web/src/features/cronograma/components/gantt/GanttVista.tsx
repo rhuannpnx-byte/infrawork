@@ -2,6 +2,7 @@
  * Visão Gantt do cronograma (a `GanttView` do ApeX sobre o plano do InfraWork): grade + linha do tempo, seleção
  * sincronizada, menus de contexto (`ContextMenuHelper`), dica das barras e os comandos que vão ao motor.
  */
+import { fmtBRL } from '@/lib/money'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Calendar, getWorkDaysBetween } from '@apex/calendar'
 import { toast } from 'sonner'
@@ -196,11 +197,17 @@ export function GanttVista({
       return null
     }
   }, [specPadrao, ui.gantt.fimDeSemana, ui.gantt.feriados])
+  // % executado e término previsto seguem o modo: aparecem no controle (plano travado) e somem na programação
+  const emControle = calc.entrada?.plano.modo === 'controle'
+  const colunasVisiveis = useMemo<ColunaGantt[]>(() => {
+    const base = ui.colunas.filter((c) => c !== 'executado' && c !== 'previsto')
+    return emControle ? [...base, 'executado', 'previsto'] : base
+  }, [ui.colunas, emControle])
   const larguraColuna = (c: ColunaGantt): number =>
     ui.largurasColunas[c] ?? COLS_GANTT_BASE[c].largura
   const larguraGrade =
     ui.larguraGrade ??
-    Math.min(Math.round(areaW * 0.6), ui.colunas.reduce((x, c) => x + larguraColuna(c), 0) + 2)
+    Math.min(Math.round(areaW * 0.6), colunasVisiveis.reduce((x, c) => x + larguraColuna(c), 0) + 2)
   // a coluna alargada empurra a divisória quando a grade tem largura escolhida (como no MS Project)
   const mudarLarguraColuna = (c: ColunaGantt, w: number | null): void => {
     const antes = larguraColuna(c)
@@ -303,7 +310,7 @@ export function GanttVista({
   }
   const colunas: DefColuna[] = useMemo(
     () =>
-      ui.colunas.map((id) => {
+      colunasVisiveis.map((id) => {
         const base = COLS_GANTT_BASE[id]
         const c: DefColuna = {
           id,
@@ -484,7 +491,7 @@ export function GanttVista({
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      ui.colunas,
+      colunasVisiveis,
       ui.largurasColunas,
       porId,
       servicos,
@@ -575,6 +582,10 @@ export function GanttVista({
         fimPrevisto:
           l.tipo === 'tarefa' && l.id
             ? (resultado?.controle?.tarefas[l.id]?.fim_previsto ?? null)
+            : null,
+        fimExtra:
+          l.tipo === 'tarefa' && l.id
+            ? (resultado?.controle?.indiretos?.[l.id]?.fim_previsto ?? null)
             : null,
         equipes: t && r && !t.is_indireto ? Math.max(1, Math.round(t.qtd_equipes || 1)) : null
       }
@@ -854,7 +865,34 @@ export function GanttVista({
         avisos.push(
           `Produtividade alterada (× ${fmtNum(t.coef_producao, 'auto')}) por um arraste antigo; em Propriedades › Equipes, volte à da composição.`
         )
-      out.push(['Esticar o término', 'muda o número de equipes (a produção é a da composição)'])
+      if (!t.is_indireto)
+        out.push(['Esticar o término', 'muda o número de equipes (a produção é a da composição)'])
+      if (t.is_indireto) {
+        const ri = resultado?.indiretos.find((x) => x.tarefa_id === t.id)
+        if (ri) {
+          out.push(['Período', `${fmtData(ri.inicio)} → ${fmtData(ri.fim - 1)}`])
+          out.push(['Custo', fmtBRL(ri.custo_total)])
+        }
+        const ex = resultado?.controle?.indiretos?.[t.id]
+        const obra = resultado?.controle?.obra
+        if (ex && obra) {
+          const dias = Math.round((obra.fim_previsto - obra.fim_planejado) / 86400)
+          const un =
+            ex.periodicidade === 'mes'
+              ? 'meses'
+              : ex.periodicidade === 'ano'
+                ? 'anos'
+                : 'dias úteis'
+          out.push(['Obra até', `${fmtData(obra.fim_previsto - 1)} (+${dias} d, previsto)`])
+          out.push([
+            'A mais',
+            `${fmtBRL(ex.custo_extra)} (${fmtNum(ex.periodos_extra, 'auto')} ${un})`
+          ])
+          avisos.push(
+            `A obra deve terminar ${dias} dias depois do planejado: este indireto segue correndo e custa ${fmtBRL(ex.custo_extra)} a mais (parte hachurada da barra).`
+          )
+        }
+      }
       const nomes = t.equipes_ids.map((x) => nomeadas.get(x)).filter(Boolean)
       if (nomes.length) out.push(['Equipes', nomes.join(', ')])
       out.push(['Início', t.asap ? 'o mais cedo possível' : 'desejado (arraste para mover)'])

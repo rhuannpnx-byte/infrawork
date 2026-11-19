@@ -48,7 +48,6 @@ interface PlanoRow {
   data_referencia_inicio: string
   prazo: string | null
   calendario_id: string | null
-  modo: 'programacao' | 'controle'
   is_baseline: boolean
   dados_rev: number
   calculo_rev: number | null
@@ -127,7 +126,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
   const { data: pr, error: pErr } = await c
     .from('planejamento')
     .select(
-      'id, obra_id, nome, data_referencia_inicio, prazo, calendario_id, modo, is_baseline, dados_rev, calculo_rev, recalculo_pendente, premissa_calendarios, premissa_tipos, data_date'
+      'id, obra_id, nome, data_referencia_inicio, prazo, calendario_id, is_baseline, dados_rev, calculo_rev, recalculo_pendente, premissa_calendarios, premissa_tipos, data_date'
     )
     .eq('id', planejamentoId)
     .single()
@@ -424,8 +423,10 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
   }
 
   // ── modo controle: a produção lançada até a data de controle (o motor monta o realizado e a previsão)
+  // plano em edição = programação; plano travado (linha de base) = controle, sempre
+  const modo: 'programacao' | 'controle' = p.is_baseline ? 'controle' : 'programacao'
   let controle: ControleEntrada | undefined
-  if (p.modo === 'controle') {
+  if (modo === 'controle') {
     const hoje = hojeLocalISO()
     const data = p.data_date && p.data_date < hoje ? p.data_date : hoje
     const itens = [
@@ -467,7 +468,7 @@ export async function carregarPlanoEntrada(planejamentoId: string): Promise<Plan
       inicio: p.data_referencia_inicio,
       prazo: p.prazo,
       calendario_id: p.calendario_id,
-      modo: p.modo ?? 'programacao',
+      modo,
       data_controle: p.data_date ?? null,
       is_baseline: p.is_baseline,
       dados_rev: n(p.dados_rev),

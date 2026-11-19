@@ -14,13 +14,10 @@ import { FaixaLinhaBase, SeletorPlano } from './planos/PlanosControle'
 import { useAuthStore } from '@/stores/auth-store'
 import { contar } from '@/lib/rotulos'
 import { cn } from '@/lib/utils'
+import { fmtBRL } from '@/lib/money'
 import { usePlanejamentoAtivo, usePlanejamentos } from '@/features/planejamento/hooks/planejamentos'
 import { NewPlanejamentoDialog } from '@/features/planejamento/modals/NewPlanejamentoDialog'
-import {
-  CHAVE_CRONOGRAMA,
-  useCalculoCronograma,
-  type CalculoCronograma
-} from '../hooks/calculo'
+import { CHAVE_CRONOGRAMA, useCalculoCronograma, type CalculoCronograma } from '../hooks/calculo'
 import { useCronogramaUi } from '../store'
 import { fmtDataLonga } from '../visoes/formato'
 import { isoParaSeg } from '../motor/tempo'
@@ -176,6 +173,15 @@ export function EstadoCalculo({ calc }: { calc: CalculoCronograma }): ReactNode 
 function RodapePlano({ calc }: { calc: CalculoCronograma }): ReactNode {
   const e = calc.entrada!
   const r = calc.resultado
+  // modo controle: término previsto da obra e o indireto contínuo a mais até lá
+  const obraCtl = r?.controle?.obra ?? null
+  const atrasoDias = obraCtl
+    ? Math.round((obraCtl.fim_previsto - obraCtl.fim_planejado) / 86400)
+    : 0
+  const indiretoExtra = Object.values(r?.controle?.indiretos ?? {}).reduce(
+    (a, x) => a + x.custo_extra,
+    0
+  )
   const nViol = useMemo(
     () => [...(r?.tarefas.values() ?? [])].reduce((s, t) => s + (t.violacoes.length ? 1 : 0), 0),
     [r]
@@ -200,6 +206,23 @@ function RodapePlano({ calc }: { calc: CalculoCronograma }): ReactNode {
         Término{' '}
         <span className="text-text-muted">{r?.fimProjeto ? fmtDataLonga(r.fimProjeto) : '—'}</span>
       </span>
+      {obraCtl ? (
+        <span title="Maior término previsto das tarefas diretas, pela produção lançada (modo controle)">
+          Previsto{' '}
+          <span className={cn('text-text-muted', atrasoDias > 0 && 'text-danger')}>
+            {fmtDataLonga(obraCtl.fim_previsto)}
+            {Math.abs(atrasoDias) >= 1 ? ` (${atrasoDias > 0 ? '+' : ''}${atrasoDias} d)` : ''}
+          </span>
+        </span>
+      ) : null}
+      {indiretoExtra > 0 ? (
+        <span
+          className="text-danger"
+          title="Com a obra terminando no previsto, o indireto contínuo (custo por período) segue correndo; o pontual e o parcelado não mudam. Passe o mouse na parte hachurada da barra de cada item"
+        >
+          Indireto a mais {fmtBRL(indiretoExtra)}
+        </span>
+      ) : null}
       <span>
         Prazo{' '}
         <span

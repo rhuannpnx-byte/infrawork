@@ -32,6 +32,10 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   composição recalcula o orçamento no banco.
 - **Travas**: com LB vigente o orçamento fica travado; depois do 1º aditivo a planilha de venda só muda por
   **aditivos**. Reajuste por índices em **reajustes** (12 meses da data-base e entre reajustes).
+- **Modo do plano**: não se escolhe. Plano em edição = programação; plano travado (linha de base) = controle, em
+  que a produção lançada vira executado e término previsto (cronograma, acao "controle"). Se a obra for terminar
+  depois do planejado, o indireto contínuo é projetado até o término previsto ("indireto a mais"); o pontual e o
+  parcelado não mudam.
 - **Indireto**: três distribuições. *Contínuo* (administração, padrão): custo = valor unitário × períodos enquanto
   durarem as diretas (± folgas). Receita: a mesma lógica (R$ por período) ou no ritmo dos serviços diretos
   (receita_modo "percentual_dos_servicos"): em cada período, a receita orçada do indireto × faturamento direto do

@@ -396,6 +396,14 @@ try {
     confirmar: true
   })
   check('linha de base travada e vigente', lb.vigente === true, JSON.stringify(lb))
+  const ctl = await chamar('cronograma', { acao: 'controle', planejamento_id: plano.id })
+  check(
+    'plano travado fica em controle: executado e término previsto por tarefa',
+    !!ctl.obra &&
+      ctl.tarefas.length === 2 &&
+      ctl.tarefas.every((t) => 'grau' in t && 'fim_previsto' in t),
+    JSON.stringify({ obra: ctl.obra, extra: ctl.indireto_a_mais_total })
+  )
   const trava = await chamar('planos', { acao: 'trava', obra_id: O })
   check('trava da cadeia cita o plano vigente', String(trava).includes('vigente'), String(trava))
   const diff = await chamar('planos', { acao: 'premissas_diff', planejamento_id: plano.id })

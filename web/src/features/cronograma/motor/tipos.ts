@@ -241,6 +241,11 @@ export interface PlanoEntrada {
     inicio: string
     prazo: string | null
     calendario_id: string | null
+    /**
+     * O modo segue o estado do plano: em edição = programação; travado (linha de base) = controle. O controle é
+     * uma leitura por cima do cronograma travado (realizado e previsão pela produção lançada); `planejamento.modo`
+     * não é mais consultado.
+     */
     modo: 'programacao' | 'controle'
     /** data de controle escolhida ("AAAA-MM-DD"; null = hoje) — `planejamento.data_date` */
     data_controle?: string | null

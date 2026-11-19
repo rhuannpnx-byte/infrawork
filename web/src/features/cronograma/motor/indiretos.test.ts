@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Calendar, type CalendarSpec } from '@apex/calendar'
-import { calcularIndiretos } from './indiretos'
+import { calcularIndiretos, projetarIndiretos } from './indiretos'
 import type { IndiretoConfig, PlanoEntrada, TarefaEntrada } from './tipos'
 
 const H = 3600
@@ -114,5 +114,45 @@ describe('indireto em parcelas', () => {
     const [adm] = calcularIndiretos(plano([indireta('adm', {})]), diretas, cal)
     expect(adm.inicio).toBe(seg('2026-11-02T07:00:00'))
     expect(adm.custo_total).toBeGreaterThan(400_000)
+  })
+})
+
+describe('obra atrasada: indireto contínuo a mais', () => {
+  const fimPlanejado = seg('2027-03-26T15:00:00')
+  const tarefas = [
+    indireta('adm', {}),
+    indireta('adm-dia', { custo_periodicidade: 'dia', offset_dias_depois: 5 }),
+    indireta('mob', {
+      distribuicao: 'parcela',
+      parcela_percentual: 1,
+      parcela_ancora: 'inicio',
+      parcela_dias: 10
+    })
+  ]
+  const e = plano(tarefas)
+  const planejados = calcularIndiretos(e, diretas, cal)
+
+  it('sem atraso não projeta nada', () => {
+    expect(projetarIndiretos(e, planejados, fimPlanejado, fimPlanejado, cal)).toEqual([])
+    expect(projetarIndiretos(e, planejados, fimPlanejado, fimPlanejado - 86400, cal)).toEqual([])
+  })
+
+  it('dois meses de atraso: dois meses a mais de administração; o pontual não muda', () => {
+    // término previsto: quarta 26/05/2027 15:00 (dois meses depois)
+    const r = projetarIndiretos(e, planejados, fimPlanejado, seg('2027-05-26T15:00:00'), cal)
+    expect(r.map((x) => x.tarefa_id)).toEqual(['adm', 'adm-dia'])
+    const adm = r[0]
+    expect(adm.fim_previsto).toBe(seg('2027-05-26T15:00:00'))
+    expect(adm.periodos_extra).toBeCloseTo(2, 5)
+    expect(adm.custo_extra).toBeCloseTo(200_000, 0)
+  })
+
+  it('por dia útil, com a folga depois: os dias úteis a mais até o novo término', () => {
+    // uma semana de atraso (sexta 02/04/2027): 5 dias úteis a mais; a folga de 5 dias anda junto
+    const r = projetarIndiretos(e, planejados, fimPlanejado, seg('2027-04-02T15:00:00'), cal)
+    const dia = r.find((x) => x.tarefa_id === 'adm-dia')!
+    expect(dia.periodos_extra).toBe(5)
+    expect(dia.custo_extra).toBe(500_000)
+    expect(dia.fim_previsto).toBe(seg('2027-04-09T15:00:00'))
   })
 })

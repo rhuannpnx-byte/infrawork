@@ -27,6 +27,7 @@ import type { Calendar } from '@apex/calendar'
 import { AREA_SEM_LOCAL } from './obra'
 import { DIA, isoParaSeg } from './tempo'
 import type { PlanoEntrada } from './tipos'
+import type { PrevisaoIndireto } from './indiretos'
 
 export interface ProducaoLancada {
   item_orcamentario_id: string
@@ -83,6 +84,10 @@ export interface ControleTarefa {
 export interface ResultadoControle {
   data: number
   tarefas: Record<string, ControleTarefa>
+  /** término das tarefas diretas: o planejado e o previsto pelo controle (preenchido pelo cálculo do plano) */
+  obra?: { fim_planejado: number; fim_previsto: number }
+  /** obra atrasada: quanto cada indireto contínuo custa a mais até o término previsto (por tarefa) */
+  indiretos?: Record<string, PrevisaoIndireto>
 }
 
 /**

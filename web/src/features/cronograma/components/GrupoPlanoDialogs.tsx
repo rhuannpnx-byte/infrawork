@@ -29,6 +29,7 @@ import { Calendar } from '@apex/calendar'
 import { segParaData, segParaTimestamp, isoParaSeg } from '../motor/tempo'
 import { fmtDataLonga, fmtDias } from '../visoes/formato'
 import { Campo, enterEnvia, useErroForm } from './campos'
+import { useAuthStore } from '@/stores/auth-store'
 
 export type AlvoGrupo = { id: string } | { novo: true; pai: string | null }
 
@@ -165,26 +166,27 @@ function GrupoConteudo({
               data-foco-inicial
             />
           </Campo>
-        {g && ini !== null && fim !== null ? (
-          <>
-            <Campo
-              rotulo="Início do bloco"
-              dica="Move todas as tarefas de dentro mantendo as distâncias (elas deixam de ser 'o mais cedo possível')"
-            >
-              <Input
-                type="date"
-                value={novoInicio}
-                onChange={(x) => setNovoInicio(x.target.value)}
-                disabled={ro}
-              />
-            </Campo>
-            <p className="text-xs text-text-muted">
-              {fmtDataLonga(ini)} → {fmtDataLonga(fim - 1)}
-              {spec ? ` · ${fmtDias(getWorkDaysBetween(new Calendar(spec), ini, fim))}` : ''} ·{' '}
-              {contar(rs.length, 'tarefa', 'tarefas')}
-            </p>
-          </>
-        ) : null}
+          {g && ini !== null && fim !== null ? (
+            <>
+              <Campo
+                rotulo="Início do bloco"
+                dica="Move todas as tarefas de dentro mantendo as distâncias (elas deixam de ser 'o mais cedo possível')"
+              >
+                <Input
+                  type="date"
+                  value={novoInicio}
+                  onChange={(x) => setNovoInicio(x.target.value)}
+                  disabled={ro}
+                />
+              </Campo>
+              <p className="text-xs text-text-muted">
+                {fmtDataLonga(ini)} → {fmtDataLonga(fim - 1)}
+                {spec
+                  ? ` · ${fmtDias(getWorkDaysBetween(new Calendar(spec), ini, fim))}`
+                  : ''} · {contar(rs.length, 'tarefa', 'tarefas')}
+              </p>
+            </>
+          ) : null}
         </div>
       </DialogBody>
       <DialogFooter>
@@ -236,11 +238,15 @@ function PlanoConteudo({
   const [inicio, setInicio] = useState(p.inicio)
   const [prazo, setPrazo] = useState(p.prazo ?? '')
   const [calendario, setCalendario] = useState(p.calendario_id ?? '')
-  const [modo, setModo] = useState(p.modo)
   const [dataControle, setDataControle] = useState(p.data_controle ?? '')
   const erro = useErroForm()
   const atualizar = useAtualizarPlano()
   const ro = somenteLeitura
+  const role = useAuthStore((s) => s.profile?.role ?? null)
+  // linha de base: o cronograma é travado, mas a data de controle (uma leitura por cima dele) pode mudar
+  const controle = p.modo === 'controle'
+  const roControle = role === null || role === 'apoio' || role === 'cliente'
+  const podeSalvar = p.is_baseline ? !roControle : !ro
 
   const salvar = async (): Promise<void> => {
     erro.limpar()
@@ -248,19 +254,19 @@ function PlanoConteudo({
     if (!inicio) return erro.falhar('Informe o início do plano.', 'inicio')
     if (prazo && prazo < inicio)
       return erro.falhar('O prazo não pode ser antes do início.', 'prazo')
-    if (modo === 'controle' && dataControle && dataControle < inicio)
+    if (controle && dataControle && dataControle < inicio)
       return erro.falhar('A data de controle não pode ser antes do início do plano.', 'controle')
     try {
       await atualizar.mutateAsync({
         planejamentoId: p.id,
-        campos: {
-          nome: nome.trim(),
-          data_referencia_inicio: inicio,
-          prazo: prazo || null,
-          calendario_id: calendario || null,
-          modo,
-          ...(modo === 'controle' ? { data_date: dataControle || null } : {})
-        }
+        campos: p.is_baseline
+          ? { data_date: dataControle || null }
+          : {
+              nome: nome.trim(),
+              data_referencia_inicio: inicio,
+              prazo: prazo || null,
+              calendario_id: calendario || null
+            }
       })
       onFechar()
     } catch (x) {
@@ -274,107 +280,104 @@ function PlanoConteudo({
         <DialogTitle>Propriedades do plano</DialogTitle>
         <DialogDescription>
           {p.is_baseline
-            ? 'Linha de base travada: somente leitura.'
+            ? 'Linha de base travada: só a data de controle pode mudar.'
             : 'Início, prazo e calendário valem para todo o cronograma.'}
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
         <div ref={erro.caixa} className="space-y-3" onKeyDown={enterEnvia(() => void salvar())}>
-        <DialogErrorBanner message={erro.geral} />
-        <Campo rotulo="Nome" erro={erro.de('nome')}>
-          <Input value={nome} onChange={(x) => setNome(x.target.value)} disabled={ro} />
-        </Campo>
-        <div className="grid grid-cols-2 items-start gap-3">
-          <Campo
-            rotulo="Início"
-            dica="Nenhuma tarefa começa antes do início do plano"
-            erro={erro.de('inicio')}
-          >
-            <Input
-              type="date"
-              value={inicio}
-              onChange={(x) => setInicio(x.target.value)}
-              disabled={ro}
-            />
+          <DialogErrorBanner message={erro.geral} />
+          <Campo rotulo="Nome" erro={erro.de('nome')}>
+            <Input value={nome} onChange={(x) => setNome(x.target.value)} disabled={ro} />
           </Campo>
-          <Campo
-            rotulo="Prazo"
-            dica="Tarefas que terminam depois do prazo recebem a bandeira de violação"
-            erro={erro.de('prazo')}
-          >
-            <Input
-              type="date"
-              value={prazo}
-              onChange={(x) => setPrazo(x.target.value)}
-              disabled={ro}
-            />
-          </Campo>
-          <Campo rotulo="Calendário padrão">
-            <Select
-              value={calendario}
-              onChange={(x) => setCalendario(x.target.value)}
-              disabled={ro}
-            >
-              <option value="">Padrão da obra</option>
-              {e.calendarios.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                  {c.padrao ? ' (padrão da obra)' : ''}
-                </option>
-              ))}
-            </Select>
-          </Campo>
-          <Campo
-            rotulo="Modo"
-            dica="Controle: mostra o realizado e a previsão a partir da produção lançada"
-          >
-            <Select
-              value={modo}
-              onChange={(x) => setModo(x.target.value as typeof modo)}
-              disabled={ro}
-            >
-              <option value="programacao">Programação</option>
-              <option value="controle">Controle</option>
-            </Select>
-          </Campo>
-          {modo === 'controle' ? (
+          <div className="grid grid-cols-2 items-start gap-3">
             <Campo
-              rotulo="Data de controle"
-              dica="O realizado vale até o fim deste dia; a previsão parte dele. Vazio = hoje (uma data futura também vale como hoje)"
-              erro={erro.de('controle')}
+              rotulo="Início"
+              dica="Nenhuma tarefa começa antes do início do plano"
+              erro={erro.de('inicio')}
             >
-              <div className="flex items-center gap-1">
-                <Input
-                  type="date"
-                  value={dataControle}
-                  onChange={(x) => setDataControle(x.target.value)}
-                  disabled={ro}
-                  aria-invalid={erro.de('controle') ? true : undefined}
-                />
-                {dataControle && !ro ? (
-                  <Button variant="ghost" size="sm" onClick={() => setDataControle('')}>
-                    Hoje
-                  </Button>
-                ) : null}
-              </div>
+              <Input
+                type="date"
+                value={inicio}
+                onChange={(x) => setInicio(x.target.value)}
+                disabled={ro}
+              />
             </Campo>
-          ) : null}
-        </div>
-        {fim ? (
-          <p className="text-xs text-text-muted">
-            Término calculado: <span className="text-text-muted">{fmtDataLonga(fim)}</span>
-            {prazo && segParaData(fim) > prazo ? (
-              <span className="ml-2 text-danger">⚑ depois do prazo</span>
+            <Campo
+              rotulo="Prazo"
+              dica="Tarefas que terminam depois do prazo recebem a bandeira de violação"
+              erro={erro.de('prazo')}
+            >
+              <Input
+                type="date"
+                value={prazo}
+                onChange={(x) => setPrazo(x.target.value)}
+                disabled={ro}
+              />
+            </Campo>
+            <Campo rotulo="Calendário padrão">
+              <Select
+                value={calendario}
+                onChange={(x) => setCalendario(x.target.value)}
+                disabled={ro}
+              >
+                <option value="">Padrão da obra</option>
+                {e.calendarios.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                    {c.padrao ? ' (padrão da obra)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
+            <Campo
+              rotulo="Modo"
+              dica={
+                controle
+                  ? 'Plano travado: mostra o realizado e a previsão pela produção lançada'
+                  : 'Plano em edição. Ao travar como linha de base, passa para controle'
+              }
+            >
+              <Input value={controle ? 'Controle' : 'Programação'} readOnly disabled />
+            </Campo>
+            {controle ? (
+              <Campo
+                rotulo="Data de controle"
+                dica="O realizado vale até o fim deste dia; a previsão parte dele. Vazio = hoje (uma data futura também vale como hoje)"
+                erro={erro.de('controle')}
+              >
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="date"
+                    value={dataControle}
+                    onChange={(x) => setDataControle(x.target.value)}
+                    disabled={roControle}
+                    aria-invalid={erro.de('controle') ? true : undefined}
+                  />
+                  {dataControle && !roControle ? (
+                    <Button variant="ghost" size="sm" onClick={() => setDataControle('')}>
+                      Hoje
+                    </Button>
+                  ) : null}
+                </div>
+              </Campo>
             ) : null}
-          </p>
-        ) : null}
+          </div>
+          {fim ? (
+            <p className="text-xs text-text-muted">
+              Término calculado: <span className="text-text-muted">{fmtDataLonga(fim)}</span>
+              {prazo && segParaData(fim) > prazo ? (
+                <span className="ml-2 text-danger">⚑ depois do prazo</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onFechar} disabled={atualizar.isPending}>
-          {ro ? 'Fechar' : 'Cancelar'}
+          {podeSalvar ? 'Cancelar' : 'Fechar'}
         </Button>
-        {!ro ? (
+        {podeSalvar ? (
           <Button onClick={() => void salvar()} disabled={atualizar.isPending}>
             {atualizar.isPending ? 'Salvando…' : 'Salvar'}
           </Button>

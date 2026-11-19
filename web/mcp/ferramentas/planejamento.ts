@@ -38,7 +38,7 @@ export const planos = ferramenta({
   descricao:
     'Planos de planejamento da obra. Só existe um plano em edição por obra; linhas de base (LB) são travadas e ' +
     'uma delas pode ser a vigente (referência do previsto). acao: listar | criar (nome; data_referencia_inicio, sem ela o início planejado da obra) | ' +
-    'editar (nome, início, prazo, calendário, modo programacao|controle, data de controle) | excluir | copiar ' +
+    'editar (nome, início, prazo, calendário; em linha de base, só data_date = data de controle) | excluir | copiar ' +
     '(nova cópia em edição) | promover (trava como LB; recusa se o cálculo estiver desatualizado — calcule ' +
     'antes) | vigente (marca uma LB como vigente) | desmarcar_vigente | restaurar (copia uma LB, calcula com as ' +
     'premissas atuais e trava como nova LB) | premissas_diff (o que mudou desde a LB) | trava (por que o ' +
@@ -66,8 +66,13 @@ export const planos = ferramenta({
     data_referencia_inicio: z.string().optional().describe('AAAA-MM-DD'),
     prazo: z.string().nullable().optional(),
     calendario_id: z.string().uuid().nullable().optional(),
-    modo: z.enum(['programacao', 'controle']).optional(),
-    data_date: z.string().nullable().optional().describe('data de controle (null = hoje)'),
+    data_date: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'linha de base: data de controle (null = hoje). O modo segue o plano: em edição = programação; travado = controle'
+      ),
     marcar_vigente: z.boolean().optional(),
     confirmar: CONFIRMAR
   },
@@ -124,7 +129,6 @@ export const planos = ferramenta({
           'data_referencia_inicio',
           'prazo',
           'calendario_id',
-          'modo',
           'data_date'
         ] as const)
           if (a[k] !== undefined) patch[k] = a[k]
@@ -737,9 +741,11 @@ export const cronograma = ferramenta({
     'fim, duração, folga e críticas — caminho crítico = tarefas de menor folga total (até um dia útil a mais), as que definem o término; ' +
     'o motor mede a folga até o prazo do contrato; avisos) | comando (como arrastar no Gantt: inicio = fixa o início numa data; ' +
     'fim = término desejado → nº de equipes; dependencia = liga duas tarefas; compactar = puxa tudo para o mais ' +
-    'cedo possível).',
+    'cedo possível) | controle (só em linha de base, que fica sempre em modo controle: por tarefa, o executado, o ' +
+    'grau, a taxa real e o término previsto pela produção lançada; o término previsto da obra; e, se a obra ' +
+    'atrasar, o indireto contínuo a mais até lá — o pontual e o parcelado têm valor fechado e não mudam).',
   entrada: {
-    acao: z.enum(['calcular', 'ler', 'comando']),
+    acao: z.enum(['calcular', 'ler', 'comando', 'controle']),
     planejamento_id: PLANO,
     comando: z.enum(['inicio', 'fim', 'dependencia', 'compactar']).optional(),
     tarefa_id: z.string().uuid().optional(),
@@ -782,6 +788,51 @@ export const cronograma = ferramenta({
         .filter((t) => !a.so_criticas || t.critica)
         .sort((x, y) => x.inicio.localeCompare(y.inicio))
       return { tarefas: lista, avisos: resultado.avisos }
+    }
+    if (a.acao === 'controle') {
+      const { entrada, resultado } = await calcularSemGravar(plan)
+      const c = resultado.controle
+      if (!c)
+        throw new Error(
+          'O controle só existe em plano travado (linha de base). Trave o plano em edição para acompanhar.'
+        )
+      const dia = (s: number | null | undefined) =>
+        s ? new Date(s * 1000).toISOString().slice(0, 10) : null
+      const nomes = new Map(entrada.tarefas.map((t) => [t.id, t.nome]))
+      const extras = Object.values(c.indiretos ?? {})
+      return {
+        data_de_controle: dia(c.data),
+        obra: c.obra
+          ? {
+              fim_planejado: dia(c.obra.fim_planejado),
+              fim_previsto: dia(c.obra.fim_previsto),
+              atraso_dias: Math.round((c.obra.fim_previsto - c.obra.fim_planejado) / 86400)
+            }
+          : null,
+        indireto_a_mais_total:
+          Math.round(extras.reduce((s, x) => s + x.custo_extra, 0) * 100) / 100,
+        indiretos_a_mais: extras.map((x) => ({
+          tarefa_id: x.tarefa_id,
+          nome: nomes.get(x.tarefa_id) ?? null,
+          ate: dia(x.fim_previsto),
+          periodicidade: x.periodicidade,
+          periodos_a_mais: x.periodos_extra,
+          custo_a_mais: x.custo_extra
+        })),
+        tarefas: [...resultado.tarefas.values()].map((t) => {
+          const x = c.tarefas[t.id]
+          return {
+            id: t.id,
+            nome: nomes.get(t.id) ?? null,
+            fim_planejado: dia(t.fim),
+            executado: x?.realizado ?? 0,
+            grau: Math.round((x?.grau ?? 0) * 10000) / 10000,
+            concluida: x?.concluida ?? false,
+            taxa_real_por_dia: x?.taxa_real ?? null,
+            fim_previsto: dia(x?.fim_previsto ?? null)
+          }
+        })
+      }
     }
     const { entrada, ...calc } = await calcularSemGravar(plan)
     const tipo = exigir(a.comando, 'comando', a.acao)

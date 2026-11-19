@@ -62,6 +62,8 @@ export interface InfoBarra {
   grau: number | null
   /** modo controle: término previsto pela previsão */
   fimPrevisto: number | null
+  /** obra atrasada: até onde o indireto contínuo segue correndo (o custo a mais vai na dica) */
+  fimExtra: number | null
   /** número de equipes da tarefa (esticar o término muda as equipes, não a produtividade); null fora do motor */
   equipes: number | null
 }
@@ -571,6 +573,19 @@ export function GanttLinhaTempo(p: Props): ReactNode {
             if (e.button === 0 && e.target === e.currentTarget) p.onSelecionarDependencia(null)
           }}
         >
+          <defs>
+            {/* hachura do indireto que passa do planejado quando a obra atrasa */}
+            <pattern
+              id="gantt-hachura-atraso"
+              width={6}
+              height={6}
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
+            >
+              <rect width={6} height={6} fill="var(--danger)" fillOpacity={0.12} />
+              <line x1={0} y1={0} x2={0} y2={6} stroke="var(--danger)" strokeWidth={2.5} />
+            </pattern>
+          </defs>
           {/* sombreamento dos dias não úteis que aparecem no eixo */}
           {naoUteis.map(([a, b]) => (
             <rect
@@ -750,7 +765,23 @@ export function GanttLinhaTempo(p: Props): ReactNode {
                       stroke={info.cor}
                       strokeDasharray="3 2"
                     />
-                  ) : (
+                  ) : null}
+                  {l.tipo === 'tarefa' &&
+                  info.fimExtra !== null &&
+                  info.fimExtra > l.barra.fim + 60 ? (
+                    // complemento: o indireto a mais até o término previsto da obra (hachurado em vermelho)
+                    <rect
+                      x={g.dir}
+                      y={y}
+                      width={Math.max(2, eixo.x(info.fimExtra) - g.dir)}
+                      height={h}
+                      fill="url(#gantt-hachura-atraso)"
+                      stroke="var(--danger)"
+                      strokeWidth={1}
+                      strokeDasharray="3 2"
+                    />
+                  ) : null}
+                  {l.tipo === 'tarefa' ? null : (
                     <>
                       <rect
                         x={g.esq}

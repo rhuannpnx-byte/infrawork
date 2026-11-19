@@ -271,7 +271,10 @@ function CorpoGantt({ obraId, calc, somenteLeitura, baseline }: ContextoPlano): 
               <div className="space-y-1.5">
                 <TituloOpcoes>Colunas da grade</TituloOpcoes>
                 <div className="grid grid-cols-2 gap-1">
-                  {COLUNAS_GANTT.filter((c) => c !== 'nome').map((c) => (
+                  {/* % executado e término previsto seguem o modo (controle no plano travado) */}
+                  {COLUNAS_GANTT.filter(
+                    (c) => c !== 'nome' && c !== 'executado' && c !== 'previsto'
+                  ).map((c) => (
                     <Caixa
                       key={c}
                       marcado={ui.colunas.includes(c)}

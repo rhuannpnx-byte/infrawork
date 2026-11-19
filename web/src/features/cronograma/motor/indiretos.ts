@@ -52,6 +52,70 @@ function anos(de: number, ate: number): number {
   return (ate - de) / DIA / dias
 }
 
+/** Períodos de uma janela na periodicidade do item: dias úteis, meses ou anos (fracionados). */
+export function periodosDaJanela(
+  periodicidade: 'dia' | 'mes' | 'ano',
+  inicio: number,
+  fim: number,
+  cal: Calendar
+): number {
+  if (!(fim > inicio)) return 0
+  return periodicidade === 'dia'
+    ? Math.max(0, getWorkDaysBetween(cal, inicio, fim))
+    : periodicidade === 'mes'
+      ? meses(inicio, fim)
+      : anos(inicio, fim)
+}
+
+export interface PrevisaoIndireto {
+  tarefa_id: string
+  /** término do indireto se a obra terminar no término previsto (com a folga "depois") */
+  fim_previsto: number
+  periodicidade: 'dia' | 'mes' | 'ano'
+  /** períodos a mais em relação ao planejado */
+  periodos_extra: number
+  /** custo a mais: custo unitário × períodos a mais */
+  custo_extra: number
+}
+
+/**
+ * Obra atrasada (modo controle): o indireto contínuo (administração: custo por período) segue correndo até o novo
+ * término. Projeta, para cada um, os períodos e o custo a mais. O pontual e o parcelado têm valor fechado: não
+ * mudam com o atraso.
+ */
+export function projetarIndiretos(
+  e: PlanoEntrada,
+  planejados: readonly ResultadoIndireto[],
+  fimPlanejadoDiretas: number,
+  fimPrevistoDiretas: number,
+  cal: Calendar
+): PrevisaoIndireto[] {
+  // menos de uma hora de diferença não é atraso
+  if (!(fimPrevistoDiretas > fimPlanejadoDiretas + 3600)) return []
+  const porId = new Map(e.tarefas.map((t) => [t.id, t]))
+  const out: PrevisaoIndireto[] = []
+  for (const r of planejados) {
+    const t = porId.get(r.tarefa_id)
+    const cfg = t?.indireto
+    if (!t || !cfg || cfg.distribuicao === 'parcela') continue
+    const fim =
+      cfg.offset_dias_depois > 0
+        ? cal.addWorkDays(fimPrevistoDiretas, cfg.offset_dias_depois, false)
+        : fimPrevistoDiretas
+    const extra = periodosDaJanela(cfg.custo_periodicidade, r.inicio, fim, cal) - r.periodos
+    if (!(extra > 0)) continue
+    const custoUnit = cfg.custo_unitario ?? Number(t.custo_unitario_item ?? 0)
+    out.push({
+      tarefa_id: r.tarefa_id,
+      fim_previsto: fim,
+      periodicidade: cfg.custo_periodicidade,
+      periodos_extra: Math.round(extra * 1e6) / 1e6,
+      custo_extra: Math.round(custoUnit * extra * 100) / 100
+    })
+  }
+  return out
+}
+
 export function calcularIndiretos(
   e: PlanoEntrada,
   diretas: ReadonlyMap<string, DiretaDatada & { id?: string }>,
@@ -88,9 +152,7 @@ export function calcularIndiretos(
     const periodos =
       cfg.custo_periodicidade === 'dia'
         ? diasUteis
-        : cfg.custo_periodicidade === 'mes'
-          ? meses(inicio, fim)
-          : anos(inicio, fim)
+        : periodosDaJanela(cfg.custo_periodicidade, inicio, fim, cal)
     const custoUnit = cfg.custo_unitario ?? Number(t.custo_unitario_item ?? 0)
     const custoTotal = custoUnit * periodos
     // faturamento das diretas dentro da janela, pela fração do tempo de cada uma que cai nela
