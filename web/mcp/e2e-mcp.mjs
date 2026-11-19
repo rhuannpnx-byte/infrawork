@@ -362,6 +362,15 @@ try {
   )
   const leitura = await chamar('cronograma', { acao: 'ler', planejamento_id: plano.id })
   check('cronograma.ler devolve as 2 tarefas', leitura.tarefas.length === 2)
+  const escopo = await chamar('planos', { acao: 'escopo', planejamento_id: plano.id })
+  check(
+    'planos.escopo soma as tarefas de cada serviço do orçamento',
+    Array.isArray(escopo.servicos) &&
+      escopo.servicos.length > 0 &&
+      escopo.servicos.every((x) => Math.abs(x.orcado - x.distribuido - x.saldo) < 1e-6) &&
+      escopo.servicos.some((x) => x.tarefas.length > 0),
+    JSON.stringify(escopo).slice(0, 300)
+  )
   const prev = await chamar('planos', { acao: 'promover', planejamento_id: plano.id })
   check('promover sem confirmar não trava', prev.precisa_confirmar === true)
   const lb = await chamar('planos', {

@@ -6,6 +6,8 @@ import { calcularSemGravar, recalcularPlano } from '../lib/motor'
 import { aplicarComando } from '@/features/cronograma/motor/edicao'
 import { isoParaSeg } from '@/features/cronograma/motor/tempo'
 import { criterioCritico } from '@/features/cronograma/motor/critico'
+import { resumoDoEscopo } from '@/features/cronograma/visoes/escopo'
+import type { TarefaEntrada } from '@/features/cronograma/motor/tipos'
 
 const OBRA = z.string().uuid().describe('id da obra')
 const PLANO = z.string().uuid().describe('id do plano (planejamento)')
@@ -40,7 +42,8 @@ export const planos = ferramenta({
     '(nova cópia em edição) | promover (trava como LB; recusa se o cálculo estiver desatualizado — calcule ' +
     'antes) | vigente (marca uma LB como vigente) | desmarcar_vigente | restaurar (copia uma LB, calcula com as ' +
     'premissas atuais e trava como nova LB) | premissas_diff (o que mudou desde a LB) | trava (por que o ' +
-    'orçamento/cadeia está travado).',
+    'orçamento/cadeia está travado) | escopo (por serviço do orçamento: quantidade orçada, quanto já está em ' +
+    'tarefas do plano, saldo a distribuir e as tarefas; o total sai em valor de venda).',
   entrada: {
     acao: z.enum([
       'listar',
@@ -53,7 +56,8 @@ export const planos = ferramenta({
       'desmarcar_vigente',
       'restaurar',
       'premissas_diff',
-      'trava'
+      'trava',
+      'escopo'
     ]),
     obra_id: OBRA.optional(),
     planejamento_id: PLANO.optional(),
@@ -126,6 +130,60 @@ export const planos = ferramenta({
           if (a[k] !== undefined) patch[k] = a[k]
         await gravar('planejamento', 'update', patch, [eq('id', plano())])
         return { ok: true, calculo: await depois(plano()) }
+      }
+      case 'escopo': {
+        const [p] = await ler<{ id: string; obra_id: string; nome: string }>('planejamento', {
+          colunas: 'id, obra_id, nome',
+          filtros: [eq('id', plano())]
+        })
+        if (!p) throw new Error('Plano não encontrado.')
+        const itens = await ler<Record<string, unknown>>('item_orcamentario', {
+          colunas:
+            'id, codigo, descricao, quantidade_referencia, unidade_referencia, venda_total_calc, indireto_id, servico:servico_id(unidade)',
+          filtros: [eq('obra_id', p.obra_id), eq('tipo', 'servico_grupo')],
+          ordem: [{ coluna: 'codigo' }]
+        })
+        const tarefas = await ler<Record<string, unknown>>('vw_planejamento_tarefa_completa', {
+          colunas:
+            'id, tipo_no, parent_id, nome_custom, servico_nome, item_orcamentario_id, quantidade_alocada, is_indireto',
+          filtros: [eq('planejamento_id', p.id)]
+        })
+        const r = resumoDoEscopo(
+          itens.map((i) => {
+            const s = i.servico as { unidade?: string } | { unidade?: string }[] | null
+            const unidadeServico = (Array.isArray(s) ? s[0] : s)?.unidade ?? null
+            return {
+              id: i.id as string,
+              codigo: i.codigo as string,
+              descricao: i.descricao as string,
+              unidade: unidadeServico ?? (i.unidade_referencia as string | null) ?? null,
+              quantidade_referencia: Number(i.quantidade_referencia ?? 0),
+              venda_total: i.venda_total_calc == null ? null : Number(i.venda_total_calc),
+              indireto_id: (i.indireto_id as string | null) ?? null
+            }
+          }),
+          tarefas.map(
+            (t) =>
+              ({
+                id: t.id,
+                tipo_no: t.tipo_no,
+                parent_id: t.parent_id ?? null,
+                nome: (t.nome_custom as string | null) ?? (t.servico_nome as string | null) ?? '',
+                item_orcamentario_id: t.item_orcamentario_id ?? null,
+                is_indireto: t.is_indireto === true,
+                quantidade: Number(t.quantidade_alocada ?? 0)
+              }) as TarefaEntrada
+          )
+        )
+        return {
+          plano: p.nome,
+          valor_orcado: r.valorOrcado,
+          valor_em_tarefas: r.valorDistribuido,
+          fracao_do_valor: r.fracaoValor,
+          servicos_por_estado: r.contagem,
+          tarefas_sem_servico_do_orcamento: r.tarefasSemItem,
+          servicos: r.linhas
+        }
       }
       case 'excluir': {
         const [p] = await ler('planejamento', {

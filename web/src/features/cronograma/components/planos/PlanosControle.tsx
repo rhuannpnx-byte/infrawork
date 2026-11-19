@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { IconButton } from '@/components/ui/IconButton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover } from '@/components/ui/popover'
@@ -95,6 +96,31 @@ export function SeletorPlano({
   const escolher = (id: string): void => {
     onEscolher(id)
     setAberto(false)
+  }
+  const excluirLinhaBase = async (p: Planejamento): Promise<void> => {
+    setAberto(false)
+    const ok = await confirm({
+      title: `Excluir "${p.nome}"?`,
+      description:
+        p.id === provisoria
+          ? 'Sem volta. Esta é a referência provisória do acompanhamento: o previsto passa a vir da linha de base anterior.'
+          : 'Sem volta. A linha de base e suas premissas são removidas.',
+      confirmLabel: 'Excluir',
+      variant: 'danger'
+    })
+    if (!ok) return
+    excluir.mutate(
+      { id: p.id, obra_id: obraId },
+      {
+        onSuccess: () => {
+          toast.success('Linha de base excluída.')
+          if (p.id !== plano.id) return
+          const outro = edicao ?? lbs.find((x) => x.id !== p.id)
+          if (outro) onEscolher(outro.id)
+        },
+        onError: (e) => void toast.error(`Não foi possível excluir a linha de base. ${e.message}`)
+      }
+    )
   }
   const excluirEdicao = async (p: Planejamento): Promise<void> => {
     setAberto(false)
@@ -203,7 +229,31 @@ export function SeletorPlano({
             </div>
           ) : (
             lbs.map((p) => (
-              <ItemPlano key={p.id} p={p} atual={p.id === plano.id} onClick={() => escolher(p.id)}>
+              <ItemPlano
+                key={p.id}
+                p={p}
+                atual={p.id === plano.id}
+                onClick={() => escolher(p.id)}
+                acao={
+                  podeGerir ? (
+                    <IconButton
+                      size="sm"
+                      variant="ghost"
+                      className="mr-1.5 hover:text-danger"
+                      aria-label={`Excluir a linha de base ${p.nome}`}
+                      title={
+                        p.vigente
+                          ? 'É a linha de base vigente: desmarque-a como vigente antes de excluir'
+                          : 'Excluir linha de base'
+                      }
+                      disabled={p.vigente || excluir.isPending}
+                      onClick={() => void excluirLinhaBase(p)}
+                    >
+                      <Trash2 size={12} aria-hidden />
+                    </IconButton>
+                  ) : null
+                }
+              >
                 <span className="text-xs text-text-muted">travada {travadaEm(p)}</span>
                 {p.vigente ? <Badge variant="accent">vigente</Badge> : null}
                 {p.id === provisoria ? <Badge variant="warn">provisória</Badge> : null}
@@ -288,6 +338,30 @@ function ItemPlano({
   p,
   atual,
   onClick,
+  acao,
+  children
+}: {
+  p: Planejamento
+  atual: boolean
+  onClick: () => void
+  /** Botão ao fim da linha (excluir), fora do botão que escolhe o plano. */
+  acao?: ReactNode
+  children: ReactNode
+}): ReactNode {
+  return (
+    <div className={cn('flex items-center hover:bg-bg-hover', atual && 'bg-bg-hover')}>
+      <BotaoPlano p={p} atual={atual} onClick={onClick}>
+        {children}
+      </BotaoPlano>
+      {acao}
+    </div>
+  )
+}
+
+function BotaoPlano({
+  p,
+  atual,
+  onClick,
   children
 }: {
   p: Planejamento
@@ -299,10 +373,7 @@ function ItemPlano({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-bg-hover',
-        atual && 'bg-bg-hover'
-      )}
+      className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-xs"
     >
       <span className="w-3 shrink-0">
         {atual ? <Check size={12} className="text-accent" /> : null}
@@ -557,9 +628,7 @@ function NomeDialog({
       await onConfirmar(nome.trim())
       onClose()
     } catch (e) {
-      setErro(
-        `Não foi possível criar o plano.${e instanceof Error ? ` ${e.message}` : ''}`
-      )
+      setErro(`Não foi possível criar o plano.${e instanceof Error ? ` ${e.message}` : ''}`)
     } finally {
       setEnviando(false)
     }

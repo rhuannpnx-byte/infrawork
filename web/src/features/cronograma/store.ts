@@ -111,6 +111,8 @@ interface CronogramaUi {
   /** largura de cada coluna da grade ajustada pelo usuário (a que falta usa a padrão) */
   largurasColunas: Partial<Record<ColunaGantt, number>>
   recolhidas: Record<string, string[]>
+  /** gaveta do escopo distribuído aberta ao lado do Gantt */
+  escopoAberto: boolean
   tc: OpcoesTempoCaminho
   /** zoom do tempo-caminho; null = ajustar à área */
   tcZoom: { pxPorHora: number | null; pxPorMetro: number | null }
@@ -121,6 +123,7 @@ interface CronogramaUi {
   setTcZoom: (z: Partial<{ pxPorHora: number | null; pxPorMetro: number | null }>) => void
   escolherPlano: (obraId: string, planoId: string) => void
   setGantt: (o: Partial<OpcoesVisaoGantt>) => void
+  setEscopoAberto: (aberto: boolean) => void
   setZoom: (px: number | null) => void
   setLarguraGrade: (w: number | null) => void
   setColunas: (c: ColunaGantt[]) => void
@@ -140,6 +143,7 @@ export const useCronogramaUi = create<CronogramaUi>()(
       colunas: COLUNAS_PADRAO,
       largurasColunas: {},
       recolhidas: {},
+      escopoAberto: false,
       tc: OPCOES_TEMPO_CAMINHO,
       tcZoom: { pxPorHora: null, pxPorMetro: null },
       filtros: {},
@@ -149,6 +153,7 @@ export const useCronogramaUi = create<CronogramaUi>()(
       escolherPlano: (obraId, planoId) =>
         set((s) => ({ planoPorObra: { ...s.planoPorObra, [obraId]: planoId } })),
       setGantt: (o) => set((s) => ({ gantt: { ...s.gantt, ...o } })),
+      setEscopoAberto: (escopoAberto) => set({ escopoAberto }),
       setZoom: (pxPorHora) => set({ pxPorHora }),
       setLarguraGrade: (w) =>
         set({ larguraGrade: w === null ? null : Math.max(200, Math.min(1400, Math.round(w))) }),
@@ -189,6 +194,7 @@ export const useCronogramaUi = create<CronogramaUi>()(
         colunas: s.colunas,
         largurasColunas: s.largurasColunas,
         recolhidas: s.recolhidas,
+        escopoAberto: s.escopoAberto,
         tc: s.tc,
         tcZoom: s.tcZoom,
         filtros: s.filtros

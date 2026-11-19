@@ -188,8 +188,13 @@ export function useDeletePlanejamento(): ReturnType<
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }) => {
-      const { error } = await supabase.from('planejamento').delete().eq('id', id)
-      if (error) throw error
+      // pede a linha de volta: sem permissão na obra o banco não apaga nada e também não acusa erro
+      const { data, error } = await supabase.from('planejamento').delete().eq('id', id).select('id')
+      if (error) throw new Error(error.message)
+      if (!data?.length)
+        throw new Error(
+          'O plano não foi excluído: ele já não existe ou você não pode planejar esta obra.'
+        )
     },
     onSuccess: () => invalidarPlanos(qc)
   })

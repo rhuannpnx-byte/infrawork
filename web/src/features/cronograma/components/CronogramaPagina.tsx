@@ -10,6 +10,7 @@ import {
   Diamond,
   FileSpreadsheet,
   FolderPlus,
+  ListChecks,
   ListPlus,
   Maximize2,
   MoreHorizontal,
@@ -36,6 +37,7 @@ import { useFiltroVisao } from '../hooks/filtro'
 import { FiltroPopover } from './FiltroPopover'
 import { agoraLocal } from '../visoes/formato'
 import { LegendaControle } from './LegendaControle'
+import { EscopoPainel } from './EscopoPainel'
 import {
   BarraFerramentas,
   GrupoBarra,
@@ -347,6 +349,15 @@ function CorpoGantt({ obraId, calc, somenteLeitura, baseline }: ContextoPlano): 
           ) : null}
           {somenteLeitura ? <SeloSomenteLeitura motivo={motivo} /> : null}
           <Button
+            variant={ui.escopoAberto ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={ui.escopoAberto}
+            onClick={() => ui.setEscopoAberto(!ui.escopoAberto)}
+            title="Quanto da quantidade orçada de cada serviço já está em tarefas e quanto falta distribuir"
+          >
+            <ListChecks size={12} /> Escopo
+          </Button>
+          <Button
             variant="ghost"
             size="sm"
             onClick={acoes.abrirPlano}
@@ -356,15 +367,25 @@ function CorpoGantt({ obraId, calc, somenteLeitura, baseline }: ContextoPlano): 
           </Button>
         </GrupoBarra>
       </BarraFerramentas>
-      <div className="min-h-0 flex-1">
-        <GanttVista
-          calc={calcFiltrado}
-          modo={modo}
-          somenteLeitura={somenteLeitura}
-          acoes={acoes}
-          irPara={irPara}
-          onEscala={setEscala}
-        />
+      <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1">
+          <GanttVista
+            calc={calcFiltrado}
+            modo={modo}
+            somenteLeitura={somenteLeitura}
+            acoes={acoes}
+            irPara={irPara}
+            onEscala={setEscala}
+          />
+        </div>
+        {ui.escopoAberto ? (
+          <EscopoPainel
+            obraId={obraId}
+            entrada={e}
+            onFechar={() => ui.setEscopoAberto(false)}
+            onAbrirTarefa={acoes.abrirTarefa}
+          />
+        ) : null}
       </div>
       {dialogos.elemento}
     </>
