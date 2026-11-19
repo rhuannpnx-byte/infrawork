@@ -365,6 +365,7 @@ function Inner(): ReactNode {
                         <span className="px-1 tabular">{v.placa ?? '—'}</span>
                       ) : (
                         <Input
+                          mascara="placa"
                           key={`${v.id}-${v.placa}`}
                           defaultValue={v.placa ?? ''}
                           aria-label={`Placa do veículo ${v.prefixo}`}
@@ -466,9 +467,10 @@ function Inner(): ReactNode {
                             </AlertTriangle>
                           ) : null}
                           <Input
+                            mascara="decimal"
+                            casas={2}
                             key={`${v.id}-${v.capacidade_m3}`}
                             defaultValue={txt(v.capacidade_m3)}
-                            inputMode="decimal"
                             aria-label={`Capacidade em m³ do veículo ${v.prefixo}`}
                             onBlur={(e) => {
                               const x = parseQtd(e.target.value)
@@ -565,6 +567,7 @@ function Inner(): ReactNode {
           </Campo>
           <Campo rotulo="Placa" className="w-32">
             <Input
+              mascara="placa"
               value={novo.placa}
               onChange={(e) => setNovo({ ...novo, placa: e.target.value })}
               className="tabular"

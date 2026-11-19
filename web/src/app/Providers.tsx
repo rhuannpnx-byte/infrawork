@@ -9,6 +9,9 @@ import { TabViewport } from './TabViewport'
 import { Modals } from '@/components/modals/Modals'
 import { installUrlSync } from './url-sync'
 import { useThemeStore } from '@/stores/theme-store'
+import { AVISO_MS, ajustarTemposDosAvisos } from '@/lib/avisos'
+
+ajustarTemposDosAvisos()
 
 function ShortcutsBoot(): null {
   useShortcuts()
@@ -33,9 +36,15 @@ export function Providers(): ReactNode {
         </AppShell>
         <Modals />
       </AuthGate>
+      {/* aviso curto, no máximo dois na tela e sem um cobrir o outro; erro fica mais tempo (lib/avisos) */}
       <Toaster
         position="bottom-right"
         theme={tema}
+        duration={AVISO_MS}
+        visibleToasts={2}
+        expand
+        gap={8}
+        closeButton
         toastOptions={{
           style: {
             background: 'var(--bg-elevated)',

@@ -79,7 +79,8 @@ function Conteudo({
       if (v === null || v < 0) return setErro(`${l.rotulo}: quantidade inválida.`)
       if (v > l.quantidade + 1e-9)
         return setErro(`${l.rotulo}: a parte não pode passar de ${fmtNum(l.quantidade, 'auto')}.`)
-      if (!l.manual && v > 0) return setErro(`${l.rotulo}: local com quantidades da planilha; divida por estaca.`)
+      if (!l.manual && v > 0)
+        return setErro(`${l.rotulo}: local com quantidades da planilha; divida por estaca.`)
       fica += l.quantidade - v
       if (v > 0) out.push({ local_id: l.local_id, quantidade: v })
     }
@@ -134,9 +135,10 @@ function Conteudo({
                   </td>
                   <td className="px-2 py-1">
                     <Input
+                      mascara="decimal"
+                      casas={6}
                       value={partes[i] ?? ''}
                       disabled={!l.manual}
-                      inputMode="decimal"
                       aria-label={`Quantidade de ${l.rotulo} para a tarefa nova`}
                       className="h-7 px-1.5 text-right text-xs tabular"
                       onChange={(x) =>

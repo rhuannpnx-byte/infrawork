@@ -709,7 +709,8 @@ function Form({
                         </td>
                         <td className="px-2 py-1.5">
                           <Input
-                            inputMode="decimal"
+                            mascara="decimal"
+                            casas={4}
                             value={l.qtd}
                             onChange={(e) => setLinha(i, { qtd: e.target.value })}
                             placeholder={sv?.unidade ?? ''}
@@ -727,7 +728,8 @@ function Form({
                         <td className="px-2 py-1.5">
                           {pedeMaterial ? (
                             <Input
-                              inputMode="decimal"
+                              mascara="decimal"
+                              casas={4}
                               value={l.mat}
                               onChange={(e) => setLinha(i, { mat: e.target.value })}
                               placeholder={par.material_unidade ?? ''}
@@ -744,7 +746,8 @@ function Form({
                           <div className="flex min-h-8 items-center gap-1">
                             {l.dmtManual ? (
                               <Input
-                                inputMode="decimal"
+                                mascara="decimal"
+                                casas={3}
                                 value={l.dmt}
                                 onChange={(e) => setLinha(i, { dmt: e.target.value })}
                                 placeholder={dmt.km !== null ? txtNum(dmt.km) : 'km'}

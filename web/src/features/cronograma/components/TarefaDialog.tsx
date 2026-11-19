@@ -63,6 +63,7 @@ import { configDoForm, formDoConfig, mesmoForm } from './indireto-form'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { fmtBRL } from '@/lib/money'
 import { doInputDataHora, lerNumero, paraInputDataHora } from './campos-util'
+import { numeroParaCampo } from '@/lib/mascara/numero'
 
 type Aba = 'geral' | 'indireto' | 'locais' | 'equipes' | 'dependencias' | 'aparencia' | 'comentario'
 
@@ -177,10 +178,12 @@ function Conteudo({
   const [inicio, setInicio] = useState(inicioAtual)
   const [fim, setFim] = useState(fimAtual)
   const [qtdEquipes, setQtdEquipes] = useState(String(t.qtd_equipes))
-  const [coef, setCoef] = useState(fmtNum(t.coef_producao, 'auto'))
+  const [coef, setCoef] = useState(numeroParaCampo(t.coef_producao, 12))
   const [sentido, setSentido] = useState(t.sentido)
   const [nomeadas, setNomeadas] = useState<string[]>(t.equipes_ids)
-  const [qtdSemLocal, setQtdSemLocal] = useState(t.quantidade ? fmtNum(t.quantidade, 'auto') : '')
+  const [qtdSemLocal, setQtdSemLocal] = useState(
+    t.quantidade ? numeroParaCampo(t.quantidade, 6) : ''
+  )
   const locaisIniciais: LocalForm[] = [...t.locais]
     .sort((a, b) => a.ordem - b.ordem)
     .map((l) => ({
@@ -189,7 +192,7 @@ function Conteudo({
       ini:
         l.trecho_id && l.inicio_m !== null ? textoEstaca(l.inicio_m, trechos.get(l.trecho_id)) : '',
       fim: l.trecho_id && l.fim_m !== null ? textoEstaca(l.fim_m, trechos.get(l.trecho_id)) : '',
-      qtd: fmtNum(l.quantidade, 'auto'),
+      qtd: numeroParaCampo(l.quantidade, 6),
       origem: l.qtd_origem
     }))
   const [locais, setLocais] = useState<LocalForm[]>(locaisIniciais)
@@ -452,766 +455,784 @@ function Conteudo({
       </DialogHeader>
       <DialogBody className="h-[min(62vh,560px)] min-h-[420px] overflow-y-auto">
         <div ref={erro.caixa} onKeyDown={ro ? undefined : enterEnvia(() => void salvar())}>
-        <DialogErrorBanner message={erro.geral} />
-        {viol.length ? (
-          <div className="mb-3 space-y-0.5 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-            {viol.map((v, i) => (
-              <div key={i}>
-                ⚑{' '}
-                {v.tipo === 'marco'
-                  ? `Marco violado: ${e.marcos.find((m) => m.id === v.marco_id)?.nome ?? ''}`
-                  : v.tipo === 'projeto'
-                    ? v.ponto === 'fim'
-                      ? 'Prazo do projeto violado'
-                      : 'Início do projeto violado'
-                    : v.tipo === 'restricao'
-                      ? `Restrição de ${v.ponto === 'inicio' ? 'início' : 'término'} violada`
-                      : `Atraso máximo violado (de ${nomeT(v.dependencia_predecessora)})`}
-              </div>
-            ))}
-          </div>
-        ) : null}
+          <DialogErrorBanner message={erro.geral} />
+          {viol.length ? (
+            <div className="mb-3 space-y-0.5 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+              {viol.map((v, i) => (
+                <div key={i}>
+                  ⚑{' '}
+                  {v.tipo === 'marco'
+                    ? `Marco violado: ${e.marcos.find((m) => m.id === v.marco_id)?.nome ?? ''}`
+                    : v.tipo === 'projeto'
+                      ? v.ponto === 'fim'
+                        ? 'Prazo do projeto violado'
+                        : 'Início do projeto violado'
+                      : v.tipo === 'restricao'
+                        ? `Restrição de ${v.ponto === 'inicio' ? 'início' : 'término'} violada`
+                        : `Atraso máximo violado (de ${nomeT(v.dependencia_predecessora)})`}
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-        {aba === 'geral' ? (
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <Campo rotulo="Nome" className="col-span-2">
-              <Input
-                value={nome}
-                onChange={(x) => setNome(x.target.value)}
-                disabled={ro}
-                placeholder={servico?.nome}
-              />
-            </Campo>
-            <Secao titulo="Datas">
-              <div className="grid grid-cols-2 gap-3">
-                <Campo
-                  rotulo="Início"
-                  dica="Mudar o início fixa o início desejado da tarefa (deixa de ser 'o mais cedo possível')"
+          {aba === 'geral' ? (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              <Campo rotulo="Nome" className="col-span-2">
+                <Input
+                  value={nome}
+                  onChange={(x) => setNome(x.target.value)}
+                  disabled={ro}
+                  placeholder={servico?.nome}
+                />
+              </Campo>
+              <Secao titulo="Datas">
+                <div className="grid grid-cols-2 gap-3">
+                  <Campo
+                    rotulo="Início"
+                    dica="Mudar o início fixa o início desejado da tarefa (deixa de ser 'o mais cedo possível')"
+                  >
+                    <Input
+                      type="datetime-local"
+                      value={inicio}
+                      onChange={(x) => setInicio(x.target.value)}
+                      disabled={ro || !r}
+                    />
+                  </Campo>
+                  <Campo
+                    rotulo="Término"
+                    dica="Mudar o término recalcula o número de equipes (a produção é a da composição × equipes), como esticar a barra no Gantt"
+                  >
+                    <Input
+                      type="datetime-local"
+                      value={fim}
+                      onChange={(x) => setFim(x.target.value)}
+                      disabled={ro || !r || producaoMudou}
+                    />
+                  </Campo>
+                </div>
+                {producaoMudou ? (
+                  <p className="text-xs text-text-muted">
+                    Salve as equipes antes de mudar o término.
+                  </p>
+                ) : null}
+                <Caixa
+                  marcado={asap}
+                  onMudar={setAsap}
+                  desabilitado={ro}
+                  dica="Começa no início do plano ou assim que as dependências permitem; desligado, mantém o início atual"
                 >
-                  <Input
-                    type="datetime-local"
-                    value={inicio}
-                    onChange={(x) => setInicio(x.target.value)}
-                    disabled={ro || !r}
-                  />
-                </Campo>
-                <Campo
-                  rotulo="Término"
-                  dica="Mudar o término recalcula o número de equipes (a produção é a da composição × equipes), como esticar a barra no Gantt"
+                  O mais cedo possível
+                </Caixa>
+                <Caixa
+                  marcado={inicioDia}
+                  onMudar={setInicioDia}
+                  desabilitado={ro}
+                  dica="Só começa no início de um dia de trabalho"
                 >
-                  <Input
-                    type="datetime-local"
-                    value={fim}
-                    onChange={(x) => setFim(x.target.value)}
-                    disabled={ro || !r || producaoMudou}
-                  />
+                  Começar no início do dia
+                </Caixa>
+                {r ? (
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-text-muted">
+                    <span>Duração: {fmtDias(r.duracao_dias_uteis)}</span>
+                    <span>Folga total: {fmtNum(r.folga_total_h, 1)} h</span>
+                    <span>Folga livre: {fmtNum(r.folga_livre_h, 1)} h</span>
+                  </div>
+                ) : null}
+              </Secao>
+              <Secao titulo="Restrições">
+                <div className="grid grid-cols-[1fr_1.2fr] items-start gap-2">
+                  <Campo rotulo="Início">
+                    <Select
+                      value={restIni}
+                      onChange={(x) => setRestIni(x.target.value as typeof restIni)}
+                      disabled={ro}
+                    >
+                      <option value="">Sem restrição</option>
+                      <option value="nao_antes">Não antes de</option>
+                      <option value="exato">Exatamente em</option>
+                    </Select>
+                  </Campo>
+                  <Campo rotulo="Data" erro={erro.de('restIni')}>
+                    <Input
+                      type="datetime-local"
+                      aria-label="Data da restrição de início"
+                      value={restIniEm}
+                      onChange={(x) => setRestIniEm(x.target.value)}
+                      disabled={ro || !restIni}
+                    />
+                  </Campo>
+                  <Campo rotulo="Término">
+                    <Select
+                      value={restFim}
+                      onChange={(x) => setRestFim(x.target.value as typeof restFim)}
+                      disabled={ro}
+                    >
+                      <option value="">Sem restrição</option>
+                      <option value="nao_depois">Não depois de</option>
+                      <option value="exato">Exatamente em</option>
+                    </Select>
+                  </Campo>
+                  <Campo rotulo="Data" erro={erro.de('restFim')}>
+                    <Input
+                      type="datetime-local"
+                      aria-label="Data da restrição de término"
+                      value={restFimEm}
+                      onChange={(x) => setRestFimEm(x.target.value)}
+                      disabled={ro || !restFim}
+                    />
+                  </Campo>
+                </div>
+              </Secao>
+              <Secao titulo="Programação">
+                <div className="grid grid-cols-2 items-start gap-3">
+                  <Campo rotulo="Calendário">
+                    <Select
+                      value={calendario}
+                      onChange={(x) => setCalendario(x.target.value)}
+                      disabled={ro}
+                    >
+                      <option value="">Padrão do plano</option>
+                      {e.calendarios.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </Select>
+                  </Campo>
+                  <Campo
+                    rotulo="Prioridade"
+                    dica="Ordem de cálculo quando há disputa por equipes ou recursos: maior primeiro"
+                    erro={erro.de('prioridade')}
+                  >
+                    <Input
+                      mascara="inteiro"
+                      value={prioridade}
+                      onChange={(x) => setPrioridade(x.target.value)}
+                      disabled={ro}
+                      className="text-right"
+                    />
+                  </Campo>
+                </div>
+                <Caixa
+                  marcado={derivar}
+                  onMudar={setDerivar}
+                  desabilitado={ro}
+                  dica="Usa as dependências entre serviços (por estacas) como predecessoras"
+                >
+                  Derivar predecessoras das dependências entre serviços
+                </Caixa>
+              </Secao>
+              <Secao titulo="Resultado">
+                {r ? (
+                  <dl className="grid grid-cols-[110px_1fr] gap-y-1 text-xs">
+                    <dt className="text-text-dim">Início</dt>
+                    <dd className="tabular-nums text-text">{fmtDataHora(r.inicio)}</dd>
+                    <dt className="text-text-dim">Término</dt>
+                    <dd className="tabular-nums text-text">{fmtDataHora(r.fim)}</dd>
+                    <dt className="text-text-dim">Horas de trabalho</dt>
+                    <dd className="tabular-nums text-text">{fmtNum(r.duracao_h, 1)} h</dd>
+                    <dt className="text-text-dim">Limitada por</dt>
+                    <dd className="text-text">
+                      {LIMITE[r.restricao_limite] ?? r.restricao_limite}
+                    </dd>
+                  </dl>
+                ) : (
+                  <p className="text-xs text-text-dim">
+                    {t.is_indireto
+                      ? 'Custo indireto: a janela vem das tarefas diretas.'
+                      : 'Fora do cálculo: a tarefa precisa de um serviço com composição.'}
+                  </p>
+                )}
+              </Secao>
+            </div>
+          ) : null}
+
+          {aba === 'locais' ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <Campo rotulo="Sentido de execução" className="w-72">
+                  <Select
+                    value={sentido}
+                    onChange={(x) => setSentido(x.target.value as typeof sentido)}
+                    disabled={ro}
+                  >
+                    <option value="crescente">Do início do trecho (estacas crescentes)</option>
+                    <option value="decrescente">Do fim do trecho (estacas decrescentes)</option>
+                  </Select>
                 </Campo>
-              </div>
-              {producaoMudou ? (
-                <p className="text-xs text-text-muted">
-                  Salve as equipes antes de mudar o término.
+                <p className="mt-4 flex-1 text-xs text-text-muted">
+                  Cada local é um trecho de trabalho da tarefa (eixo com estacas, ou uma área). Com
+                  quantidade “do template”, a planilha de quantidades do local divide a faixa em
+                  segmentos (o cálculo avança mais devagar onde há mais quantidade) e acompanha a
+                  planilha.
                 </p>
-              ) : null}
-              <Caixa
-                marcado={asap}
-                onMudar={setAsap}
-                desabilitado={ro}
-                dica="Começa no início do plano ou assim que as dependências permitem; desligado, mantém o início atual"
-              >
-                O mais cedo possível
-              </Caixa>
-              <Caixa
-                marcado={inicioDia}
-                onMudar={setInicioDia}
-                desabilitado={ro}
-                dica="Só começa no início de um dia de trabalho"
-              >
-                Começar no início do dia
-              </Caixa>
-              {r ? (
-                <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-text-muted">
-                  <span>Duração: {fmtDias(r.duracao_dias_uteis)}</span>
-                  <span>Folga total: {fmtNum(r.folga_total_h, 1)} h</span>
-                  <span>Folga livre: {fmtNum(r.folga_livre_h, 1)} h</span>
+              </div>
+              <table className="w-full table-fixed text-xs">
+                <thead>
+                  <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                    <th className="w-6" aria-label="Ordem" />
+                    <th className="px-1 py-1 text-left">Local</th>
+                    <th className="w-[112px] px-1 py-1 text-left">Estaca inicial</th>
+                    <th className="w-[112px] px-1 py-1 text-left">Estaca final</th>
+                    <th className="w-[128px] px-1 py-1 text-left">Origem</th>
+                    <th className="w-[112px] px-1 py-1 text-right">
+                      Quantidade{servico?.unidade ? ` (${servico.unidade})` : ''}
+                    </th>
+                    <th className="w-[124px] px-1 py-1 text-left">Calculado</th>
+                    <th className="w-[92px]" aria-label="Ações" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {locais.map((l, k) => {
+                    const loc = t.locais.find((x) => x.id === l.id)
+                    const tr = l.trecho_id ? trechos.get(l.trecho_id) : undefined
+                    const ehEixo = tr?.tipo === 'eixo'
+                    const muda = (x: Partial<LocalForm>): void =>
+                      setLocais(locais.map((y, j) => (j === k ? { ...y, ...x } : y)))
+                    const iniOk = !ehEixo || lerEstaca(l.ini, tr) !== null
+                    const fimOk = !ehEixo || lerEstaca(l.fim, tr) !== null
+                    const tpl = tr ? noTemplate({ trecho_id: tr.id, ini: l.ini, fim: l.fim }) : null
+                    const ws = (r?.wps ?? []).filter((w) => w.local_id === l.id)
+                    return (
+                      <tr key={k} className="border-t border-border">
+                        <td className="py-1 text-center tabular text-2xs text-text-dim">{k + 1}</td>
+                        <td className="px-1 py-1">
+                          <Select
+                            value={l.trecho_id}
+                            aria-label={`Local ${k + 1}`}
+                            className="h-7 text-xs"
+                            onChange={(x) => {
+                              const ntr = trechos.get(x.target.value)
+                              muda({
+                                trecho_id: x.target.value,
+                                origem: x.target.value ? l.origem : 'manual',
+                                ini: ntr?.tipo === 'eixo' ? textoEstaca(0, ntr) : '',
+                                fim:
+                                  ntr?.tipo === 'eixo'
+                                    ? textoEstaca(ntr.comprimento_m ?? 0, ntr)
+                                    : ''
+                              })
+                            }}
+                            disabled={ro}
+                            title={
+                              ehEixo
+                                ? `Faixa do trecho: ${textoEstaca(0, tr)} – ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
+                                : undefined
+                            }
+                          >
+                            <option value="">Sem local</option>
+                            {e.trechos.some((x) => x.tipo === 'eixo') ? (
+                              <optgroup label="Eixos">
+                                {e.trechos
+                                  .filter((x) => x.tipo === 'eixo')
+                                  .map((x) => (
+                                    <option key={x.id} value={x.id}>
+                                      {x.nome}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            ) : null}
+                            {e.trechos.some((x) => x.tipo === 'area') ? (
+                              <optgroup label="Áreas">
+                                {e.trechos
+                                  .filter((x) => x.tipo === 'area')
+                                  .map((x) => (
+                                    <option key={x.id} value={x.id}>
+                                      {x.nome}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            ) : null}
+                          </Select>
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input
+                            value={l.ini}
+                            onChange={(x) => muda({ ini: x.target.value })}
+                            disabled={ro || !ehEixo}
+                            placeholder={ehEixo ? textoEstaca(0, tr) : tr ? 'área inteira' : '—'}
+                            aria-label={`Estaca inicial do local ${k + 1}`}
+                            aria-invalid={!iniOk || undefined}
+                            className="h-7 px-1.5 text-xs tabular"
+                            title={
+                              ehEixo
+                                ? iniOk
+                                  ? `Entre ${textoEstaca(0, tr)} e ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
+                                  : 'Estaca inválida ou fora do trecho'
+                                : undefined
+                            }
+                          />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input
+                            value={l.fim}
+                            onChange={(x) => muda({ fim: x.target.value })}
+                            disabled={ro || !ehEixo}
+                            placeholder={
+                              ehEixo
+                                ? textoEstaca(tr.comprimento_m ?? 0, tr)
+                                : tr
+                                  ? 'área inteira'
+                                  : '—'
+                            }
+                            aria-label={`Estaca final do local ${k + 1}`}
+                            aria-invalid={!fimOk || undefined}
+                            className="h-7 px-1.5 text-xs tabular"
+                            title={
+                              ehEixo
+                                ? fimOk
+                                  ? `Entre ${textoEstaca(0, tr)} e ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
+                                  : 'Estaca inválida ou fora do trecho'
+                                : undefined
+                            }
+                          />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Select
+                            value={l.origem}
+                            aria-label={`Origem da quantidade do local ${k + 1}`}
+                            className="h-7 text-xs"
+                            onChange={(x) =>
+                              muda({ origem: x.target.value as LocalForm['origem'] })
+                            }
+                            disabled={ro || !l.trecho_id}
+                            title={
+                              tr && tpl === null && l.origem === 'manual'
+                                ? 'A planilha de quantidades deste local não tem este serviço nesta faixa'
+                                : undefined
+                            }
+                          >
+                            <option value="manual">Manual</option>
+                            <option value="trecho" disabled={tpl === null && l.origem !== 'trecho'}>
+                              Do template
+                            </option>
+                          </Select>
+                        </td>
+                        <td className="px-1 py-1">
+                          {l.origem === 'trecho' ? (
+                            <span
+                              className="block pr-1 text-right tabular-nums text-text-muted"
+                              title="Calculada pela planilha de quantidades do local"
+                            >
+                              {tpl !== null
+                                ? fmtNum(tpl, 'auto')
+                                : loc?.qtd_origem === 'trecho'
+                                  ? fmtNum(loc.quantidade, 'auto')
+                                  : 'calculada'}
+                            </span>
+                          ) : (
+                            <>
+                              <Input
+                                mascara="decimal"
+                                casas={6}
+                                value={l.qtd}
+                                onChange={(x) => muda({ qtd: x.target.value })}
+                                disabled={ro}
+                                aria-label={`Quantidade do local ${k + 1}`}
+                                className="h-7 px-1.5 text-right text-xs tabular"
+                              />
+                              {tpl !== null ? (
+                                <div
+                                  className="mt-0.5 text-right text-xs text-text-muted"
+                                  title="Quantidade da planilha de quantidades nesta faixa"
+                                >
+                                  no template: {fmtNum(tpl, 'auto')}
+                                </div>
+                              ) : null}
+                            </>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-1 py-1 text-xs tabular text-text-muted">
+                          {ws.length
+                            ? `${fmtData(Math.min(...ws.map((w) => w.inicio)))} → ${fmtData(Math.max(...ws.map((w) => w.fim)) - 1)}`
+                            : '—'}
+                        </td>
+                        <td className="px-1 py-1 text-right">
+                          <div className="flex justify-end gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={ro || k === 0}
+                              onClick={() => setLocais(trocar(locais, k, k - 1))}
+                              aria-label={`Subir o local ${k + 1}`}
+                              title="Subir"
+                            >
+                              <ArrowUp size={12} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={ro || k === locais.length - 1}
+                              onClick={() => setLocais(trocar(locais, k, k + 1))}
+                              aria-label={`Descer o local ${k + 1}`}
+                              title="Descer"
+                            >
+                              <ArrowDown size={12} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={ro}
+                              onClick={() => setLocais(locais.filter((_, j) => j !== k))}
+                              aria-label={`Remover o local ${k + 1}`}
+                              title="Remover o local"
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {!locais.length ? (
+                <div className="flex items-center gap-3 rounded border border-border bg-bg-elevated/40 px-3 py-2">
+                  <span className="text-xs text-text-muted">
+                    Sem locais: a tarefa fica em “Sem local” (fora do tempo-caminho), com a
+                    quantidade
+                  </span>
+                  <Input
+                    mascara="decimal"
+                    casas={6}
+                    value={qtdSemLocal}
+                    onChange={(x) => setQtdSemLocal(x.target.value)}
+                    disabled={ro || t.is_indireto}
+                    aria-label="Quantidade da tarefa sem local"
+                    aria-invalid={erro.de('qtdSemLocal') ? true : undefined}
+                    className="w-32 text-right"
+                  />
+                  <span className="text-xs text-text-muted">{servico?.unidade ?? ''}</span>
                 </div>
               ) : null}
-            </Secao>
-            <Secao titulo="Restrições">
-              <div className="grid grid-cols-[1fr_1.2fr] items-start gap-2">
-                <Campo rotulo="Início">
-                  <Select
-                    value={restIni}
-                    onChange={(x) => setRestIni(x.target.value as typeof restIni)}
-                    disabled={ro}
-                  >
-                    <option value="">Sem restrição</option>
-                    <option value="nao_antes">Não antes de</option>
-                    <option value="exato">Exatamente em</option>
-                  </Select>
-                </Campo>
-                <Campo rotulo="Data" erro={erro.de('restIni')}>
-                  <Input
-                    type="datetime-local"
-                    aria-label="Data da restrição de início"
-                    value={restIniEm}
-                    onChange={(x) => setRestIniEm(x.target.value)}
-                    disabled={ro || !restIni}
-                  />
-                </Campo>
-                <Campo rotulo="Término">
-                  <Select
-                    value={restFim}
-                    onChange={(x) => setRestFim(x.target.value as typeof restFim)}
-                    disabled={ro}
-                  >
-                    <option value="">Sem restrição</option>
-                    <option value="nao_depois">Não depois de</option>
-                    <option value="exato">Exatamente em</option>
-                  </Select>
-                </Campo>
-                <Campo rotulo="Data" erro={erro.de('restFim')}>
-                  <Input
-                    type="datetime-local"
-                    aria-label="Data da restrição de término"
-                    value={restFimEm}
-                    onChange={(x) => setRestFimEm(x.target.value)}
-                    disabled={ro || !restFim}
-                  />
-                </Campo>
-              </div>
-            </Secao>
-            <Secao titulo="Programação">
-              <div className="grid grid-cols-2 items-start gap-3">
-                <Campo rotulo="Calendário">
-                  <Select
-                    value={calendario}
-                    onChange={(x) => setCalendario(x.target.value)}
-                    disabled={ro}
-                  >
-                    <option value="">Padrão do plano</option>
-                    {e.calendarios.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome}
-                      </option>
-                    ))}
-                  </Select>
-                </Campo>
-                <Campo
-                  rotulo="Prioridade"
-                  dica="Ordem de cálculo quando há disputa por equipes ou recursos: maior primeiro"
-                  erro={erro.de('prioridade')}
-                >
-                  <Input
-                    value={prioridade}
-                    onChange={(x) => setPrioridade(x.target.value)}
-                    disabled={ro}
-                    inputMode="numeric"
-                    className="text-right"
-                  />
-                </Campo>
-              </div>
-              <Caixa
-                marcado={derivar}
-                onMudar={setDerivar}
-                desabilitado={ro}
-                dica="Usa as dependências entre serviços (por estacas) como predecessoras"
+              {erro.de('qtdSemLocal') ? (
+                <p role="alert" className="text-xs font-medium text-danger">
+                  {erro.de('qtdSemLocal')}
+                </p>
+              ) : null}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={ro || t.is_indireto}
+                onClick={() => {
+                  // como no ApeX: o local novo começa onde o anterior termina e vale uma unidade
+                  const ultimo = locais[locais.length - 1]
+                  const trechoId = ultimo?.trecho_id ?? e.trechos[0]?.id ?? ''
+                  const tr = trechos.get(trechoId)
+                  let ini = '',
+                    fim = ''
+                  if (tr?.tipo === 'eixo') {
+                    const comp = tr.comprimento_m ?? 0
+                    const a0 =
+                      ultimo && ultimo.trecho_id === trechoId ? lerEstaca(ultimo.fim, tr) : 0
+                    const a = Math.min(a0 ?? 0, comp)
+                    const b = Math.min(a + divisorMetrosPorUnidade(ctxTrecho(tr)), comp)
+                    ini = textoEstaca(a, tr)
+                    fim = textoEstaca(b > a ? b : comp, tr)
+                  }
+                  setLocais([
+                    ...locais,
+                    { trecho_id: trechoId, ini, fim, qtd: '', origem: ultimo?.origem ?? 'manual' }
+                  ])
+                }}
               >
-                Derivar predecessoras das dependências entre serviços
-              </Caixa>
-            </Secao>
-            <Secao titulo="Resultado">
-              {r ? (
-                <dl className="grid grid-cols-[110px_1fr] gap-y-1 text-xs">
-                  <dt className="text-text-dim">Início</dt>
-                  <dd className="tabular-nums text-text">{fmtDataHora(r.inicio)}</dd>
-                  <dt className="text-text-dim">Término</dt>
-                  <dd className="tabular-nums text-text">{fmtDataHora(r.fim)}</dd>
-                  <dt className="text-text-dim">Horas de trabalho</dt>
-                  <dd className="tabular-nums text-text">{fmtNum(r.duracao_h, 1)} h</dd>
-                  <dt className="text-text-dim">Limitada por</dt>
-                  <dd className="text-text">{LIMITE[r.restricao_limite] ?? r.restricao_limite}</dd>
-                </dl>
-              ) : (
-                <p className="text-xs text-text-dim">
-                  {t.is_indireto
-                    ? 'Custo indireto: a janela vem das tarefas diretas.'
-                    : 'Fora do cálculo: a tarefa precisa de um serviço com composição.'}
-                </p>
-              )}
-            </Secao>
-          </div>
-        ) : null}
-
-        {aba === 'locais' ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-4">
-              <Campo rotulo="Sentido de execução" className="w-72">
-                <Select
-                  value={sentido}
-                  onChange={(x) => setSentido(x.target.value as typeof sentido)}
-                  disabled={ro}
-                >
-                  <option value="crescente">Do início do trecho (estacas crescentes)</option>
-                  <option value="decrescente">Do fim do trecho (estacas decrescentes)</option>
-                </Select>
-              </Campo>
-              <p className="mt-4 flex-1 text-xs text-text-muted">
-                Cada local é um trecho de trabalho da tarefa (eixo com estacas, ou uma área). Com
-                quantidade “do template”, a planilha de quantidades do local divide a faixa em
-                segmentos (o cálculo avança mais devagar onde há mais quantidade) e acompanha a
-                planilha.
-              </p>
+                <Plus size={12} /> Novo local
+              </Button>
             </div>
-            <table className="w-full table-fixed text-xs">
-              <thead>
-                <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-                  <th className="w-6" aria-label="Ordem" />
-                  <th className="px-1 py-1 text-left">Local</th>
-                  <th className="w-[112px] px-1 py-1 text-left">Estaca inicial</th>
-                  <th className="w-[112px] px-1 py-1 text-left">Estaca final</th>
-                  <th className="w-[128px] px-1 py-1 text-left">Origem</th>
-                  <th className="w-[112px] px-1 py-1 text-right">
-                    Quantidade{servico?.unidade ? ` (${servico.unidade})` : ''}
-                  </th>
-                  <th className="w-[124px] px-1 py-1 text-left">Calculado</th>
-                  <th className="w-[92px]" aria-label="Ações" />
-                </tr>
-              </thead>
-              <tbody>
-                {locais.map((l, k) => {
-                  const loc = t.locais.find((x) => x.id === l.id)
-                  const tr = l.trecho_id ? trechos.get(l.trecho_id) : undefined
-                  const ehEixo = tr?.tipo === 'eixo'
-                  const muda = (x: Partial<LocalForm>): void =>
-                    setLocais(locais.map((y, j) => (j === k ? { ...y, ...x } : y)))
-                  const iniOk = !ehEixo || lerEstaca(l.ini, tr) !== null
-                  const fimOk = !ehEixo || lerEstaca(l.fim, tr) !== null
-                  const tpl = tr ? noTemplate({ trecho_id: tr.id, ini: l.ini, fim: l.fim }) : null
-                  const ws = (r?.wps ?? []).filter((w) => w.local_id === l.id)
-                  return (
-                    <tr key={k} className="border-t border-border">
-                      <td className="py-1 text-center tabular text-2xs text-text-dim">{k + 1}</td>
-                      <td className="px-1 py-1">
-                        <Select
-                          value={l.trecho_id}
-                          aria-label={`Local ${k + 1}`}
-                          className="h-7 text-xs"
-                          onChange={(x) => {
-                            const ntr = trechos.get(x.target.value)
-                            muda({
-                              trecho_id: x.target.value,
-                              origem: x.target.value ? l.origem : 'manual',
-                              ini: ntr?.tipo === 'eixo' ? textoEstaca(0, ntr) : '',
-                              fim:
-                                ntr?.tipo === 'eixo' ? textoEstaca(ntr.comprimento_m ?? 0, ntr) : ''
-                            })
-                          }}
-                          disabled={ro}
-                          title={
-                            ehEixo
-                              ? `Faixa do trecho: ${textoEstaca(0, tr)} – ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
-                              : undefined
-                          }
-                        >
-                          <option value="">Sem local</option>
-                          {e.trechos.some((x) => x.tipo === 'eixo') ? (
-                            <optgroup label="Eixos">
-                              {e.trechos
-                                .filter((x) => x.tipo === 'eixo')
-                                .map((x) => (
-                                  <option key={x.id} value={x.id}>
-                                    {x.nome}
-                                  </option>
-                                ))}
-                            </optgroup>
-                          ) : null}
-                          {e.trechos.some((x) => x.tipo === 'area') ? (
-                            <optgroup label="Áreas">
-                              {e.trechos
-                                .filter((x) => x.tipo === 'area')
-                                .map((x) => (
-                                  <option key={x.id} value={x.id}>
-                                    {x.nome}
-                                  </option>
-                                ))}
-                            </optgroup>
-                          ) : null}
-                        </Select>
-                      </td>
-                      <td className="px-1 py-1">
-                        <Input
-                          value={l.ini}
-                          onChange={(x) => muda({ ini: x.target.value })}
-                          disabled={ro || !ehEixo}
-                          placeholder={ehEixo ? textoEstaca(0, tr) : tr ? 'área inteira' : '—'}
-                          aria-label={`Estaca inicial do local ${k + 1}`}
-                          aria-invalid={!iniOk || undefined}
-                          className="h-7 px-1.5 text-xs tabular"
-                          title={
-                            ehEixo
-                              ? iniOk
-                                ? `Entre ${textoEstaca(0, tr)} e ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
-                                : 'Estaca inválida ou fora do trecho'
-                              : undefined
-                          }
-                        />
-                      </td>
-                      <td className="px-1 py-1">
-                        <Input
-                          value={l.fim}
-                          onChange={(x) => muda({ fim: x.target.value })}
-                          disabled={ro || !ehEixo}
-                          placeholder={
-                            ehEixo
-                              ? textoEstaca(tr.comprimento_m ?? 0, tr)
-                              : tr
-                                ? 'área inteira'
-                                : '—'
-                          }
-                          aria-label={`Estaca final do local ${k + 1}`}
-                          aria-invalid={!fimOk || undefined}
-                          className="h-7 px-1.5 text-xs tabular"
-                          title={
-                            ehEixo
-                              ? fimOk
-                                ? `Entre ${textoEstaca(0, tr)} e ${textoEstaca(tr.comprimento_m ?? 0, tr)}`
-                                : 'Estaca inválida ou fora do trecho'
-                              : undefined
-                          }
-                        />
-                      </td>
-                      <td className="px-1 py-1">
-                        <Select
-                          value={l.origem}
-                          aria-label={`Origem da quantidade do local ${k + 1}`}
-                          className="h-7 text-xs"
-                          onChange={(x) => muda({ origem: x.target.value as LocalForm['origem'] })}
-                          disabled={ro || !l.trecho_id}
-                          title={
-                            tr && tpl === null && l.origem === 'manual'
-                              ? 'A planilha de quantidades deste local não tem este serviço nesta faixa'
-                              : undefined
-                          }
-                        >
-                          <option value="manual">Manual</option>
-                          <option value="trecho" disabled={tpl === null && l.origem !== 'trecho'}>
-                            Do template
-                          </option>
-                        </Select>
-                      </td>
-                      <td className="px-1 py-1">
-                        {l.origem === 'trecho' ? (
-                          <span
-                            className="block pr-1 text-right tabular-nums text-text-muted"
-                            title="Calculada pela planilha de quantidades do local"
-                          >
-                            {tpl !== null
-                              ? fmtNum(tpl, 'auto')
-                              : loc?.qtd_origem === 'trecho'
-                                ? fmtNum(loc.quantidade, 'auto')
-                                : 'calculada'}
-                          </span>
-                        ) : (
-                          <>
-                            <Input
-                              value={l.qtd}
-                              onChange={(x) => muda({ qtd: x.target.value })}
-                              disabled={ro}
-                              inputMode="decimal"
-                              aria-label={`Quantidade do local ${k + 1}`}
-                              className="h-7 px-1.5 text-right text-xs tabular"
-                            />
-                            {tpl !== null ? (
-                              <div
-                                className="mt-0.5 text-right text-xs text-text-muted"
-                                title="Quantidade da planilha de quantidades nesta faixa"
-                              >
-                                no template: {fmtNum(tpl, 'auto')}
-                              </div>
-                            ) : null}
-                          </>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-1 py-1 text-xs tabular text-text-muted">
-                        {ws.length
-                          ? `${fmtData(Math.min(...ws.map((w) => w.inicio)))} → ${fmtData(Math.max(...ws.map((w) => w.fim)) - 1)}`
-                          : '—'}
-                      </td>
-                      <td className="px-1 py-1 text-right">
-                        <div className="flex justify-end gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={ro || k === 0}
-                            onClick={() => setLocais(trocar(locais, k, k - 1))}
-                            aria-label={`Subir o local ${k + 1}`}
-                            title="Subir"
-                          >
-                            <ArrowUp size={12} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={ro || k === locais.length - 1}
-                            onClick={() => setLocais(trocar(locais, k, k + 1))}
-                            aria-label={`Descer o local ${k + 1}`}
-                            title="Descer"
-                          >
-                            <ArrowDown size={12} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={ro}
-                            onClick={() => setLocais(locais.filter((_, j) => j !== k))}
-                            aria-label={`Remover o local ${k + 1}`}
-                            title="Remover o local"
-                          >
-                            <Trash2 size={12} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {!locais.length ? (
-              <div className="flex items-center gap-3 rounded border border-border bg-bg-elevated/40 px-3 py-2">
-                <span className="text-xs text-text-muted">
-                  Sem locais: a tarefa fica em “Sem local” (fora do tempo-caminho), com a quantidade
-                </span>
-                <Input
-                  value={qtdSemLocal}
-                  onChange={(x) => setQtdSemLocal(x.target.value)}
-                  disabled={ro || t.is_indireto}
-                  inputMode="decimal"
-                  aria-label="Quantidade da tarefa sem local"
-                  aria-invalid={erro.de('qtdSemLocal') ? true : undefined}
-                  className="w-32 text-right"
-                />
-                <span className="text-xs text-text-muted">{servico?.unidade ?? ''}</span>
-              </div>
-            ) : null}
-            {erro.de('qtdSemLocal') ? (
-              <p role="alert" className="text-xs font-medium text-danger">
-                {erro.de('qtdSemLocal')}
-              </p>
-            ) : null}
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={ro || t.is_indireto}
-              onClick={() => {
-                // como no ApeX: o local novo começa onde o anterior termina e vale uma unidade
-                const ultimo = locais[locais.length - 1]
-                const trechoId = ultimo?.trecho_id ?? e.trechos[0]?.id ?? ''
-                const tr = trechos.get(trechoId)
-                let ini = '',
-                  fim = ''
-                if (tr?.tipo === 'eixo') {
-                  const comp = tr.comprimento_m ?? 0
-                  const a0 = ultimo && ultimo.trecho_id === trechoId ? lerEstaca(ultimo.fim, tr) : 0
-                  const a = Math.min(a0 ?? 0, comp)
-                  const b = Math.min(a + divisorMetrosPorUnidade(ctxTrecho(tr)), comp)
-                  ini = textoEstaca(a, tr)
-                  fim = textoEstaca(b > a ? b : comp, tr)
-                }
-                setLocais([
-                  ...locais,
-                  { trecho_id: trechoId, ini, fim, qtd: '', origem: ultimo?.origem ?? 'manual' }
-                ])
-              }}
-            >
-              <Plus size={12} /> Novo local
-            </Button>
-          </div>
-        ) : null}
+          ) : null}
 
-        {aba === 'equipes' ? (
-          <div className="grid grid-cols-2 gap-6">
-            <Secao titulo="Composição (equipe do cálculo)">
-              {equipe && prodComp > 0 ? (
-                <>
-                  <div className="grid grid-cols-3 items-start gap-3">
-                    <Campo rotulo="Produção/dia" dica="Produção da composição vigente do serviço">
-                      <div className="flex h-8 items-center justify-end rounded border border-border bg-bg px-2 text-sm tabular-nums text-text-muted">
-                        {fmtNum(prodComp, 'auto')} {servico?.unidade ?? ''}
-                      </div>
-                    </Campo>
-                    <Campo
-                      rotulo="Equipes"
-                      dica="Composições trabalhando juntas: recursos e produção multiplicados"
-                      erro={erro.de('equipes')}
-                    >
-                      <Input
-                        value={qtdEquipes}
-                        onChange={(x) => setQtdEquipes(x.target.value)}
-                        disabled={ro}
-                        inputMode="numeric"
-                        className="text-right"
-                      />
-                    </Campo>
-                    <Campo
-                      rotulo="Produtividade"
-                      dica="A produtividade é a da composição do serviço; a duração muda pelo número de equipes"
-                    >
-                      <div className="flex h-8 items-center justify-end rounded border border-border bg-bg px-2 text-sm tabular-nums text-text-muted">
-                        {Math.abs(coefN - 1) < 1e-9
-                          ? 'da composição'
-                          : `× ${fmtNum(coefN, 'auto')}`}
-                      </div>
-                    </Campo>
-                  </div>
-                  {Math.abs(coefN - 1) > 1e-9 ? (
-                    <div className="flex items-center gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-xs text-warn">
-                      <span className="flex-1">
-                        Esta tarefa está com a produtividade alterada (× {fmtNum(coefN, 'auto')}),
-                        resto de um arraste antigo do término. No InfraWork a produção é a da
-                        composição × equipes.
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={ro}
-                        onClick={() => setCoef('1')}
+          {aba === 'equipes' ? (
+            <div className="grid grid-cols-2 gap-6">
+              <Secao titulo="Composição (equipe do cálculo)">
+                {equipe && prodComp > 0 ? (
+                  <>
+                    <div className="grid grid-cols-3 items-start gap-3">
+                      <Campo rotulo="Produção/dia" dica="Produção da composição vigente do serviço">
+                        <div className="flex h-8 items-center justify-end rounded border border-border bg-bg px-2 text-sm tabular-nums text-text-muted">
+                          {fmtNum(prodComp, 'auto')} {servico?.unidade ?? ''}
+                        </div>
+                      </Campo>
+                      <Campo
+                        rotulo="Equipes"
+                        dica="Composições trabalhando juntas: recursos e produção multiplicados"
+                        erro={erro.de('equipes')}
                       >
-                        Usar a da composição
-                      </Button>
+                        <Input
+                          mascara="inteiro"
+                          value={qtdEquipes}
+                          onChange={(x) => setQtdEquipes(x.target.value)}
+                          disabled={ro}
+                          className="text-right"
+                        />
+                      </Campo>
+                      <Campo
+                        rotulo="Produtividade"
+                        dica="A produtividade é a da composição do serviço; a duração muda pelo número de equipes"
+                      >
+                        <div className="flex h-8 items-center justify-end rounded border border-border bg-bg px-2 text-sm tabular-nums text-text-muted">
+                          {Math.abs(coefN - 1) < 1e-9
+                            ? 'da composição'
+                            : `× ${fmtNum(coefN, 'auto')}`}
+                        </div>
+                      </Campo>
                     </div>
-                  ) : null}
-                  <p className="text-xs text-text">
-                    Produção efetiva:{' '}
-                    <strong className="tabular-nums">{fmtNum(prodEfetiva, 'auto')}</strong>{' '}
-                    {servico?.unidade ?? ''}/dia
-                  </p>
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-                        <th className="py-1 text-left">Recurso</th>
-                        <th className="py-1 text-right">Por equipe</th>
-                        <th className="py-1 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {equipe.recursos.map((x) => (
-                        <tr key={x.recurso_id} className="border-t border-border">
-                          <td className="py-1 text-text">{x.nome}</td>
-                          <td className="py-1 text-right tabular-nums text-text-muted">
-                            {fmtNum(x.qtd, 'auto')}
-                          </td>
-                          <td className="py-1 text-right tabular-nums text-text">
-                            {fmtNum(x.qtd * n, 'auto')}
-                          </td>
+                    {Math.abs(coefN - 1) > 1e-9 ? (
+                      <div className="flex items-center gap-2 rounded border border-warn/40 bg-warn/10 px-2 py-1.5 text-xs text-warn">
+                        <span className="flex-1">
+                          Esta tarefa está com a produtividade alterada (× {fmtNum(coefN, 'auto')}),
+                          resto de um arraste antigo do término. No InfraWork a produção é a da
+                          composição × equipes.
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={ro}
+                          onClick={() => setCoef('1')}
+                        >
+                          Usar a da composição
+                        </Button>
+                      </div>
+                    ) : null}
+                    <p className="text-xs text-text">
+                      Produção efetiva:{' '}
+                      <strong className="tabular-nums">{fmtNum(prodEfetiva, 'auto')}</strong>{' '}
+                      {servico?.unidade ?? ''}/dia
+                    </p>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                          <th className="py-1 text-left">Recurso</th>
+                          <th className="py-1 text-right">Por equipe</th>
+                          <th className="py-1 text-right">Total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              ) : (
-                <p className="text-xs text-text-dim">
-                  {t.is_indireto
-                    ? 'Custo indireto: sem equipe.'
-                    : 'O serviço não tem composição com produção por dia: a tarefa fica sem duração.'}
+                      </thead>
+                      <tbody>
+                        {equipe.recursos.map((x) => (
+                          <tr key={x.recurso_id} className="border-t border-border">
+                            <td className="py-1 text-text">{x.nome}</td>
+                            <td className="py-1 text-right tabular-nums text-text-muted">
+                              {fmtNum(x.qtd, 'auto')}
+                            </td>
+                            <td className="py-1 text-right tabular-nums text-text">
+                              {fmtNum(x.qtd * n, 'auto')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                ) : (
+                  <p className="text-xs text-text-dim">
+                    {t.is_indireto
+                      ? 'Custo indireto: sem equipe.'
+                      : 'O serviço não tem composição com produção por dia: a tarefa fica sem duração.'}
+                  </p>
+                )}
+              </Secao>
+              <Secao titulo="Equipes nomeadas">
+                <p className="text-xs text-text-muted">
+                  Uma equipe nomeada não trabalha em duas tarefas ao mesmo tempo: o motor sequencia
+                  as tarefas que a dividem, pela prioridade.
                 </p>
-              )}
-            </Secao>
-            <Secao titulo="Equipes nomeadas">
-              <p className="text-xs text-text-muted">
-                Uma equipe nomeada não trabalha em duas tarefas ao mesmo tempo: o motor sequencia as
-                tarefas que a dividem, pela prioridade.
-              </p>
-              {e.equipesNomeadas.length ? (
-                <div className="space-y-1.5">
-                  {e.equipesNomeadas.map((q) => (
-                    <Caixa
-                      key={q.id}
-                      marcado={nomeadas.includes(q.id)}
-                      desabilitado={ro || t.is_indireto}
-                      onMudar={(v) =>
-                        setNomeadas(v ? [...nomeadas, q.id] : nomeadas.filter((x) => x !== q.id))
+                {e.equipesNomeadas.length ? (
+                  <div className="space-y-1.5">
+                    {e.equipesNomeadas.map((q) => (
+                      <Caixa
+                        key={q.id}
+                        marcado={nomeadas.includes(q.id)}
+                        desabilitado={ro || t.is_indireto}
+                        onMudar={(v) =>
+                          setNomeadas(v ? [...nomeadas, q.id] : nomeadas.filter((x) => x !== q.id))
+                        }
+                      >
+                        {q.nome}
+                      </Caixa>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-dim">
+                    Nenhuma equipe cadastrada na obra (Planejamento › Equipes).
+                  </p>
+                )}
+              </Secao>
+            </div>
+          ) : null}
+
+          {aba === 'dependencias' ? (
+            <div className="grid grid-cols-2 gap-6">
+              {(
+                [
+                  ['Predecessoras', preds, autoPreds, 'pred'],
+                  ['Sucessoras', succs, autoSuccs, 'succ']
+                ] as const
+              ).map(([titulo, us, au, lado]) => (
+                <Secao
+                  key={titulo}
+                  titulo={titulo}
+                  acoes={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={ro || !r}
+                      onClick={() =>
+                        onAbrirDependencia(
+                          lado === 'pred'
+                            ? { id: null, pred: '', succ: t.id, tipo: 'FS' }
+                            : { id: null, pred: t.id, succ: '', tipo: 'FS' }
+                        )
                       }
                     >
-                      {q.nome}
-                    </Caixa>
+                      <Plus size={12} /> Nova
+                    </Button>
+                  }
+                >
+                  {us.length + au.length === 0 ? (
+                    <p className="text-xs text-text-dim">Nenhuma.</p>
+                  ) : null}
+                  {us.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center gap-2 rounded border border-border px-2 py-1.5 text-xs"
+                    >
+                      <span className="flex-1 truncate text-text">
+                        {nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}
+                      </span>
+                      <span className="text-xs tabular text-text-muted" title={NOME_TIPO[d.tipo]}>
+                        {d.tipo}
+                        {d.atraso_min ? ` +${d.atraso_min}d` : ''}
+                        {d.atraso_max !== null ? ` ≤${d.atraso_max}d` : ''}
+                        {d.dias_uteis ? ' úteis' : ''}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={ro}
+                        onClick={() =>
+                          onAbrirDependencia({
+                            id: d.id,
+                            pred: d.predecessora_id,
+                            succ: d.sucessora_id,
+                            tipo: d.tipo
+                          })
+                        }
+                        className="h-7 w-7"
+                        aria-label={`Editar a dependência com ${nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}`}
+                        title="Editar a dependência"
+                      >
+                        <Pencil size={12} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={ro}
+                        onClick={() =>
+                          excluirDeps.mutate(
+                            { planejamentoId: planoId, ids: [d.id] },
+                            {
+                              onError: (x) =>
+                                toast.error(
+                                  `Não foi possível remover a dependência. ${traduzirErro(x.message)}`
+                                )
+                            }
+                          )
+                        }
+                        className="h-7 w-7"
+                        aria-label={`Remover a dependência com ${nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}`}
+                        title="Remover a dependência"
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
                   ))}
-                </div>
-              ) : (
-                <p className="text-xs text-text-dim">
-                  Nenhuma equipe cadastrada na obra (Planejamento › Equipes).
-                </p>
-              )}
-            </Secao>
-          </div>
-        ) : null}
+                  {au.map((d, k) => (
+                    <div
+                      key={`a${k}`}
+                      className="flex items-center gap-2 rounded border border-dashed border-border px-2 py-1.5 text-xs text-text-muted"
+                      title="Derivada das dependências entre serviços"
+                    >
+                      <span className="flex-1 truncate">
+                        {nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}
+                      </span>
+                      <span className="text-xs tabular">
+                        por estacas{d.atraso ? ` +${d.atraso}d` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </Secao>
+              ))}
+            </div>
+          ) : null}
 
-        {aba === 'dependencias' ? (
-          <div className="grid grid-cols-2 gap-6">
-            {(
-              [
-                ['Predecessoras', preds, autoPreds, 'pred'],
-                ['Sucessoras', succs, autoSuccs, 'succ']
-              ] as const
-            ).map(([titulo, us, au, lado]) => (
-              <Secao
-                key={titulo}
-                titulo={titulo}
-                acoes={
+          {aba === 'indireto' ? (
+            <div className="space-y-4">
+              <IndiretoCampos
+                valor={ind}
+                onMudar={setInd}
+                obraId={obraId}
+                ro={ro}
+                custoPeriodo={fmtBRL(t.indireto?.custo_unitario ?? t.custo_unitario_item ?? 0)}
+              />
+              {resInd ? (
+                <Secao titulo="Resultado do cálculo">
+                  <div className="grid grid-cols-4 gap-3 text-xs">
+                    <Resumo rotulo="Períodos" valor={fmtNum(resInd.periodos, 'auto')} />
+                    <Resumo rotulo="Custo" valor={fmtBRL(resInd.custo_total)} />
+                    <Resumo rotulo="Receita" valor={fmtBRL(resInd.receita_total)} />
+                    <Resumo rotulo="Taxas" valor={fmtBRL(resInd.custo_taxas)} />
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    Valores do cálculo atual; mudanças nos parâmetros entram depois de salvar.
+                  </p>
+                </Secao>
+              ) : null}
+            </div>
+          ) : null}
+
+          {aba === 'aparencia' ? (
+            <div className="max-w-md space-y-4">
+              <Campo rotulo="Cor da barra">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={cor || '#5b8def'}
+                    onChange={(x) => setCor(x.target.value)}
+                    disabled={ro}
+                    className="h-7 w-12 cursor-pointer rounded border border-border-strong bg-bg-elevated"
+                  />
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={ro || !r}
-                    onClick={() =>
-                      onAbrirDependencia(
-                        lado === 'pred'
-                          ? { id: null, pred: '', succ: t.id, tipo: 'FS' }
-                          : { id: null, pred: t.id, succ: '', tipo: 'FS' }
-                      )
-                    }
+                    disabled={ro || !cor}
+                    onClick={() => setCor('')}
                   >
-                    <Plus size={12} /> Nova
+                    Usar a cor do serviço
                   </Button>
-                }
-              >
-                {us.length + au.length === 0 ? (
-                  <p className="text-xs text-text-dim">Nenhuma.</p>
-                ) : null}
-                {us.map((d) => (
-                  <div
-                    key={d.id}
-                    className="flex items-center gap-2 rounded border border-border px-2 py-1.5 text-xs"
-                  >
-                    <span className="flex-1 truncate text-text">
-                      {nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}
-                    </span>
-                    <span className="text-xs tabular text-text-muted" title={NOME_TIPO[d.tipo]}>
-                      {d.tipo}
-                      {d.atraso_min ? ` +${d.atraso_min}d` : ''}
-                      {d.atraso_max !== null ? ` ≤${d.atraso_max}d` : ''}
-                      {d.dias_uteis ? ' úteis' : ''}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={ro}
-                      onClick={() =>
-                        onAbrirDependencia({
-                          id: d.id,
-                          pred: d.predecessora_id,
-                          succ: d.sucessora_id,
-                          tipo: d.tipo
-                        })
-                      }
-                      className="h-7 w-7"
-                      aria-label={`Editar a dependência com ${nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}`}
-                      title="Editar a dependência"
-                    >
-                      <Pencil size={12} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={ro}
-                      onClick={() =>
-                        excluirDeps.mutate(
-                          { planejamentoId: planoId, ids: [d.id] },
-                          {
-                            onError: (x) =>
-                              toast.error(
-                                `Não foi possível remover a dependência. ${traduzirErro(x.message)}`
-                              )
-                          }
-                        )
-                      }
-                      className="h-7 w-7"
-                      aria-label={`Remover a dependência com ${nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}`}
-                      title="Remover a dependência"
-                    >
-                      <Trash2 size={12} />
-                    </Button>
-                  </div>
-                ))}
-                {au.map((d, k) => (
-                  <div
-                    key={`a${k}`}
-                    className="flex items-center gap-2 rounded border border-dashed border-border px-2 py-1.5 text-xs text-text-muted"
-                    title="Derivada das dependências entre serviços"
-                  >
-                    <span className="flex-1 truncate">
-                      {nomeT(lado === 'pred' ? d.predecessora_id : d.sucessora_id)}
-                    </span>
-                    <span className="text-xs tabular">
-                      por estacas{d.atraso ? ` +${d.atraso}d` : ''}
-                    </span>
-                  </div>
-                ))}
-              </Secao>
-            ))}
-          </div>
-        ) : null}
-
-        {aba === 'indireto' ? (
-          <div className="space-y-4">
-            <IndiretoCampos
-              valor={ind}
-              onMudar={setInd}
-              obraId={obraId}
-              ro={ro}
-              custoPeriodo={fmtBRL(t.indireto?.custo_unitario ?? t.custo_unitario_item ?? 0)}
-            />
-            {resInd ? (
-              <Secao titulo="Resultado do cálculo">
-                <div className="grid grid-cols-4 gap-3 text-xs">
-                  <Resumo rotulo="Períodos" valor={fmtNum(resInd.periodos, 'auto')} />
-                  <Resumo rotulo="Custo" valor={fmtBRL(resInd.custo_total)} />
-                  <Resumo rotulo="Receita" valor={fmtBRL(resInd.receita_total)} />
-                  <Resumo rotulo="Taxas" valor={fmtBRL(resInd.custo_taxas)} />
+                  <span
+                    className="h-4 w-10 rounded-[3px]"
+                    style={{ background: cor || corPadrao }}
+                  />
                 </div>
-                <p className="text-xs text-text-muted">
-                  Valores do cálculo atual; mudanças nos parâmetros entram depois de salvar.
-                </p>
-              </Secao>
-            ) : null}
-          </div>
-        ) : null}
+              </Campo>
+              <Caixa marcado={rotulo} onMudar={setRotulo} desabilitado={ro}>
+                Mostrar o nome ao lado da barra
+              </Caixa>
+            </div>
+          ) : null}
 
-        {aba === 'aparencia' ? (
-          <div className="max-w-md space-y-4">
-            <Campo rotulo="Cor da barra">
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={cor || '#5b8def'}
-                  onChange={(x) => setCor(x.target.value)}
-                  disabled={ro}
-                  className="h-7 w-12 cursor-pointer rounded border border-border-strong bg-bg-elevated"
-                />
-                <Button variant="ghost" size="sm" disabled={ro || !cor} onClick={() => setCor('')}>
-                  Usar a cor do serviço
-                </Button>
-                <span className="h-4 w-10 rounded-[3px]" style={{ background: cor || corPadrao }} />
-              </div>
-            </Campo>
-            <Caixa marcado={rotulo} onMudar={setRotulo} desabilitado={ro}>
-              Mostrar o nome ao lado da barra
-            </Caixa>
-          </div>
-        ) : null}
-
-        {aba === 'comentario' ? (
-          <textarea
-            value={notas}
-            onChange={(x) => setNotas(x.target.value)}
-            disabled={ro}
-            rows={12}
-            aria-label="Comentário da tarefa"
-            className="w-full rounded border border-border-strong bg-bg-panel p-2 text-sm text-text outline-none placeholder:text-text-dim focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent"
-            placeholder="Observações da tarefa…"
-          />
-        ) : null}
+          {aba === 'comentario' ? (
+            <textarea
+              value={notas}
+              onChange={(x) => setNotas(x.target.value)}
+              disabled={ro}
+              rows={12}
+              aria-label="Comentário da tarefa"
+              className="w-full rounded border border-border-strong bg-bg-panel p-2 text-sm text-text outline-none placeholder:text-text-dim focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent"
+              placeholder="Observações da tarefa…"
+            />
+          ) : null}
         </div>
       </DialogBody>
       <DialogFooter>

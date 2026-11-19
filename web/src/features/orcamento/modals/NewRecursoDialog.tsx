@@ -146,10 +146,12 @@ export function NewRecursoDialog({ open, onOpenChange, obraId }: Props): ReactNo
               erro={erro('preco')}
             >
               <Input
+                mascara="decimal"
+                casas={4}
+                casasMin={2}
                 value={precoInicial}
                 onChange={(e) => setPrecoInicial(e.target.value)}
                 placeholder="Ex.: 6,40"
-                inputMode="decimal"
                 autoComplete="off"
                 className="tabular text-right"
               />

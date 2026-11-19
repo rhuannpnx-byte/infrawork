@@ -451,10 +451,11 @@ function Inner(): ReactNode {
                                 </td>
                                 <td className="px-2 py-1">
                                   <Input
+                                    mascara="decimal"
+                                    casas={3}
                                     key={l.distancia_acesso_km}
                                     defaultValue={txtKm(l.distancia_acesso_km)}
                                     disabled={ro}
-                                    inputMode="decimal"
                                     aria-label={`Acesso em km do local ${l.nome}`}
                                     onBlur={(e) => {
                                       const v = e.target.value.trim() ? parseQtd(e.target.value) : 0
@@ -569,9 +570,10 @@ function Inner(): ReactNode {
                       </Campo>
                       <Campo rotulo="Acesso (km)" erro={errosNovo.acesso} className="w-28">
                         <Input
+                          mascara="decimal"
+                          casas={3}
                           value={novo.acesso}
                           onChange={(e) => setNovo({ ...novo, acesso: e.target.value })}
-                          inputMode="decimal"
                           placeholder="0"
                           className="text-right tabular"
                         />
@@ -632,10 +634,11 @@ function Inner(): ReactNode {
                           {nome(r.destino_id)}
                         </span>
                         <Input
+                          mascara="decimal"
+                          casas={3}
                           key={r.dmt_km}
                           defaultValue={txtKm(r.dmt_km)}
                           disabled={ro}
-                          inputMode="decimal"
                           aria-label={`Distância fixa em km de ${par(r)}`}
                           onBlur={(e) => {
                             const v = parseQtd(e.target.value)
@@ -718,9 +721,10 @@ function Inner(): ReactNode {
                   </Campo>
                   <Campo rotulo="Distância (km)" obrigatorio erro={errosRota.dmt} className="w-32">
                     <Input
+                      mascara="decimal"
+                      casas={3}
                       value={rota.dmt}
                       onChange={(e) => setRota({ ...rota, dmt: e.target.value })}
-                      inputMode="decimal"
                       className="text-right tabular"
                     />
                   </Campo>

@@ -229,7 +229,8 @@ export function NewServicoDialog({
                 dica="O custo do serviço é o custo unitário da composição dividido pelo fator. Use 1 quando as unidades são iguais, ou outro valor para converter (ex.: 2,4 para passar de m³ para t)."
               >
                 <Input
-                  inputMode="decimal"
+                  mascara="decimal"
+                  casas={6}
                   autoComplete="off"
                   value={fator}
                   onChange={(e) => setFator(e.target.value)}

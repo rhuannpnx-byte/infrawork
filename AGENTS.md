@@ -63,6 +63,9 @@ Ao mexer em tela do `web/`:
   passam por `web/src/lib/rotulos.ts`;
 - todo campo tem nome, botão só com ícone tem `aria-label`, erro de formulário aparece no campo e controle
   desabilitado diz o motivo;
+- campo de número usa a máscara (`Input mascara="decimal" casas={n}` ou `mascara="inteiro"`; em célula de tabela,
+  `InputMascara`) e nasce de `numeroParaCampo`, nunca de `fmtQtd`/`fmtNum`/`formatNumber` nem de `type="number"`;
+  telefone, CNPJ, CPF e placa também têm máscara (`web/DESIGN.md`);
 - confira nos dois temas com `node scripts/capturas-telas.mjs`, rode `node scripts/fumaca-telas.mjs` e o axe
   (`node scripts/acessibilidade-telas.mjs` nas rotas, `node scripts/acessibilidade-dialogos.mjs` nos diálogos;
   diálogo novo entra na lista deste último). A tabela dos roteiros está em `web/DESIGN.md`;

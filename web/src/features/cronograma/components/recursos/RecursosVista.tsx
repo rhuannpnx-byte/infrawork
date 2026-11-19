@@ -20,6 +20,8 @@ import {
 import { Acumulado, empilhar, horasTrabalhadas, type Faixa } from '../../visoes/recursos'
 import { coresServicos, fmtDataHora, fmtDataLonga, fmtNum, PALETA } from '../../visoes/formato'
 import { lerNumero } from '../campos-util'
+import { numeroParaCampo } from '@/lib/mascara/numero'
+import { InputMascara } from '@/components/ui/input-mascara'
 import { DicaFlutuante, type ConteudoDica } from '../DicaFlutuante'
 
 const LEGENDA = 300
@@ -319,12 +321,13 @@ export function RecursosVista({
                   >
                     {fmtNum(x.pico, 'auto')}
                   </span>
-                  <input
+                  <InputMascara
+                    mascara="decimal"
+                    casas={3}
                     key={`${x.id}:${x.limite?.maximo ?? ''}`}
-                    defaultValue={x.limite ? fmtNum(x.limite.maximo, 'auto') : ''}
+                    defaultValue={numeroParaCampo(x.limite?.maximo, 3)}
                     placeholder="—"
                     disabled={somenteLeitura}
-                    inputMode="decimal"
                     aria-label={`Limite de ${x.nome}`}
                     title={
                       somenteLeitura
@@ -332,8 +335,14 @@ export function RecursosVista({
                         : 'Limite: no máximo tantas unidades ao mesmo tempo (o cálculo nivela as tarefas). Vazio = sem limite'
                     }
                     onBlur={(ev) => {
+                      const atual = numeroParaCampo(x.limite?.maximo, 3)
+                      if (ev.target.dataset.desfazer) {
+                        // Esc: volta ao limite gravado
+                        delete ev.target.dataset.desfazer
+                        ev.target.value = atual
+                        return
+                      }
                       const v = ev.target.value.trim()
-                      const atual = x.limite ? fmtNum(x.limite.maximo, 'auto') : ''
                       if (v === atual) return
                       const n = lerNumero(v)
                       if (v && (n === null || n <= 0)) {
@@ -349,7 +358,7 @@ export function RecursosVista({
                       if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur()
                       else if (ev.key === 'Escape') {
                         const el = ev.target as HTMLInputElement
-                        el.value = x.limite ? fmtNum(x.limite.maximo, 'auto') : ''
+                        el.dataset.desfazer = '1'
                         el.blur()
                       }
                     }}

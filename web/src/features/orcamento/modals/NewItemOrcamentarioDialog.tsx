@@ -174,18 +174,21 @@ export function NewItemOrcamentarioDialog({
               </Campo>
               <Campo rotulo="Quantidade" obrigatorio erro={erro('quantidade')}>
                 <Input
+                  mascara="decimal"
+                  casas={4}
                   value={quantidade}
                   onChange={(e) => setQuantidade(e.target.value)}
-                  inputMode="decimal"
                   autoComplete="off"
                   className="tabular text-right"
                 />
               </Campo>
               <Campo rotulo="Venda unitária (R$)" obrigatorio erro={erro('venda')}>
                 <Input
+                  mascara="decimal"
+                  casas={4}
+                  casasMin={2}
                   value={vendaUnit}
                   onChange={(e) => setVendaUnit(e.target.value)}
-                  inputMode="decimal"
                   autoComplete="off"
                   className="tabular text-right"
                 />

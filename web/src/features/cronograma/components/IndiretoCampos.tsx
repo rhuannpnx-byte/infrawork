@@ -88,18 +88,18 @@ export function IndiretoCampos({
         <div className="grid grid-cols-2 gap-3">
           <Campo rotulo="Começa antes das diretas (dias úteis)">
             <Input
+              mascara="inteiro"
               value={valor.antes}
               disabled={ro}
-              inputMode="numeric"
               onChange={(e) => set({ antes: e.target.value })}
               className="font-mono"
             />
           </Campo>
           <Campo rotulo="Termina depois das diretas (dias úteis)">
             <Input
+              mascara="inteiro"
               value={valor.depois}
               disabled={ro}
-              inputMode="numeric"
               onChange={(e) => set({ depois: e.target.value })}
               className="font-mono"
             />

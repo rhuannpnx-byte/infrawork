@@ -505,10 +505,11 @@ function EditorCalendario({
             <span className="text-xs text-text-muted">Horas</span>
             {semana.map((d, i) => (
               <Input
+                mascara="decimal"
+                casas={2}
                 key={i}
                 value={String(d.horas).replace('.', ',')}
                 disabled={ro}
-                inputMode="decimal"
                 aria-label={`Horas ${NOME_DIA[i]}`}
                 onChange={(e) => {
                   const v = lerNumero(e.target.value)
@@ -903,8 +904,8 @@ function PreviaAno({
       >
         {!cal ? (
           <p className="text-sm text-danger">
-            Este calendário não tem horas de trabalho: informe as horas de ao menos um dia na
-            semana padrão.
+            Este calendário não tem horas de trabalho: informe as horas de ao menos um dia na semana
+            padrão.
           </p>
         ) : tam.w > 0 ? (
           <div
@@ -1309,9 +1310,10 @@ function EditorDias({
             className="h-7 w-[64px] px-1 text-center text-xs tabular [&::-webkit-calendar-picker-indicator]:hidden"
           />
           <Input
+            mascara="decimal"
+            casas={2}
             value={horasDia}
             onChange={(e) => setHorasDia(e.target.value)}
-            inputMode="decimal"
             aria-label="Horas por dia"
             className="h-7 w-12 px-1 text-right tabular"
           />
@@ -1344,9 +1346,10 @@ function EditorDias({
             Fator de {MES_CURTO[Number(anoMes.slice(5, 7)) - 1]}/{anoMes.slice(0, 4)}
           </span>
           <Input
+            mascara="decimal"
+            casas={2}
             value={fator}
             onChange={(e) => setFator(e.target.value)}
-            inputMode="decimal"
             aria-label="Fator do mês"
             className="h-7 w-14 px-1 text-right tabular"
           />
@@ -1413,9 +1416,10 @@ function Fatores({
             className="h-7 w-[132px] px-1.5 font-mono"
           />
           <Input
+            mascara="decimal"
+            casas={2}
             value={fator}
             onChange={(e) => setFator(e.target.value)}
-            inputMode="decimal"
             aria-label="Fator"
             className="h-7 w-14 text-right font-mono tabular-nums"
           />

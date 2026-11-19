@@ -247,7 +247,8 @@ export function EixoDialog({
                     </Campo>
                     <Campo rotulo="Metros por unidade" obrigatorio erro={erroDe('divisor')}>
                       <Input
-                        inputMode="decimal"
+                        mascara="decimal"
+                        casas={3}
                         autoComplete="off"
                         value={customDiv}
                         onChange={(e) => setCustomDiv(e.target.value)}
@@ -265,7 +266,8 @@ export function EixoDialog({
                   dica="Valor no início do eixo."
                 >
                   <Input
-                    inputMode="decimal"
+                    mascara="decimal"
+                    casas={3}
                     autoComplete="off"
                     value={estIni}
                     onChange={(e) => setEstIni(e.target.value)}
@@ -283,7 +285,8 @@ export function EixoDialog({
                   }
                 >
                   <Input
-                    inputMode="decimal"
+                    mascara="decimal"
+                    casas={3}
                     autoComplete="off"
                     value={estFim}
                     disabled={comMapa}

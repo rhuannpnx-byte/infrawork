@@ -15,6 +15,8 @@ import { Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { formatNumber, parseNumero } from '@/lib/format'
+import { numeroParaCampo } from '@/lib/mascara/numero'
+import { InputMascara } from '@/components/ui/input-mascara'
 import { metrosToMarcador, parseMarcador, type TrechoCtx } from '@/lib/format/posicao'
 import type { SegmentoValores } from '@/lib/quantidades/segmentos'
 import { cn } from '@/lib/utils'
@@ -406,7 +408,7 @@ function Celula({
   onNav: (dr: number) => void
   onPaste: (e: ClipboardEvent<HTMLInputElement>) => void
 }): ReactNode {
-  const texto = (): string => (valor ? formatNumber(valor, 4) : '')
+  const texto = (): string => (valor ? numeroParaCampo(valor, 4) : '')
   const [txt, setTxt] = useState(texto)
   const [erro, setErro] = useState(false)
   useEffect(() => {
@@ -444,7 +446,9 @@ function Celula({
     }
   }
   return (
-    <input
+    <InputMascara
+      mascara="decimal"
+      casas={4}
       data-r={r}
       data-c={c}
       aria-label={rotulo}
@@ -457,7 +461,6 @@ function Celula({
       onFocus={(e) => e.target.select()}
       className={cn(INPUT, 'text-right', erro && 'ring-1 ring-danger text-danger')}
       aria-invalid={erro || undefined}
-      inputMode="decimal"
     />
   )
 }

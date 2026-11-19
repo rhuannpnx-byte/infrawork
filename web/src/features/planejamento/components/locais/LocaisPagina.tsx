@@ -408,7 +408,7 @@ function LinhaLocal({
         </td>
         <td className="px-2 py-1.5">
           <Input
-            type="number"
+            mascara="inteiro"
             value={ordemDraft}
             disabled={readOnly}
             aria-label={`Ordem de ${trecho.nome}`}

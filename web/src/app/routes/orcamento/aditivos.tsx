@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import type { ItemTreeNode } from '@/types/orcamento'
 import { detalheDoErro } from '@/features/orcamento/lib/erro'
+import { numeroParaCampo } from '@/lib/mascara/numero'
 
 const ROTULO_COLUNA = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 const TH = `px-2 py-1.5 ${ROTULO_COLUNA}`
@@ -554,10 +555,9 @@ function AditivoEditor({
                         <Input
                           className="h-7 w-28 text-right ml-auto tabular"
                           aria-label={`Quantidade nova de ${it.codigo}`}
-                          inputMode="decimal"
-                          defaultValue={
-                            it.quantidade_nova != null ? fmtQtd(it.quantidade_nova) : ''
-                          }
+                          mascara="decimal"
+                          casas={4}
+                          defaultValue={numeroParaCampo(it.quantidade_nova, 4)}
                           onBlur={(e) => {
                             const texto = e.target.value.trim()
                             const v = parseBR(texto).toNumber()
@@ -565,8 +565,7 @@ function AditivoEditor({
                               toast.error(
                                 `Digite a quantidade nova de ${it.codigo} como um número, por exemplo 1.250,5.`
                               )
-                              e.target.value =
-                                it.quantidade_nova != null ? fmtQtd(it.quantidade_nova) : ''
+                              e.target.value = numeroParaCampo(it.quantidade_nova, 4)
                               return
                             }
                             if (v === it.quantidade_nova) return
@@ -870,7 +869,12 @@ function ItemNovoDialog({
               erro(!etapa && !numeroOk(qtd), 'Digite um número, como 1.250,5.')
             }
           >
-            <Input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" />
+            <Input
+              mascara="decimal"
+              casas={4}
+              value={qtd}
+              onChange={(e) => setQtd(e.target.value)}
+            />
           </Campo>
           <Campo
             rotulo="Preço unitário"
@@ -879,7 +883,13 @@ function ItemNovoDialog({
               erro(!etapa && !numeroOk(preco), 'Digite um número, como 38,50.')
             }
           >
-            <Input value={preco} onChange={(e) => setPreco(e.target.value)} inputMode="decimal" />
+            <Input
+              mascara="decimal"
+              casas={4}
+              casasMin={2}
+              value={preco}
+              onChange={(e) => setPreco(e.target.value)}
+            />
           </Campo>
         </div>
         <p className="text-sm text-text-muted">

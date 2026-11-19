@@ -1,14 +1,19 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { AVISO_ERRO_MS } from '@/lib/avisos'
+import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 function describeError(err: unknown): string {
-  if (err instanceof Error) return err.message || err.name
   if (typeof err === 'string') return err
-  try {
-    return JSON.stringify(err)
-  } catch {
-    return 'Erro desconhecido'
-  }
+  // o erro do Supabase é um objeto comum ({ message, code }), não um `Error`
+  return detalheDoErro(err) ?? (err instanceof Error ? err.name : '')
+}
+
+/** A tela já mostrou o erro dentro do diálogo aberto (faixa de erro ou mensagem no campo)? */
+function erroNoDialogo(): boolean {
+  return !!document.querySelector(
+    '[role="dialog"] [role="alert"], [role="alertdialog"] [role="alert"]'
+  )
 }
 
 // Marca a hora de cada aviso de erro mostrado por qualquer tela, para o aviso global saber se já houve um.
@@ -34,15 +39,17 @@ export const queryClient = new QueryClient({
     }
   },
   // Gravação que falha e que a tela não tratou não some em silêncio: vira aviso. Quando a tela avisa por conta
-  // própria (try/catch em volta do mutateAsync), o aviso daqui não aparece, para não sair em dobro.
+  // própria (aviso dela ou erro mostrado no diálogo), o aviso daqui não aparece, para não sair em dobro.
   mutationCache: new MutationCache({
     onError: (err, _vars, _ctx, mutation) => {
       if (mutation.options.onError) return
       console.error('[mutation]', err)
       const quando = performance.now()
       setTimeout(() => {
-        if (ultimoAvisoDeErro >= quando) return
-        avisarErro(`Não foi possível concluir a gravação. ${describeError(err)}`)
+        if (ultimoAvisoDeErro >= quando || erroNoDialogo()) return
+        avisarErro(`Não foi possível concluir a gravação. ${describeError(err)}`.trim(), {
+          duration: AVISO_ERRO_MS
+        })
       }, 80)
     }
   }),

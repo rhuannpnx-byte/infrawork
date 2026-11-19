@@ -153,9 +153,11 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId, item }: Props): 
           <div className="grid grid-cols-2 gap-3">
             <Campo rotulo="Valor total (R$)" obrigatorio erro={erro('valor')}>
               <Input
+                mascara="decimal"
+                casas={2}
+                casasMin={2}
                 value={valor}
                 onChange={(e) => setValor(e.target.value)}
-                inputMode="decimal"
                 autoComplete="off"
                 placeholder="Ex.: 125.000,00"
                 className="tabular text-right"
@@ -167,9 +169,10 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId, item }: Props): 
               erro={erro('distribuicao')}
             >
               <Input
+                mascara="decimal"
+                casas={2}
                 value={distribuicao}
                 onChange={(e) => setDistribuicao(e.target.value)}
-                inputMode="decimal"
                 autoComplete="off"
                 className="tabular text-right"
               />

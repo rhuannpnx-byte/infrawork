@@ -282,9 +282,10 @@ function RatearConteudo({
                     <span className="text-right text-xs text-text-muted">Automático</span>
                   ) : (
                     <Input
+                      mascara="decimal"
+                      casas={4}
                       value={l.valor}
                       onChange={(e) => set(i, { valor: e.target.value })}
-                      inputMode="decimal"
                       autoComplete="off"
                       aria-label={`${rotuloValor} da linha ${i + 1}`}
                       aria-invalid={

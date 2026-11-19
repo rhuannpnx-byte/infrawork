@@ -52,6 +52,7 @@ import type { TrechoEntrada } from '../motor/tipos'
 import { fmtEstacaCompacta, fmtNum, lerEstaca, textoEstaca } from '../visoes/formato'
 import { Campo } from './campos'
 import { lerNumero } from './campos-util'
+import { numeroParaCampo } from '@/lib/mascara/numero'
 
 interface Props {
   calc: CalculoCronograma
@@ -284,7 +285,7 @@ function Conteudo({
     if (m.has(id)) m.delete(id)
     else
       m.set(id, {
-        qtd: restante > 0 ? fmtNum(restante, 'auto') : '',
+        qtd: restante > 0 ? numeroParaCampo(restante, 6) : '',
         trecho: '',
         ini: '',
         fim: '',
@@ -464,9 +465,10 @@ function Conteudo({
               {modo === 'janela' ? (
                 <Campo rotulo="Janela (m)" className="w-24">
                   <Input
+                    mascara="decimal"
+                    casas={2}
                     value={janela}
                     onChange={(x) => setJanela(x.target.value)}
-                    inputMode="decimal"
                   />
                 </Campo>
               ) : null}
@@ -802,9 +804,10 @@ function Conteudo({
                             </span>
                           ) : (
                             <Input
+                              mascara="decimal"
+                              casas={6}
                               value={l.qtd}
                               onChange={(x) => mudar(it.id, { qtd: x.target.value })}
-                              inputMode="decimal"
                               aria-label={`Quantidade de ${it.codigo}`}
                               title={
                                 tpl !== null ? `No template: ${fmtNum(tpl, 'auto')}` : undefined

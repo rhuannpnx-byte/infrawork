@@ -181,7 +181,10 @@ function Conteudo({
     if (temMin && !Number.isFinite(a!))
       return erro.falhar('Informe o atraso mínimo em dias (número inteiro).', 'min')
     if (temMax && (!Number.isFinite(b!) || b! < 0))
-      return erro.falhar('Informe o atraso máximo em dias (número inteiro, a partir de zero).', 'max')
+      return erro.falhar(
+        'Informe o atraso máximo em dias (número inteiro, a partir de zero).',
+        'max'
+      )
     if (a !== null && b !== null && a > b)
       return erro.falhar('O atraso máximo não pode ser menor que o mínimo.', 'max')
     if (tipo === 'EST' && !cruzam(pred, succ))
@@ -276,159 +279,162 @@ function Conteudo({
           className="space-y-4"
           onKeyDown={ro ? undefined : enterEnvia(() => void confirmar())}
         >
-        <DialogErrorBanner message={erro.geral} />
-        <div className="grid grid-cols-2 items-start gap-3">
-          <Campo rotulo="Predecessora" erro={erro.de('pred')}>
-            {seletor(
-              pred,
-              setPred,
-              succ,
-              !!existente || derivada || !!alvo.pred,
-              erro.de('pred')
-            )}
-          </Campo>
-          <Campo rotulo="Sucessora" erro={erro.de('succ')}>
-            {seletor(
-              succ,
-              setSucc,
-              pred,
-              !!existente || derivada || !!alvo.succ,
-              erro.de('succ')
-            )}
-          </Campo>
-        </div>
-        <Campo rotulo="Tipo" erro={erro.de('tipo')}>
-          <Select
-            value={tipo}
-            onChange={(x) => setTipo(x.target.value as TipoDependencia)}
-            disabled={ro || derivada}
-          >
-            {TIPOS.map((t) => (
-              <option key={t} value={t}>
-                {t === 'EST'
-                  ? 'Por estacas: a sucessora passa em cada estaca depois da predecessora'
-                  : `${NOME_TIPO[t]} (${t})`}
-              </option>
-            ))}
-          </Select>
-        </Campo>
-        {podeRegra ? (
-          <Caixa marcado={comoRegra} onMudar={setComoRegra} desabilitado={ro}>
-            Valer para todas as tarefas de {nomeServ(ss)} depois de {nomeServ(sp)} (regra entre
-            serviços{regra ? `, hoje com ${contar(regra.atraso_dias, 'dia', 'dias')}` : ''})
-          </Caixa>
-        ) : null}
-        {modoRegra ? (
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium text-text">Atraso em cada estaca</span>
-            <div className="flex items-center gap-2">
-              <Input
-                value={min}
-                onChange={(x) => setMin(x.target.value)}
-                disabled={ro}
-                inputMode="numeric"
-                aria-label="Atraso em dias"
-                aria-invalid={erro.de('min') ? true : undefined}
-                className="w-24 text-right"
-              />
-              <span className="text-xs text-text-muted">dias</span>
-            </div>
-            {erro.de('min') ? (
-              <p role="alert" className="text-xs font-medium text-danger">
-                {erro.de('min')}
-              </p>
-            ) : null}
-            <p className="text-xs text-text-muted">
-              Vale para todos os planos da obra. Numa tarefa, a regra pode ser desligada em
-              Propriedades › Geral.
-            </p>
+          <DialogErrorBanner message={erro.geral} />
+          <div className="grid grid-cols-2 items-start gap-3">
+            <Campo rotulo="Predecessora" erro={erro.de('pred')}>
+              {seletor(
+                pred,
+                setPred,
+                succ,
+                !!existente || derivada || !!alvo.pred,
+                erro.de('pred')
+              )}
+            </Campo>
+            <Campo rotulo="Sucessora" erro={erro.de('succ')}>
+              {seletor(
+                succ,
+                setSucc,
+                pred,
+                !!existente || derivada || !!alvo.succ,
+                erro.de('succ')
+              )}
+            </Campo>
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Caixa
-                  marcado={temMin}
-                  onMudar={setTemMin}
-                  desabilitado={ro}
-                  dica="Sem atraso mínimo, a dependência não segura as datas (só o máximo vale)"
-                >
-                  Atraso mínimo
-                </Caixa>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={min}
-                    onChange={(x) => setMin(x.target.value)}
-                    disabled={ro || !temMin}
-                    inputMode="numeric"
-                    aria-label="Atraso mínimo em dias"
-                    aria-invalid={erro.de('min') ? true : undefined}
-                    className="w-24 text-right"
-                  />
-                  <span className="text-xs text-text-muted">dias</span>
-                </div>
-                {erro.de('min') ? (
-                  <p role="alert" className="text-xs font-medium text-danger">
-                    {erro.de('min')}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-1.5">
-                <Caixa
-                  marcado={temMax}
-                  onMudar={setTemMax}
-                  desabilitado={ro}
-                  dica="Passar do máximo marca uma violação (bandeira) na sucessora"
-                >
-                  Atraso máximo
-                </Caixa>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={max}
-                    onChange={(x) => setMax(x.target.value)}
-                    disabled={ro || !temMax}
-                    inputMode="numeric"
-                    aria-label="Atraso máximo em dias"
-                    aria-invalid={erro.de('max') ? true : undefined}
-                    className="w-24 text-right"
-                  />
-                  <span className="text-xs text-text-muted">dias</span>
-                </div>
-                {erro.de('max') ? (
-                  <p role="alert" className="text-xs font-medium text-danger">
-                    {erro.de('max')}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <div
-              role="radiogroup"
-              aria-label="Contagem dos dias de atraso"
-              className="flex gap-6 text-sm text-text"
+          <Campo rotulo="Tipo" erro={erro.de('tipo')}>
+            <Select
+              value={tipo}
+              onChange={(x) => setTipo(x.target.value as TipoDependencia)}
+              disabled={ro || derivada}
             >
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  className="accent-[var(--accent)]"
-                  checked={!uteis}
-                  onChange={() => setUteis(false)}
+              {TIPOS.map((t) => (
+                <option key={t} value={t}>
+                  {t === 'EST'
+                    ? 'Por estacas: a sucessora passa em cada estaca depois da predecessora'
+                    : `${NOME_TIPO[t]} (${t})`}
+                </option>
+              ))}
+            </Select>
+          </Campo>
+          {podeRegra ? (
+            <Caixa marcado={comoRegra} onMudar={setComoRegra} desabilitado={ro}>
+              Valer para todas as tarefas de {nomeServ(ss)} depois de {nomeServ(sp)} (regra entre
+              serviços{regra ? `, hoje com ${contar(regra.atraso_dias, 'dia', 'dias')}` : ''})
+            </Caixa>
+          ) : null}
+          {modoRegra ? (
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-text">Atraso em cada estaca</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  mascara="inteiro"
+                  negativo
+                  value={min}
+                  onChange={(x) => setMin(x.target.value)}
                   disabled={ro}
-                />{' '}
-                Dias corridos
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  className="accent-[var(--accent)]"
-                  checked={uteis}
-                  onChange={() => setUteis(true)}
-                  disabled={ro}
-                />{' '}
-                Dias úteis
-              </label>
+                  aria-label="Atraso em dias"
+                  aria-invalid={erro.de('min') ? true : undefined}
+                  className="w-24 text-right"
+                />
+                <span className="text-xs text-text-muted">dias</span>
+              </div>
+              {erro.de('min') ? (
+                <p role="alert" className="text-xs font-medium text-danger">
+                  {erro.de('min')}
+                </p>
+              ) : null}
+              <p className="text-xs text-text-muted">
+                Vale para todos os planos da obra. Numa tarefa, a regra pode ser desligada em
+                Propriedades › Geral.
+              </p>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Caixa
+                    marcado={temMin}
+                    onMudar={setTemMin}
+                    desabilitado={ro}
+                    dica="Sem atraso mínimo, a dependência não segura as datas (só o máximo vale)"
+                  >
+                    Atraso mínimo
+                  </Caixa>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      mascara="inteiro"
+                      negativo
+                      value={min}
+                      onChange={(x) => setMin(x.target.value)}
+                      disabled={ro || !temMin}
+                      aria-label="Atraso mínimo em dias"
+                      aria-invalid={erro.de('min') ? true : undefined}
+                      className="w-24 text-right"
+                    />
+                    <span className="text-xs text-text-muted">dias</span>
+                  </div>
+                  {erro.de('min') ? (
+                    <p role="alert" className="text-xs font-medium text-danger">
+                      {erro.de('min')}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Caixa
+                    marcado={temMax}
+                    onMudar={setTemMax}
+                    desabilitado={ro}
+                    dica="Passar do máximo marca uma violação (bandeira) na sucessora"
+                  >
+                    Atraso máximo
+                  </Caixa>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      mascara="inteiro"
+                      negativo
+                      value={max}
+                      onChange={(x) => setMax(x.target.value)}
+                      disabled={ro || !temMax}
+                      aria-label="Atraso máximo em dias"
+                      aria-invalid={erro.de('max') ? true : undefined}
+                      className="w-24 text-right"
+                    />
+                    <span className="text-xs text-text-muted">dias</span>
+                  </div>
+                  {erro.de('max') ? (
+                    <p role="alert" className="text-xs font-medium text-danger">
+                      {erro.de('max')}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Contagem dos dias de atraso"
+                className="flex gap-6 text-sm text-text"
+              >
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    className="accent-[var(--accent)]"
+                    checked={!uteis}
+                    onChange={() => setUteis(false)}
+                    disabled={ro}
+                  />{' '}
+                  Dias corridos
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    className="accent-[var(--accent)]"
+                    checked={uteis}
+                    onChange={() => setUteis(true)}
+                    disabled={ro}
+                  />{' '}
+                  Dias úteis
+                </label>
+              </div>
+            </>
+          )}
         </div>
       </DialogBody>
       <DialogFooter>

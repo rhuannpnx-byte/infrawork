@@ -154,8 +154,8 @@ function FormDialog({
             </Campo>
             <Campo rotulo="Telefone">
               <Input
+                mascara="telefone"
                 id="enc-tel"
-                type="tel"
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
                 inputMode="tel"

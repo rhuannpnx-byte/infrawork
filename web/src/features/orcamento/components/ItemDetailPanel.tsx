@@ -513,7 +513,8 @@ function GeralTab({
           </Campo>
           <Campo rotulo="Quantidade" obrigatorio erro={erro('quantidade')}>
             <Input
-              inputMode="decimal"
+              mascara="decimal"
+              casas={4}
               value={quantidade}
               onChange={(e) => {
                 setQuantidade(e.target.value)
@@ -526,7 +527,9 @@ function GeralTab({
           </Campo>
           <Campo rotulo="Venda unit. (R$)" obrigatorio erro={erro('venda')}>
             <Input
-              inputMode="decimal"
+              mascara="decimal"
+              casas={4}
+              casasMin={2}
               value={vendaUnit}
               onChange={(e) => {
                 setVendaUnit(e.target.value)
@@ -679,7 +682,8 @@ function GeralTab({
           {manual ? (
             <Campo rotulo="Quantidade (manual)" obrigatorio erro={erro('qtdRef')}>
               <Input
-                inputMode="decimal"
+                mascara="decimal"
+                casas={4}
                 value={qtdRef}
                 onChange={(e) => {
                   setQtdRef(e.target.value)

@@ -1,7 +1,8 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ElementType, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { InputMascara } from '@/components/ui/input-mascara'
 import { fmtBRL, fmtQtd, parseBR } from '@/lib/money'
 import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
@@ -152,12 +153,15 @@ export function PlanOrcInlineCell({
     }
   }
 
+  // número: a máscara cuida da digitação; fora do foco fica o texto de leitura ("R$ 1.234,56")
+  const Campo: ElementType = isNum ? InputMascara : 'input'
+  const propsDoCampo = isNum
+    ? { mascara: 'decimal', casas: money ? 4 : 6, formatoSemFoco: () => display, value: local }
+    : { type: 'text', value: display }
   return (
     <div className="relative w-full">
-      <input
-        type="text"
-        inputMode={isNum ? 'decimal' : undefined}
-        value={display}
+      <Campo
+        {...propsDoCampo}
         placeholder={placeholder}
         aria-label={rotulo}
         aria-busy={saving || undefined}

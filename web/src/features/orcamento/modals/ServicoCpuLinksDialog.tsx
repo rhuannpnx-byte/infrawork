@@ -313,7 +313,8 @@ function ServicoCpuLinksDialogContent({
                 }
               >
                 <Input
-                  inputMode="decimal"
+                  mascara="decimal"
+                  casas={4}
                   autoComplete="off"
                   value={producaoRaw}
                   onChange={(e) => setProducaoRaw(e.target.value)}
@@ -536,7 +537,8 @@ function ServicoCpuLinksDialogContent({
                 erro={tentouVincular ? errosVincular.fator : undefined}
               >
                 <Input
-                  inputMode="decimal"
+                  mascara="decimal"
+                  casas={6}
                   autoComplete="off"
                   value={novoFator}
                   onChange={(e) => setNovoFator(e.target.value)}
@@ -588,7 +590,8 @@ function FatorInput({
   const invalido = !isFinite(numero) || numero === 0
   return (
     <Input
-      inputMode="decimal"
+      mascara="decimal"
+      casas={6}
       autoComplete="off"
       value={raw}
       aria-label={rotulo}

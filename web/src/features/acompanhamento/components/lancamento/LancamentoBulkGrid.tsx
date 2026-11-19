@@ -1,3 +1,4 @@
+import { InputMascara } from '@/components/ui/input-mascara'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Check, Loader2 } from 'lucide-react'
@@ -383,9 +384,10 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                   </td>
                   <td className="px-2 py-1.5">
                     <div className="relative">
-                      <input
+                      <InputMascara
+                        mascara="decimal"
+                        casas={4}
                         data-qtd=""
-                        inputMode="decimal"
                         value={l?.qtd ?? ''}
                         onChange={(e) => setLinha(i.id, { qtd: e.target.value })}
                         onKeyDown={(e) => {
@@ -416,8 +418,9 @@ export function LancamentoBulkGrid({ obraId, dataInicial }: Props): ReactNode {
                     {par.controla_material ? (
                       <>
                         <div className="relative mt-1">
-                          <input
-                            inputMode="decimal"
+                          <InputMascara
+                            mascara="decimal"
+                            casas={4}
                             value={l?.mat ?? ''}
                             onChange={(e) => setLinha(i.id, { mat: e.target.value })}
                             className={cn(campo, 'tabular pr-9')}

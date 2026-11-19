@@ -607,9 +607,10 @@ function ReajusteEditor({
                       {(['indice_anterior', 'indice_atual'] as const).map((campo) => (
                         <td key={campo} className="px-2 py-1">
                           <Input
+                            mascara="decimal"
+                            casas={6}
                             className="h-7 w-32 ml-auto text-right tabular"
                             aria-label={`${campo === 'indice_anterior' ? 'Índice anterior' : 'Índice atual'} do grupo ${g.nome}`}
-                            inputMode="decimal"
                             defaultValue={String(g[campo]).replace('.', ',')}
                             disabled={!editavel}
                             onBlur={(e) => {

@@ -587,7 +587,8 @@ function UnidadeStep({
             }
           >
             <Input
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               value={divisorTexto}
               onChange={(e) => {
                 setDivisorTexto(e.target.value)
@@ -655,7 +656,8 @@ function ValorInicialCorStep({
         }
       >
         <Input
-          inputMode="decimal"
+          mascara="decimal"
+          casas={3}
           value={texto}
           onChange={(e) => {
             setTexto(e.target.value)

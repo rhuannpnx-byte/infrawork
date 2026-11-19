@@ -92,6 +92,7 @@ export function NewEmpresaDialog({ open, onOpenChange }: Props): ReactNode {
           </Campo>
           <Campo rotulo="CNPJ" dica="Opcional." erro={tentou ? erroCnpj : undefined}>
             <Input
+              mascara="cnpj"
               value={cnpj}
               onChange={(e) => setCnpj(e.target.value)}
               placeholder="00.000.000/0000-00"

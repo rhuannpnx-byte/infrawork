@@ -8,11 +8,14 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ChangeEvent,
+  type KeyboardEvent,
   type ReactNode,
   type WheelEvent
 } from 'react'
 import { ChevronDown, ChevronRight, FolderTree, LayoutList, MapPin, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { InputMascara } from '@/components/ui/input-mascara'
 import type { ColunaGantt } from '../../store'
 import type { LinhaGantt } from '../../visoes/gantt-dados'
 import { ALTURA_CABECALHO, ALTURA_LINHA } from './GanttLinhaTempo'
@@ -281,6 +284,7 @@ export function GanttGrade(p: Props): ReactNode {
                             rotulo={`${c.titulo} de ${l.texto}`}
                             valor={editando.valor}
                             direita={c.direita}
+                            inteiro={c.editar?.tipo === 'inteiro'}
                             onMudar={(v) => setEditando({ ...editando, valor: v })}
                             onGravar={gravar}
                             onCancelar={() => setEditando(null)}
@@ -393,6 +397,7 @@ function Editor({
   rotulo,
   valor,
   direita,
+  inteiro,
   onMudar,
   onGravar,
   onCancelar
@@ -400,6 +405,7 @@ function Editor({
   rotulo: string
   valor: string
   direita?: boolean
+  inteiro?: boolean
   onMudar: (v: string) => void
   onGravar: () => void
   onCancelar: () => void
@@ -409,23 +415,22 @@ function Editor({
     ref.current?.focus()
     ref.current?.select()
   }, [])
-  return (
-    <input
-      ref={ref}
-      data-editor
-      aria-label={rotulo}
-      value={valor}
-      onChange={(e) => onMudar(e.target.value)}
-      onBlur={onGravar}
-      onKeyDown={(e) => {
-        e.stopPropagation()
-        if (e.key === 'Enter') onGravar()
-        else if (e.key === 'Escape') onCancelar()
-      }}
-      className={cn(
-        'h-5 w-full min-w-0 rounded-sm border border-accent bg-bg-elevated px-1 text-xs text-text outline-none',
-        direita && 'text-right'
-      )}
-    />
-  )
+  const comum = {
+    ref,
+    'data-editor': true,
+    'aria-label': rotulo,
+    value: valor,
+    onChange: (e: ChangeEvent<HTMLInputElement>) => onMudar(e.target.value),
+    onBlur: onGravar,
+    onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => {
+      e.stopPropagation()
+      if (e.key === 'Enter') onGravar()
+      else if (e.key === 'Escape') onCancelar()
+    },
+    className: cn(
+      'h-5 w-full min-w-0 rounded-sm border border-accent bg-bg-elevated px-1 text-xs text-text outline-none',
+      direita && 'text-right'
+    )
+  }
+  return inteiro ? <InputMascara mascara="inteiro" {...comum} /> : <input {...comum} />
 }

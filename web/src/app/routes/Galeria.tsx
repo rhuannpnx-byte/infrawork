@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ChangeEvent, type ReactNode } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -67,6 +67,100 @@ const TOKENS = [
  * Galeria dos componentes compartilhados, com os seus estados. Só existe no servidor de desenvolvimento
  * (`/galeria`): serve de vitrine, de alvo do axe e de conferência dos dois temas.
  */
+/** Um campo de cada máscara, com o valor que o campo entrega ao lado (o que vai para o cálculo). */
+function ExemploMascaras(): ReactNode {
+  const [v, setV] = useState({
+    quantidade: '18416,67',
+    valor: '125000',
+    equipes: '2',
+    atraso: '-3',
+    telefone: '',
+    cnpj: '',
+    placa: ''
+  })
+  const [horas, setHoras] = useState(8.5)
+  const [solto, setSolto] = useState('1234,5')
+  const campo = (
+    k: keyof typeof v
+  ): {
+    'data-teste': string
+    value: string
+    onChange: (e: ChangeEvent<HTMLInputElement>) => void
+  } => ({
+    'data-teste': k,
+    value: v[k],
+    onChange: (e) => setV({ ...v, [k]: e.target.value })
+  })
+  const entrega = (t: string | number): ReactNode => (
+    <span className="text-2xs text-text-dim">entrega: {JSON.stringify(t)}</span>
+  )
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Campo rotulo="Quantidade (4 casas)">
+        <Input
+          mascara="decimal"
+          casas={4}
+          className="tabular text-right"
+          {...campo('quantidade')}
+        />
+        {entrega(v.quantidade)}
+      </Campo>
+      <Campo rotulo="Valor (R$)">
+        <Input
+          mascara="decimal"
+          casas={2}
+          casasMin={2}
+          className="tabular text-right"
+          {...campo('valor')}
+        />
+        {entrega(v.valor)}
+      </Campo>
+      <Campo rotulo="Equipes (inteiro)">
+        <Input mascara="inteiro" className="tabular text-right" {...campo('equipes')} />
+        {entrega(v.equipes)}
+      </Campo>
+      <Campo rotulo="Atraso em dias (aceita negativo)">
+        <Input mascara="inteiro" negativo className="tabular text-right" {...campo('atraso')} />
+        {entrega(v.atraso)}
+      </Campo>
+      <Campo rotulo="Horas (o valor guardado é número)">
+        <Input
+          mascara="decimal"
+          casas={2}
+          data-teste="horas"
+          className="tabular text-right"
+          value={String(horas).replace('.', ',')}
+          onChange={(e) => setHoras(Number(e.target.value.replace(',', '.')) || 0)}
+        />
+        {entrega(horas)}
+      </Campo>
+      <Campo rotulo="Grava ao sair do campo">
+        <Input
+          mascara="decimal"
+          casas={3}
+          data-teste="solto"
+          className="tabular text-right"
+          defaultValue="1234,5"
+          onBlur={(e) => setSolto(e.target.value)}
+        />
+        {entrega(solto)}
+      </Campo>
+      <Campo rotulo="Telefone">
+        <Input mascara="telefone" placeholder="(00) 00000-0000" {...campo('telefone')} />
+        {entrega(v.telefone)}
+      </Campo>
+      <Campo rotulo="CNPJ">
+        <Input mascara="cnpj" placeholder="00.000.000/0000-00" {...campo('cnpj')} />
+        {entrega(v.cnpj)}
+      </Campo>
+      <Campo rotulo="Placa">
+        <Input mascara="placa" placeholder="ABC1D23" {...campo('placa')} />
+        {entrega(v.placa)}
+      </Campo>
+    </div>
+  )
+}
+
 export function GaleriaPage(): ReactNode {
   const confirmar = useConfirm()
   const [modo, setModo] = useState<'a' | 'b' | 'c'>('a')
@@ -177,7 +271,7 @@ export function GaleriaPage(): ReactNode {
               <Input placeholder="Ex.: Frente 1" />
             </Campo>
             <Campo rotulo="Quantidade" dica="Na unidade do serviço">
-              <Input inputMode="decimal" placeholder="0,00" className="tabular" />
+              <Input mascara="decimal" casas={4} placeholder="0,00" className="tabular" />
             </Campo>
             <Campo rotulo="Estaca inicial" erro="Use o formato 12+300.">
               <Input defaultValue="12/300" />
@@ -189,6 +283,13 @@ export function GaleriaPage(): ReactNode {
               </Select>
             </Campo>
           </div>
+        </Secao>
+
+        <Secao
+          titulo="Máscaras"
+          nota="formatam enquanto se digita; o campo entrega o número sem ponto de milhar"
+        >
+          <ExemploMascaras />
         </Secao>
 
         <Secao titulo="Escolhas e abas">
@@ -328,7 +429,7 @@ export function GaleriaPage(): ReactNode {
             <Input autoFocus />
           </Campo>
           <Campo rotulo="Acesso (km)" dica="Distância do local até o eixo">
-            <Input inputMode="decimal" className="tabular" />
+            <Input mascara="decimal" casas={3} className="tabular" />
           </Campo>
         </DialogBody>
         <DialogFooter>

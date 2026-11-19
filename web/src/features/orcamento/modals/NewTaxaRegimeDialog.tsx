@@ -183,9 +183,10 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId, taxa }: Props)
             {CAMPOS.map((c) => (
               <Campo key={c.key} rotulo={`${c.label} (%)`} dica={c.hint}>
                 <Input
+                  mascara="decimal"
+                  casas={2}
                   value={percs[c.key]}
                   onChange={(e) => setPerc(c.key, e.target.value)}
-                  inputMode="decimal"
                   autoComplete="off"
                   placeholder="0,00"
                   className="tabular text-right"

@@ -1,3 +1,4 @@
+import { InputMascara } from '@/components/ui/input-mascara'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
@@ -458,11 +459,11 @@ function FormInner({
           <div data-campo="quantidade">
             <Label htmlFor="lc-qtd">Quantidade{unidade ? ` (${unidade})` : ''}</Label>
             <div className="relative">
-              <input
+              <InputMascara
+                mascara="decimal"
+                casas={4}
                 id="lc-qtd"
                 ref={qtdRef}
-                type="text"
-                inputMode="decimal"
                 value={quantidade}
                 onChange={(e) => setQuantidade(e.target.value)}
                 placeholder="0,00"
@@ -538,10 +539,10 @@ function FormInner({
               {par.material_obrigatorio ? '' : ' (opcional)'}
             </Label>
             <div className="relative">
-              <input
+              <InputMascara
+                mascara="decimal"
+                casas={4}
                 id="lc-mat"
-                type="text"
-                inputMode="decimal"
                 value={matQtd}
                 onChange={(e) => setMatQtd(e.target.value)}
                 placeholder="0,00"
@@ -816,8 +817,9 @@ function FormInner({
                             className="h-9 text-sm"
                           />
                           <Input
+                            mascara="decimal"
+                            casas={4}
                             value={m.quantidade}
-                            inputMode="decimal"
                             onChange={(e) =>
                               setMateriais((arr) =>
                                 arr.map((x, j) =>

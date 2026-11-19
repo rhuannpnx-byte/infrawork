@@ -552,6 +552,8 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
               <Label htmlFor="c-prod">Produção por dia</Label>
               <div className="flex items-center gap-2">
                 <Input
+                  mascara="decimal"
+                  casas={4}
                   id="c-prod"
                   value={producao}
                   onChange={(e) => {
@@ -560,7 +562,6 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                   }}
                   readOnly={readOnly}
                   title={motivoLeitura}
-                  inputMode="decimal"
                   className="tabular text-right"
                   aria-invalid={erros.producao ? true : undefined}
                   aria-describedby={erros.producao ? 'c-prod-erro' : undefined}
@@ -776,12 +777,13 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
                 {combManual ? (
                   <div className="flex flex-col gap-1">
                     <Input
+                      mascara="decimal"
+                      casas={4}
                       value={combLitros}
                       onChange={(e) => {
                         setCombLitros(e.target.value)
                         marcar()
                       }}
-                      inputMode="decimal"
                       className="w-28 text-right tabular"
                       placeholder="L/dia"
                       aria-label="Litros de combustível por dia"
@@ -932,9 +934,10 @@ function ItemRow({
           </span>
         ) : (
           <Input
+            mascara="decimal"
+            casas={6}
             value={item.quantidade}
             onChange={(e) => onPatch({ quantidade: e.target.value })}
-            inputMode="decimal"
             className={cell}
             readOnly={readOnly}
             aria-label={`Quantidade de ${nomeLinha}`}
@@ -946,9 +949,10 @@ function ItemRow({
           naoSeAplica
         ) : (
           <Input
+            mascara="decimal"
+            casas={2}
             value={item.horas_dia}
             onChange={(e) => onPatch({ horas_dia: e.target.value })}
-            inputMode="decimal"
             className={cell}
             readOnly={readOnly}
             aria-label={`Horas por dia de ${nomeLinha}`}
@@ -958,9 +962,10 @@ function ItemRow({
       <td className="px-2 py-1">
         {ehEq ? (
           <Input
+            mascara="decimal"
+            casas={4}
             value={item.consumo_lh}
             onChange={(e) => onPatch({ consumo_lh: e.target.value })}
-            inputMode="decimal"
             className={cell}
             readOnly={readOnly}
             aria-label={`Litros por hora de ${nomeLinha}`}
@@ -972,9 +977,10 @@ function ItemRow({
       <td className="px-2 py-1">
         {ehEq ? (
           <Input
+            mascara="decimal"
+            casas={6}
             value={item.indice}
             onChange={(e) => onPatch({ indice: e.target.value })}
-            inputMode="decimal"
             className={cell}
             readOnly={readOnly}
             aria-label={`Índice de operação de ${nomeLinha}`}
@@ -986,9 +992,10 @@ function ItemRow({
       <td className="px-2 py-1">
         {ehMat ? (
           <Input
+            mascara="decimal"
+            casas={6}
             value={item.consumo_mat}
             onChange={(e) => onPatch({ consumo_mat: e.target.value })}
-            inputMode="decimal"
             className={cell}
             readOnly={readOnly}
             placeholder="por un."

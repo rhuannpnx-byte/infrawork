@@ -108,9 +108,11 @@ export function NewRecursoPrecoDialog({
           <div className="grid grid-cols-2 gap-3">
             <Campo rotulo="Custo unitário (R$ por unidade)" obrigatorio erro={erro('custo')}>
               <Input
+                mascara="decimal"
+                casas={4}
+                casasMin={2}
                 value={custo}
                 onChange={(e) => setCusto(e.target.value)}
-                inputMode="decimal"
                 autoComplete="off"
                 data-foco-inicial=""
                 placeholder="Ex.: 6,40"

@@ -122,109 +122,110 @@ function Conteudo({
       </DialogHeader>
       <DialogBody>
         <div ref={erro.caixa} className="space-y-3" onKeyDown={enterEnvia(gravar)}>
-        <DialogErrorBanner message={erro.geral} />
-        <Campo rotulo="Nome" erro={erro.de('nome')}>
-          <Input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            data-foco-inicial
-            placeholder={alvo.tipo === 'feriado' ? 'Ex.: Aniversário da cidade' : ''}
-          />
-        </Campo>
-        {alvo.tipo === 'pascoa' ? (
-          <p className="text-xs text-text-muted">
-            Calculados pela data da Páscoa de cada ano: segunda e terça de Carnaval, Sexta-feira
-            Santa e Corpus Christi. Para trabalhar num deles, inclua um horário excepcional naquele
-            dia.
-          </p>
-        ) : null}
-        {alvo.tipo === 'feriado' || alvo.tipo === 'horario_excecao' ? (
-          <div className="grid grid-cols-2 items-start gap-3">
-            <Campo rotulo="De" erro={erro.de('ini')}>
-              <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
-            </Campo>
-            <Campo rotulo="Até (inclusive)" erro={erro.de('fim')}>
-              <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
-            </Campo>
-          </div>
-        ) : null}
-        {alvo.tipo === 'feriado' ? (
-          <Caixa marcado={todoAno} onMudar={setTodoAno}>
-            Repetir todo ano (mesmo dia e mês)
-          </Caixa>
-        ) : null}
-        {alvo.tipo === 'folga_semana' ? (
-          <div className="grid grid-cols-2 items-start gap-3">
-            <Campo rotulo="Dia da semana">
-              <Select
-                value={String(diaSemana)}
-                onChange={(e) => setDiaSemana(Number(e.target.value))}
-              >
-                {NOME_DIA.map((n, i) => (
-                  <option key={i} value={i}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </Campo>
-            <Campo
-              rotulo="A partir de (dia e mês)"
-              dica="Todo ano, o primeiro dia da semana escolhido a partir desta data"
-              erro={erro.de('ini')}
-            >
-              <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
-            </Campo>
-          </div>
-        ) : null}
-        {alvo.tipo === 'horario_excecao' ? (
-          <div>
-            <div className="mb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
-              Semana no período (vale também sobre feriados)
+          <DialogErrorBanner message={erro.geral} />
+          <Campo rotulo="Nome" erro={erro.de('nome')}>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              data-foco-inicial
+              placeholder={alvo.tipo === 'feriado' ? 'Ex.: Aniversário da cidade' : ''}
+            />
+          </Campo>
+          {alvo.tipo === 'pascoa' ? (
+            <p className="text-xs text-text-muted">
+              Calculados pela data da Páscoa de cada ano: segunda e terça de Carnaval, Sexta-feira
+              Santa e Corpus Christi. Para trabalhar num deles, inclua um horário excepcional
+              naquele dia.
+            </p>
+          ) : null}
+          {alvo.tipo === 'feriado' || alvo.tipo === 'horario_excecao' ? (
+            <div className="grid grid-cols-2 items-start gap-3">
+              <Campo rotulo="De" erro={erro.de('ini')}>
+                <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
+              </Campo>
+              <Campo rotulo="Até (inclusive)" erro={erro.de('fim')}>
+                <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
+              </Campo>
             </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {semana.map((x, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'rounded border p-1.5',
-                    x.horas > 0 ? 'border-border-strong bg-bg-elevated' : 'border-border'
-                  )}
+          ) : null}
+          {alvo.tipo === 'feriado' ? (
+            <Caixa marcado={todoAno} onMudar={setTodoAno}>
+              Repetir todo ano (mesmo dia e mês)
+            </Caixa>
+          ) : null}
+          {alvo.tipo === 'folga_semana' ? (
+            <div className="grid grid-cols-2 items-start gap-3">
+              <Campo rotulo="Dia da semana">
+                <Select
+                  value={String(diaSemana)}
+                  onChange={(e) => setDiaSemana(Number(e.target.value))}
                 >
-                  <div className="mb-1 text-xs text-text">{NOME_DIA[i]!.slice(0, 3)}</div>
-                  <Input
-                    type="time"
-                    aria-label={`Início ${NOME_DIA[i]}`}
-                    value={x.inicio}
-                    onChange={(e) =>
-                      setSemana(
-                        semana.map((y, j) =>
-                          j === i ? { ...y, inicio: e.target.value || '07:00' } : y
-                        )
-                      )
-                    }
-                    className="mb-1 h-7 px-1 text-xs [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
-                  <Input
-                    value={String(x.horas).replace('.', ',')}
-                    inputMode="decimal"
-                    aria-label={`Horas ${NOME_DIA[i]}`}
-                    onChange={(e) => {
-                      const v = lerNumero(e.target.value)
-                      setSemana(
-                        semana.map((y, j) =>
-                          j === i
-                            ? { ...y, horas: v === null ? 0 : Math.max(0, Math.min(24, v)) }
-                            : y
-                        )
-                      )
-                    }}
-                    className="h-7 px-1 text-right text-xs tabular"
-                  />
-                </div>
-              ))}
+                  {NOME_DIA.map((n, i) => (
+                    <option key={i} value={i}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </Campo>
+              <Campo
+                rotulo="A partir de (dia e mês)"
+                dica="Todo ano, o primeiro dia da semana escolhido a partir desta data"
+                erro={erro.de('ini')}
+              >
+                <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
+              </Campo>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+          {alvo.tipo === 'horario_excecao' ? (
+            <div>
+              <div className="mb-1 text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim">
+                Semana no período (vale também sobre feriados)
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {semana.map((x, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'rounded border p-1.5',
+                      x.horas > 0 ? 'border-border-strong bg-bg-elevated' : 'border-border'
+                    )}
+                  >
+                    <div className="mb-1 text-xs text-text">{NOME_DIA[i]!.slice(0, 3)}</div>
+                    <Input
+                      type="time"
+                      aria-label={`Início ${NOME_DIA[i]}`}
+                      value={x.inicio}
+                      onChange={(e) =>
+                        setSemana(
+                          semana.map((y, j) =>
+                            j === i ? { ...y, inicio: e.target.value || '07:00' } : y
+                          )
+                        )
+                      }
+                      className="mb-1 h-7 px-1 text-xs [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Input
+                      mascara="decimal"
+                      casas={2}
+                      value={String(x.horas).replace('.', ',')}
+                      aria-label={`Horas ${NOME_DIA[i]}`}
+                      onChange={(e) => {
+                        const v = lerNumero(e.target.value)
+                        setSemana(
+                          semana.map((y, j) =>
+                            j === i
+                              ? { ...y, horas: v === null ? 0 : Math.max(0, Math.min(24, v)) }
+                              : y
+                          )
+                        )
+                      }}
+                      className="h-7 px-1 text-right text-xs tabular"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </DialogBody>
       <DialogFooter>

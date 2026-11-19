@@ -396,8 +396,9 @@ export function QuantidadesTrechoDialog({
                 </div>
                 {passoTipo === 'unidades' || passoTipo === 'metros' ? (
                   <Input
+                    mascara="decimal"
+                    casas={2}
                     className="tabular w-20 text-right"
-                    inputMode="decimal"
                     aria-label={
                       passoTipo === 'metros' ? 'Metros por faixa' : `Quantidade de ${rot} por faixa`
                     }

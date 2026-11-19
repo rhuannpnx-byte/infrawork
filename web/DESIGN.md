@@ -68,21 +68,22 @@ o claro é o padrão; o escuro existe para quem trabalha à noite ou prefere.
 
 Antes de montar um bloco à mão, use o que já existe:
 
-| Para                                          | Componente                                                                                      |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Indicadores (número com rótulo e apoio)       | `ui/indicador`: `FaixaIndicadores`, `Indicador`, `BarraAvanco`                                  |
-| Bloco com título, nota e "ver mais"           | `ui/secao`: `Secao`                                                                             |
-| Carregando, erro de consulta e vazio          | `ui/estado`: `EstadoConsulta`, `ErroConsulta`, `Carregando`, `Vazio`                            |
-| Retorno de edição direta ("Salvando…", falha) | `ui/estado`: `EstadoGravacao`                                                                   |
-| Campo de formulário com rótulo, dica e erro   | `ui/campo`: `Campo` (ou `aria-invalid` no `Input`/`Select`)                                     |
-| Escolha única entre poucas opções             | `ui/segmentado`: `Segmentado`                                                                   |
-| Escolher numa lista longa, com busca          | `ui/lista-pesquisavel`: `ListaPesquisavel` (abre em portal; aceita valor digitado via `livre`)  |
-| Filtros da página                             | `ui/filtros`: `BarraFiltros`, `Filtro`, `FiltroMulti`; `ui/filtro-chips`; `ui/DateRangePopover` |
-| Curva S (previsto e realizado)                | `charts/CurvaS`                                                                                 |
-| Diálogo, painel lateral, menu, popover        | `ui/dialog`, `ui/sheet`, `ui/dropdown`, `ui/popover`                                            |
-| Dica ao passar o mouse ou focar               | `ui/tooltip` (o `IconButton` já usa o `aria-label` como dica)                                   |
-| Barra de ferramentas do plano                 | `features/cronograma/components/BarraPlano` (grupos, zoom, somente leitura)                     |
-| Fundo de vazio e de carregamento              | `layout/CurvasDeNivel` (já usado pelo `EmptyState`)                                             |
+| Para                                          | Componente                                                                                                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Indicadores (número com rótulo e apoio)       | `ui/indicador`: `FaixaIndicadores`, `Indicador`, `BarraAvanco`                                                                                              |
+| Bloco com título, nota e "ver mais"           | `ui/secao`: `Secao`                                                                                                                                         |
+| Carregando, erro de consulta e vazio          | `ui/estado`: `EstadoConsulta`, `ErroConsulta`, `Carregando`, `Vazio`                                                                                        |
+| Retorno de edição direta ("Salvando…", falha) | `ui/estado`: `EstadoGravacao`                                                                                                                               |
+| Campo de formulário com rótulo, dica e erro   | `ui/campo`: `Campo` (ou `aria-invalid` no `Input`/`Select`)                                                                                                 |
+| Campo de número, telefone, CNPJ, CPF ou placa | `ui/input`: `Input mascara="decimal" casas={n}` (ou `inteiro`, `telefone`, `cnpj`, `cpf`, `placa`); em célula de tabela, `ui/input-mascara`: `InputMascara` |
+| Escolha única entre poucas opções             | `ui/segmentado`: `Segmentado`                                                                                                                               |
+| Escolher numa lista longa, com busca          | `ui/lista-pesquisavel`: `ListaPesquisavel` (abre em portal; aceita valor digitado via `livre`)                                                              |
+| Filtros da página                             | `ui/filtros`: `BarraFiltros`, `Filtro`, `FiltroMulti`; `ui/filtro-chips`; `ui/DateRangePopover`                                                             |
+| Curva S (previsto e realizado)                | `charts/CurvaS`                                                                                                                                             |
+| Diálogo, painel lateral, menu, popover        | `ui/dialog`, `ui/sheet`, `ui/dropdown`, `ui/popover`                                                                                                        |
+| Dica ao passar o mouse ou focar               | `ui/tooltip` (o `IconButton` já usa o `aria-label` como dica)                                                                                               |
+| Barra de ferramentas do plano                 | `features/cronograma/components/BarraPlano` (grupos, zoom, somente leitura)                                                                                 |
+| Fundo de vazio e de carregamento              | `layout/CurvasDeNivel` (já usado pelo `EmptyState`)                                                                                                         |
 
 Regras que valem para todos:
 
@@ -100,6 +101,11 @@ Regras que valem para todos:
 - Controle desabilitado diz o motivo no `title` (linha de base travada, falta de permissão).
 - Barra com muitos controles é dividida em grupos, com as ações raras num menu "Mais".
 - Gravação que falha e a tela não tratou vira aviso pelo `lib/query-client`; quando a tela avisa, o global se cala.
+- Campo de número nunca é `type="number"` nem texto solto: usa a máscara, que mostra o ponto de milhar e entrega
+  "1234,56" (sem milhar). O valor inicial vem de `numeroParaCampo` (`lib/mascara/numero`), nunca de um formatador de
+  leitura (`fmtQtd`, `fmtNum`, `formatNumber`): "24.000" relido vira 24. `casas` segue a precisão da coluna no banco.
+- Aviso (toast) de rotina dura 2,5 s; erro e alerta, 6 s, com botão de fechar; no máximo dois na tela (`lib/avisos`).
+  Não passe `duration` maior sem motivo.
 - Toda `<table>` com `<thead>` ganha largura de coluna ajustável sem código na tela (`lib/tabelas/colunas-ajustaveis`,
   ligado no `AppShell`): alça na borda direita do cabeçalho, setas do teclado com ela em foco, duplo clique volta ao
   automático, largura guardada no navegador por tela e cabeçalho. Tabela com colunas fixas de deslocamento calculado
