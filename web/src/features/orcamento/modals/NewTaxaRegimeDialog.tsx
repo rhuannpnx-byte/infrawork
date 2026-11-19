@@ -12,7 +12,8 @@ import {
 import { Campo } from '@/components/ui/campo'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useCreateTaxa } from '../hooks/taxas'
+import { useCreateTaxa, useUpdateTaxa } from '../hooks/taxas'
+import type { TaxaRegime } from '@/types/orcamento'
 import { fmtPct2, parseBR } from '@/lib/money'
 import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
@@ -20,6 +21,8 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   obraId: string
+  /** Taxa a editar; sem ela o diálogo cria uma nova. */
+  taxa?: TaxaRegime | null
 }
 
 type CampoKey =
@@ -67,16 +70,31 @@ function parsePerc(s: string): number {
   return Math.round(n * 100) / 100
 }
 
-export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): ReactNode {
+/** Fração gravada (0,0508) no formato do campo em % ("5,08"). */
+const percDoBanco = (v: number | null | undefined): string =>
+  String(Math.round(Number(v ?? 0) * 10000) / 100).replace('.', ',')
+
+export function NewTaxaRegimeDialog({ open, onOpenChange, obraId, taxa }: Props): ReactNode {
   const create = useCreateTaxa()
-  const [nome, setNome] = useState('Padrão')
-  const [percs, setPercs] = useState<Record<CampoKey, string>>({ ...DEFAULTS })
+  const update = useUpdateTaxa()
+  const editando = !!taxa
+  const salvando = create.isPending || update.isPending
+  const nomeInicial = taxa?.nome ?? 'Padrão'
+  const percsIniciais = (): Record<CampoKey, string> =>
+    taxa
+      ? (Object.fromEntries(CAMPOS.map((c) => [c.key, percDoBanco(taxa[c.key])])) as Record<
+          CampoKey,
+          string
+        >)
+      : { ...DEFAULTS }
+  const [nome, setNome] = useState(nomeInicial)
+  const [percs, setPercs] = useState<Record<CampoKey, string>>(percsIniciais)
   const [error, setError] = useState<string | null>(null)
   const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
-    setNome('Padrão')
-    setPercs({ ...DEFAULTS })
+    setNome(nomeInicial)
+    setPercs(percsIniciais())
     setError(null)
     setTentou(false)
   }
@@ -101,8 +119,7 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
       return
     }
     try {
-      await create.mutateAsync({
-        obra_id: obraId,
+      const valores = {
         nome: nome.trim(),
         iss_perc: parsePerc(percs.iss_perc) / 100,
         pis_perc: parsePerc(percs.pis_perc) / 100,
@@ -111,12 +128,16 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
         irpj_perc: parsePerc(percs.irpj_perc) / 100,
         cprb_perc: parsePerc(percs.cprb_perc) / 100,
         outros_perc: parsePerc(percs.outros_perc) / 100
-      })
-      toast.success(`Taxa "${nome}" criada (${fmtPct2(total)}).`)
+      }
+      if (taxa) await update.mutateAsync({ id: taxa.id, ...valores })
+      else await create.mutateAsync({ obra_id: obraId, ...valores })
+      toast.success(`Taxa "${nome}" ${editando ? 'atualizada' : 'criada'} (${fmtPct2(total)}).`)
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(`Não foi possível criar a taxa. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
+      setError(
+        `Não foi possível ${editando ? 'salvar' : 'criar'} a taxa. ${detalheDoErro(err) ?? 'Tente de novo.'}`
+      )
     }
   }
 
@@ -136,10 +157,10 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
   }
 
   return (
-    <Dialog open={open} onOpenChange={aoMudar} size="lg" disableDismiss={create.isPending}>
+    <Dialog open={open} onOpenChange={aoMudar} size="lg" disableDismiss={salvando}>
       <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>Nova taxa</DialogTitle>
+          <DialogTitle>{editando ? 'Editar taxa' : 'Nova taxa'}</DialogTitle>
           <DialogDescription>
             Conjunto de impostos sobre a receita. O total é descontado da venda no cálculo do lucro:
             lucro = venda − custo − venda × total.
@@ -185,12 +206,12 @@ export function NewTaxaRegimeDialog({ open, onOpenChange, obraId }: Props): Reac
             type="button"
             variant="secondary"
             onClick={() => aoMudar(false)}
-            disabled={create.isPending}
+            disabled={salvando}
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? 'Criando…' : 'Criar taxa'}
+          <Button type="submit" disabled={salvando}>
+            {salvando ? 'Salvando…' : editando ? 'Salvar alterações' : 'Criar taxa'}
           </Button>
         </DialogFooter>
       </form>

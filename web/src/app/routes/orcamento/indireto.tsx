@@ -13,6 +13,7 @@ import { useIndireto, totalIndireto } from '@/features/orcamento/hooks/indireto'
 import { IndiretoTable } from '@/features/orcamento/components/IndiretoTable'
 import { NewIndiretoDialog } from '@/features/orcamento/modals/NewIndiretoDialog'
 import { fmtBRL } from '@/lib/money'
+import type { Indireto as ItemIndireto } from '@/types/orcamento'
 
 export function IndiretoPage(): ReactNode {
   return (
@@ -28,6 +29,7 @@ function Indireto(): ReactNode {
   const obraId = scope.obraId!
   const { data: indiretos = [], isLoading, error, refetch } = useIndireto(obraId)
   const [openNew, setOpenNew] = useState(false)
+  const [editando, setEditando] = useState<ItemIndireto | null>(null)
 
   const { data: cadeiaTrava, isLoading: travaCarregando } = useCadeiaTrava(obraId)
   const podeEditar =
@@ -79,6 +81,7 @@ function Indireto(): ReactNode {
               data={indiretos}
               loading={isLoading}
               podeEditar={podeEditar}
+              onEditar={setEditando}
             />
           </div>
           <div className="flex items-baseline justify-end gap-2 px-4 py-2 border-t border-border bg-bg-panel text-sm">
@@ -89,6 +92,15 @@ function Indireto(): ReactNode {
       )}
 
       <NewIndiretoDialog open={openNew} onOpenChange={setOpenNew} obraId={obraId} />
+      <NewIndiretoDialog
+        key={editando?.id ?? 'nenhum'}
+        open={!!editando}
+        onOpenChange={(o) => {
+          if (!o) setEditando(null)
+        }}
+        obraId={obraId}
+        item={editando}
+      />
     </div>
   )
 }

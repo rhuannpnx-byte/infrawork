@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/data-table/DataTable'
 import { IconButton } from '@/components/ui/IconButton'
@@ -13,9 +13,10 @@ interface Props {
   data: Indireto[]
   loading: boolean
   podeEditar: boolean
+  onEditar: (item: Indireto) => void
 }
 
-export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): ReactNode {
+export function IndiretoTable({ obraId, data, loading, podeEditar, onEditar }: Props): ReactNode {
   const { mutate: excluir, isPending: excluindo } = useDeleteIndireto()
   const confirm = useConfirm()
 
@@ -76,10 +77,19 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
             {
               id: 'acoes',
               header: '',
-              size: 60,
+              size: 80,
               enableSorting: false,
               cell: ({ row }) => (
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-1">
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Editar ${row.original.descricao}`}
+                    title={`Editar ${row.original.descricao}`}
+                    onClick={() => onEditar(row.original)}
+                  >
+                    <Pencil size={12} aria-hidden />
+                  </IconButton>
                   <IconButton
                     size="sm"
                     variant="danger"
@@ -106,7 +116,7 @@ export function IndiretoTable({ obraId, data, loading, podeEditar }: Props): Rea
           ]
         : [])
     ],
-    [confirm, excluir, excluindo, obraId, podeEditar]
+    [confirm, excluir, excluindo, obraId, onEditar, podeEditar]
   )
 
   return (

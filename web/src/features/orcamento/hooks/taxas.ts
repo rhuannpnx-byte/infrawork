@@ -103,6 +103,36 @@ export function useCreateTaxa(): ReturnType<
   })
 }
 
+export interface UpdateTaxaInput extends Omit<CreateTaxaInput, 'obra_id' | 'vigencia_inicio'> {
+  id: string
+}
+
+export function useUpdateTaxa(): ReturnType<typeof useMutation<void, Error, UpdateTaxaInput>> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...body }) => {
+      const { error } = await supabase
+        .from('encargos_sociais_regime')
+        .update({
+          nome: body.nome.trim(),
+          iss_perc: body.iss_perc ?? 0,
+          pis_perc: body.pis_perc ?? 0,
+          cofins_perc: body.cofins_perc ?? 0,
+          csll_perc: body.csll_perc ?? 0,
+          irpj_perc: body.irpj_perc ?? 0,
+          cprb_perc: body.cprb_perc ?? 0,
+          outros_perc: body.outros_perc ?? 0
+        })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      // a taxa entra na lucratividade de cada item (recalculada no banco)
+      invalidarCadeia(qc)
+    }
+  })
+}
+
 export function useToggleAtivoTaxa(): ReturnType<
   typeof useMutation<void, Error, { id: string; ativo: boolean; obra_id: string }>
 > {

@@ -14,13 +14,15 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { parseBR } from '@/lib/money'
 import { useUpsertIndireto } from '../hooks/indireto'
-import { INDIRETO_TIPO_LABEL, type IndiretoTipo } from '@/types/orcamento'
+import { INDIRETO_TIPO_LABEL, type Indireto, type IndiretoTipo } from '@/types/orcamento'
 import { detalheDoErro } from '@/features/orcamento/lib/erro'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   obraId: string
+  /** Item a editar; sem ele o diálogo cria um novo. */
+  item?: Indireto | null
 }
 
 const TIPOS: IndiretoTipo[] = ['mobilizacao', 'desmob', 'admin_local', 'outros']
@@ -30,22 +32,34 @@ const NUMERO = /^\d[\d.,]*$/
 
 type CampoComErro = 'codigo' | 'descricao' | 'valor' | 'distribuicao'
 
-export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactNode {
+/** Número no formato do campo (vírgula decimal, sem milhar). */
+const paraCampo = (n: number, casas: number): string =>
+  String(Math.round(Number(n) * 10 ** casas) / 10 ** casas).replace('.', ',')
+
+export function NewIndiretoDialog({ open, onOpenChange, obraId, item }: Props): ReactNode {
   const upsert = useUpsertIndireto()
-  const [codigo, setCodigo] = useState('')
-  const [descricao, setDescricao] = useState('')
-  const [tipo, setTipo] = useState<IndiretoTipo>('admin_local')
-  const [valor, setValor] = useState('')
-  const [distribuicao, setDistribuicao] = useState('100')
+  const editando = !!item
+  const inicial = {
+    codigo: item?.codigo ?? '',
+    descricao: item?.descricao ?? '',
+    tipo: item?.tipo ?? ('admin_local' as IndiretoTipo),
+    valor: item ? paraCampo(item.valor_total, 2) : '',
+    distribuicao: item ? paraCampo(Number(item.distribuicao_perc) * 100, 4) : '100'
+  }
+  const [codigo, setCodigo] = useState(inicial.codigo)
+  const [descricao, setDescricao] = useState(inicial.descricao)
+  const [tipo, setTipo] = useState<IndiretoTipo>(inicial.tipo)
+  const [valor, setValor] = useState(inicial.valor)
+  const [distribuicao, setDistribuicao] = useState(inicial.distribuicao)
   const [error, setError] = useState<string | null>(null)
   const [tentou, setTentou] = useState(false)
 
   const reset = (): void => {
-    setCodigo('')
-    setDescricao('')
-    setTipo('admin_local')
-    setValor('')
-    setDistribuicao('100')
+    setCodigo(inicial.codigo)
+    setDescricao(inicial.descricao)
+    setTipo(inicial.tipo)
+    setValor(inicial.valor)
+    setDistribuicao(inicial.distribuicao)
     setError(null)
     setTentou(false)
   }
@@ -80,6 +94,9 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
     }
     try {
       await upsert.mutateAsync({
+        id: item?.id,
+        parent_id: item?.parent_id ?? null,
+        ordem: item?.ordem ?? 0,
         obra_id: obraId,
         codigo: codigo.trim(),
         descricao: descricao.trim(),
@@ -87,11 +104,13 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
         valor_total: v,
         distribuicao_perc: d / 100
       })
-      toast.success('Custo indireto criado.')
+      toast.success(editando ? 'Custo indireto atualizado.' : 'Custo indireto criado.')
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(`Não foi possível criar o custo indireto. ${detalheDoErro(err) ?? 'Tente de novo.'}`)
+      setError(
+        `Não foi possível ${editando ? 'salvar' : 'criar'} o custo indireto. ${detalheDoErro(err) ?? 'Tente de novo.'}`
+      )
     }
   }
 
@@ -99,7 +118,7 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
     <Dialog open={open} onOpenChange={aoMudar} size="md" disableDismiss={upsert.isPending}>
       <form onSubmit={onSubmit} noValidate>
         <DialogHeader>
-          <DialogTitle>Novo custo indireto</DialogTitle>
+          <DialogTitle>{editando ? 'Editar custo indireto' : 'Novo custo indireto'}</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <DialogErrorBanner message={error} />
@@ -167,7 +186,11 @@ export function NewIndiretoDialog({ open, onOpenChange, obraId }: Props): ReactN
             Cancelar
           </Button>
           <Button type="submit" disabled={upsert.isPending}>
-            {upsert.isPending ? 'Criando…' : 'Criar custo indireto'}
+            {upsert.isPending
+              ? 'Salvando…'
+              : editando
+                ? 'Salvar alterações'
+                : 'Criar custo indireto'}
           </Button>
         </DialogFooter>
       </form>

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Plus, Power } from 'lucide-react'
+import { Pencil, Plus, Power } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -47,6 +47,7 @@ function TaxasInner(): ReactNode {
   const { data: plan } = usePlanOrc(obraId)
   const { mutate: alternarAtivo, isPending: alternandoAtivo } = useToggleAtivoTaxa()
   const [openNew, setOpenNew] = useState(false)
+  const [editando, setEditando] = useState<TaxaRegime | null>(null)
 
   const podeEditar = role === 'god' || role === 'adm' || role === 'engenheiro'
 
@@ -107,11 +108,20 @@ function TaxasInner(): ReactNode {
       {
         id: 'acoes',
         header: '',
-        size: 60,
+        size: 80,
         enableSorting: false,
         cell: ({ row }) =>
           podeEditar ? (
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-1">
+              <IconButton
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditando(row.original)}
+                aria-label={`Editar a taxa ${row.original.nome}`}
+                title="Editar"
+              >
+                <Pencil size={12} aria-hidden />
+              </IconButton>
               <IconButton
                 size="sm"
                 variant="ghost"
@@ -232,6 +242,15 @@ function TaxasInner(): ReactNode {
       ) : null}
 
       <NewTaxaRegimeDialog open={openNew} onOpenChange={setOpenNew} obraId={obraId} />
+      <NewTaxaRegimeDialog
+        key={editando?.id ?? 'nenhuma'}
+        open={!!editando}
+        onOpenChange={(o) => {
+          if (!o) setEditando(null)
+        }}
+        obraId={obraId}
+        taxa={editando}
+      />
     </div>
   )
 }
