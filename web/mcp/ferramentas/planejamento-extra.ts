@@ -42,7 +42,9 @@ export const quantidadesLocais = ferramenta({
     'acao: ler (versão atual do trecho: segmentos × serviços) | versoes | salvar (substitui ou cria nova versão: ' +
     'servicos = ids dos agrupadores, segmentos [{ini, fim, label_ini, label_fim, valores}] em metros internos; o ' +
     'banco recusa total acima do orçamento; as células são gravadas em milésimos, com a soma de cada serviço ' +
-    'preservada) | restaurar (versão antiga) | totais (quanto de cada serviço já foi ' +
+    'preservada) | restaurar (versão antiga) | excluir (apaga as quantidades e todas as versões dos locais em ' +
+    'trechos, para importar de novo; recusa com plano vigente; tarefas "do trecho" do plano em edição ficam com ' +
+    'zero até a nova importação) | totais (quanto de cada serviço já foi ' +
     'distribuído nos trechos) | ler_planilha (lê uma planilha de quantidades no padrão DynaRoad e devolve as ' +
     'abas/colunas/linhas para você montar os segmentos) | mapeamento (colunas da planilha → serviço) | ' +
     'salvar_mapeamento | criar_tarefas (gera tarefas do plano a partir das quantidades: modo sequencia|local|' +
@@ -54,6 +56,7 @@ export const quantidadesLocais = ferramenta({
       'versoes',
       'salvar',
       'restaurar',
+      'excluir',
       'totais',
       'ler_planilha',
       'mapeamento',
@@ -79,7 +82,7 @@ export const quantidadesLocais = ferramenta({
       .optional(),
     planejamento_id: z.string().uuid().optional(),
     parent_id: z.string().uuid().nullable().optional(),
-    trechos: z.array(z.string().uuid()).optional(),
+    trechos: z.array(z.string().uuid()).optional().describe('criar_tarefas e excluir: locais'),
     itens: z.array(z.string().uuid()).optional().describe('criar_tarefas: serviços'),
     modo_tarefas: z.enum(['sequencia', 'local', 'janela']).optional(),
     janela_m: z.number().nullable().optional(),
@@ -100,6 +103,7 @@ export const quantidadesLocais = ferramenta({
     rpcs: [
       'trecho_salvar_quantidades',
       'trecho_restaurar_versao',
+      'trecho_excluir_quantidades',
       'trechos_servico_totais',
       'trecho_servico_total',
       'trecho_servico_disponivel',
@@ -194,6 +198,23 @@ export const quantidadesLocais = ferramenta({
         const [t] = await ler<{ obra_id: string }>('obra_trecho', {
           colunas: 'obra_id',
           filtros: [eq('id', trecho())]
+        })
+        return { resultado: r, calculo: await recalcularEmEdicao(t!.obra_id, a.recalcular) }
+      }
+      case 'excluir': {
+        const ids = a.trechos?.length ? a.trechos : [trecho()]
+        const pedido = pedirConfirmacao(
+          a.confirmar,
+          'excluir as quantidades dos locais (sem volta)',
+          {
+            locais: ids
+          }
+        )
+        if (pedido) return pedido
+        const r = await rpc('trecho_excluir_quantidades', { _trecho_ids: ids })
+        const [t] = await ler<{ obra_id: string }>('obra_trecho', {
+          colunas: 'obra_id',
+          filtros: [eq('id', ids[0])]
         })
         return { resultado: r, calculo: await recalcularEmEdicao(t!.obra_id, a.recalcular) }
       }

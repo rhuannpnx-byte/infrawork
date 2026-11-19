@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Download, History, Plus, RotateCcw, Save, Upload } from 'lucide-react'
+import { Download, History, Plus, RotateCcw, Save, Trash2, Upload } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
@@ -38,6 +38,7 @@ import type { ObraTrecho } from '@/types/gerencial'
 import { useTrechoQuantidadeTemplateAtual } from '../hooks/trechos'
 import {
   useAgrupadoresTrecho,
+  useExcluirQuantidadesTrechos,
   useQuantidadesEmTarefas,
   useRestaurarVersaoTrecho,
   useSalvarQuantidadesTrecho,
@@ -93,6 +94,7 @@ export function QuantidadesTrechoDialog({
   const { data: emTarefas = [] } = useQuantidadesEmTarefas(plano?.id)
   const salvar = useSalvarQuantidadesTrecho()
   const restaurar = useRestaurarVersaoTrecho()
+  const excluir = useExcluirQuantidadesTrechos()
   const confirm = useConfirm()
 
   const ehArea = trecho.tipo === 'area'
@@ -265,6 +267,25 @@ export function QuantidadesTrechoDialog({
       setSujo(false)
     } catch (e) {
       setErro(`Não foi possível salvar as quantidades. ${(e as Error).message}`)
+    }
+  }
+
+  const excluirQuantidades = async (): Promise<void> => {
+    const ok = await confirm({
+      title: `Excluir as quantidades de ${trecho.nome}?`,
+      description:
+        'Sem volta. Saem as quantidades e todas as versões guardadas. As tarefas do plano em edição que tiram a ' +
+        'quantidade destes locais ficam com zero até você importar de novo.',
+      confirmLabel: 'Excluir',
+      variant: 'danger'
+    })
+    if (!ok) return
+    try {
+      await excluir.mutateAsync({ trecho_ids: [trecho.id] })
+      toast.success(`Quantidades de ${trecho.nome} excluídas.`)
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(`Não foi possível excluir as quantidades. ${(e as Error).message}`)
     }
   }
 
@@ -450,6 +471,18 @@ export function QuantidadesTrechoDialog({
               {editavel ? (
                 <Button size="sm" variant="secondary" onClick={() => setImportarOpen(true)}>
                   <Upload size={12} /> Importar planilha
+                </Button>
+              ) : null}
+              {editavel && versoes.length > 0 ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="hover:text-danger"
+                  disabled={excluir.isPending}
+                  onClick={() => void excluirQuantidades()}
+                  title="Apaga as quantidades e as versões deste local, para importar de novo"
+                >
+                  <Trash2 size={12} /> Excluir quantidades
                 </Button>
               ) : null}
             </div>

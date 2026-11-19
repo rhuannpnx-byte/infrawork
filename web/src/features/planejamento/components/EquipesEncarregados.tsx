@@ -157,7 +157,11 @@ export function EquipesEncarregados(): ReactNode {
                                   disabled={idx === equipes.length - 1 || reorder.isPending}
                                   onClick={() => void mover(idx, 1)}
                                   aria-label={`Descer a equipe ${e.nome} na ordem`}
-                                  title={idx === equipes.length - 1 ? 'Já é a última da ordem' : 'Descer na ordem'}
+                                  title={
+                                    idx === equipes.length - 1
+                                      ? 'Já é a última da ordem'
+                                      : 'Descer na ordem'
+                                  }
                                 >
                                   <ArrowDown size={14} />
                                 </IconButton>

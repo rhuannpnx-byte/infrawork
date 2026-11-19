@@ -392,6 +392,16 @@ try {
     etapa('composicoes') === 'ok' && etapa('linha_base') === 'ok' && etapa('producao') === 'pendente',
     pront.etapas.map((e) => `${e.chave}:${e.situacao}`).join(' ')
   )
+  const exVigente = await tentar('quantidades_locais', {
+    acao: 'excluir',
+    trecho_id: principal.id,
+    confirmar: true
+  })
+  check(
+    'excluir quantidades é recusado com plano vigente',
+    exVigente.erro && /vigente/.test(exVigente.texto),
+    exVigente.texto.slice(0, 160)
+  )
   const totais = await chamar('quantidades_locais', { acao: 'totais', obra_id: O })
   check(
     'totais nos trechos: um por serviço, numa chamada',

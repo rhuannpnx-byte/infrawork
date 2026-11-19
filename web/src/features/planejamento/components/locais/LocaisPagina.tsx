@@ -40,7 +40,13 @@ import {
   useTrechosQuantidadeTemplatesAtuais,
   useUpdateTrecho
 } from '../../hooks/trechos'
-import { useAgrupadoresTrecho, useQuantidadesNasTarefas } from '../../hooks/quantidades'
+import {
+  useAgrupadoresTrecho,
+  useExcluirQuantidadesTrechos,
+  useQuantidadesNasTarefas
+} from '../../hooks/quantidades'
+import { useCadeiaTrava } from '../../hooks/planejamentos'
+import { QuantidadesPorLocal } from './QuantidadesPorLocal'
 import { usePlanejamentoAtivo } from '../../hooks/planejamentos'
 import {
   comprimentoEfetivo,
@@ -82,6 +88,30 @@ export function LocaisPagina(): ReactNode {
   const [importar, setImportar] = useState(false)
   const [quantidadesDe, setQuantidadesDe] = useState<ObraTrecho | null>(null)
   const [exportando, setExportando] = useState(false)
+  const { data: trava } = useCadeiaTrava(obraId)
+  const excluirQtd = useExcluirQuantidadesTrechos()
+  const comQuantidades = trechos.filter((t) => (templates.get(t.id)?.segmentos.length ?? 0) > 0)
+
+  const excluirQuantidades = async (): Promise<void> => {
+    const ok = await confirm({
+      title: `Excluir as quantidades de ${contar(comQuantidades.length, 'local', 'locais')}?`,
+      description:
+        `${comQuantidades.map((t) => t.nome).join(', ')}. ` +
+        'Sem volta. Saem as quantidades e todas as versões guardadas. As tarefas do plano em edição que tiram a ' +
+        'quantidade destes locais ficam com zero até você importar de novo.',
+      confirmLabel: 'Excluir quantidades',
+      variant: 'danger'
+    })
+    if (!ok) return
+    try {
+      const r = await excluirQtd.mutateAsync({ trecho_ids: comQuantidades.map((t) => t.id) })
+      toast.success(
+        `Quantidades excluídas de ${contar(r.locais, 'local', 'locais')}. Já pode importar de novo.`
+      )
+    } catch (e) {
+      toast.error(`Não foi possível excluir as quantidades. ${(e as Error).message}`)
+    }
+  }
 
   const eixos = trechos.filter((t) => t.tipo === 'eixo')
   const areas = trechos.filter((t) => t.tipo === 'area')
@@ -133,6 +163,23 @@ export function LocaisPagina(): ReactNode {
             </Button>
             {!readOnly ? (
               <>
+                {comQuantidades.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="hover:text-danger"
+                    disabled={!!trava || excluirQtd.isPending}
+                    onClick={() => void excluirQuantidades()}
+                    title={
+                      trava
+                        ? `Não dá para excluir: ${trava}`
+                        : 'Apaga as quantidades de todos os locais, para importar a planilha de novo'
+                    }
+                  >
+                    <Trash2 size={12} />{' '}
+                    {excluirQtd.isPending ? 'Excluindo…' : 'Excluir quantidades…'}
+                  </Button>
+                ) : null}
                 <Button size="sm" variant="secondary" onClick={() => setImportar(true)}>
                   <Upload size={12} /> Importar quantidades…
                 </Button>
@@ -256,6 +303,15 @@ export function LocaisPagina(): ReactNode {
                 </table>
               </div>
             </Secao>
+          ) : null}
+
+          {trechos.length > 0 ? (
+            <QuantidadesPorLocal
+              trechos={trechos}
+              templates={templates}
+              agrupadores={agrupadores}
+              onAbrirLocal={setQuantidadesDe}
+            />
           ) : null}
         </div>
       </div>

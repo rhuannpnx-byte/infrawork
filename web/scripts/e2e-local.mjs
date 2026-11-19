@@ -617,6 +617,13 @@ lc = await local()
 check('nova versão do template recalcula o local vinculado (200 + 450 = 650)', Number(lc.quantidade) === 650 && (await qtdTarefa()) === 650, JSON.stringify(lc))
 const [planTrRev] = await q('planejamento', (t) => t.select('calculo_rev, dados_rev, recalculo_pendente').eq('id', planTr.id))
 check('mudança do template pede novo cálculo do cronograma', planTrRev.calculo_rev !== planTrRev.dados_rev || planTrRev.recalculo_pendente === true, JSON.stringify(planTrRev))
+// migração 0065: excluir as quantidades do local (template e versões) para importar de novo
+const exQ = await rpc('trecho_excluir_quantidades', { _trecho_ids: [tr.id] })
+const tplsDepois = await q('trecho_quantidade_template', (t) => t.select('id').eq('trecho_id', tr.id))
+check('excluir quantidades do local apaga o template e as versões', exQ.locais === 1 && exQ.versoes >= 2 && tplsDepois.length === 0, JSON.stringify(exQ))
+const reimpQtd = await rpc('trecho_salvar_quantidades', { _trecho_id: tr.id, _dados: { modo: 'analitico', servicos: [svTr.id], segmentos: segs(400, 900) } })
+lc = await local()
+check('depois de excluir, a reimportação grava a versão 1 e o local volta a 650', !!reimpQtd.versao_id && Number(lc.quantidade) === 650, JSON.stringify({ reimpQtd, lc }))
 // supressão no orçamento abaixo do trecho → "do trecho" indisponível, o local volta para manual
 await q('item_orcamentario', (t) => t.update({ quantidade: 1000 }).eq('obra_id', obraTr.id).eq('codigo', '01.01').select())
 lc = await local()
@@ -972,6 +979,7 @@ await sbAp.auth.signOut()
     ['snapshot_orcamento_atual', { _obra_id: obraId }],
     ['recalcular_orcamento', { _obra_id: obraId }],
     ['trecho_sync_tarefas', { _obra_id: obraId }],
+    ['trecho_excluir_quantidades', { _trecho_ids: [tr.id] }],
     ['lb_premissas_diff', { _planejamento_id: plan.id }],
     ['set_recurso_preco_vigente', { _preco_id: np.id }],
     ['obra_prontidao', { _obra_id: obraId }],

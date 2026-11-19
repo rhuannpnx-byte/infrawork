@@ -124,6 +124,27 @@ export function useSalvarQuantidadesTrecho(): ReturnType<
   })
 }
 
+/** Apaga as quantidades (template e versões) dos locais, para importar de novo. Recusa com plano vigente. */
+export function useExcluirQuantidadesTrechos(): ReturnType<
+  typeof useMutation<
+    { locais: number; versoes: number; locais_de_tarefa_recalculados: number },
+    Error,
+    { trecho_ids: string[] }
+  >
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ trecho_ids }) => {
+      const { data, error } = await supabase.rpc('trecho_excluir_quantidades', {
+        _trecho_ids: trecho_ids
+      })
+      if (error) throw new Error(error.message)
+      return data as { locais: number; versoes: number; locais_de_tarefa_recalculados: number }
+    },
+    onSuccess: () => invalidar(qc)
+  })
+}
+
 export interface LocalEmTarefa {
   trecho_id: string
   item_orcamentario_id: string
