@@ -27,6 +27,8 @@ export interface ViagemExport {
   fichaId: string
   ordem: number
   veiculo: string
+  /** equipamento que carregou o caminhão (escavadeira, pá carregadeira); '' quando não informado */
+  carregador: string
   motorista: string
   equipe: string
   origemId: string | null
@@ -67,6 +69,7 @@ export interface FaixaResumo {
 export interface RelacaoViagem {
   data: string
   veiculo: string
+  carregador: string
   motorista: string
   equipe: string
   origem: string
@@ -93,7 +96,94 @@ export interface QuadroViagens {
     valor: number
   }
   porFaixa: FaixaResumo[]
+  /** total das viagens deste serviço por equipamento de carga */
+  porCarregador: CargaEquipamento[]
   relacao: RelacaoViagem[]
+}
+
+/** Total de viagens de um equipamento de carga (num serviço: a unidade é uma só). */
+export interface CargaEquipamento {
+  carregador: string
+  viagens: number
+  volume: number
+  /** volume × DMT das viagens com DMT */
+  momento: number
+  dmtMedioKm: number | null
+  /** parte do volume total */
+  pct: number
+}
+
+/** O mesmo, por equipamento e serviço (serviços têm unidades diferentes: não se somam). */
+export interface CargaEquipamentoServico extends CargaEquipamento {
+  servico: string
+  unidade: string
+}
+
+export const SEM_CARREGADOR = 'Não informado'
+
+/** "EH-03 · Escavadeira CAT 320" (código e modelo; a placa quando não há modelo). */
+export function rotuloCarregador(
+  c: { prefixo: string | null; placa?: string | null; modelo?: string | null } | null | undefined
+): string {
+  return c ? [c.prefixo, c.modelo || c.placa].filter(Boolean).join(' · ') : ''
+}
+
+interface ViagemCarga {
+  carregador: string
+  quantidade: number
+  dmtKm: number | null
+}
+
+/** Soma as viagens por equipamento de carga; "Não informado" vai por último. */
+export function totaisPorCarregador(viagens: ViagemCarga[]): CargaEquipamento[] {
+  const m = new Map<string, { viagens: number; volume: number; momento: number; comDmt: number }>()
+  for (const v of viagens) {
+    const k = v.carregador.trim() || SEM_CARREGADOR
+    const t = m.get(k) ?? { viagens: 0, volume: 0, momento: 0, comDmt: 0 }
+    t.viagens += 1
+    t.volume += v.quantidade
+    if (v.dmtKm != null) {
+      t.momento += v.quantidade * v.dmtKm
+      t.comDmt += v.quantidade
+    }
+    m.set(k, t)
+  }
+  const total = [...m.values()].reduce((a, t) => a + t.volume, 0)
+  return [...m.entries()]
+    .map(([carregador, t]) => ({
+      carregador,
+      viagens: t.viagens,
+      volume: t.volume,
+      momento: t.momento,
+      dmtMedioKm: t.comDmt > 0 ? t.momento / t.comDmt : null,
+      pct: total > 0 ? t.volume / total : 0
+    }))
+    .sort(
+      (a, b) =>
+        Number(a.carregador === SEM_CARREGADOR) - Number(b.carregador === SEM_CARREGADOR) ||
+        a.carregador.localeCompare(b.carregador, 'pt-BR', { numeric: true })
+    )
+}
+
+/** Totais por equipamento de carga, abertos por serviço (uma linha por equipamento e serviço). */
+export function cargaPorEquipamentoEServico(
+  viagens: (ViagemCarga & { servico: string; unidade: string })[]
+): CargaEquipamentoServico[] {
+  const porServico = new Map<string, (ViagemCarga & { servico: string; unidade: string })[]>()
+  for (const v of viagens) {
+    const l = porServico.get(v.servico)
+    if (l) l.push(v)
+    else porServico.set(v.servico, [v])
+  }
+  const out: CargaEquipamentoServico[] = []
+  for (const [servico, vs] of porServico)
+    for (const t of totaisPorCarregador(vs)) out.push({ ...t, servico, unidade: vs[0].unidade })
+  return out.sort(
+    (a, b) =>
+      Number(a.carregador === SEM_CARREGADOR) - Number(b.carregador === SEM_CARREGADOR) ||
+      a.carregador.localeCompare(b.carregador, 'pt-BR', { numeric: true }) ||
+      a.servico.localeCompare(b.servico, 'pt-BR', { numeric: true })
+  )
 }
 
 export const SEM_DMT = 'sem DMT'
@@ -242,6 +332,7 @@ export function montarQuadroViagens(input: {
   const relacao: RelacaoViagem[] = viagens.map((v) => ({
     data: dataBR(v.data),
     veiculo: v.veiculo,
+    carregador: v.carregador,
     motorista: v.motorista,
     equipe: v.equipe,
     origem: v.origem,
@@ -272,6 +363,7 @@ export function montarQuadroViagens(input: {
       valor: linhas.reduce((a, l) => a + l.valor, 0)
     },
     porFaixa,
+    porCarregador: totaisPorCarregador(viagens),
     relacao
   }
 }

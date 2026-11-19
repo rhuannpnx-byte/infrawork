@@ -460,7 +460,12 @@ const VIAGEM = z.object({
   hora_carga: z.string().nullable().optional(),
   hora_descarga: z.string().nullable().optional(),
   nf_ticket: z.string().nullable().optional(),
-  carregador_id: z.string().uuid().nullable().optional(),
+  carregador_id: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .describe('equipamento de carga (veículo da frota que carregou o caminhão)'),
   obs: z.string().nullable().optional()
 })
 
@@ -473,7 +478,8 @@ export const viagens = ferramenta({
     'obrigatório). O banco calcula a DMT (distância fixa do par; senão pelo eixo: acessos + ' +
     'diferença das estacas; dmt_origem rota | geometria | manual) e recusa a viagem sem DMT possível. A ' +
     'produção dos serviços por viagens é recomposta: uma por dia, serviço, local (a ponta na pista), equipe e ' +
-    'encarregado (da ficha). acao: listar (período) | salvar (cria ou substitui a ficha inteira; id novo = ' +
+    'encarregado (da ficha). acao: listar (período; cada viagem traz o equipamento de carga em "carregador", ' +
+    'quando informado) | salvar (cria ou substitui a ficha inteira; id novo = ' +
     'ficha nova) | excluir | veiculos (veículos que a obra enxerga, com a capacidade em m³: os cadastrados à mão ' +
     'e, da FleetHub, só os das obras vinculadas; obra sem vínculo não vê a frota da FleetHub).',
   entrada: {
@@ -500,7 +506,8 @@ export const viagens = ferramenta({
     switch (a.acao) {
       case 'listar':
         return ler('viagem_ficha', {
-          colunas: '*, viagens:viagem(*)',
+          colunas:
+            '*, viagens:viagem(*, carregador:frota_veiculo!viagem_carregador_id_fkey(prefixo, placa, modelo))',
           filtros: [
             eq('obra_id', a.obra_id),
             ...(a.de ? [{ coluna: 'data', op: 'gte' as const, valor: a.de }] : []),

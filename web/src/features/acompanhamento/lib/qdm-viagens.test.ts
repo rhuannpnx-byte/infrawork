@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { SEM_DMT, faixaDmt, montarQuadroViagens, type ViagemExport } from './qdm-viagens'
+import {
+  SEM_CARREGADOR,
+  SEM_DMT,
+  cargaPorEquipamentoEServico,
+  faixaDmt,
+  montarQuadroViagens,
+  rotuloCarregador,
+  totaisPorCarregador,
+  type ViagemExport
+} from './qdm-viagens'
 import type { EapFilhoReceita, EapGrupo } from './valor-agregado-calc'
 
 const filho: EapFilhoReceita = {
@@ -28,6 +37,7 @@ const v = (p: Partial<ViagemExport>): ViagemExport => ({
   fichaId: 'f1',
   ordem: seq,
   veiculo: 'CBT0012 · ABC1D23',
+  carregador: '',
   motorista: 'Zé',
   equipe: 'Escavação 01',
   origemId: 'corte',
@@ -152,5 +162,86 @@ describe('montarQuadroViagens', () => {
       formatarPosicao: fmt
     })
     expect(q.relacao[0].dmtCalculo).toBe('ajustada (calculada 7,5 km)')
+  })
+})
+
+describe('equipamento de carga', () => {
+  const viagens = [
+    {
+      carregador: 'EH-01 · CAT 320',
+      quantidade: 10,
+      dmtKm: 1,
+      servico: 'S02 Escavação',
+      unidade: 'm³'
+    },
+    {
+      carregador: 'EH-01 · CAT 320',
+      quantidade: 14,
+      dmtKm: 2,
+      servico: 'S02 Escavação',
+      unidade: 'm³'
+    },
+    {
+      carregador: 'PC-02 · 938',
+      quantidade: 6,
+      dmtKm: null,
+      servico: 'S02 Escavação',
+      unidade: 'm³'
+    },
+    { carregador: '', quantidade: 5, dmtKm: 1, servico: 'S02 Escavação', unidade: 'm³' },
+    {
+      carregador: 'EH-01 · CAT 320',
+      quantidade: 20,
+      dmtKm: 3,
+      servico: 'S05 Sub-base',
+      unidade: 't'
+    }
+  ]
+
+  it('soma por equipamento, com DMT médio ponderado e o não informado por último', () => {
+    const r = totaisPorCarregador(viagens.slice(0, 4))
+    expect(r.map((x) => [x.carregador, x.viagens, x.volume])).toEqual([
+      ['EH-01 · CAT 320', 2, 24],
+      ['PC-02 · 938', 1, 6],
+      [SEM_CARREGADOR, 1, 5]
+    ])
+    expect(r[0].dmtMedioKm).toBeCloseTo((10 * 1 + 14 * 2) / 24)
+    expect(r[1].dmtMedioKm).toBeNull()
+    expect(r[0].pct).toBeCloseTo(24 / 35)
+  })
+
+  it('abre por serviço, porque as unidades não se somam', () => {
+    const r = cargaPorEquipamentoEServico(viagens)
+    expect(r.map((x) => [x.carregador, x.servico, x.unidade, x.volume])).toEqual([
+      ['EH-01 · CAT 320', 'S02 Escavação', 'm³', 24],
+      ['EH-01 · CAT 320', 'S05 Sub-base', 't', 20],
+      ['PC-02 · 938', 'S02 Escavação', 'm³', 6],
+      [SEM_CARREGADOR, 'S02 Escavação', 'm³', 5]
+    ])
+  })
+
+  it('rótulo do equipamento: código e modelo; a placa quando não há modelo', () => {
+    expect(rotuloCarregador({ prefixo: 'EH-01', placa: 'ABC1D23', modelo: 'CAT 320' })).toBe(
+      'EH-01 · CAT 320'
+    )
+    expect(rotuloCarregador({ prefixo: 'EH-01', placa: 'ABC1D23', modelo: null })).toBe(
+      'EH-01 · ABC1D23'
+    )
+    expect(rotuloCarregador(null)).toBe('')
+  })
+
+  it('o quadro do serviço traz o total por equipamento e o equipamento na relação', () => {
+    const q = montarQuadroViagens({
+      grupo,
+      filho,
+      viagens: [v({ carregador: 'EH-01 · CAT 320' }), v({ carregador: 'EH-01 · CAT 320' }), v({})],
+      producaoPeriodo: 30,
+      formatarPosicao: fmt
+    })
+    expect(q.porCarregador.map((x) => [x.carregador, x.viagens])).toEqual([
+      ['EH-01 · CAT 320', 2],
+      [SEM_CARREGADOR, 1]
+    ])
+    expect(q.relacao[0].carregador).toBe('EH-01 · CAT 320')
   })
 })

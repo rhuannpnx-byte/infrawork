@@ -30,6 +30,7 @@ import { PlanejadoProjetadoPorServico } from '@/features/acompanhamento/componen
 import { MedicaoTable } from '@/features/acompanhamento/components/valor-agregado/MedicaoTable'
 import { fmtDataBR } from '@/features/planejamento/lib/dates'
 import { gerarMedicaoXlsx } from '@/lib/excel/medicao-xlsx'
+import { cargaPorEquipamentoEServico } from '@/features/acompanhamento/lib/qdm-viagens'
 import { downloadBlob } from '@/lib/files/download'
 
 export function AcompanhamentoValorAgregadoPage(): ReactNode {
@@ -116,7 +117,19 @@ function ValorAgregadoInner(): ReactNode {
         periodoArquivo: `${dmy(de)} - ${dmy(ate)}`,
         medicao,
         memorias,
-        fotos
+        fotos,
+        cargaPorEquipamento: cargaPorEquipamentoEServico(
+          viagens.viagens.map((v) => {
+            const g = grupos.find((x) => x.id === v.itemId)
+            return {
+              carregador: v.carregador,
+              quantidade: v.quantidade,
+              dmtKm: v.dmtKm,
+              servico: g ? `${g.codigo} ${g.descricao}` : '—',
+              unidade: g?.unidade_referencia ?? ''
+            }
+          })
+        )
       })
       downloadBlob(blob, `Medição ${scope.obra?.nome ?? 'Obra'} ${dmy(de)} - ${dmy(ate)}.xlsx`)
       toast.success('Planilha exportada.')

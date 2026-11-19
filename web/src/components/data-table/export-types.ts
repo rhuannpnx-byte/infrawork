@@ -26,4 +26,16 @@ export interface TableExportConfig {
     servicos: RelatorioServicoInput[]
     logoDataUrl: string
   }
+  /** Opcional: abas a mais no Excel (resumos da mesma tabela), cada uma com as suas colunas e linhas. */
+  abasExtras?: TableExportAba[]
+}
+
+export interface TableExportAba {
+  /** nome da aba (até 28 caracteres) */
+  nome: string
+  titulo: string
+  colunas: TableExportColumn[]
+  linhas: Array<Array<string | number | null>>
+  /** índices das linhas de total (ficam em negrito) */
+  linhasTotal?: number[]
 }

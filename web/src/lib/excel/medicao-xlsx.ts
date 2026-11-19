@@ -6,7 +6,10 @@
 
 import ExcelJS from 'exceljs'
 import { XLSX_MIME } from '@/lib/files/download'
-import type { QuadroViagens } from '@/features/acompanhamento/lib/qdm-viagens'
+import type {
+  CargaEquipamentoServico,
+  QuadroViagens
+} from '@/features/acompanhamento/lib/qdm-viagens'
 
 export interface MedicaoExportRow {
   tipo: 'servico' | 'indireto'
@@ -74,6 +77,8 @@ export interface MedicaoExportPayload {
   medicao: MedicaoExportRow[]
   memorias: MemoriaServico[]
   fotos: FotoExport[]
+  /** viagens do período por equipamento de carga e serviço (aba "Equip. de carga") */
+  cargaPorEquipamento?: CargaEquipamentoServico[]
 }
 
 const MOEDA = 'R$ #,##0.00'
@@ -338,6 +343,7 @@ function abaQuadroViagens(
     { width: 16 },
     { width: 12 },
     { width: 22 },
+    { width: 18 },
     { width: 18 }
   ]
   const un = q.unidadeVolume || '—'
@@ -427,13 +433,41 @@ function abaQuadroViagens(
     row.getCell(4).numFmt = PCT
   }
 
-  // 3. Relação das viagens
+  // 3. Total por equipamento de carga
+  r++
+  tituloSecao(ws, r++, 'Total por equipamento de carga')
+  const hc = ws.getRow(r++)
+  ;[
+    'Equipamento de carga',
+    'Viagens',
+    `Volume (${un})`,
+    '% do volume',
+    'DMT médio (km)',
+    `Momento (${un}·km)`
+  ].forEach((h, i) => (hc.getCell(i + 1).value = h))
+  estilizarHeaderRow(hc, 1)
+  for (const c of q.porCarregador) {
+    const row = ws.getRow(r++)
+    row.getCell(1).value = c.carregador
+    row.getCell(2).value = c.viagens
+    row.getCell(3).value = c.volume
+    row.getCell(3).numFmt = NUM
+    row.getCell(4).value = c.pct
+    row.getCell(4).numFmt = PCT
+    row.getCell(5).value = c.dmtMedioKm
+    row.getCell(5).numFmt = '#,##0.000'
+    row.getCell(6).value = c.momento
+    row.getCell(6).numFmt = NUM
+  }
+
+  // 4. Relação das viagens
   r++
   tituloSecao(ws, r++, `Relação das viagens (${q.relacao.length})`)
   const hr = ws.getRow(r++)
   ;[
     'Data',
     'Veículo',
+    'Equip. de carga',
     'Motorista',
     'Equipe',
     'Origem',
@@ -451,21 +485,87 @@ function abaQuadroViagens(
     const row = ws.getRow(r++)
     row.getCell(1).value = v.data
     row.getCell(2).value = v.veiculo
-    row.getCell(3).value = v.motorista
-    row.getCell(4).value = v.equipe
-    row.getCell(5).value = v.origem
-    row.getCell(6).value = v.estacaCarga
-    row.getCell(7).value = v.destino
-    row.getCell(8).value = v.estacaDescarga
-    row.getCell(9).value = v.volume
-    row.getCell(9).numFmt = NUM
-    row.getCell(10).value = v.dmtKm
-    row.getCell(10).numFmt = '#,##0.000'
-    row.getCell(11).value = v.dmtCalculo
-    row.getCell(12).value = v.momento
-    row.getCell(12).numFmt = NUM
-    row.getCell(13).value = v.nfTicket
+    row.getCell(3).value = v.carregador
+    row.getCell(4).value = v.motorista
+    row.getCell(5).value = v.equipe
+    row.getCell(6).value = v.origem
+    row.getCell(7).value = v.estacaCarga
+    row.getCell(8).value = v.destino
+    row.getCell(9).value = v.estacaDescarga
+    row.getCell(10).value = v.volume
+    row.getCell(10).numFmt = NUM
+    row.getCell(11).value = v.dmtKm
+    row.getCell(11).numFmt = '#,##0.000'
+    row.getCell(12).value = v.dmtCalculo
+    row.getCell(13).value = v.momento
+    row.getCell(13).numFmt = NUM
+    row.getCell(14).value = v.nfTicket
   }
+}
+
+// ─── Aba Equip. de carga: viagens do período por equipamento de carga e serviço ──────────────
+function abaCargaPorEquipamento(wb: ExcelJS.Workbook, p: MedicaoExportPayload): void {
+  const linhas = p.cargaPorEquipamento ?? []
+  if (linhas.length === 0) return
+  const ws = wb.addWorksheet('Equip. de carga')
+  ws.columns = [
+    { width: 34 },
+    { width: 44 },
+    { width: 10 },
+    { width: 12 },
+    { width: 18 },
+    { width: 16 },
+    { width: 20 }
+  ]
+  let r = escreverCabecalho(
+    ws,
+    p.obraNome,
+    p.periodoLabel,
+    'Viagens por equipamento de carga (serviços lançados por viagens)'
+  )
+  const h = ws.getRow(r++)
+  ;[
+    'Equipamento de carga',
+    'Serviço',
+    'Unid.',
+    'Viagens',
+    'Volume',
+    'DMT médio (km)',
+    'Momento (volume·km)'
+  ].forEach((t, i) => (h.getCell(i + 1).value = t))
+  estilizarHeaderRow(h, 3)
+  const equipamentos = [...new Set(linhas.map((l) => l.carregador))]
+  for (const eq of equipamentos) {
+    const doEq = linhas.filter((l) => l.carregador === eq)
+    for (const l of doEq) {
+      const row = ws.getRow(r++)
+      row.getCell(1).value = l.carregador
+      row.getCell(2).value = l.servico
+      row.getCell(3).value = l.unidade
+      row.getCell(4).value = l.viagens
+      row.getCell(5).value = l.volume
+      row.getCell(5).numFmt = NUM
+      row.getCell(6).value = l.dmtMedioKm
+      row.getCell(6).numFmt = '#,##0.000'
+      row.getCell(7).value = l.momento
+      row.getCell(7).numFmt = NUM
+    }
+    // total do equipamento: viagens sempre; volume só quando os serviços têm a mesma unidade
+    const unidades = new Set(doEq.map((l) => l.unidade))
+    const t = ws.getRow(r++)
+    t.getCell(1).value = `Total ${eq}`
+    t.getCell(3).value = unidades.size === 1 ? doEq[0].unidade : ''
+    t.getCell(4).value = doEq.reduce((a, l) => a + l.viagens, 0)
+    if (unidades.size === 1) {
+      t.getCell(5).value = doEq.reduce((a, l) => a + l.volume, 0)
+      t.getCell(5).numFmt = NUM
+      t.getCell(7).value = doEq.reduce((a, l) => a + l.momento, 0)
+      t.getCell(7).numFmt = NUM
+    }
+    t.eachCell((c) => (c.font = { bold: true }))
+    r++
+  }
+  ws.views = [{ state: 'frozen', ySplit: h.number }]
 }
 
 // ─── Aba Fotos: relatório fotográfico ────────────────────────────────────────
@@ -535,9 +635,10 @@ export async function gerarMedicaoXlsx(payload: MedicaoExportPayload): Promise<B
 
   abaMedicao(wb, payload)
 
-  const usados = new Set<string>(['medição', 'fotos'])
+  const usados = new Set<string>(['medição', 'fotos', 'equip. de carga'])
   for (const m of payload.memorias) abaMemoria(wb, payload, m, usados)
 
+  abaCargaPorEquipamento(wb, payload)
   abaFotos(wb, payload)
 
   const buf = await wb.xlsx.writeBuffer()

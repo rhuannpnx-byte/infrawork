@@ -30,6 +30,14 @@ export interface TabelaXlsxPayload {
   colunas: TabelaExportColuna[]
   linhas: Array<Array<string | number | null>>
   servicos: TabelaExportServico[]
+  /** abas a mais (resumos), cada uma com as suas colunas e linhas */
+  abasExtras?: Array<{
+    nome: string
+    titulo: string
+    colunas: TabelaExportColuna[]
+    linhas: Array<Array<string | number | null>>
+    linhasTotal?: number[]
+  }>
 }
 
 const NUM = '#,##0.0'
@@ -168,6 +176,44 @@ function abaServico(
   ws.views = [{ state: 'frozen', ySplit: headerRow }]
 }
 
+function abaExtra(
+  wb: ExcelJS.Workbook,
+  p: TabelaXlsxPayload,
+  a: NonNullable<TabelaXlsxPayload['abasExtras']>[number],
+  usados: Set<string>
+): void {
+  const ws = wb.addWorksheet(sanitizeSheetName(a.nome, usados))
+  const n = Math.max(1, a.colunas.length)
+  ws.mergeCells(1, 1, 1, n)
+  ws.getCell(1, 1).value = a.titulo
+  ws.getCell(1, 1).font = { bold: true, size: 14 }
+  ws.mergeCells(2, 1, 2, n)
+  ws.getCell(2, 1).value =
+    `Obra: ${p.obraNome}    •    Gerado em: ${new Date().toLocaleString('pt-BR')}`
+  ws.getCell(2, 1).font = { italic: true, size: 10, color: { argb: 'FF666666' } }
+  const headerRow = 4
+  const hr = ws.getRow(headerRow)
+  a.colunas.forEach((c, i) => {
+    hr.getCell(i + 1).value = c.header
+    // texto mais largo que número; a largura segue o maior conteúdo da coluna
+    const maior = a.linhas.reduce((m, l) => Math.max(m, String(l[i] ?? '').length), c.header.length)
+    ws.getColumn(i + 1).width = Math.min(60, Math.max(12, maior + 3))
+  })
+  headerStyle(hr)
+  const totais = new Set(a.linhasTotal ?? [])
+  a.linhas.forEach((linha, k) => {
+    const row = ws.getRow(headerRow + 1 + k)
+    linha.forEach((v, i) => {
+      const cell = row.getCell(i + 1)
+      cell.value = v as ExcelJS.CellValue
+      const fmt = a.colunas[i]?.numFmt
+      if (fmt && typeof v === 'number') cell.numFmt = fmt
+      if (totais.has(k)) cell.font = { bold: true }
+    })
+  })
+  ws.views = [{ state: 'frozen', ySplit: headerRow }]
+}
+
 export async function gerarTabelaXlsx(payload: TabelaXlsxPayload): Promise<Blob> {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'InfraWork'
@@ -175,6 +221,7 @@ export async function gerarTabelaXlsx(payload: TabelaXlsxPayload): Promise<Blob>
   abaComparativo(wb, payload)
   const usados = new Set<string>(['comparativo'])
   for (const s of payload.servicos) abaServico(wb, payload, s, usados)
+  for (const a of payload.abasExtras ?? []) abaExtra(wb, payload, a, usados)
   const buf = await wb.xlsx.writeBuffer()
   return new Blob([buf], { type: XLSX_MIME })
 }

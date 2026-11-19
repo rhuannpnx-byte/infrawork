@@ -133,6 +133,8 @@ export interface Viagem {
   obs: string | null
   ordem: number
   carregador_id: string | null
+  /** equipamento de carga (código, placa e modelo), lido junto com a ficha */
+  carregador?: { prefixo: string; placa: string | null; modelo: string | null } | null
 }
 
 export interface FichaViagens {
@@ -513,7 +515,9 @@ export function useFichasViagens(
       const data = await lerTodas((ini, fim) =>
         supabase
           .from('viagem_ficha')
-          .select('*, veiculo:veiculo_id(prefixo, placa), viagens:viagem(*)')
+          .select(
+            '*, veiculo:veiculo_id(prefixo, placa), viagens:viagem(*, carregador:frota_veiculo!viagem_carregador_id_fkey(prefixo, placa, modelo))'
+          )
           .eq('obra_id', obraId!)
           .gte('data', de)
           .lte('data', ate)

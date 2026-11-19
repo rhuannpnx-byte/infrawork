@@ -84,7 +84,8 @@ export function ExportDialog(): ReactNode {
           filenameBase: config.filenameBase,
           colunas: config.colunas,
           linhas: config.linhas,
-          servicos
+          servicos,
+          abasExtras: config.abasExtras
         })
         downloadBlob(blob, nomeComStamp(config.filenameBase, 'xlsx'))
         toast.success('Excel exportado.')
@@ -167,6 +168,15 @@ export function ExportDialog(): ReactNode {
                 {' '}
                 e {nServ} {nServ === 1 ? 'aba' : 'abas'} de dados por serviço (previsto e realizado
                 por semana).
+              </>
+            ) : config?.abasExtras?.length ? (
+              <>
+                {' '}
+                e {config.abasExtras.length === 1 ? 'a aba' : 'as abas'}{' '}
+                <strong className="text-text">
+                  {config.abasExtras.map((a) => a.nome).join(', ')}
+                </strong>
+                .
               </>
             ) : (
               '.'

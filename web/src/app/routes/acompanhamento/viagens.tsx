@@ -10,7 +10,11 @@ import { Button } from '@/components/ui/button'
 import { BarraFiltros, Filtro } from '@/components/ui/filtros'
 import { ErroConsulta } from '@/components/ui/estado'
 import { DataTable } from '@/components/data-table/DataTable'
-import type { TableExportConfig } from '@/components/data-table/export-types'
+import type { TableExportAba, TableExportConfig } from '@/components/data-table/export-types'
+import {
+  cargaPorEquipamentoEServico,
+  rotuloCarregador
+} from '@/features/acompanhamento/lib/qdm-viagens'
 import { DateRangePopover } from '@/components/ui/DateRangePopover'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
@@ -45,6 +49,8 @@ interface LinhaTabela {
   v: Viagem
   n: number
   veiculo: string
+  /** equipamento que carregou o caminhão ('' = não informado) */
+  carregador: string
   servico: string
   origem: string
   destino: string
@@ -110,6 +116,7 @@ function Inner(): ReactNode {
       v,
       n: i + 1,
       veiculo: veiculo(f),
+      carregador: rotuloCarregador(v.carregador),
       servico: nomeServico(v.item_orcamentario_id),
       origem: nomeLocal(v.origem_id),
       destino: nomeLocal(v.destino_id),
@@ -159,6 +166,19 @@ function Inner(): ReactNode {
       cell: ({ row }) => longo(row.original.ficha.motorista ?? '', 'max-w-[150px]')
     },
     { header: 'Nº', accessorFn: (r) => r.n },
+    {
+      header: titulo('Equip. de carga'),
+      accessorKey: 'carregador',
+      meta: { label: 'Equipamento de carga' },
+      cell: ({ row }) =>
+        row.original.carregador ? (
+          longo(row.original.carregador, 'max-w-[190px]')
+        ) : (
+          <span className="text-text-dim" title="Equipamento de carga não informado na viagem">
+            —
+          </span>
+        )
+    },
     {
       header: 'Serviço',
       accessorKey: 'servico',
@@ -254,6 +274,7 @@ function Inner(): ReactNode {
       { header: 'Veículo' },
       { header: 'Motorista' },
       { header: 'Viagem', numFmt: '0' },
+      { header: 'Equip. de carga' },
       { header: 'Serviço' },
       { header: 'Origem' },
       { header: 'Estaca de carga' },
@@ -274,6 +295,7 @@ function Inner(): ReactNode {
       r.veiculo,
       r.ficha.motorista ?? '',
       r.n,
+      r.carregador,
       r.servico,
       r.origem,
       r.estacaCarga,
@@ -288,8 +310,64 @@ function Inner(): ReactNode {
       ORIGEM_DMT[r.v.dmt_origem ?? ''] ?? '',
       r.v.dmt_calculada_km,
       r.v.nf_ticket ?? ''
-    ])
+    ]),
+    abasExtras: [abaPorCarregador(visiveis)]
   })
+
+  /** Aba "Por equip. de carga": uma linha por equipamento e serviço, com o total de cada equipamento. */
+  const abaPorCarregador = (visiveis: LinhaTabela[]): TableExportAba => {
+    const linhasCarga = cargaPorEquipamentoEServico(
+      visiveis.map((r) => ({
+        carregador: r.carregador,
+        quantidade: r.v.quantidade,
+        dmtKm: r.v.dmt_km,
+        servico: r.servico,
+        unidade: r.unidade
+      }))
+    )
+    const linhas: Array<Array<string | number | null>> = []
+    const linhasTotal: number[] = []
+    for (const eq of [...new Set(linhasCarga.map((l) => l.carregador))]) {
+      const doEq = linhasCarga.filter((l) => l.carregador === eq)
+      for (const l of doEq)
+        linhas.push([
+          l.carregador,
+          l.servico,
+          l.unidade,
+          l.viagens,
+          l.volume,
+          l.dmtMedioKm,
+          l.momento
+        ])
+      // serviços de unidades diferentes não se somam: o total traz o volume só quando a unidade é uma só
+      const umaUnidade = new Set(doEq.map((l) => l.unidade)).size === 1
+      linhasTotal.push(linhas.length)
+      linhas.push([
+        `Total ${eq}`,
+        '',
+        umaUnidade ? doEq[0].unidade : '',
+        doEq.reduce((a, l) => a + l.viagens, 0),
+        umaUnidade ? doEq.reduce((a, l) => a + l.volume, 0) : null,
+        null,
+        umaUnidade ? doEq.reduce((a, l) => a + l.momento, 0) : null
+      ])
+    }
+    return {
+      nome: 'Por equip. de carga',
+      titulo: `Viagens por equipamento de carga · ${fmtBR(de)} a ${fmtBR(ate)}`,
+      colunas: [
+        { header: 'Equipamento de carga' },
+        { header: 'Serviço' },
+        { header: 'Unid.' },
+        { header: 'Viagens', numFmt: '0' },
+        { header: 'Quantidade', numFmt: '#,##0.00' },
+        { header: 'DMT média (km)', numFmt: '#,##0.000' },
+        { header: 'Momento (qtd·km)', numFmt: '#,##0.00' }
+      ],
+      linhas,
+      linhasTotal
+    }
+  }
 
   const podeLancar = role !== 'cliente'
   const novaFicha = podeLancar ? (

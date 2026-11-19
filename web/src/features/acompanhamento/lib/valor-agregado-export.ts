@@ -13,6 +13,7 @@ import type { ObraTrecho } from '@/types/gerencial'
 import type { EapGrupo, CurvaSDiaRow } from './valor-agregado-calc'
 import {
   montarQuadroViagens,
+  rotuloCarregador,
   type OrigemDmt,
   type PontoViagem,
   type QuadroViagens,
@@ -271,6 +272,7 @@ interface ViagemRow {
   destino_id: string | null
   origem: { nome: string; trecho_id: string | null } | null
   destino: { nome: string; trecho_id: string | null } | null
+  carregador: { prefixo: string | null; placa: string | null; modelo: string | null } | null
   ficha: {
     motorista: string | null
     veiculo: { prefixo: string | null; placa: string | null } | null
@@ -310,6 +312,7 @@ export async function carregarViagensExport(
             'dmt_calculada_km, dmt_origem, nf_ticket, estaca_carga_m, estaca_descarga_m, origem_id, destino_id, ' +
             'origem:transporte_local!viagem_origem_id_fkey(nome, trecho_id), ' +
             'destino:transporte_local!viagem_destino_id_fkey(nome, trecho_id), ' +
+            'carregador:frota_veiculo!viagem_carregador_id_fkey(prefixo, placa, modelo), ' +
             'ficha:viagem_ficha!inner(motorista, veiculo:frota_veiculo(prefixo, placa), equipe:equipe(nome))'
         )
         .eq('obra_id', obraId)
@@ -344,6 +347,7 @@ export async function carregarViagensExport(
       fichaId: v.ficha_id,
       ordem: v.ordem,
       veiculo: vei ? [vei.prefixo, vei.placa].filter(Boolean).join(' · ') : '',
+      carregador: rotuloCarregador(v.carregador),
       motorista: v.ficha?.motorista ?? '',
       equipe: v.ficha?.equipe?.nome ?? '',
       origemId: v.origem_id,
