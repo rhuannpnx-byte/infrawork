@@ -229,6 +229,10 @@ As listas do sistema seguem o mesmo padrão:
 - **Largura das colunas:** em qualquer tabela do sistema, arraste a borda direita do título da coluna para alargar ou estreitar. Com a borda em foco (tecla Tab), as setas para a esquerda e para a direita também ajustam. Duplo clique na borda volta a tabela às larguras automáticas. A largura escolhida fica guardada no navegador e volta quando você abre a tela de novo.
 - **Exportar:** o botão [[Exportar]] gera um arquivo PDF, uma planilha .xlsx ou um CSV com as linhas visíveis.
 
+## Campos de número
+
+Nos campos de número, em formulários e em células de tabela, o ponto de milhar aparece sozinho enquanto você digita, e as casas decimais vão depois da vírgula: 1.250,5. Se você digitar um ponto, ele vira vírgula. Cada campo aceita só as casas decimais que a coluna guarda. Telefone, CNPJ e placa também são formatados na digitação.
+
 <!-- quebra -->
 
 # Página Início

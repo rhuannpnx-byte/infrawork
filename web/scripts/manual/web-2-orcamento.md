@@ -183,7 +183,11 @@ A figura mostra a página numa obra já em acompanhamento, com a faixa de soment
 2. Informe **Código**, **Tipo** (Mobilização, Desmobilização, Administração local ou Outros), **Descrição**, **Valor total (R$)** e **Distribuição (%)**.
 3. Clique em [[Criar custo indireto]].
 
-O **Valor efetivo** é o valor total vezes a distribuição, e os custos indiretos entram na lucratividade da obra. Quando um serviço da planilha tem o custo vindo do indireto, o custo é calculado pelo serviço, e o lançamento não é somado de novo. Lançamentos de indireto podem ser excluídos, mas não editados: para corrigir, exclua e lance de novo.
+O **Valor efetivo** é o valor total vezes a distribuição, e os custos indiretos entram na lucratividade da obra. Quando um serviço da planilha tem o custo vindo do indireto, o custo é calculado pelo serviço, e o lançamento não é somado de novo.
+
+Para corrigir um custo indireto, clique no lápis da linha: ele abre o mesmo formulário preenchido; altere e clique em [[Salvar alterações]]. A lixeira da linha exclui o custo.
+
+No cronograma, cada custo indireto vira uma tarefa, que distribui o valor no tempo de forma contínua, pontual ou parcelada (seção 8.7).
 
 ## Taxas
 
@@ -195,7 +199,7 @@ Em **Orçamento › Taxas** ficam os impostos sobre a receita: ISS, PIS, COFINS,
 2. Confira os percentuais sugeridos e ajuste-os aos da sua empresa. O **Total descontado da receita** aparece abaixo.
 3. Clique em [[Criar taxa]].
 
-Vale uma única taxa por vez, a que estiver **Ativa**. Para mudar os percentuais, crie uma taxa nova e desative a anterior. Sem taxa ativa, a planilha avisa que o lucro está sem os impostos. A página de taxas não aparece para o apoio.
+Vale uma única taxa por vez, a que estiver **Ativa**. Para corrigir o nome ou os percentuais de uma taxa, clique no lápis da linha, altere e clique em [[Salvar alterações]]. O outro botão da linha desativa ou reativa a taxa. Sem taxa ativa, a planilha avisa que o lucro está sem os impostos. A página de taxas não aparece para o apoio.
 
 ## Aditivos
 

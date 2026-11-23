@@ -125,7 +125,7 @@ A planilha também aceita o formato **por estaca**, com uma coluna **Estaca** e 
 Não deixe linhas de total abaixo ou dentro da tabela: a importação acusa o erro "Linha de soma". A soma de cada serviço em todos os locais não pode passar da quantidade orçada.
 :::
 
-Ao importar, cada aba é ligada a um local (existente, novo ou não importar) e cada coluna a um serviço. Essa ligação fica salva na obra para as próximas importações. Nos serviços importados, a planilha substitui todas as quantidades daquele local, e cada local ganha uma nova versão das quantidades.
+Ao importar, cada aba é ligada a um local (existente, novo ou não importar) e cada coluna a um serviço. Essa ligação fica salva na obra para as próximas importações. Nos serviços importados, a planilha substitui todas as quantidades daquele local, e cada local importado ganha uma nova versão das quantidades. Um local que já existe e não tem quantidade na planilha nem no sistema fica de fora da importação. Para recomeçar do zero, use antes **Excluir quantidades…** (seção 8.6).
 
 ## Produção diária
 
@@ -204,6 +204,14 @@ A composição do serviço não tem produção por dia, ou o serviço não está
 
 É o comportamento esperado: o término muda o número de equipes, e a produtividade vem da composição. Para mudar a produtividade, altere a composição.
 
+### O cronograma não mostra o % executado nem o término previsto.
+
+Essas colunas aparecem só no plano travado, que fica no modo Controle. Abra a linha de base no seletor do plano, no topo do cronograma. No plano em edição, o modo é Programação (seção 8.8).
+
+### Um serviço aparece com saldo "Sem local" em Planejamento › Locais.
+
+Parte da quantidade orçada do serviço ainda não foi informada em nenhum local. Abra a grade do local e complete, ou confira se a coluna do serviço veio preenchida na planilha importada. Um serviço que não acontece num lugar específico, como um projeto, pode ficar sem local.
+
 ### A produção lançada não aparece no tempo-caminho.
 
 O lançamento foi feito sem local e estacas. Edite o lançamento em Acompanhamento › Produção e informe o local e as estacas. Para evitar, marque **Local obrigatório** na parametrização do serviço.
@@ -238,12 +246,15 @@ Logo depois da importação, use **Desfazer importação** na tela Lançar produ
 | Agrupar | Ligar receitas da planilha orçamentária a um serviço. |
 | Área | Local da obra sem estaqueamento, como uma obra de arte ou um pátio. |
 | Composição | Receita de custo de um serviço: recursos, consumos e produção da equipe por dia. |
+| Controle | Modo do plano travado: mostra o executado e o término previsto a partir da produção lançada. |
 | Curva S | Gráfico do avanço acumulado no tempo, previsto e realizado. |
 | Dependência | Ligação entre tarefas que define a ordem de execução. |
 | DMT | Distância média de transporte entre a origem e o destino de uma viagem, em km. |
 | Eixo | Local linear da obra, com estaqueamento. |
 | Encarregado | Responsável por uma ou mais equipes e pelos lançamentos delas. |
+| Equipamento de carga | A máquina que carrega o caminhão numa viagem, como uma escavadeira ou uma carregadeira. |
 | Equipes (na tarefa) | Quantas equipes executam a tarefa ao mesmo tempo. Multiplica a produção da composição. |
+| Escopo | Quanto da quantidade orçada de cada serviço já está em tarefas do plano. |
 | Estaca | Posição ao longo do eixo. |
 | Faixa da obra | Representação do eixo que mostra onde cada serviço já foi executado. |
 | Índice | Item-título da planilha orçamentária, sem valor próprio. |

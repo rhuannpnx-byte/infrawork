@@ -134,6 +134,8 @@ Em **Planejamento › Locais** ficam os eixos e as áreas da obra, cada um com a
 
 O botão **Vincular mapa** liga o eixo ao traçado num arquivo .kml ou .kmz, para mostrar a obra no mapa de fotos.
 
+A área também pode ter mapa. Na tabela de áreas, **Vincular mapa** abre a janela **Mapa da área**, que lê o contorno de um arquivo .kmz ou .kml (um polígono desenhado no Google Earth; se o arquivo tiver mais de um, vale o primeiro). Confira o contorno e salve. Depois de vinculado, o botão passa a mostrar **Contorno**, e na mesma janela dá para trocar o arquivo ou remover o contorno. O contorno aparece no mapa de fotos, preenchido na cor do local.
+
 ### Informar as quantidades
 
 1. Na coluna **Quantidades** do local, clique no botão do local.
@@ -152,6 +154,23 @@ A soma das quantidades de um serviço em todos os locais não pode passar da qua
 Quando as quantidades foram informadas direto nas tarefas do cronograma (por exemplo, num cronograma importado), o local não tem grade e o botão mostra **N serviços nas tarefas**. Ele abre, só para leitura, as quantidades de cada serviço somadas das tarefas do plano em uso, com as faixas que elas ocupam. Para mudá-las, edite as tarefas no cronograma, num plano em edição.
 :::
 
+### Conferir as quantidades por local
+
+Abaixo das tabelas de eixos e de áreas, a seção **Quantidades por local** reúne tudo numa tabela só: uma linha por serviço, uma coluna por local e, ao fim, **Nos locais** (a soma do serviço em todos os locais), **Orçado** e **Sem local** (o que ainda não foi para nenhum local). O saldo sem local aparece em amarelo; quando os locais passam do orçado, em vermelho. Clique num número para abrir a grade daquele local.
+
+Como cada serviço tem a sua unidade, a tabela não soma serviços diferentes.
+
+### Excluir as quantidades
+
+Para refazer as quantidades do zero, por exemplo antes de importar outra planilha:
+
+- [[Excluir quantidades…]], no topo da página, apaga as quantidades de todos os locais que têm quantidade;
+- [[Excluir quantidades]], dentro da grade de um local, apaga só as daquele local.
+
+:::atencao
+A exclusão não tem volta: saem as quantidades e todas as versões guardadas. As tarefas do plano em edição que tiram a quantidade desses locais ficam com zero até a nova importação, que as recalcula. Com linha de base vigente, as quantidades ficam somente leitura e a exclusão não é permitida.
+:::
+
 ### Importar as quantidades por planilha
 
 Para obras grandes, as quantidades vêm de uma planilha, como a nota de serviço ou a planilha de volumes do projeto:
@@ -164,7 +183,7 @@ Para obras grandes, as quantidades vêm de uma planilha, como a nota de serviço
 
 ![Importação das quantidades: ligação das abas e das colunas](importar-quantidades.jpg)
 
-Cada local recebe uma nova versão das quantidades. As tarefas cuja quantidade vem **Do template** são recalculadas sozinhas.
+Cada local importado recebe uma nova versão das quantidades. Um local que já existe e não tem quantidade na planilha nem no sistema fica de fora, porque não há o que gravar. As tarefas cuja quantidade vem **Do template** são recalculadas sozinhas.
 
 ## Cronograma
 
@@ -172,7 +191,7 @@ O **Cronograma** é o gráfico de Gantt do plano: a grade de tarefas à esquerda
 
 ![Cronograma da obra](cronograma.jpg)
 
-No topo ficam o estado do cálculo (**Cronograma em dia**, **Calculando…**), o seletor do plano e o botão [[Travar como linha de base]]. A barra de ferramentas tem o modo do ponteiro (**Selecionar** ou **Dependências**), o zoom, os filtros por local, serviço e equipe e o menu **Exibir**, que escolhe as colunas da grade e o que as barras mostram. O rodapé resume o início, o término, o prazo, as tarefas com violação e as tarefas sem produção.
+No topo ficam o estado do cálculo (**Cronograma em dia**, **Calculando…**), o seletor do plano e o botão [[Travar como linha de base]]. A barra de ferramentas tem o modo do ponteiro (**Selecionar** ou **Dependências**), o zoom, os filtros por local, serviço e equipe, o menu **Exibir**, que escolhe as colunas da grade e o que as barras mostram, e os botões [[Escopo]] e [[Plano]]. O rodapé resume o início, o término, o prazo, as tarefas com violação e as tarefas sem produção; numa linha de base, mostra também o término previsto da obra (seção 8.8).
 
 O cálculo roda sozinho ao abrir a tela e a cada alteração.
 
@@ -193,7 +212,31 @@ O jeito mais rápido é criar as tarefas a partir das quantidades por local:
 
 ![Criação de tarefas a partir das quantidades por local](criar-tarefas.jpg)
 
-A aba **Manual** cria tarefas uma a uma, escolhendo serviço, local, estacas e quantidade. Os custos indiretos também podem virar tarefas.
+A aba **Manual** cria tarefas uma a uma, escolhendo serviço, local, estacas e quantidade. É nela também que os custos indiretos viram tarefas.
+
+### Custos indiretos no cronograma
+
+Na aba **Manual**, os custos indiretos do orçamento aparecem na lista com o selo **indireto**. A tarefa de indireto não tem local nem equipes: a janela dela vem das tarefas dos serviços diretos. Ao marcar um indireto, escolha a **Distribuição do custo**:
+
+- **Contínuo**, para custos que duram a obra toda, como a administração local. Informe a **Periodicidade do custo orçado** (dia útil, mês ou ano): o custo total é o valor orçado por período vezes os períodos cobertos pelo cronograma. Se preciso, informe quantos dias úteis a tarefa começa antes e termina depois das diretas.
+- **Pontual**, para um custo que entra de uma vez, como o canteiro. Informe **Quando** (Primeiros ou Últimos) e os **Dias úteis**: o valor total orçado do item entra nesse período, repartido por igual nos dias úteis.
+- **Parcelado**, para custos em parcelas, como a mobilização no início e a desmobilização no fim. Informe, em cada parcela, o percentual, **Quando** e os **Dias úteis**. O botão [[Parcela]] acrescenta outra. Cada parcela vira uma tarefa do mesmo item, com a parcela no nome.
+
+Os dias são contados na janela dos serviços diretos: "primeiros 30" começa no início da primeira tarefa direta, e "últimos 30" termina no fim da última. As parcelas de um item somam no máximo 100%, e o mesmo item não pode ser contínuo e parcelado ao mesmo tempo.
+
+No contínuo, a **Receita** segue a mesma lógica do custo ou o ritmo do faturamento dos serviços diretos. Em qualquer distribuição, a opção **Aplicar taxas (regime) sobre o faturamento como custo** desconta os impostos da taxa escolhida.
+
+Depois de criada, a tarefa de indireto tem a aba **Indireto** nas propriedades, com os mesmos campos.
+
+### Conferir o escopo
+
+O botão [[Escopo]] abre uma gaveta ao lado do Gantt que mostra quanto do orçamento já virou tarefa:
+
+- no topo, o percentual do **valor orçado** que já está em tarefas e quantos serviços ainda têm quantidade a distribuir;
+- para cada serviço, a quantidade em tarefas, a orçada e a situação. Os botões **Todos**, **Falta** e **Completos** filtram a lista, e **Acima** aparece quando algum serviço passa do orçado;
+- clicar num serviço lista as tarefas dele, e clicar numa tarefa leva até ela no cronograma.
+
+A gaveta acompanha a edição do plano. Como cada serviço tem a sua unidade, o total da obra sai em valor de venda, e não em quantidade.
 
 ### Ajustar uma tarefa
 
@@ -224,7 +267,7 @@ Marque **Valer para todas as tarefas** para transformar a dependência numa **re
 ### Marcos e propriedades do plano
 
 - **Marcos** são janelas de datas em que um conjunto de tarefas deve caber, como a entrega de um trecho. Tarefas que passam do marco ficam marcadas.
-- O botão [[Plano]] abre as propriedades: nome, início, **Prazo** (quem terminar depois recebe ⚑), calendário padrão e o **Modo**. No modo **Controle**, a grade mostra o % executado e o término previsto de cada tarefa a partir da produção lançada.
+- O botão [[Plano]] abre as propriedades: nome, início, **Prazo** (quem terminar depois recebe ⚑) e calendário padrão. O campo **Modo** é só informativo: o plano em edição está em **Programação** e, ao ser travado como linha de base, passa sozinho para **Controle** (seção 8.8).
 - **Mais › Compactar o cronograma** traz as tarefas para o início mais cedo possível e refaz as prioridades pela folga.
 
 ### Relatório de viabilidade
@@ -259,6 +302,29 @@ Nas abas de materiais, as linhas não são somadas, porque cada material tem a s
 ![Travar o plano como linha de base](travar-linha-de-base.jpg){pequena}
 
 O plano deixa de ser editável e passa a ser a referência do acompanhamento. O seletor do plano, no topo do cronograma, alterna entre o plano em edição e as linhas de base.
+
+### Acompanhar o plano travado (controle)
+
+Uma linha de base aberta no cronograma fica sozinha no modo **Controle**, que mostra o realizado e a previsão a partir da produção lançada:
+
+- a grade ganha as colunas **% exec.**, o grau de execução de cada tarefa, e **Prev. término**, o término previsto pelo ritmo realizado e pelo planejado;
+- o rodapé mostra **Previsto**, o maior término previsto das tarefas diretas, com a diferença em dias para o término do plano; em vermelho quando a obra está atrasada;
+- em [[Plano]], a **Data de controle** define até que dia vale o realizado; a previsão parte dela. Vazia, vale hoje. É o único campo que pode mudar numa linha de base, e o apoio e o cliente não o alteram.
+
+Quando a previsão passa do término planejado, o indireto **contínuo** continua correndo até o término previsto: a barra dele ganha um complemento hachurado em vermelho, a dica mostra os períodos e o custo a mais, e o rodapé soma o **Indireto a mais**. O pontual e o parcelado têm valor fechado e não mudam.
+
+:::nota
+No plano em edição (modo **Programação**), as colunas de execução e o término previsto não aparecem.
+:::
+
+### Excluir um plano ou uma linha de base
+
+O seletor do plano lista o plano em edição e as linhas de base. Nele:
+
+- [[Excluir plano em edição]] apaga o rascunho, com as tarefas e as dependências dele;
+- a lixeira ao lado de cada linha de base exclui aquela linha de base e as premissas guardadas. A **vigente** não pode ser excluída: desmarque-a como vigente antes.
+
+As duas exclusões não têm volta. Se a linha de base excluída for a referência provisória do acompanhamento, o previsto passa a vir da linha de base anterior.
 
 ### Replanejar
 

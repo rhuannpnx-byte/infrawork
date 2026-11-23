@@ -98,7 +98,9 @@ A página **Acompanhamento › Viagens** reúne as fichas de viagens dos caminh�
 
 ![Fichas e viagens do período](viagens.jpg)
 
-A tabela mostra cada viagem com o veículo, o motorista, o serviço, a origem e o destino com as estacas, o horário, a quantidade, a **DMT** e a nota ou o ticket, além de quem lançou. O topo traz o total do período por serviço.
+A tabela mostra cada viagem com o veículo, o motorista, o equipamento de carga (a máquina que carregou o caminhão), o serviço, a origem e o destino com as estacas, o horário, a quantidade, a **DMT** e a nota ou o ticket, além de quem lançou. O topo traz o total do período por serviço.
+
+O botão [[Exportar]] leva as viagens filtradas para uma planilha. No Excel, a aba **Por equip. de carga** soma, para cada equipamento de carga e serviço, as viagens, o volume, a DMT média e o momento de transporte.
 
 ### Lançar ou corrigir uma ficha
 
@@ -186,7 +188,8 @@ A planilha da medição tem:
 
 - a aba **Medição**, com o resumo por serviço e o total medido;
 - uma aba de **memória de cálculo** por item, com a produção dia a dia, as estacas, os materiais, as equipes e as observações;
-- nos serviços lançados por viagens, a memória vira o **quadro de distribuição das viagens**: origem e destino com as estacas, número de viagens, volume, DMT, momento de transporte e faixa de DMT, com o resumo por faixa e a relação das viagens uma a uma;
+- nos serviços lançados por viagens, a memória vira o **quadro de distribuição das viagens**: origem e destino com as estacas, número de viagens, volume, DMT, momento de transporte e faixa de DMT, com o resumo por faixa, o **Total por equipamento de carga** e a relação das viagens uma a uma, com o equipamento que carregou cada uma;
+- a aba **Equip. de carga**, quando há viagens no período, com o total de cada equipamento de carga por serviço;
 - a aba **Fotos**, com o relatório fotográfico do período.
 
 ## Fotos e mapa
@@ -196,7 +199,7 @@ A página **Fotos e mapa** mostra as fotos da obra em grade, no mapa ou nas duas
 ![Fotos da obra no mapa](fotos.jpg)
 
 - **Filtros:** período, serviços e **Só fotos com GPS**.
-- **Mapa:** camadas de satélite, rodovias, os trechos da obra e a **Sequência de ataque**, que liga a primeira à última foto do dia de cada frente. Os marcadores podem ter a cor da equipe ou do serviço.
+- **Mapa:** camadas de satélite, rodovias, os trechos da obra e a **Sequência de ataque**, que liga a primeira à última foto do dia de cada frente. Os trechos são os eixos com traçado e as áreas com contorno vinculados em **Planejamento › Locais** (seção 8.6); as áreas aparecem preenchidas na cor do local. Os pontos das fotos ficam sempre por cima do traçado e podem ter a cor da equipe ou do serviço. Fotos muito próximas se juntam num círculo com a contagem; clique nele para aproximar.
 - Clique numa foto para ampliá-la.
 
 As fotos chegam do aplicativo de campo e do lançamento no web. O administrador pode excluir fotos.
