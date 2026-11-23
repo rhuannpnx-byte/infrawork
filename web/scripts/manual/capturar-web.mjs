@@ -246,6 +246,33 @@ const BASE = {
     await clicar(p, 'Recalcular', { espera: 4000 })
     await assentar(p, 1500)
     await foto(p, 'alertas')
+  },
+  // linha de base no modo Controle: só nome e quantidade na grade, para caberem "% exec." e "Prev. término"
+  'cronograma-controle': async (p) => {
+    await ir(p, '/planejamento/cronograma')
+    const chave = await p.evaluate(() => {
+      const auth = Object.keys(localStorage).find((k) => k.endsWith('.auth.v1'))
+      return auth.slice(0, -'.auth.v1'.length) + '.cronograma.ui.v2'
+    })
+    const antes = await p.evaluate((k) => localStorage.getItem(k), chave)
+    await p.evaluate(
+      ([k, v]) => {
+        const s = JSON.parse(v ?? '{"state":{},"version":4}')
+        s.state.colunas = ['nome', 'quantidade']
+        s.state.larguraGrade = null
+        localStorage.setItem(k, JSON.stringify(s))
+      },
+      [chave, antes]
+    )
+    await ir(p, '/planejamento/cronograma')
+    await p.getByText('Cronograma em dia').first().waitFor({ timeout: 120000 })
+    await assentar(p, 1500)
+    await foto(p, 'cronograma-controle')
+    // devolve a grade ao que era, para as capturas seguintes
+    await p.evaluate(
+      ([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v)),
+      [chave, antes]
+    )
   }
 }
 
@@ -337,6 +364,17 @@ const EDICAO = {
     await p.getByText('Cronograma em dia').first().waitFor({ timeout: 120000 })
     await clicar(p, 'Criar tarefas', { espera: 1800 })
     await foto(p, 'criar-tarefas', dialogo(p))
+  },
+  escopo: async (p) => {
+    await ir(p, '/planejamento/cronograma')
+    await p.getByText('Cronograma em dia').first().waitFor({ timeout: 120000 })
+    await clicar(p, 'Escopo', { exact: true })
+    await p.getByText('do valor orçado já está em tarefas').waitFor({ timeout: 20000 })
+    // abre um serviço que ainda tem quantidade a distribuir, para mostrar as tarefas dele
+    await p.getByRole('complementary', { name: 'Escopo distribuído' }).getByText(/Imprimação/).first().click()
+    await assentar(p, 900)
+    await foto(p, 'escopo')
+    await clicar(p, 'Recolher o escopo')
   },
   'travar-linha-de-base': async (p) => {
     await ir(p, '/planejamento/cronograma')

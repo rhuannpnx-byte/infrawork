@@ -236,6 +236,8 @@ O botão [[Escopo]] abre uma gaveta ao lado do Gantt que mostra quanto do orçam
 - para cada serviço, a quantidade em tarefas, a orçada e a situação. Os botões **Todos**, **Falta** e **Completos** filtram a lista, e **Acima** aparece quando algum serviço passa do orçado;
 - clicar num serviço lista as tarefas dele, e clicar numa tarefa leva até ela no cronograma.
 
+![Gaveta de escopo ao lado do cronograma](escopo.jpg)
+
 A gaveta acompanha a edição do plano. Como cada serviço tem a sua unidade, o total da obra sai em valor de venda, e não em quantidade.
 
 ### Ajustar uma tarefa
@@ -310,6 +312,10 @@ Uma linha de base aberta no cronograma fica sozinha no modo **Controle**, que mo
 - a grade ganha as colunas **% exec.**, o grau de execução de cada tarefa, e **Prev. término**, o término previsto pelo ritmo realizado e pelo planejado;
 - o rodapé mostra **Previsto**, o maior término previsto das tarefas diretas, com a diferença em dias para o término do plano; em vermelho quando a obra está atrasada;
 - em [[Plano]], a **Data de controle** define até que dia vale o realizado; a previsão parte dela. Vazia, vale hoje. É o único campo que pode mudar numa linha de base, e o apoio e o cliente não o alteram.
+
+![Linha de base no modo Controle, com o executado e o término previsto de cada tarefa](cronograma-controle.jpg)
+
+No gráfico, a parte executada aparece destacada dentro de cada barra, a linha tracejada com o losango leva ao término previsto, e a linha vermelha liga, de barra em barra, até onde cada tarefa chegou na data de controle.
 
 Quando a previsão passa do término planejado, o indireto **contínuo** continua correndo até o término previsto: a barra dele ganha um complemento hachurado em vermelho, a dica mostra os períodos e o custo a mais, e o rodapé soma o **Indireto a mais**. O pontual e o parcelado têm valor fechado e não mudam.
 
