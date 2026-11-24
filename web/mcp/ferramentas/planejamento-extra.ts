@@ -436,7 +436,9 @@ export const equipes = ferramenta({
     'Equipes (frentes de serviço) e encarregados da obra. Um encarregado pode ter N equipes (equipe.encarregado_id). ' +
     'acao: listar | criar_equipe | editar_equipe (nome, tipo, cor, ativo, encarregado_id) | excluir_equipe | ' +
     'ordenar_equipes (ids na ordem) | criar_encarregado | editar_encarregado (nome, apelido, telefone, ativo) | ' +
-    'vincular (define exatamente quais equipes ativas são do encarregado). A produtividade vem da composição do ' +
+    'vincular (define exatamente quais equipes ativas são do encarregado) | apontar_encarregado (aponta true|false: ' +
+    'opção da obra; false = o app de campo pede só a equipe no lançamento, e o encarregado vem da equipe quando ela ' +
+    'tem um; o padrão é true). O listar devolve a opção em aponta_encarregado. A produtividade vem da composição do ' +
     'serviço × nº de equipes da tarefa (não há taxa própria por equipe).',
   entrada: {
     acao: z.enum([
@@ -447,7 +449,8 @@ export const equipes = ferramenta({
       'ordenar_equipes',
       'criar_encarregado',
       'editar_encarregado',
-      'vincular'
+      'vincular',
+      'apontar_encarregado'
     ]),
     obra_id: OBRA,
     id: z.string().uuid().optional(),
@@ -459,20 +462,44 @@ export const equipes = ferramenta({
     encarregado_id: z.string().uuid().nullable().optional(),
     apelido: z.string().nullable().optional(),
     telefone: z.string().nullable().optional(),
+    aponta: z
+      .boolean()
+      .optional()
+      .describe(
+        'apontar_encarregado: true = o app de campo pede o encarregado; false = pede só a equipe'
+      ),
     confirmar: CONFIRMAR
   },
   destrutiva: true,
-  cobre: { tabelas: ['equipe', 'encarregado'], rpcs: ['equipes_ordenar'] },
+  cobre: {
+    tabelas: ['equipe', 'encarregado'],
+    rpcs: ['equipes_ordenar', 'obra_definir_aponta_encarregado']
+  },
   async executar(a) {
     const id = () => exigir(a.id, 'id', a.acao)
     switch (a.acao) {
       case 'listar': {
-        const [eqs, encs] = await Promise.all([
+        const [eqs, encs, obra] = await Promise.all([
           ler('equipe', { filtros: [eq('obra_id', a.obra_id)], ordem: [{ coluna: 'ordem' }] }),
-          ler('encarregado', { filtros: [eq('obra_id', a.obra_id)], ordem: [{ coluna: 'nome' }] })
+          ler('encarregado', { filtros: [eq('obra_id', a.obra_id)], ordem: [{ coluna: 'nome' }] }),
+          ler<{ aponta_encarregado: boolean }>('obras', {
+            colunas: 'aponta_encarregado',
+            filtros: [eq('id', a.obra_id)]
+          })
         ])
-        return { equipes: eqs, encarregados: encs }
+        return {
+          aponta_encarregado: obra[0]?.aponta_encarregado ?? true,
+          equipes: eqs,
+          encarregados: encs
+        }
       }
+      case 'apontar_encarregado':
+        return {
+          aponta_encarregado: await rpc<boolean>('obra_definir_aponta_encarregado', {
+            _obra_id: a.obra_id,
+            _aponta: exigir(a.aponta, 'aponta', a.acao)
+          })
+        }
       case 'criar_equipe':
         return (
           await gravar('equipe', 'insert', {

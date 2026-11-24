@@ -17,7 +17,11 @@ import { NewEquipeDialog } from '@/features/planejamento/modals/NewEquipeDialog'
 import { EditEquipeDialog } from '@/features/planejamento/modals/EditEquipeDialog'
 import { EquipeChip } from '@/features/planejamento/components/EquipeChip'
 import { EncarregadoDialog } from '@/features/acompanhamento/components/lancamento/EncarregadoDialog'
-import { useEncarregados } from '@/features/acompanhamento/hooks/lancamento'
+import {
+  useApontaEncarregado,
+  useDefinirApontaEncarregado,
+  useEncarregados
+} from '@/features/acompanhamento/hooks/lancamento'
 import { useProdutividadeObra } from '@/features/acompanhamento/hooks/performance'
 import type { Equipe } from '@/types/planejamento'
 import type { Encarregado } from '@/types/acompanhamento'
@@ -44,6 +48,23 @@ export function EquipesEncarregados(): ReactNode {
   const { data: ativo } = usePlanejamentoAtivo(obraId)
   const { data: tarefas = [] } = useTarefas(ativo?.id)
   const reorder = useReorderEquipes()
+  const consultaAponta = useApontaEncarregado(obraId)
+  const aponta = consultaAponta.data ?? true
+  const definirAponta = useDefinirApontaEncarregado()
+  const mudarAponta = async (valor: boolean): Promise<void> => {
+    try {
+      await definirAponta.mutateAsync({ obra_id: obraId, aponta: valor })
+      toast.success(
+        valor
+          ? 'O app de campo volta a pedir o encarregado.'
+          : 'O app de campo passa a pedir só a equipe.'
+      )
+    } catch (e) {
+      toast.error(
+        `Não foi possível mudar a opção do encarregado.${e instanceof Error ? ` ${e.message}` : ''}`
+      )
+    }
+  }
 
   const [novaEquipe, setNovaEquipe] = useState(false)
   const [editEq, setEditEq] = useState<Equipe | null>(null)
@@ -179,7 +200,9 @@ export function EquipesEncarregados(): ReactNode {
                               {nomeEnc.get(e.encarregado_id) ?? '—'}
                             </span>
                           ) : (
-                            <span className="text-warn">Sem encarregado</span>
+                            <span className={aponta ? 'text-warn' : 'text-text-dim'}>
+                              Sem encarregado
+                            </span>
                           )}
                         </td>
                         <td className="px-2 py-1 text-right tabular text-text-muted">
@@ -227,6 +250,39 @@ export function EquipesEncarregados(): ReactNode {
             </Button>
           }
         >
+          <div className="flex items-start gap-3 border-t border-border px-4 py-3">
+            <input
+              id="eq-aponta-encarregado"
+              type="checkbox"
+              checked={aponta}
+              disabled={
+                readOnlyEquipes ||
+                consultaAponta.isLoading ||
+                !!consultaAponta.error ||
+                definirAponta.isPending
+              }
+              title={
+                readOnlyEquipes
+                  ? 'Seu perfil não permite mudar esta opção.'
+                  : consultaAponta.error
+                    ? 'Não foi possível ler a opção da obra. Recarregue a página.'
+                    : undefined
+              }
+              aria-describedby="eq-aponta-encarregado-apoio"
+              onChange={(e) => void mudarAponta(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+            />
+            <div className="min-w-0">
+              <label htmlFor="eq-aponta-encarregado" className="text-sm font-medium text-text">
+                Apontar o encarregado no lançamento do app de campo
+              </label>
+              <p id="eq-aponta-encarregado-apoio" className="text-sm text-text-muted">
+                {aponta
+                  ? 'O app pede o encarregado e depois a equipe dele. Desmarque para o app pedir só a equipe.'
+                  : 'O app pede só a equipe. Quando a equipe tem encarregado, ele entra no lançamento sozinho.'}
+              </p>
+            </div>
+          </div>
           <EstadoConsulta
             consulta={consultaEncarregados}
             oQue="os encarregados"

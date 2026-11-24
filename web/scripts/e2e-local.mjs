@@ -1001,6 +1001,7 @@ await sbAp.auth.signOut()
     ['lb_premissas_diff', { _planejamento_id: plan.id }],
     ['set_recurso_preco_vigente', { _preco_id: np.id }],
     ['obra_prontidao', { _obra_id: obraId }],
+    ['obra_definir_aponta_encarregado', { _obra_id: obraId, _aponta: false }],
     ['importar_orcamento', { _obra_id: obraId, _itens: [], _alocacoes: [], _servicos: [], _opcoes: {} }]
   ]
   for (const [f, a] of sensiveis) {
@@ -1014,6 +1015,20 @@ await sbAp.auth.signOut()
     const cliente = await u.cli.c.rpc(f, a)
     check(`${f}: engenheiro da obra chama, cliente não`, !daObra.error && !!cliente.error, daObra.error?.message?.slice(0, 80))
   }
+  // 0068: a obra decide se o lançamento aponta o encarregado (quem planeja a obra muda; o catálogo do app leva)
+  const apPadrao = await u.eng.c.rpc('campo_catalogo', { _obra_id: obraId })
+  const apCliente = await u.cli.c.rpc('obra_definir_aponta_encarregado', { _obra_id: obraId, _aponta: false })
+  const apEng = await u.eng.c.rpc('obra_definir_aponta_encarregado', { _obra_id: obraId, _aponta: false })
+  const apDepois = await u.eng.c.rpc('campo_catalogo', { _obra_id: obraId })
+  check(
+    'apontar o encarregado: padrão ligado; o engenheiro da obra desliga, o cliente não, e o catálogo do app acompanha',
+    apPadrao.data?.obra?.aponta_encarregado === true &&
+      !!apCliente.error &&
+      !apEng.error &&
+      apDepois.data?.obra?.aponta_encarregado === false,
+    `${apPadrao.data?.obra?.aponta_encarregado} / ${apCliente.error?.code ?? 'passou'} / ${apEng.error?.message ?? 'ok'} / ${apDepois.data?.obra?.aponta_encarregado}`
+  )
+  await u.eng.c.rpc('obra_definir_aponta_encarregado', { _obra_id: obraId, _aponta: true })
   const precoA = await u.admA.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
   const precoB = await u.admB.c.rpc('receita_preco_em', { _receita_id: recBase.id, _data: '2026-01-01' })
   check('receita_preco_em: a outra empresa recebe vazio', precoA.data != null && !precoB.error && precoB.data == null, `A=${precoA.data} B=${precoB.data}`)

@@ -151,6 +151,8 @@ Se uma sessão foi começada e não finalizada, aparece o quadro **Sessão em co
 4. Em **Equipe**, escolha uma das equipes desse encarregado. Se ele tiver uma só, ela já vem escolhida.
 5. Toque em [[Continuar]].
 
+Na obra em que o escritório desligou o apontamento do encarregado, o campo **Encarregado** não aparece em nenhuma tela do aplicativo: escolha só a **Equipe**, entre todas as da obra. O encarregado da equipe, quando ela tem um, entra no lançamento sozinho.
+
 :::nota
 Se já existe uma sessão do mesmo dia com o mesmo encarregado e a mesma equipe, o aplicativo avisa e oferece [[Adicionar à sessão existente]], para não duplicar.
 :::

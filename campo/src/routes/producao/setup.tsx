@@ -12,12 +12,18 @@ import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
 import { contar } from '@/lib/texto'
 import { useProducaoStore } from '@/features/producao/producaoStore'
 import { loadSessionItensAsDrafts } from '@/features/producao/producaoRepo'
-import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
+import {
+  apontaEncarregado,
+  encarregadoDaEquipe,
+  equipesDoEncarregado,
+  temEquipesVinculadas,
+} from '@/lib/equipes'
 import type { EncarregadoDto } from '@/types/dtos'
 
 /**
  * Nova sessão de produção: a obra (escolhida no Home), o dia (hoje ou ontem), o encarregado e depois uma das equipes
- * dele. Encarregado e equipe valem para todos os lançamentos da sessão.
+ * dele. Encarregado e equipe valem para todos os lançamentos da sessão. Na obra que não aponta o encarregado (opção
+ * de Equipes e encarregados, no web) a tela pede só a equipe, e o encarregado vem dela.
  */
 export function ProducaoSetupRoute() {
   const authed = useIsAuthenticated()
@@ -33,6 +39,13 @@ export function ProducaoSetupRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [obra?.id])
 
+  const aponta = apontaEncarregado(catalogo)
+  // a obra deixou de apontar o encarregado: o que ficou escolhido antes, sem equipe, sai da sessão
+  useEffect(() => {
+    if (!aponta && store.encarregadoId && !store.equipeId) store.setEncarregado(null, null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aponta, store.encarregadoId, store.equipeId])
+
   const [picker, setPicker] = useState<'encarregado' | 'equipe' | null>(null)
   const [abrindo, setAbrindo] = useState(false)
   const [faltaEncarregado, setFaltaEncarregado] = useState(false)
@@ -43,9 +56,9 @@ export function ProducaoSetupRoute() {
 
   const encarregados = catalogo?.encarregados ?? []
   const todasEquipes = catalogo?.equipes ?? []
-  const exigeEncarregado = encarregados.length > 0
+  const exigeEncarregado = aponta && encarregados.length > 0
   const semEncarregado = exigeEncarregado && !store.encarregadoId
-  const equipes = equipesDoEncarregado(todasEquipes, store.encarregadoId)
+  const equipes = aponta ? equipesDoEncarregado(todasEquipes, store.encarregadoId) : todasEquipes
 
   function escolherEncarregado(e: EncarregadoDto) {
     const id = e.id || null
@@ -132,13 +145,17 @@ export function ProducaoSetupRoute() {
             ))}
           </div>
         </div>
-        <PickerField
-          label="Encarregado"
-          value={store.encarregadoNome ?? 'Selecionar…'}
-          onClick={() => setPicker('encarregado')}
-          hint={encarregados.length === 0 ? 'Sem encarregados cadastrados na obra' : undefined}
-          erro={faltaEncarregado && semEncarregado ? 'Escolha o encarregado para continuar.' : null}
-        />
+        {aponta && (
+          <PickerField
+            label="Encarregado"
+            value={store.encarregadoNome ?? 'Selecionar…'}
+            onClick={() => setPicker('encarregado')}
+            hint={encarregados.length === 0 ? 'Sem encarregados cadastrados na obra' : undefined}
+            erro={
+              faltaEncarregado && semEncarregado ? 'Escolha o encarregado para continuar.' : null
+            }
+          />
+        )}
         <PickerField
           label="Equipe"
           value={store.equipeNome ?? 'Selecionar…'}
@@ -149,7 +166,9 @@ export function ProducaoSetupRoute() {
               ? 'Escolha o encarregado primeiro'
               : todasEquipes.length === 0
                 ? 'Sem equipes cadastradas na obra'
-                : store.encarregadoId && !temEquipesVinculadas(todasEquipes, store.encarregadoId)
+                : aponta &&
+                    store.encarregadoId &&
+                    !temEquipesVinculadas(todasEquipes, store.encarregadoId)
                   ? 'Encarregado sem equipes vinculadas: a lista mostra as equipes sem encarregado'
                   : undefined
           }
@@ -165,7 +184,8 @@ export function ProducaoSetupRoute() {
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warn" />
             <div className="flex-1">
               <p className="text-sm text-on-surface">
-                Já existe sessão deste dia com este encarregado e equipe (
+                Já existe sessão deste dia com{' '}
+                {aponta ? 'este encarregado e equipe' : 'esta equipe'} (
                 <strong>{contar(existente.total, 'lançamento', 'lançamentos')}</strong>). Continuar
                 abaixo cria uma sessão separada.
               </p>
@@ -229,6 +249,10 @@ export function ProducaoSetupRoute() {
           label={(e) => e.nome}
           onPick={(e) => {
             store.setEquipe(e.id || null, e.id ? e.nome : null)
+            if (!aponta) {
+              const enc = encarregadoDaEquipe(catalogo, e.id || null)
+              store.setEncarregado(enc?.id ?? null, enc?.nome ?? null)
+            }
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}

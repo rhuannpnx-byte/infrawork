@@ -11,6 +11,8 @@ export interface ObraDto {
   nome: string
   empresa_id: string
   status?: string | null
+  /** o lançamento pede o encarregado (false = pede só a equipe); ausente no catálogo antigo = pede */
+  aponta_encarregado?: boolean
 }
 
 export interface MaterialServicoDto {

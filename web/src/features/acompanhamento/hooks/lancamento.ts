@@ -499,3 +499,49 @@ export function useFrentesObra(
     }
   })
 }
+
+// ─── Apontar o encarregado no lançamento (opção da obra) ───────────────────
+
+/**
+ * A obra pede o encarregado no lançamento do app de campo? (`obras.aponta_encarregado`, padrão sim.) Com a opção
+ * desligada o app pede só a equipe, e o encarregado vem da equipe quando ela tem um.
+ */
+export function useApontaEncarregado(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<boolean>> {
+  return useQuery({
+    queryKey: ['acompanhamento', 'aponta-encarregado', obraId],
+    enabled: !!obraId,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase
+        .from('obras')
+        .select('aponta_encarregado')
+        .eq('id', obraId!)
+        .maybeSingle()
+      if (error) throw error
+      return (data as { aponta_encarregado: boolean } | null)?.aponta_encarregado ?? true
+    }
+  })
+}
+
+/** Grava a opção pela função do banco (quem planeja a obra pode; a tabela de obras só aceita god e adm). */
+export function useDefinirApontaEncarregado(): ReturnType<
+  typeof useMutation<boolean, Error, { obra_id: string; aponta: boolean }>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ obra_id, aponta }): Promise<boolean> => {
+      const { data, error } = await supabase.rpc('obra_definir_aponta_encarregado', {
+        _obra_id: obra_id,
+        _aponta: aponta
+      })
+      if (error) throw error
+      return data as boolean
+    },
+    onSuccess: (valor, { obra_id }) => {
+      qc.setQueryData(['acompanhamento', 'aponta-encarregado', obra_id], valor)
+      void qc.invalidateQueries({ queryKey: ['prontidao'] })
+    }
+  })
+}

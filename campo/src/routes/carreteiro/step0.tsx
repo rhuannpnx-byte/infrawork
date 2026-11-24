@@ -17,15 +17,24 @@ import {
 import { cn } from '@/lib/cn'
 import { formatBR, hojeLocal, ontemLocal } from '@/lib/datas'
 import { ehMaquinaDeCarga, rotuloVeiculo } from '@/lib/frota'
-import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
+import {
+  apontaEncarregado,
+  encarregadoDaEquipe,
+  equipesDoEncarregado,
+  temEquipesVinculadas,
+} from '@/lib/equipes'
 
-/** Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado e equipe. */
+/**
+ * Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado e equipe. Na obra que não aponta o
+ * encarregado fica só a equipe, e o encarregado vem dela.
+ */
 export function CarreteiroStep0Route() {
   const authed = useIsAuthenticated()
   const navigate = useNavigate()
   const ficha = useCarreteiroStore((s) => s.ficha)
   const setCab = useCarreteiroStore((s) => s.setCabecalho)
   const catalogo = useCatalogo(ficha?.obraId)
+  const aponta = apontaEncarregado(catalogo)
   const [picker, setPicker] = useState<'veiculo' | 'encarregado' | 'equipe' | null>(null)
   // Ficha nova: sugere o caminhão e o motorista da última ficha. A sugestão só entra na ficha quando o operador
   // continua ou mexe num dos dois campos (abrir e voltar não deixa rascunho para trás).
@@ -138,13 +147,15 @@ export function CarreteiroStep0Route() {
           placeholder="Nome do motorista"
           autoComplete="off"
         />
-        <div className="grid grid-cols-2 gap-3">
-          <PickerField
-            label="Encarregado"
-            value={ficha.encarregadoNome ?? 'Opcional'}
-            opcional={!ficha.encarregadoNome}
-            onClick={() => setPicker('encarregado')}
-          />
+        <div className={cn('grid gap-3', aponta && 'grid-cols-2')}>
+          {aponta && (
+            <PickerField
+              label="Encarregado"
+              value={ficha.encarregadoNome ?? 'Opcional'}
+              opcional={!ficha.encarregadoNome}
+              onClick={() => setPicker('encarregado')}
+            />
+          )}
           <PickerField
             label="Equipe"
             value={ficha.equipeNome ?? 'Opcional'}
@@ -227,11 +238,20 @@ export function CarreteiroStep0Route() {
           title="Equipe"
           items={[
             { id: '', nome: 'Sem equipe' },
-            ...equipesDoEncarregado(catalogo?.equipes ?? [], ficha.encarregadoId),
+            ...(aponta
+              ? equipesDoEncarregado(catalogo?.equipes ?? [], ficha.encarregadoId)
+              : (catalogo?.equipes ?? [])),
           ]}
           label={(e) => e.nome}
           onPick={(e) => {
-            setCab({ equipeId: e.id || null, equipeNome: e.id ? e.nome : null })
+            const enc = aponta ? null : encarregadoDaEquipe(catalogo, e.id || null)
+            setCab({
+              equipeId: e.id || null,
+              equipeNome: e.id ? e.nome : null,
+              ...(aponta
+                ? {}
+                : { encarregadoId: enc?.id ?? null, encarregadoNome: enc?.nome ?? null }),
+            })
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}

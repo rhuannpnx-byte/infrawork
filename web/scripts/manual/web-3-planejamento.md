@@ -119,6 +119,8 @@ A **ordem** das equipes na tabela é a prioridade no cronograma; use as setas pa
 
 Clique em [[Novo encarregado]] e informe nome, apelido, telefone e as **Equipes** dele. No aplicativo de campo, o apontador escolhe o encarregado e vê só as equipes dele.
 
+Se na obra o apontador não deve escolher encarregado, desmarque **Apontar o encarregado no lançamento do app de campo**, no bloco **Encarregados**. O aplicativo passa a pedir só a equipe na produção, na ficha de viagens e na foto. Quando a equipe tem encarregado, ele entra no lançamento sozinho. A opção vale para a obra e chega ao aplicativo na próxima vez que ele baixar os dados da obra.
+
 ## Locais e quantidades
 
 Em **Planejamento › Locais** ficam os eixos e as áreas da obra, cada um com a sua planilha de quantidades por serviço. É daqui que as tarefas tiram a posição e a quantidade.

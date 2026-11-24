@@ -54,7 +54,9 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   uma por dia/serviço/local/equipe/encarregado — equipe e encarregado vêm da ficha); serviço com exige_local pede
   trecho e faixa.
 - **Encarregado**: com a equipe informada e sem encarregado, o banco grava o encarregado da equipe (produção e
-  ficha de viagens). Informe o encarregado só quando for outro.
+  ficha de viagens). Informe o encarregado só quando for outro. A obra pode desligar o apontamento do encarregado
+  (equipes, acao "apontar_encarregado", aponta false): o app de campo passa a pedir só a equipe no lançamento, e a
+  prontidão da obra deixa de avisar sobre equipe sem encarregado.
 - **Viagens**: origem e destino obrigatórios. DMT = acesso da origem + |estaca de carga − estaca de descarga| +
   acesso do destino, pelo eixo do mesmo trecho. Local pista entra com a estaca da viagem (estaca_carga_m /
   estaca_descarga_m); jazida, caixa de empréstimo, bota-fora etc. entram com estaca_acesso_m + distancia_acesso_km

@@ -31,7 +31,12 @@ import { releaseWakeLock, requestScreenWakeLock } from '@/core/platform/wakeLock
 import { useCatalogo, useObra } from '@/core/db/daos'
 import { PickerSheet } from '@/features/common/PickerSheet'
 import { cn } from '@/lib/cn'
-import { equipesDoEncarregado, temEquipesVinculadas } from '@/lib/equipes'
+import {
+  apontaEncarregado,
+  encarregadoDaEquipe,
+  equipesDoEncarregado,
+  temEquipesVinculadas,
+} from '@/lib/equipes'
 import { saveFoto } from '@/features/fotos/fotoRepo'
 
 /**
@@ -432,7 +437,9 @@ function FormMode({
   )
   const [equipeId, setEquipeId] = useState<string | null>(contexto?.equipeId ?? null)
   const [equipeNome, setEquipeNome] = useState<string | null>(contexto?.equipeNome ?? null)
-  const equipes = equipesDoEncarregado(todasEquipes, encarregadoId)
+  // obra que não aponta o encarregado: a foto pede só a equipe, e o encarregado vem dela
+  const aponta = apontaEncarregado(catalogo)
+  const equipes = aponta ? equipesDoEncarregado(todasEquipes, encarregadoId) : todasEquipes
   const [obs, setObs] = useState('')
 
   const [picker, setPicker] = useState<'servico' | 'encarregado' | 'equipe' | null>(null)
@@ -602,11 +609,13 @@ function FormMode({
             onClick={() => setPicker('servico')}
           />
 
-          <PickerField
-            label="Encarregado"
-            value={encarregadoNome ?? 'Selecionar…'}
-            onClick={() => setPicker('encarregado')}
-          />
+          {aponta && (
+            <PickerField
+              label="Encarregado"
+              value={encarregadoNome ?? 'Selecionar…'}
+              onClick={() => setPicker('encarregado')}
+            />
+          )}
 
           <PickerField
             label="Equipe"
@@ -618,6 +627,10 @@ function FormMode({
                 ? () => {
                     setEquipeId(null)
                     setEquipeNome(null)
+                    if (!aponta) {
+                      setEncarregadoId(null)
+                      setEncarregadoNome(null)
+                    }
                   }
                 : undefined
             }
@@ -719,6 +732,11 @@ function FormMode({
           onPick={(e) => {
             setEquipeId(e.id)
             setEquipeNome(e.nome)
+            if (!aponta) {
+              const enc = encarregadoDaEquipe(catalogo, e.id)
+              setEncarregadoId(enc?.id ?? null)
+              setEncarregadoNome(enc?.nome ?? null)
+            }
             setPicker(null)
           }}
           onDismiss={() => setPicker(null)}

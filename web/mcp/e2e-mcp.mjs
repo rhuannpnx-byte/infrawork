@@ -331,6 +331,18 @@ try {
     tipo: 'Pavimentação',
     encarregado_id: enc.id
   })
+  // a obra decide se o lançamento aponta o encarregado (padrão sim); desligar e religar pela ferramenta
+  const apPadrao = await chamar('equipes', { acao: 'listar', obra_id: O })
+  const apOff = await chamar('equipes', { acao: 'apontar_encarregado', obra_id: O, aponta: false })
+  const apLido = await chamar('equipes', { acao: 'listar', obra_id: O })
+  await chamar('equipes', { acao: 'apontar_encarregado', obra_id: O, aponta: true })
+  check(
+    'equipes: apontar o encarregado vem ligado, desliga pela ferramenta e o listar acompanha',
+    apPadrao.aponta_encarregado === true &&
+      apOff.aponta_encarregado === false &&
+      apLido.aponta_encarregado === false,
+    `${apPadrao.aponta_encarregado} / ${apOff.aponta_encarregado} / ${apLido.aponta_encarregado}`
+  )
   const plano = await chamar('planos', {
     acao: 'criar',
     obra_id: O,
