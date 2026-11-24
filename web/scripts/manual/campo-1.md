@@ -368,11 +368,15 @@ Sem linha de base vigente na obra, o previsto e o esperado ficam vazios. A linha
 
 A lista mostra os serviços com os atrasados primeiro. Os filtros separam por situação: atrasado, em risco, em andamento, no prazo, adiantado, não iniciado, concluído e sem plano. Cada cartão traz os dias de folga ou de atraso, o valor executado e a barra do realizado contra o esperado.
 
-Tocar num serviço abre o detalhe: o avanço com o início e o término previstos, o **Ritmo** (a média por dia nos últimos 7 dias contra o ritmo do plano), o valor agregado e **Quem produziu** nos últimos 30 dias.
+Tocar num serviço abre o detalhe: o avanço com o início e o término previstos, o **Ritmo** (a média por dia nos últimos 7 dias contra o ritmo do plano), o valor agregado e **Quem produziu** no período escolhido. No bloco **Avanço**, à esquerda ficam as quantidades **do contrato**, **previsto até hoje** e **realizado**; à direita, o início e o término previstos.
 
 ## Produção
 
-A tela **Produção diária** mostra, para o serviço, o encarregado e a equipe escolhidos nos filtros, o total produzido nos últimos 90 dias, os dias com produção, a média por dia trabalhado e o melhor dia. O **Mapa de calor** mostra cada dia: quanto mais verde, mais perto do melhor dia. Tocar num dia mostra o total e quem produziu.
+A tela **Produção diária** mostra, para o serviço, o encarregado e a equipe escolhidos nos filtros, o total produzido no período, os dias com produção, a média por dia trabalhado e o melhor dia. O **Mapa de calor** mostra um mês de calendário por vez: quanto mais verde o dia, mais perto do melhor dia do período. Use as setas para ir ao mês anterior ou ao seguinte; os dias do mês que ficam fora do período aparecem apagados. Tocar num dia mostra o total e quem produziu.
+
+### O período
+
+As telas **Produção diária** e **Equipes** e o bloco **Quem produziu** do serviço somam a produção do **Período** escolhido, que é o mesmo nas três. Toque num atalho ([[7 dias]], [[30 dias]], [[Este mês]], [[Mês passado]] ou [[Tudo]]) ou em [[Escolher]] para informar as duas datas. O aplicativo guarda a produção dos últimos 90 dias; não dá para escolher datas mais antigas que isso.
 
 ![Mapa de calor da produção diária](painel-producao.jpg){celular}
 

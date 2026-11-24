@@ -205,19 +205,24 @@ const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 const FUNDO_CALOR = ['bg-bg-elevated', 'bg-ok/20', 'bg-ok/35', 'bg-ok/50', 'bg-ok']
 
 /**
- * Mapa de calor da produção diária (mesmo desenho da Performance do web): uma semana por linha, cor mais forte
- * quanto mais perto do maior dia do período. Toque num dia para ver o detalhe.
+ * Mapa de calor da produção diária (mesmo desenho da Performance do web): um mês de calendário, uma semana por
+ * linha, cor mais forte quanto mais perto do maior dia do período. O dia do mês que fica fora do período escolhido
+ * aparece apagado, sem toque. Toque num dia para ver o detalhe.
  */
 export function MapaCalor({
   porDia,
   dias,
   max,
+  noPeriodo,
   selecionado,
   onSelecionar,
 }: {
   porDia: Map<string, number>
+  /** os dias do mês mostrado, em ordem */
   dias: string[]
   max: number
+  /** o dia está dentro do período escolhido? (ausente = todos estão) */
+  noPeriodo?: (dia: string) => boolean
   selecionado: string | null
   onSelecionar: (dia: string) => void
 }) {
@@ -235,6 +240,20 @@ export function MapaCalor({
           <div key={`v${i}`} className="aspect-square" />
         ))}
         {dias.map((d) => {
+          if (noPeriodo && !noPeriodo(d))
+            return (
+              <div
+                key={d}
+                data-dia={d}
+                data-fora="true"
+                aria-hidden
+                className="relative aspect-square rounded-sm border border-dashed border-border"
+              >
+                <span className="tabular absolute left-1 top-0.5 text-2xs leading-none text-on-surface-muted">
+                  {Number(d.slice(8, 10))}
+                </span>
+              </div>
+            )
           const q = porDia.get(d) ?? 0
           const n = nivelCalor(q, max)
           // só o degrau cheio pede texto claro; nos outros a tinta normal passa de 4,5:1 nos dois temas

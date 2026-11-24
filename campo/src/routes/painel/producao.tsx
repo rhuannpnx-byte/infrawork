@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { formatBR } from '@/lib/datas'
 import type { CatPainel } from '@/core/db/entities'
 import type { PainelProducaoDto } from '@/types/dtos'
 import { PickerField } from '@/features/common/fields'
@@ -9,6 +10,8 @@ import { PickerSheet } from '@/features/common/PickerSheet'
 import { Kpi, PainelShell, Secao } from '@/features/painel/PainelShell'
 import { MapaCalor } from '@/features/painel/graficos'
 import { qtd } from '@/features/painel/lib'
+import { SeletorPeriodo } from '@/features/painel/SeletorPeriodo'
+import { diasDoMes, mesesDoPeriodo, nomeDoMes, usePeriodo } from '@/features/painel/periodo'
 import {
   detalheDoDia,
   eixoDias,
@@ -22,14 +25,16 @@ import {
   type OpcaoServico,
 } from '@/features/painel/producao'
 
-const JANELA = 30
 const TODOS = { id: '', nome: 'Todos', total: 0 } satisfies Opcao
 
 const fmtDia = (iso: string) => iso.split('-').reverse().join('/').slice(0, 5)
 const nomeServico = (s: OpcaoServico) =>
   [s.codigo, s.descricao].filter(Boolean).join(' · ') || 'Serviço removido'
 
-/** Visão estratégica › Produção: mapa de calor da produção diária, por serviço, encarregado e equipe. */
+/**
+ * Visão estratégica › Produção: a produção diária no período escolhido, por serviço, encarregado e equipe, e o mapa
+ * de calor de um mês de calendário por vez.
+ */
 export function PainelProducaoRoute() {
   return <PainelShell titulo="Produção diária">{(p) => <Producao p={p} />}</PainelShell>
 }
@@ -46,12 +51,19 @@ function Producao({ p }: { p: CatPainel }) {
 
 function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: string }) {
   const [params, setParams] = useSearchParams()
+  const periodo = usePeriodo(hoje, prod.desde)
+  // só as linhas do período: os totais, as listas dos filtros e o mapa somam o que foi escolhido
+  const noPeriodo = useMemo(
+    () => ({ ...prod, dias: prod.dias.filter((l) => l.d >= periodo.de && l.d <= periodo.ate) }),
+    [prod, periodo.de, periodo.ate],
+  )
   const encarregado = params.get('encarregado')
   const equipe = params.get('equipe')
   const servicosFiltro = useMemo(
-    () => servicosComProducao(prod, { encarregado, equipe }),
-    [prod, encarregado, equipe],
+    () => servicosComProducao(noPeriodo, { encarregado, equipe }),
+    [noPeriodo, encarregado, equipe],
   )
+  // o serviço escolhido continua escolhido mesmo sem produção no período (os números zeram, a escolha não muda)
   const todosServicos = useMemo(() => servicosComProducao(prod), [prod])
   const servicoParam = params.get('servico')
   const servico =
@@ -61,12 +73,12 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
     null
 
   const encarregados = useMemo(
-    () => encarregadosDoServico(prod, servico?.id ?? null),
-    [prod, servico],
+    () => encarregadosDoServico(noPeriodo, servico?.id ?? null),
+    [noPeriodo, servico],
   )
   const equipes = useMemo(
-    () => equipesDoFiltro(prod, servico?.id ?? null, encarregado),
-    [prod, servico, encarregado],
+    () => equipesDoFiltro(noPeriodo, servico?.id ?? null, encarregado),
+    [noPeriodo, servico, encarregado],
   )
   const encSel = encarregados.find((o) => o.id === encarregado) ?? null
   const eqSel = equipes.find((o) => o.id === equipe) ?? null
@@ -87,22 +99,30 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
     setParams(q, { replace: true })
   }
 
-  const dias = useMemo(() => eixoDias(prod.desde, hoje), [prod.desde, hoje])
-  const porDia = useMemo(() => producaoPorDia(prod, filtro), [prod, filtro])
+  const dias = useMemo(() => eixoDias(periodo.de, periodo.ate), [periodo.de, periodo.ate])
+  const porDia = useMemo(() => producaoPorDia(noPeriodo, filtro), [noPeriodo, filtro])
   const resumo = resumoProducao(porDia, dias)
   const max = resumo.melhor?.q ?? 0
 
-  const [offset, setOffset] = useState(0)
-  const [diaSel, setDiaSel] = useState<string | null>(null)
-  useEffect(() => {
-    setOffset(0)
-    setDiaSel(null)
-  }, [filtro])
+  // o mapa mostra um mês de calendário por vez (0 = o mais recente do período)
+  const meses = useMemo(() => mesesDoPeriodo(periodo), [periodo])
+  // o mês e o dia tocado valem para o período e o filtro em que foram escolhidos: mudou um deles, volta ao mais
+  // recente (guardar a chave junto evita mostrar por um instante o mês da escolha anterior)
+  const chave = `${periodo.de}|${periodo.ate}|${sId}|${nId}|${eId}`
+  const [nav, setNav] = useState<{ chave: string; recuo: number; dia: string | null }>({
+    chave,
+    recuo: 0,
+    dia: null,
+  })
+  const recuo = nav.chave === chave ? nav.recuo : 0
+  const diaSel = nav.chave === chave ? nav.dia : null
+  const setRecuo = (f: (atual: number) => number) => setNav({ chave, recuo: f(recuo), dia: null })
+  const setDiaSel = (f: (atual: string | null) => string | null) =>
+    setNav({ chave, recuo, dia: f(diaSel) })
 
-  const totalJanelas = Math.max(1, Math.ceil(dias.length / JANELA))
-  const fim = dias.length - offset * JANELA
-  const janela = dias.slice(Math.max(0, fim - JANELA), fim)
-  const detalhe = diaSel ? detalheDoDia(prod, filtro, diaSel) : []
+  const mes = meses[Math.max(0, meses.length - 1 - recuo)] ?? hoje.slice(0, 7)
+  const diasMes = useMemo(() => diasDoMes(mes), [mes])
+  const detalhe = diaSel ? detalheDoDia(noPeriodo, filtro, diaSel) : []
   const qDia = diaSel ? (porDia.get(diaSel) ?? 0) : 0
 
   const [picker, setPicker] = useState<'servico' | 'encarregado' | 'equipe' | null>(null)
@@ -111,12 +131,13 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
   if (!servico)
     return (
       <p className="mt-10 text-center text-sm text-on-surface-dim">
-        Nenhuma produção lançada nos últimos 90 dias.
+        Nenhuma produção lançada desde {formatBR(prod.desde)}.
       </p>
     )
 
   return (
     <div className="space-y-3">
+      <SeletorPeriodo hoje={hoje} desde={prod.desde} />
       <div className="space-y-3">
         <PickerField
           label="Serviço"
@@ -137,7 +158,7 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         </div>
       </div>
 
-      <Secao titulo="Últimos 90 dias">
+      <Secao titulo="No período">
         <div className="grid grid-cols-2 gap-3">
           <Kpi valor={qtd(resumo.total, un)} legenda="produzido" testId="producao-total" />
           <Kpi valor={resumo.diasCom} legenda="dias com produção" testId="producao-dias" />
@@ -153,22 +174,25 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         titulo="Mapa de calor"
         acao={
           <div className="flex items-center gap-1">
-            <span className="tabular mr-1 text-2xs text-on-surface-muted">
-              {janela.length ? `${fmtDia(janela[0]!)} – ${fmtDia(janela[janela.length - 1]!)}` : ''}
+            <span
+              className="mr-1 text-xs text-on-surface first-letter:uppercase"
+              data-testid="mapa-calor-mes"
+            >
+              {nomeDoMes(mes)}
             </span>
             <BotaoJanela
-              rotulo="30 dias anteriores"
-              motivo="Não há produção antes deste período"
-              disabled={offset >= totalJanelas - 1}
-              onClick={() => setOffset((o) => o + 1)}
+              rotulo="Mês anterior"
+              motivo="O período escolhido começa neste mês"
+              disabled={recuo >= meses.length - 1}
+              onClick={() => setRecuo((o) => o + 1)}
             >
               <ChevronLeft className="h-5 w-5" />
             </BotaoJanela>
             <BotaoJanela
-              rotulo="30 dias seguintes"
-              motivo="Este já é o período mais recente"
-              disabled={offset === 0}
-              onClick={() => setOffset((o) => Math.max(0, o - 1))}
+              rotulo="Mês seguinte"
+              motivo="Este já é o último mês do período"
+              disabled={recuo === 0}
+              onClick={() => setRecuo((o) => Math.max(0, o - 1))}
             >
               <ChevronRight className="h-5 w-5" />
             </BotaoJanela>
@@ -177,8 +201,9 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
       >
         <MapaCalor
           porDia={porDia}
-          dias={janela}
+          dias={diasMes}
           max={max}
+          noPeriodo={(d) => d >= periodo.de && d <= periodo.ate}
           selecionado={diaSel}
           onSelecionar={(d) => setDiaSel((cur) => (cur === d ? null : d))}
         />
@@ -212,11 +237,13 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         title="Serviço"
         items={servicosFiltro.length ? servicosFiltro : todosServicos}
         label={nomeServico}
-        sublabel={(s) => `${qtd(s.total, s.unidade)} em 90 dias · último ${fmtDia(s.ultimo)}`}
+        sublabel={(s) =>
+          `${qtd(s.total, s.unidade)} ${servicosFiltro.length ? 'no período' : `desde ${fmtDia(prod.desde)}`} · último ${fmtDia(s.ultimo)}`
+        }
         onPick={(s) => {
-          const encOk = !nId || encarregadosDoServico(prod, s.id).some((o) => o.id === nId)
+          const encOk = !nId || encarregadosDoServico(noPeriodo, s.id).some((o) => o.id === nId)
           const eqOk =
-            !eId || equipesDoFiltro(prod, s.id, encOk ? nId : null).some((o) => o.id === eId)
+            !eId || equipesDoFiltro(noPeriodo, s.id, encOk ? nId : null).some((o) => o.id === eId)
           mudar({ servico: s.id, encarregado: encOk ? nId : null, equipe: eqOk ? eId : null })
           setPicker(null)
         }}
@@ -229,7 +256,8 @@ function ProducaoComDados({ prod, hoje }: { prod: PainelProducaoDto; hoje: strin
         label={(o) => o.nome}
         sublabel={(o) => (o.id ? qtd(o.total, un) : null)}
         onPick={(o) => {
-          const fica = !o.id || equipesDoFiltro(prod, servico.id, o.id).some((e) => e.id === eId)
+          const fica =
+            !o.id || equipesDoFiltro(noPeriodo, servico.id, o.id).some((e) => e.id === eId)
           mudar({ servico: servico.id, encarregado: o.id || null, equipe: fica ? eId : null })
           setPicker(null)
         }}

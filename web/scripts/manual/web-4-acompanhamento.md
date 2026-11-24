@@ -210,7 +210,7 @@ A página **Performance** analisa a produtividade das equipes e dos encarregados
 
 ![Performance das equipes num serviço](performance.jpg)
 
-Escolha **Agrupar por** (equipes ou encarregados), o **Serviço** e o **Período**. A tela mostra a média, a mediana e o melhor dia, os dias trabalhados, a **Aderência à meta** da composição e a **Tendência**, além da produção diária, do mapa de calor, do ranking e do comparativo entre equipes. Clicar numa equipe põe o foco nela.
+Escolha **Agrupar por** (equipes ou encarregados), o **Serviço** e o **Período**. A tela mostra a média, a mediana e o melhor dia, os dias trabalhados, a **Aderência à meta** da composição e a **Tendência**, além da produção diária, do mapa de calor, do ranking e do comparativo entre equipes. Clicar numa equipe põe o foco nela. O mapa de calor mostra um mês de calendário por vez; quando o período passa de um mês, as setas levam ao mês anterior ou ao seguinte, e os dias fora do período aparecem apagados.
 
 :::dica
 A média também é comparada com a mediana histórica de outras obras da empresa no mesmo serviço, o que ajuda a revisar a produtividade usada nas composições.

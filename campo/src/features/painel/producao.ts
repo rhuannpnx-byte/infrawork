@@ -108,6 +108,69 @@ export function equipesDoFiltro(
   )
 }
 
+export interface ProducaoDoServico {
+  servico: string
+  /** produzido hoje (0 quando hoje está fora do período) */
+  hoje: number
+  total: number
+  /** dias com produção no período */
+  dias: number
+}
+
+export interface ProducaoDoDono {
+  servicos: ProducaoDoServico[]
+  /** dias com produção de qualquer serviço no período */
+  dias: number
+  /** o dia mais recente com produção no período */
+  ultimo: string
+}
+
+/**
+ * Produção de cada equipe (`e`) ou encarregado (`n`) num período, por serviço: hoje, total e dias com produção.
+ * A chave é o id (ou `SEM` para a produção sem equipe/encarregado); os serviços vêm do maior total para o menor.
+ */
+export function producaoPorDono(
+  p: PainelProducaoDto,
+  campo: 'e' | 'n',
+  de: string,
+  ate: string,
+  hoje: string,
+): Map<string, ProducaoDoDono> {
+  const acc = new Map<
+    string,
+    {
+      porServico: Map<string, { hoje: number; total: number; dias: Set<string> }>
+      dias: Set<string>
+      ultimo: string
+    }
+  >()
+  for (const l of p.dias) {
+    if (l.d < de || l.d > ate) continue
+    const q = num(l.q)
+    if (q <= 0) continue
+    const id = chave(l[campo])
+    const dono = acc.get(id) ?? { porServico: new Map(), dias: new Set<string>(), ultimo: l.d }
+    const s = dono.porServico.get(l.s) ?? { hoje: 0, total: 0, dias: new Set<string>() }
+    s.total += q
+    if (l.d === hoje) s.hoje += q
+    s.dias.add(l.d)
+    dono.porServico.set(l.s, s)
+    dono.dias.add(l.d)
+    if (l.d > dono.ultimo) dono.ultimo = l.d
+    acc.set(id, dono)
+  }
+  const out = new Map<string, ProducaoDoDono>()
+  for (const [id, dono] of acc)
+    out.set(id, {
+      servicos: [...dono.porServico]
+        .map(([servico, s]) => ({ servico, hoje: s.hoje, total: s.total, dias: s.dias.size }))
+        .sort((a, b) => b.total - a.total),
+      dias: dono.dias.size,
+      ultimo: dono.ultimo,
+    })
+  return out
+}
+
 function noFiltro(l: Linha, f: FiltroProducao): boolean {
   return (
     l.s === f.servico &&

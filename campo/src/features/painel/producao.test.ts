@@ -9,6 +9,7 @@ import {
   equipesDoFiltro,
   nivelCalor,
   producaoPorDia,
+  producaoPorDono,
   qtdCurta,
   resumoProducao,
   servicosComProducao,
@@ -98,5 +99,35 @@ describe('eixo e resumo', () => {
   it('faixa de cor e número curto', () => {
     expect([0, 10, 30, 60, 100].map((q) => nivelCalor(q, 100))).toEqual([0, 1, 2, 3, 4])
     expect([7.25, 640, 6200, 18_400].map(qtdCurta)).toEqual(['7,3', '640', '6,2k', '18k'])
+  })
+})
+
+describe('produção de cada equipe e encarregado no período', () => {
+  it('soma por serviço dentro do período, com o de hoje e os dias', () => {
+    const r = producaoPorDono(prod, 'e', '2026-11-01', '2026-11-03', '2026-11-01')
+    expect(r.get('eq1')).toEqual({
+      servicos: [{ servico: 'esc', hoje: 100, total: 100, dias: 1 }],
+      dias: 1,
+      ultimo: '2026-11-01',
+    })
+    expect(r.get(SEM)?.servicos[0]?.total).toBe(10)
+    expect([...r.keys()].sort()).toEqual(['eq1', 'eq2', 'eq3', SEM].sort())
+  })
+  it('período maior traz o que ficou para trás; hoje fora do período não soma em "hoje"', () => {
+    const r = producaoPorDono(prod, 'e', '2026-10-01', '2026-11-03', '2026-11-23')
+    expect(r.get('eq1')?.servicos.map((x) => [x.servico, x.total, x.hoje])).toEqual([
+      ['sub', 300, 0],
+      ['esc', 100, 0],
+    ])
+    expect(r.get('eq1')?.dias).toBe(2)
+    expect(r.get('eq1')?.ultimo).toBe('2026-11-01')
+  })
+  it('por encarregado junta as equipes dele', () => {
+    const r = producaoPorDono(prod, 'n', '2026-11-01', '2026-11-03', '2026-11-02')
+    expect(r.get('joao')?.servicos[0]).toEqual({ servico: 'esc', hoje: 0, total: 150, dias: 1 })
+    expect(r.get('maria')?.servicos[0]).toEqual({ servico: 'esc', hoje: 80, total: 80, dias: 1 })
+  })
+  it('sem produção no período, ninguém aparece', () => {
+    expect(producaoPorDono(prod, 'e', '2026-09-01', '2026-09-30', '2026-11-23').size).toBe(0)
   })
 })
