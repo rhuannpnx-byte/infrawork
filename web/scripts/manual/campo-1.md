@@ -252,7 +252,9 @@ A seção **Em andamento** mostra as fichas ainda abertas, que ficam salvas sozi
 3. Confira a **DMT (km)**, calculada pelo aplicativo.
 4. Toque em [[Adicionar viagem]].
 
-A próxima viagem já vem com o serviço, a origem, o destino, as estacas, a quantidade e a máquina da anterior. Para repetir uma viagem igual, use o ícone de copiar no cartão dela: a cópia vem sem os horários e sem o ticket.
+A próxima viagem já vem com o serviço, a origem, o destino, as estacas, a quantidade e a máquina da anterior. Para repetir uma viagem, use o ícone de copiar no cartão dela: a cópia vem sem os horários e sem o ticket.
+
+Quando a origem ou o destino é a pista, o app pergunta a estaca antes de copiar, porque no dia a dia a carga seguinte tem a mesma origem e o mesmo destino e só a estaca anda. O campo já vem com a estaca da viagem copiada; use [[−]] e [[+]] para voltar ou avançar uma estaca (em eixo marcado em km ou em metros, o passo é de 20 m) ou digite o valor, e toque em [[Adicionar viagem]]. A distância de transporte é recalculada com a estaca nova. No serviço medido por peso, a mesma tela pede também a quantidade e o ticket da balança. Para mudar outro dado da cópia, toque em [[Mais campos]].
 
 ### A distância de transporte (DMT)
 

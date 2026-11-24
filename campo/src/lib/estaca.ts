@@ -3,7 +3,14 @@
  * eixo → as estacas digitadas no padrão do eixo (km 2+500, EST 125+10, metros…) viram a faixa em metros internos;
  * área → sem faixa.
  */
-import { formatMarcadorCompacto, parseMarcador, type TrechoCtx } from './posicao'
+import {
+  divisorMetrosPorUnidade,
+  formatMarcadorCompacto,
+  marcadorToMetros,
+  metrosToMarcador,
+  parseMarcador,
+  type TrechoCtx,
+} from './posicao'
 import type { LocalDto } from '@/types/dtos'
 
 export function comprimentoEfetivo(t: LocalDto): number {
@@ -64,6 +71,50 @@ export function rotuloLocal(t: LocalDto): string {
 export function estacaParaMetros(t: LocalDto, texto: string): number | null {
   const r = parseMarcador(texto.trim(), ctxLocal(t))
   return r.metros
+}
+
+/** Número no padrão brasileiro, sem zeros à direita ("10,5", "12"). */
+const numeroBR = (v: number, casas: number): string => {
+  const [inteiro, dec = ''] = v.toFixed(casas).split('.')
+  const limpo = dec.replace(/0+$/, '')
+  return limpo ? `${inteiro},${limpo}` : (inteiro ?? '0')
+}
+
+/**
+ * A posição `passos` adiante (ou atrás, se negativo) no eixo, como texto que o campo aceita. Um passo é uma estaca
+ * (20 m); em km e em metros também são 20 m, e na unidade própria do local é 1 unidade. Anda no valor que o usuário
+ * lê (EST 50 → EST 51), qualquer que seja o sentido do eixo. `null` quando o texto não é uma posição válida ou o
+ * passo sai do eixo.
+ */
+export function avancarPosicao(t: LocalDto, texto: string, passos: number): string | null {
+  const atual = texto.trim() ? estacaParaMetros(t, texto) : null
+  if (atual === null) return null
+  const ctx = ctxLocal(t)
+  const divisor = divisorMetrosPorUnidade(ctx)
+  const passoM = t.unidade_espaco_padrao === 'custom' ? divisor : 20
+  const marcador =
+    Math.round((metrosToMarcador(atual, ctx) + (passos * passoM) / divisor) * 1e6) / 1e6
+  const metros = marcadorToMetros(marcador, ctx)
+  const fim = comprimentoEfetivo(t)
+  if (marcador < 0 || metros < -0.005 || (fim > 0 && metros > fim + 0.005)) return null
+  let saida: string
+  if (t.unidade_espaco_padrao === 'estaca' || t.unidade_espaco_padrao === 'km') {
+    const porUnidade = t.unidade_espaco_padrao === 'km' ? 1000 : 20
+    let inteiro = Math.floor(marcador + 1e-9)
+    let resto = Math.round((marcador - inteiro) * porUnidade * 100) / 100
+    if (resto >= porUnidade) {
+      inteiro += 1
+      resto = 0
+    }
+    if (t.unidade_espaco_padrao === 'estaca')
+      saida = resto === 0 ? String(inteiro) : `${inteiro}+${numeroBR(resto, 2)}`
+    else {
+      const [m = '0', cc] = numeroBR(resto, 2).split(',')
+      saida = `${inteiro}+${m.padStart(3, '0')}${cc ? `,${cc}` : ''}`
+    }
+  } else saida = numeroBR(marcador, t.unidade_espaco_padrao === 'm' ? 2 : 3)
+  // o texto precisa voltar válido pelo mesmo caminho do campo
+  return estacaParaMetros(t, saida) === null ? null : saida
 }
 
 export type LocalResolvido =

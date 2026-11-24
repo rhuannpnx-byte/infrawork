@@ -7,6 +7,8 @@ import { useCatalogo } from '@/core/db/daos'
 import type { ViagemLocal } from '@/core/db/entities'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
 import { ViagemFormSheet } from '@/features/carreteiro/ViagemFormSheet'
+import { RepetirViagemSheet } from '@/features/carreteiro/RepetirViagemSheet'
+import { repetirPedeDados } from '@/features/carreteiro/pontasDaViagem'
 import { totalDasViagens } from '@/features/carreteiro/totalViagens'
 import { formatBR, formatNumero } from '@/lib/datas'
 import { contar } from '@/lib/texto'
@@ -14,7 +16,8 @@ import { uuidv7 } from '@/lib/uuidv7'
 
 /**
  * Passo 2 — as viagens da ficha. "Nova viagem" repete serviço, origem e destino da anterior (o padrão do dia);
- * "Repetir" duplica uma viagem inteira (mesma carga, outra hora).
+ * "Repetir" copia uma viagem; quando uma ponta é a pista (ou o serviço é por peso), pede antes só o que muda de
+ * uma carga para a outra: a estaca, com − e + de uma estaca.
  */
 export function CarreteiroStep1Route() {
   const authed = useIsAuthenticated()
@@ -24,6 +27,7 @@ export function CarreteiroStep1Route() {
   const removerViagem = useCarreteiroStore((s) => s.removerViagem)
   const catalogo = useCatalogo(ficha?.obraId)
   const [editando, setEditando] = useState<{ v: ViagemLocal; nova: boolean } | null>(null)
+  const [repetindo, setRepetindo] = useState<{ v: ViagemLocal; numero: number } | null>(null)
 
   if (!authed) return <Navigate to="/login" replace />
   if (!ficha) return <Navigate to="/carreteiro" replace />
@@ -60,6 +64,12 @@ export function CarreteiroStep1Route() {
         carregadorNome: ult?.carregadorNome ?? null,
       },
     })
+  }
+
+  /** Repetir: se algo muda de uma carga para a outra (estaca, peso), pergunta antes; senão copia direto. */
+  function repetir(v: ViagemLocal, numero: number) {
+    if (catalogo && repetirPedeDados(catalogo, v)) return setRepetindo({ v, numero })
+    salvarViagem({ ...v, id: uuidv7(), horaCarga: null, horaDescarga: null, nfTicket: null })
   }
 
   const total = totalDasViagens(ficha.viagens)
@@ -131,15 +141,7 @@ export function CarreteiroStep1Route() {
                   type="button"
                   aria-label="Repetir viagem"
                   title="Repetir viagem"
-                  onClick={() =>
-                    salvarViagem({
-                      ...v,
-                      id: uuidv7(),
-                      horaCarga: null,
-                      horaDescarga: null,
-                      nfTicket: null,
-                    })
-                  }
+                  onClick={() => repetir(v, i + 1)}
                   className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-on-surface-dim hover:text-accent"
                 >
                   <Copy className="h-5 w-5" />
@@ -195,6 +197,22 @@ export function CarreteiroStep1Route() {
             setEditando(null)
           }}
           onDismiss={() => setEditando(null)}
+        />
+      )}
+      {repetindo && catalogo && (
+        <RepetirViagemSheet
+          catalogo={catalogo}
+          viagem={repetindo.v}
+          numero={repetindo.numero}
+          onAdd={(v) => {
+            salvarViagem(v)
+            setRepetindo(null)
+          }}
+          onMaisCampos={(v) => {
+            setRepetindo(null)
+            setEditando({ v, nova: true })
+          }}
+          onDismiss={() => setRepetindo(null)}
         />
       )}
     </main>

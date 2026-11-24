@@ -16,14 +16,13 @@ import {
   erroPosicaoFora,
   erroPosicaoVazia,
   estacaInicialTexto,
-  estacaParaMetros,
   nomePosicao,
   tecladoPosicao,
 } from '@/lib/estaca'
 import { formatNumero } from '@/lib/datas'
-import { calcularDmt, pedeEstaca, type LocalDmt } from '@/lib/dmt'
+import { pontasDaViagem } from './pontasDaViagem'
 import type { ViagemLocal } from '@/core/db/entities'
-import type { CatalogoDto, LocalDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
+import type { CatalogoDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
 import { ehMaquinaDeCarga, rotuloVeiculo } from '@/lib/frota'
 
 const TIPO_LOCAL: Record<OrigemDestinoDto['tipo'], string> = {
@@ -99,39 +98,10 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
 
   const servico: ServicoDto | undefined = servicos.find((s) => s.id === servicoId)
   const porPeso = servico?.medicao_viagem === 'peso'
-  const origem = catalogo.origens_destinos.find((l) => l.id === origemId) ?? null
-  const destino = catalogo.origens_destinos.find((l) => l.id === destinoId) ?? null
-  const tipoTrecho = (id: string): 'eixo' | 'area' | null =>
-    catalogo.locais.find((t) => t.id === id)?.tipo ?? null
-  const paraDmt = (l: OrigemDestinoDto | null): LocalDmt | null =>
-    l && {
-      id: l.id,
-      nome: l.nome,
-      tipo: l.tipo,
-      trecho_id: l.trecho_id,
-      estaca_acesso_m: l.estaca_acesso_m ?? null,
-      distancia_acesso_km: l.distancia_acesso_km ?? 0,
-    }
-  /** eixo da ponta na pista (pede a estaca da viagem) */
-  const eixoDa = (l: OrigemDestinoDto | null): LocalDto | null =>
-    l && pedeEstaca(paraDmt(l), tipoTrecho)
-      ? (catalogo.locais.find((t) => t.id === l.trecho_id) ?? null)
-      : null
-  const eixoCarga = eixoDa(origem)
-  const eixoDescarga = eixoDa(destino)
-  const metros = (eixo: LocalDto | null, t: string): number | null =>
-    eixo && t.trim() ? estacaParaMetros(eixo, t) : null
-  const pc = metros(eixoCarga, estacaCarga)
-  const pd = metros(eixoDescarga, estacaDescarga)
-
-  const calc = calcularDmt({
-    origem: paraDmt(origem),
-    destino: paraDmt(destino),
-    estacaCarga: pc,
-    estacaDescarga: pd,
-    rotas: catalogo.rotas,
-    tipoTrecho,
-  })
+  // as pontas (o eixo de cada uma quando é pista) e a DMT seguem a mesma regra da folha de repetir
+  const pontas = pontasDaViagem(catalogo, origemId, destinoId)
+  const { origem, destino, eixoCarga, eixoDescarga } = pontas
+  const { pc, pd, ...calc } = pontas.dmt(estacaCarga, estacaDescarga)
   const pedeMaterial =
     !!servico?.controla_material &&
     (servico.material?.unidade ?? '').toLowerCase() !== (servico.unidade ?? '').toLowerCase()
