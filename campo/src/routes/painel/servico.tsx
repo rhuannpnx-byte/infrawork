@@ -158,7 +158,7 @@ function Servico({ p, id }: { p: CatPainel; id: string }) {
       <Secao titulo="Quem produziu">
         {prod && (
           <div className="mb-3">
-            <SeletorPeriodo hoje={p.hoje} desde={prod.desde} noBloco />
+            <SeletorPeriodo hoje={p.hoje} desde={prod.desde} />
           </div>
         )}
         {quem.length === 0 ? (

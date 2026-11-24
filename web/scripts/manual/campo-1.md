@@ -376,7 +376,7 @@ A tela **Produção diária** mostra, para o serviço, o encarregado e a equipe 
 
 ### O período
 
-As telas **Produção diária** e **Equipes** e o bloco **Quem produziu** do serviço somam a produção do **Período** escolhido, que é o mesmo nas três. Toque num atalho ([[7 dias]], [[30 dias]], [[Este mês]], [[Mês passado]] ou [[Tudo]]) ou em [[Escolher]] para informar as duas datas. O aplicativo guarda a produção dos últimos 90 dias; não dá para escolher datas mais antigas que isso.
+As telas **Produção diária** e **Equipes** e o bloco **Quem produziu** do serviço somam a produção do **Período** escolhido, que é o mesmo nas três. Toque no campo **Período** e escolha uma das opções (últimos 7 dias, últimos 30 dias, este mês, mês passado ou tudo) ou **Escolher as datas**, informando as duas e tocando em [[Aplicar]]. O aplicativo guarda a produção dos últimos 90 dias; não dá para escolher datas mais antigas que isso.
 
 ![Mapa de calor da produção diária](painel-producao.jpg){celular}
 
