@@ -641,92 +641,97 @@ function ComposicaoEditor({ cpuId }: { cpuId: string | undefined }): ReactNode {
             ) : null
           }
         >
-          <div
-            tabIndex={0}
-            role="region"
-            aria-label="Tabela de insumos da composição"
-            className="overflow-x-auto border-t border-border"
-          >
-            <table className="w-full min-w-[980px] text-sm tabular">
-              <thead className="bg-bg-elevated border-b border-border-strong">
-                <tr>
-                  <th scope="col" className={cn(TH, 'text-left w-28')}>
-                    Tipo
-                  </th>
-                  <th scope="col" className={cn(TH, 'text-left')}>
-                    Recurso
-                  </th>
-                  <th scope="col" className={cn(TH, 'text-left w-14')}>
-                    Un.
-                  </th>
-                  <th scope="col" className={cn(TH, 'text-right w-24')}>
-                    Preço
-                  </th>
-                  <th
-                    scope="col"
-                    className={cn(TH, 'text-right w-24')}
-                    title="Equipamento e mão de obra: número de unidades. Material: quantidade por dia, quando não há consumo."
-                  >
-                    Qtd.
-                  </th>
-                  <th scope="col" className={cn(TH, 'text-right w-20')}>
-                    h/dia
-                  </th>
-                  <th
-                    scope="col"
-                    className={cn(TH, 'text-right w-20')}
-                    title="Equipamento: litros de combustível por hora"
-                  >
-                    L/h
-                  </th>
-                  <th
-                    scope="col"
-                    className={cn(TH, 'text-right w-20')}
-                    title="Equipamento: fração do tempo em operação (0 a 1)"
-                  >
-                    Índice
-                  </th>
-                  <th
-                    scope="col"
-                    className={cn(TH, 'text-right w-28')}
-                    title={`Material: consumo por ${unidade || 'unidade'} produzida`}
-                  >
-                    Consumo/un.
-                  </th>
-                  <th scope="col" className={cn(TH, 'text-right w-28')}>
-                    Custo/dia
-                  </th>
-                  <th scope="col" className="w-10" aria-label="Ações" />
-                </tr>
-              </thead>
-              <tbody>
-                {itens.length === 0 ? (
+          {/* Cabeçalho fixo: com largura para a tabela inteira, ela rola com a página e o cabeçalho gruda no topo;
+              em tela estreita a tabela rola dentro da própria caixa (nos dois sentidos), com o cabeçalho preso nela.
+              O -top-5 desconta o recuo (p-5) da área de rolagem da página, para não sobrar fresta acima. */}
+          <div className="border-t border-border [container-type:inline-size]">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Tabela de insumos da composição"
+              className="max-h-[60vh] overflow-auto [@container(min-width:980px)]:max-h-none [@container(min-width:980px)]:overflow-visible"
+            >
+              <table className="w-full min-w-[980px] text-sm tabular">
+                <thead className="sticky top-0 z-10 bg-bg-elevated shadow-[inset_0_-1px_0_var(--border-strong)] [@container(min-width:980px)]:-top-5">
                   <tr>
-                    <td colSpan={11} className="px-4 py-6 text-text-muted">
-                      {podeEditar
-                        ? 'Esta composição ainda não tem insumos. Use os botões acima para adicionar equipamentos, mão de obra e materiais.'
-                        : 'Esta composição não tem insumos.'}
-                    </td>
+                    <th scope="col" className={cn(TH, 'text-left w-28')}>
+                      Tipo
+                    </th>
+                    <th scope="col" className={cn(TH, 'text-left')}>
+                      Recurso
+                    </th>
+                    <th scope="col" className={cn(TH, 'text-left w-14')}>
+                      Un.
+                    </th>
+                    <th scope="col" className={cn(TH, 'text-right w-24')}>
+                      Preço
+                    </th>
+                    <th
+                      scope="col"
+                      className={cn(TH, 'text-right w-24')}
+                      title="Equipamento e mão de obra: número de unidades. Material: quantidade por dia, quando não há consumo."
+                    >
+                      Qtd.
+                    </th>
+                    <th scope="col" className={cn(TH, 'text-right w-20')}>
+                      h/dia
+                    </th>
+                    <th
+                      scope="col"
+                      className={cn(TH, 'text-right w-20')}
+                      title="Equipamento: litros de combustível por hora"
+                    >
+                      L/h
+                    </th>
+                    <th
+                      scope="col"
+                      className={cn(TH, 'text-right w-20')}
+                      title="Equipamento: fração do tempo em operação (0 a 1)"
+                    >
+                      Índice
+                    </th>
+                    <th
+                      scope="col"
+                      className={cn(TH, 'text-right w-28')}
+                      title={`Material: consumo por ${unidade || 'unidade'} produzida`}
+                    >
+                      Consumo/un.
+                    </th>
+                    <th scope="col" className={cn(TH, 'text-right w-28')}>
+                      Custo/dia
+                    </th>
+                    <th scope="col" className="w-10" aria-label="Ações" />
                   </tr>
-                ) : (
-                  itens.map((it) => (
-                    <ItemRow
-                      key={it.key}
-                      item={it}
-                      recursos={recursos}
-                      recurso={recursosPorId.get(it.recurso_id)}
-                      custo={custos.porItem.get(it.key) ?? 0}
-                      producao={prod}
-                      readOnly={readOnly}
-                      motivoLeitura={motivoLeitura}
-                      semRecurso={tentouSalvar && !it.recurso_id}
-                      onPatch={(p) => patchItem(it.key, p)}
-                      onRemove={() => removeItem(it.key)}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {itens.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="px-4 py-6 text-text-muted">
+                        {podeEditar
+                          ? 'Esta composição ainda não tem insumos. Use os botões acima para adicionar equipamentos, mão de obra e materiais.'
+                          : 'Esta composição não tem insumos.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    itens.map((it) => (
+                      <ItemRow
+                        key={it.key}
+                        item={it}
+                        recursos={recursos}
+                        recurso={recursosPorId.get(it.recurso_id)}
+                        custo={custos.porItem.get(it.key) ?? 0}
+                        producao={prod}
+                        readOnly={readOnly}
+                        motivoLeitura={motivoLeitura}
+                        semRecurso={tentouSalvar && !it.recurso_id}
+                        onPatch={(p) => patchItem(it.key, p)}
+                        onRemove={() => removeItem(it.key)}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           {erros.itens ? (
             <p role="alert" className="px-4 py-2 text-xs font-medium text-danger">
