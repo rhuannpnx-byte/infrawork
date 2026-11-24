@@ -407,19 +407,22 @@ function Inner(): ReactNode {
             aoTentar={() => void consultaItens.refetch()}
           />
         ) : (
-          <DataTable
-            data={itens}
-            columns={columns}
-            loading={isLoading}
-            emptyMessage="Sem comparativo disponível"
-            emptyDescription="Trave um plano como linha de base no Planejamento e lance a produção dos serviços programados."
-            onRowClick={(row) =>
-              setSelectedId((cur) =>
-                cur === row.item_orcamentario_id ? null : row.item_orcamentario_id
-              )
-            }
-            getExportConfig={getExportConfig}
-          />
+          // tabela recuada na página leva a moldura dos outros blocos (recuo sem borda fica solto)
+          <div className="overflow-hidden rounded border border-border bg-bg-panel">
+            <DataTable
+              data={itens}
+              columns={columns}
+              loading={isLoading}
+              emptyMessage="Sem comparativo disponível"
+              emptyDescription="Trave um plano como linha de base no Planejamento e lance a produção dos serviços programados."
+              onRowClick={(row) =>
+                setSelectedId((cur) =>
+                  cur === row.item_orcamentario_id ? null : row.item_orcamentario_id
+                )
+              }
+              getExportConfig={getExportConfig}
+            />
+          </div>
         )}
       </div>
     </div>

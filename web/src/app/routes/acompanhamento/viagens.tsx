@@ -418,13 +418,14 @@ function Inner(): ReactNode {
           ))}
         </ul>
       ) : null}
-      <div className="min-h-0 flex-1 px-4 pb-4">
+      {/* tabela de ponta a ponta, como nas outras listas (Produção, Recursos…) */}
+      <div className="min-h-0 flex-1 overflow-hidden">
         {fichas.error ? (
           <ErroConsulta
             erro={fichas.error}
             oQue="as viagens"
             aoTentar={() => void fichas.refetch()}
-            className="mt-4"
+            className="m-5"
           />
         ) : semViagens ? (
           <EmptyState
