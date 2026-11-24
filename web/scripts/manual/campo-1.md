@@ -225,7 +225,13 @@ O módulo só fica disponível quando a obra tem algum serviço configurado para
 
 ![Fichas de viagens do aparelho](viagens-lista.jpg){celular}
 
-A seção **Em andamento** mostra as fichas ainda abertas, que ficam salvas sozinhas. Podem existir várias ao mesmo tempo, uma por caminhão. A seção **Fichas gravadas** mostra as últimas fichas, com o selo de envio.
+A tela mostra só as fichas **Em andamento**: as que ainda estão abertas, salvas sozinhas. Podem existir várias ao mesmo tempo, uma por caminhão. A ficha gravada sai da tela; se ainda não foi enviada, uma linha no fim avisa quantas estão aguardando o envio. A ficha que o servidor recusou volta a aparecer em **Recusadas, para corrigir**, com o motivo.
+
+Em cada cartão:
+
+- tocar no cartão abre as **viagens** da ficha;
+- o **lápis** abre a ficha em si, para trocar a data, o caminhão, o motorista ou a equipe;
+- a **lixeira** descarta a ficha.
 
 ## Abrir a ficha do caminhão
 
@@ -238,6 +244,19 @@ A seção **Em andamento** mostra as fichas ainda abertas, que ficam salvas sozi
 5. Se quiser, escolha o **Encarregado** e a **Equipe**.
 6. Toque em [[Continuar para as viagens]].
 
+Na tela das viagens, a seta de voltar leva para a lista das fichas em andamento.
+
+### Editar uma ficha que já tem viagens
+
+1. Na lista, toque no **lápis** do cartão da ficha. O aplicativo avisa quantas viagens ela já tem e pede a confirmação.
+2. Altere o que for preciso e toque em [[Salvar ficha]]. A seta de voltar sai sem salvar e desfaz o que foi alterado.
+3. Escolha o que fazer com a quantidade das viagens já lançadas:
+   - **Manter as quantidades**;
+   - **Usar a capacidade do cadastro**, a do caminhão que ficou na ficha;
+   - **Atribuir um valor único**, digitando a quantidade que vale para todas.
+
+As viagens de serviço medido por peso não entram nessa troca: cada uma continua com o peso do seu ticket.
+
 ## Lançar as viagens
 
 ![Formulário de uma viagem](viagens-viagem.jpg){celular}
@@ -248,13 +267,14 @@ A seção **Em andamento** mostra as fichas ainda abertas, que ficam salvas sozi
    - **Origem** e **Destino**: jazida, caixa de empréstimo, usina, central de concreto, bota-fora, depósito ou a própria pista;
    - **Estaca de carga**, quando a origem é a pista, e **Estaca de descarga**, quando o destino é a pista;
    - **Carregado por**, a máquina que carregou o caminhão, se houver;
-   - **Hora da carga** e **Hora da descarga**;
-   - **Quantidade**, na unidade do serviço. A capacidade da caçamba aparece como referência;
+   - **Quantidade**, na unidade do serviço. Já vem com a capacidade do cadastro do caminhão; altere só quando a carga for diferente;
    - **NF / ticket**. Quando o serviço é medido por peso, o **Ticket da balança** é obrigatório.
 3. Confira a **DMT (km)**, calculada pelo aplicativo.
 4. Toque em [[Adicionar viagem]].
 
-A próxima viagem já vem com o serviço, a origem, o destino, as estacas, a quantidade e a máquina da anterior. Para repetir uma viagem, use o ícone de copiar no cartão dela: a cópia vem sem os horários e sem o ticket.
+A hora não é digitada: o aplicativo registra como hora da descarga a hora do celular no momento em que a viagem é adicionada. Por isso, lance cada viagem quando a carga for entregue.
+
+A próxima viagem já vem com o serviço, a origem, o destino, as estacas e a máquina da anterior. Para repetir uma viagem, use o ícone de copiar no cartão dela: a cópia vem sem os horários e sem o ticket.
 
 Quando a origem ou o destino é a pista, o app pergunta a estaca antes de copiar, porque no dia a dia a carga seguinte tem a mesma origem e o mesmo destino e só a estaca anda. O campo já vem com a estaca da viagem copiada; use [[−]] e [[+]] para voltar ou avançar uma estaca (em eixo marcado em km ou em metros, o passo é de 20 m) ou digite o valor, e toque em [[Adicionar viagem]]. A distância de transporte é recalculada com a estaca nova. No serviço medido por peso, a mesma tela pede também a quantidade e o ticket da balança. Para mudar outro dado da cópia, toque em [[Mais campos]].
 

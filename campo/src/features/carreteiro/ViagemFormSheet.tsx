@@ -3,13 +3,7 @@ import { flushSync } from 'react-dom'
 import { Pencil, X } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { PickerSheet } from '@/features/common/PickerSheet'
-import {
-  LabeledInput,
-  NumericField,
-  PickerField,
-  ReadOnlyRow,
-  TimeField,
-} from '@/features/common/fields'
+import { LabeledInput, NumericField, PickerField, ReadOnlyRow } from '@/features/common/fields'
 import { focarPrimeiroInvalido, useFolha } from '@/features/common/useFolha'
 import { parseNum } from '@/lib/numero'
 import {
@@ -19,7 +13,7 @@ import {
   nomePosicao,
   tecladoPosicao,
 } from '@/lib/estaca'
-import { formatNumero } from '@/lib/datas'
+import { formatNumero, horaLocal } from '@/lib/datas'
 import { pontasDaViagem } from './pontasDaViagem'
 import type { ViagemLocal } from '@/core/db/entities'
 import type { CatalogoDto, OrigemDestinoDto, ServicoDto } from '@/types/dtos'
@@ -63,7 +57,7 @@ const txt = (n: number | null | undefined): string => (n != null ? String(n) : '
 
 /**
  * Uma viagem: serviço (lançado por viagens), origem e destino, a estaca de carga e/ou de descarga quando a ponta é a
- * pista, horários, quantidade na unidade do serviço (o apontador aplica o empolamento/densidade dele), material quando
+ * pista, quantidade na unidade do serviço (o apontador aplica o empolamento/densidade dele), material quando
  * a unidade difere e NF/ticket (obrigatório quando o serviço é medido por peso). A DMT aparece calculada (pelo eixo ou distância fixa do par) e pode
  * ser ajustada; o banco recalcula ao sincronizar.
  */
@@ -74,8 +68,6 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
   const [destinoId, setDestinoId] = useState(inicial.destinoId)
   const [estacaCarga, setEstacaCarga] = useState(inicial.estacaCarga ?? '')
   const [estacaDescarga, setEstacaDescarga] = useState(inicial.estacaDescarga ?? '')
-  const [horaCarga, setHoraCarga] = useState(inicial.horaCarga ?? '')
-  const [horaDescarga, setHoraDescarga] = useState(inicial.horaDescarga ?? '')
   const [qtd, setQtd] = useState(inicial.quantidade > 0 ? String(inicial.quantidade) : '')
   const [matQtd, setMatQtd] = useState(txt(inicial.materialQtd))
   const [dmtManual, setDmtManual] = useState(!!inicial.dmtManual)
@@ -149,8 +141,9 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
       origemNome: origem.nome,
       destinoId: destino.id,
       destinoNome: destino.nome,
-      horaCarga: horaCarga || null,
-      horaDescarga: horaDescarga || null,
+      // a hora não é digitada: a da descarga é a do celular na hora em que a viagem é adicionada
+      horaCarga: inicial.horaCarga ?? null,
+      horaDescarga: nova ? horaLocal() : (inicial.horaDescarga ?? null),
       quantidade: q,
       materialQtd: pedeMaterial ? m : null,
       dmtKm: dmtManual ? ajustada : calc.km,
@@ -269,10 +262,6 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
               opcional={!carregador}
             />
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <TimeField label="Hora da carga" value={horaCarga} onChange={setHoraCarga} />
-            <TimeField label="Hora da descarga" value={horaDescarga} onChange={setHoraDescarga} />
-          </div>
           <NumericField
             label={`Quantidade (${unidadeServico}) *`}
             value={qtd}
@@ -370,6 +359,13 @@ export function ViagemFormSheet({ catalogo, inicial, nova, capacidade, onSave, o
         </div>
 
         <div className="border-t border-border p-4 pb-safe-plus-4">
+          <p className="mb-2 text-center text-xs text-on-surface-dim">
+            {nova
+              ? 'A hora da descarga é a do celular ao adicionar.'
+              : inicial.horaDescarga
+                ? `Descarga registrada às ${inicial.horaDescarga}.`
+                : 'Viagem sem hora de descarga registrada.'}
+          </p>
           <Button type="submit" variant="primary" size="lg" className="w-full">
             {nova ? 'Adicionar viagem' : 'Atualizar viagem'}
           </Button>

@@ -20,3 +20,8 @@ export function formatBR(iso: string): string {
 export function formatNumero(n: number, casas = 3): string {
   return n.toLocaleString('pt-BR', { maximumFractionDigits: casas })
 }
+
+/** Hora do celular, "HH:MM" (a hora da descarga da viagem é registrada sozinha, sem digitar). */
+export function horaLocal(quando: Date = new Date()): string {
+  return `${String(quando.getHours()).padStart(2, '0')}:${String(quando.getMinutes()).padStart(2, '0')}`
+}

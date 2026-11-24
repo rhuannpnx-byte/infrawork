@@ -6,7 +6,7 @@ import { Input } from '@/core/ui/Input'
 import { LabeledInput, NumericField, ReadOnlyRow, RotuloCampo } from '@/features/common/fields'
 import { focarPrimeiroInvalido, useFolha } from '@/features/common/useFolha'
 import { cn } from '@/lib/cn'
-import { formatNumero } from '@/lib/datas'
+import { formatNumero, horaLocal } from '@/lib/datas'
 import {
   avancarPosicao,
   erroPosicaoFora,
@@ -77,7 +77,7 @@ export function RepetirViagemSheet({
       ...viagem,
       id: uuidv7(),
       horaCarga: null,
-      horaDescarga: null,
+      horaDescarga: horaLocal(),
       quantidade: q ?? 0,
       nfTicket: porPeso ? nf.trim() || null : null,
       estacaCarga: eixoCarga ? estacaCarga.trim() : null,

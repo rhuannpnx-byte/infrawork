@@ -1,5 +1,5 @@
 import { Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useIsAuthenticated, useSession } from '@/core/auth/SessionStore'
 import { useFichasDaObra, useObra } from '@/core/db/daos'
@@ -13,7 +13,8 @@ import { formatBR } from '@/lib/datas'
 import { contar } from '@/lib/texto'
 
 /**
- * Viagens: fichas em andamento (rascunhos) e as fichas gravadas — recusadas pelo servidor abrem para correção.
+ * Viagens: as fichas em andamento (rascunhos). A ficha gravada sai da tela; só volta a aparecer a que o servidor
+ * recusou, para corrigir. Tocar no cartão abre as viagens; o lápis edita a ficha em si (caminhão, data, equipe).
  * Uma ficha = um caminhão num dia, com as viagens de carga e descarga; a produção do dia dos serviços é a soma.
  */
 export function CarreteiroIndexRoute() {
@@ -35,8 +36,26 @@ export function CarreteiroIndexRoute() {
     navigate('/carreteiro/step1')
   }
 
+  /** Lápis do cartão: edita o cabeçalho da ficha. Com viagens já lançadas, confirma antes. */
+  function editar(f: DraftFicha | OutFicha) {
+    if (
+      f.viagens.length > 0 &&
+      !window.confirm(
+        `Esta ficha já tem ${contar(f.viagens.length, 'viagem lançada', 'viagens lançadas')}. Editar a ficha mesmo assim?`,
+      )
+    )
+      return
+    useCarreteiroStore.getState().abrir(f)
+    navigate('/carreteiro/step0', { state: { editar: true } })
+  }
+
   const drafts = fichas?.drafts ?? []
   const enviadas = fichas?.enviadas ?? []
+  // gravada sai da tela; a recusada precisa de correção, e a que ainda não subiu vira só uma linha de aviso
+  const recusadas = enviadas.filter((f) => f.syncStatus === 'REJEITADA')
+  const aguardando = enviadas.filter(
+    (f) => f.syncStatus !== 'SYNCED' && f.syncStatus !== 'REJEITADA',
+  ).length
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
@@ -65,6 +84,7 @@ export function CarreteiroIndexRoute() {
                   <FichaCard
                     f={d}
                     onClick={() => abrir(d)}
+                    onEditar={() => editar(d)}
                     onExcluir={() => {
                       if (window.confirm('Descartar esta ficha em andamento?'))
                         void excluirRascunho(d.id)
@@ -75,24 +95,18 @@ export function CarreteiroIndexRoute() {
             </ul>
           </section>
         )}
-        <section>
-          <p className="rotulo mb-2">Fichas gravadas</p>
-          {fichas == null ? (
-            <p className="text-sm text-on-surface-dim">Carregando…</p>
-          ) : enviadas.length === 0 ? (
-            <p className="text-sm text-on-surface-dim">
-              Nenhuma ficha gravada neste aparelho. Toque em "Nova ficha" para lançar as viagens de
-              um caminhão.
-            </p>
-          ) : (
+        {recusadas.length > 0 && (
+          <section>
+            <p className="rotulo mb-2">Recusadas, para corrigir</p>
             <ul className="space-y-2">
-              {enviadas.map((f) => (
+              {recusadas.map((f) => (
                 <li key={f.id}>
                   <FichaCard
                     f={f}
                     status={f.syncStatus}
-                    motivo={f.syncStatus === 'REJEITADA' ? f.failureReason : null}
+                    motivo={f.failureReason}
                     onClick={() => abrir(f)}
+                    onEditar={() => editar(f)}
                     onExcluir={() => {
                       if (window.confirm('Excluir esta ficha (e as viagens dela)?'))
                         void excluirFicha(f.id)
@@ -101,8 +115,20 @@ export function CarreteiroIndexRoute() {
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
+        {fichas == null ? (
+          <p className="text-sm text-on-surface-dim">Carregando…</p>
+        ) : drafts.length === 0 && recusadas.length === 0 ? (
+          <p className="text-sm text-on-surface-dim">
+            Nenhuma ficha em andamento. Toque em "Nova ficha" para lançar as viagens de um caminhão.
+          </p>
+        ) : null}
+        {aguardando > 0 && (
+          <p role="status" className="text-xs text-on-surface-dim">
+            {contar(aguardando, 'ficha gravada aguardando', 'fichas gravadas aguardando')} o envio.
+          </p>
+        )}
       </div>
 
       <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
@@ -120,12 +146,16 @@ function FichaCard({
   status,
   motivo,
   onClick,
+  onEditar,
   onExcluir,
 }: {
   f: DraftFicha | OutFicha
   status?: SyncStatus
   motivo?: string | null
+  /** abre as viagens da ficha */
   onClick: () => void
+  /** abre o cabeçalho da ficha (caminhão, data, motorista, equipe) */
+  onEditar: () => void
   onExcluir: () => void
 }) {
   const total = totalDasViagens(f.viagens)
@@ -156,6 +186,15 @@ function FichaCard({
           )}
         </div>
         <ChevronRight className="mr-2 h-5 w-5 flex-shrink-0 text-on-surface-muted" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={onEditar}
+        className="flex w-12 flex-shrink-0 items-center justify-center border-l border-border text-on-surface-dim transition-colors hover:bg-accent/10 hover:text-accent"
+        aria-label="Editar a ficha"
+        title="Editar a ficha (caminhão, data, motorista, equipe)"
+      >
+        <Pencil className="h-5 w-5" />
       </button>
       <button
         type="button"

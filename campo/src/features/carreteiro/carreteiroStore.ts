@@ -18,6 +18,8 @@ interface CarreteiroStore {
   setCabecalho: (patch: Partial<FichaCabecalho>) => void
   salvarViagem: (v: ViagemLocal) => void
   removerViagem: (id: string) => void
+  /** troca todas as viagens (ex.: valor único de quantidade ao editar a ficha) */
+  substituirViagens: (viagens: ViagemLocal[]) => void
   fechar: () => void
 }
 
@@ -56,5 +58,7 @@ export const useCarreteiroStore = create<CarreteiroStore>((set) => ({
     set((s) =>
       s.ficha ? { ficha: { ...s.ficha, viagens: s.ficha.viagens.filter((v) => v.id !== id) } } : {},
     ),
+  substituirViagens: (viagens) =>
+    set((s) => (s.ficha ? { ficha: { ...s.ficha, viagens: viagens.slice() } } : {})),
   fechar: () => set({ ficha: null }),
 }))

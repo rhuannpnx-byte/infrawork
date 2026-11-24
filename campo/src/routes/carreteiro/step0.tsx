@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/core/ui/Button'
 import { useIsAuthenticated } from '@/core/auth/SessionStore'
@@ -9,6 +9,8 @@ import { PickerSheet } from '@/features/common/PickerSheet'
 import { LabeledInput, PickerField } from '@/features/common/fields'
 import { focarPrimeiroInvalido } from '@/features/common/useFolha'
 import { useCarreteiroStore } from '@/features/carreteiro/carreteiroStore'
+import { AjustarQuantidadesSheet } from '@/features/carreteiro/AjustarQuantidadesSheet'
+import { aplicarQuantidade, servicoPorPeso } from '@/features/carreteiro/quantidades'
 import {
   lembrarCabecalho,
   motoristaDoVeiculo,
@@ -27,12 +29,35 @@ import {
 /**
  * Passo 1 — cabeçalho da ficha: dia, caminhão (frota), motorista, encarregado e equipe. Na obra que não aponta o
  * encarregado fica só a equipe, e o encarregado vem dela.
+ *
+ * Abre em dois casos: "Nova ficha" (segue para as viagens) e o lápis do cartão da ficha, na lista (edita e volta
+ * para a lista). Na edição de ficha que já tem viagens, salvar pergunta o que fazer com a quantidade delas; voltar
+ * sem salvar desfaz o que foi mexido.
  */
 export function CarreteiroStep0Route() {
   const authed = useIsAuthenticated()
   const navigate = useNavigate()
   const ficha = useCarreteiroStore((s) => s.ficha)
   const setCab = useCarreteiroStore((s) => s.setCabecalho)
+  const substituirViagens = useCarreteiroStore((s) => s.substituirViagens)
+  const editando = (useLocation().state as { editar?: boolean } | null)?.editar === true
+  // o cabeçalho como estava ao abrir a edição, para o "voltar" desfazer
+  const [original] = useState(() =>
+    ficha
+      ? {
+          dt: ficha.dt,
+          veiculoId: ficha.veiculoId,
+          veiculoNome: ficha.veiculoNome,
+          motorista: ficha.motorista,
+          encarregadoId: ficha.encarregadoId,
+          encarregadoNome: ficha.encarregadoNome,
+          equipeId: ficha.equipeId,
+          equipeNome: ficha.equipeNome,
+          obs: ficha.obs,
+        }
+      : null,
+  )
+  const [ajustando, setAjustando] = useState(false)
   const catalogo = useCatalogo(ficha?.obraId)
   const aponta = apontaEncarregado(catalogo)
   const [picker, setPicker] = useState<'veiculo' | 'encarregado' | 'equipe' | null>(null)
@@ -74,8 +99,18 @@ export function CarreteiroStep0Route() {
     }
     if (sugerindo) setCab(sugestao)
     lembrarCabecalho(ficha!.obraId, { veiculoId, motorista: motorista || null })
-    navigate('/carreteiro/step1')
+    if (!editando) return navigate('/carreteiro/step1')
+    // edição: com viagens já lançadas, pergunta o que fazer com a quantidade delas antes de voltar à lista
+    if (ficha!.viagens.length > 0) return setAjustando(true)
+    navigate('/carreteiro')
   }
+  function voltar() {
+    if (editando && original) setCab(original)
+    navigate('/carreteiro')
+  }
+  const porPeso = (v: { servicoId: string }) => servicoPorPeso(catalogo, v.servicoId)
+  const capacidadeDoCadastro =
+    (catalogo?.veiculos ?? []).find((v) => v.id === veiculoId)?.capacidade_m3 ?? null
 
   return (
     <main className="flex min-h-svh flex-col bg-bg-base">
@@ -84,13 +119,15 @@ export function CarreteiroStep0Route() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/carreteiro')}
-            aria-label="Voltar"
+            onClick={voltar}
+            aria-label={editando ? 'Voltar sem salvar' : 'Voltar'}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold text-on-surface">Ficha de viagens</h1>
+            <h1 className="text-lg font-semibold text-on-surface">
+              {editando ? 'Editar ficha' : 'Ficha de viagens'}
+            </h1>
             <p className="text-xs text-on-surface-dim">{ficha.obraCodigo} · caminhão e data</p>
           </div>
         </div>
@@ -167,9 +204,23 @@ export function CarreteiroStep0Route() {
 
       <div className="sticky bottom-0 border-t border-border bg-bg-base pt-4 pb-safe-plus-4 px-safe-4">
         <Button variant="primary" size="lg" onClick={continuar} className="w-full">
-          Continuar para as viagens
+          {editando ? 'Salvar ficha' : 'Continuar para as viagens'}
         </Button>
       </div>
+
+      {ajustando && (
+        <AjustarQuantidadesSheet
+          viagens={ficha.viagens.length}
+          ajustaveis={ficha.viagens.filter((v) => !porPeso(v)).length}
+          capacidade={capacidadeDoCadastro}
+          onConfirm={(valor) => {
+            if (valor != null) substituirViagens(aplicarQuantidade(ficha.viagens, valor, porPeso))
+            setAjustando(false)
+            navigate('/carreteiro')
+          }}
+          onDismiss={() => setAjustando(false)}
+        />
+      )}
 
       {picker === 'veiculo' && (
         <PickerSheet

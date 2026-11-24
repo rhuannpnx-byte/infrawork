@@ -10,11 +10,15 @@ import { ViagemFormSheet } from '@/features/carreteiro/ViagemFormSheet'
 import { RepetirViagemSheet } from '@/features/carreteiro/RepetirViagemSheet'
 import { repetirPedeDados } from '@/features/carreteiro/pontasDaViagem'
 import { totalDasViagens } from '@/features/carreteiro/totalViagens'
-import { formatBR, formatNumero } from '@/lib/datas'
+import { formatBR, formatNumero, horaLocal } from '@/lib/datas'
+import { quantidadeInicial, servicoPorPeso } from '@/features/carreteiro/quantidades'
 import { contar } from '@/lib/texto'
 import { uuidv7 } from '@/lib/uuidv7'
 
 /**
+ * As viagens da ficha (voltar leva à lista das fichas em andamento; o cabeçalho é editado pelo lápis do cartão, lá).
+ * A viagem nova já vem com a capacidade do cadastro do caminhão na quantidade, e a hora da descarga é a do celular.
+ *
  * Passo 2 — as viagens da ficha. "Nova viagem" repete serviço, origem e destino da anterior (o padrão do dia);
  * "Repetir" copia uma viagem; quando uma ponta é a pista (ou o serviço é por peso), pede antes só o que muda de
  * uma carga para a outra: a estaca, com − e + de uma estaca.
@@ -51,7 +55,11 @@ export function CarreteiroStep1Route() {
         destinoNome: ult?.destinoNome ?? null,
         horaCarga: null,
         horaDescarga: null,
-        quantidade: ult?.quantidade ?? 0,
+        quantidade: quantidadeInicial({
+          capacidade,
+          porPeso: servicoPorPeso(catalogo, ult?.servicoId ?? padrao?.id),
+          anterior: ult?.quantidade,
+        }),
         materialQtd: null,
         dmtKm: null,
         nfTicket: null,
@@ -69,7 +77,7 @@ export function CarreteiroStep1Route() {
   /** Repetir: se algo muda de uma carga para a outra (estaca, peso), pergunta antes; senão copia direto. */
   function repetir(v: ViagemLocal, numero: number) {
     if (catalogo && repetirPedeDados(catalogo, v)) return setRepetindo({ v, numero })
-    salvarViagem({ ...v, id: uuidv7(), horaCarga: null, horaDescarga: null, nfTicket: null })
+    salvarViagem({ ...v, id: uuidv7(), horaCarga: null, horaDescarga: horaLocal(), nfTicket: null })
   }
 
   const total = totalDasViagens(ficha.viagens)
@@ -81,8 +89,8 @@ export function CarreteiroStep1Route() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/carreteiro/step0')}
-            aria-label="Voltar"
+            onClick={() => navigate('/carreteiro')}
+            aria-label="Voltar para as fichas"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -116,8 +124,13 @@ export function CarreteiroStep1Route() {
                 >
                   <p className="tabular text-xs text-on-surface-dim">
                     #{i + 1}
-                    {v.horaCarga ? ` · ${v.horaCarga}` : ''}
-                    {v.horaDescarga ? ` → ${v.horaDescarga}` : ''}
+                    {v.horaCarga && v.horaDescarga
+                      ? ` · ${v.horaCarga} → ${v.horaDescarga}`
+                      : v.horaDescarga
+                        ? ` · descarga ${v.horaDescarga}`
+                        : v.horaCarga
+                          ? ` · carga ${v.horaCarga}`
+                          : ''}
                   </p>
                   <p className="font-medium text-on-surface">{v.servicoNome}</p>
                   <p className="text-xs text-on-surface-dim">
