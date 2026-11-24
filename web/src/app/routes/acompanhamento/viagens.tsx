@@ -418,14 +418,12 @@ function Inner(): ReactNode {
           ))}
         </ul>
       ) : null}
-      {/* tabela de ponta a ponta, como nas outras listas (Produção, Recursos…) */}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 p-4">
         {fichas.error ? (
           <ErroConsulta
             erro={fichas.error}
             oQue="as viagens"
             aoTentar={() => void fichas.refetch()}
-            className="m-5"
           />
         ) : semViagens ? (
           <EmptyState
@@ -439,16 +437,19 @@ function Inner(): ReactNode {
             action={novaFicha}
           />
         ) : (
-          <DataTable
-            data={linhas}
-            columns={columns}
-            loading={fichas.isLoading}
-            globalSearchPlaceholder="Buscar veículo, motorista, origem, destino…"
-            onRowClick={(r) => (podeEditar(r.ficha) ? setAberta({ ficha: r.ficha }) : undefined)}
-            emptyMessage="Sem viagens no período"
-            emptyDescription="Lance pelo app de campo ou em Nova ficha."
-            getExportConfig={getExportConfig}
-          />
+          // tabela recuada na página leva moldura (recuo sem borda fica solto)
+          <div className="h-full overflow-hidden rounded border border-border bg-bg-panel">
+            <DataTable
+              data={linhas}
+              columns={columns}
+              loading={fichas.isLoading}
+              globalSearchPlaceholder="Buscar veículo, motorista, origem, destino…"
+              onRowClick={(r) => (podeEditar(r.ficha) ? setAberta({ ficha: r.ficha }) : undefined)}
+              emptyMessage="Sem viagens no período"
+              emptyDescription="Lance pelo app de campo ou em Nova ficha."
+              getExportConfig={getExportConfig}
+            />
+          </div>
         )}
       </div>
       <FichaDialog
