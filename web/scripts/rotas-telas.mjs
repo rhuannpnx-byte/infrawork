@@ -38,6 +38,7 @@ export const ROTAS = [
   '/acompanhamento/valor-agregado',
   '/acompanhamento/producao',
   '/acompanhamento/viagens',
+  '/acompanhamento/estoque',
   '/acompanhamento/fotos',
   '/acompanhamento/comparativo',
   '/acompanhamento/performance',

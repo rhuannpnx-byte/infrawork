@@ -120,6 +120,64 @@ O botão [[Exportar]] leva as viagens filtradas para uma planilha. No Excel, a a
 
 O lápis **Ajustar a DMT** permite digitar outra distância numa viagem; a calculada continua guardada ao lado, e a viagem aparece como **ajustada**. Os cadastros que alimentam a DMT ficam em **Origens e destinos** (seção 9.13).
 
+## Estoque
+
+A página **Estoque** controla o material guardado na obra: os **tanques** de material betuminoso e os **depósitos** de agregado, solo e outros materiais a granel. Cada um fica num ponto do mapa.
+
+A tela tem o resumo no alto (quantos estão em uso, quantos estão abaixo do mínimo, quantos estão zerados e a menor autonomia em dias), o mapa à esquerda, com um marcador por tanque e depósito, e a lista à direita, com a barra de nível de cada um. Clicar num nome ou num marcador abre a ficha, com o saldo, os botões de lançamento e o extrato.
+
+### Cadastrar um tanque
+
+1. Clique em [[Novo tanque]].
+2. Informe o **Nome** e o **Material guardado**, entre os materiais da obra (Orçamento › Recursos).
+3. Escolha o **Formato** e informe as medidas **internas**, em centímetros.
+4. Confira a **Capacidade calculada** com a placa do tanque.
+5. Em **A régua mede**, diga se a régua mede o líquido (do fundo para cima) ou o vazio (da boca de medição para baixo). No segundo caso, informe a altura da boca até o fundo.
+6. Se quiser, informe o **Estoque mínimo** e a **Densidade**.
+7. Clique no mapa para marcar onde o tanque fica. O alfinete pode ser arrastado.
+8. Clique em [[Cadastrar tanque]].
+
+Formatos aceitos:
+
+| Formato | Medidas | Tampos ou fundo |
+|---|---|---|
+| Cilíndrico horizontal | diâmetro e comprimento do costado | planos, abaulados (informando a flecha), semielípticos 2:1, hemisféricos ou torisféricos |
+| Cilíndrico vertical | diâmetro e altura do costado | fundo plano, cônico ou abaulado |
+| Elíptico horizontal | largura, altura e comprimento | planos ou abaulados |
+| Oval (lados retos com semicírculos) | largura, altura e comprimento | planos ou abaulados |
+| Retangular | comprimento, largura e altura | não se aplica |
+| Tabela do fabricante | pares altura × volume, colados da planilha | cobre qualquer outro tanque |
+
+:::nota
+A capacidade depende das medidas informadas. Use as medidas internas: o diâmetro externo dá cerca de 1% a mais. Tanque desnivelado ou com serpentina deve ser cadastrado pela tabela do fabricante.
+:::
+
+### Cadastrar um depósito
+
+Clique em [[Novo depósito]] e informe o nome, o material, a unidade de controle, a capacidade, o estoque mínimo e o ponto no mapa.
+
+### O saldo
+
+O saldo do tanque é em litros. O do depósito é na unidade do material.
+
+A **leitura** é o ponto de partida do saldo: o saldo é a quantidade da última leitura marcada para ajustar, mais as entradas e menos as saídas lançadas depois dela. A primeira leitura de um tanque que já tem produto é o saldo inicial.
+
+- **Registrar leitura:** no tanque, digite o número lido na régua, em centímetros; o sistema converte em litros. No depósito, digite a quantidade medida no monte. A tela mostra o medido, o saldo pelos lançamentos e a diferença. Deixe marcado **Ajustar o saldo para o medido**; desmarque para registrar só uma conferência.
+- **Lançar entrada:** a quantidade recebida, a nota ou o ticket e o fornecedor. No tanque, a quantidade pode ser informada em toneladas, e o sistema converte em litros pela densidade.
+- **Lançar saída:** a quantidade e o destino.
+
+A diferença de cada leitura é calculada e aparece no extrato. Corrigir ou excluir um lançamento antigo não altera o saldo atual quando há uma leitura depois dele: muda só a diferença apurada naquela leitura.
+
+Os status são **Normal**, **Baixo** (saldo no estoque mínimo ou abaixo), **Zerado**, **Negativo** e **Sem saldo** (cadastrado e ainda sem leitura nem lançamento). O saldo negativo não é bloqueado, porque a nota costuma chegar depois; ele indica que falta lançar uma entrada ou uma leitura.
+
+A **autonomia** é o saldo dividido pela média diária das saídas dos últimos 14 dias.
+
+### Tabela de controle do tanque
+
+Na ficha do tanque, clique em [[Imprimir tabela]]. Sai uma folha com as medidas do tanque, o ábaco (a curva da régua pelos litros) e a tabela centímetro a centímetro, com os litros acumulados e os litros por centímetro. Quando a régua mede o vazio, a tabela é montada pelo número do vazio.
+
+O estoque não baixa sozinho pela produção nem pelas viagens: as saídas são lançadas nesta página.
+
 ## Dashboard
 
 O **Dashboard** é o painel gerencial da obra.

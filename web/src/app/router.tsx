@@ -169,6 +169,10 @@ const AcompanhamentoViagensPage = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/viagens'),
   'AcompanhamentoViagensPage'
 )
+const AcompanhamentoEstoquePage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/estoque'),
+  'AcompanhamentoEstoquePage'
+)
 const AcompanhamentoTransportePage = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/transporte'),
   'AcompanhamentoTransportePage'
@@ -466,6 +470,11 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: 'viagens',
       component: AcompanhamentoViagensPage
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'estoque',
+      component: AcompanhamentoEstoquePage
     }),
     createRoute({
       getParentRoute: () => acompanhamentoLayout,

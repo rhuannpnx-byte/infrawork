@@ -282,6 +282,13 @@ export const MODULES: ModuleConfig[] = [
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           },
           {
+            icon: 'package',
+            label: 'Estoque',
+            route: '/acompanhamento/estoque',
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
+          },
+          {
             icon: 'map-pin',
             label: 'Fotos e mapa',
             route: '/acompanhamento/fotos',

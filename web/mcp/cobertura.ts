@@ -68,6 +68,8 @@ export const LEGIVEIS: string[] = [
   'trecho_quantidade_segmento',
   'trecho_quantidade_template',
   'trecho_quantidade_versao',
+  'estoque_leitura',
+  'estoque_movimento',
   'viagem',
   'viagem_ficha',
   'vw_acompanhamento_curva_s',
@@ -77,6 +79,8 @@ export const LEGIVEIS: string[] = [
   'vw_acompanhamento_previsto_x_realizado',
   'vw_acompanhamento_producao_enriquecida',
   'vw_acompanhamento_produtividade_equipe',
+  'vw_estoque_extrato',
+  'vw_estoque_saldo',
   'vw_orcamento_consolidado',
   'vw_planejamento_tarefa_completa',
   'vw_recurso_com_preco',
@@ -86,6 +90,8 @@ export const LEGIVEIS: string[] = [
 
 /** Tabelas/views fora da `consultar`, com o motivo. */
 export const NAO_LEGIVEIS: Record<string, string> = {
+  estoque_ativo:
+    'traz a tabela de arqueação do tanque (centenas de números por linha): os ativos são lidos por vw_estoque_saldo e a tabela, em resumo, pela ferramenta estoque',
   fleethub_config: 'credencial da FleetHub (só o status de conexão aparece pela ferramenta frota)',
   mcp_token: 'hash dos tokens pessoais (gerenciados no web)',
   orcamento_recalculo_pendente: 'fila interna de recálculo (sem acesso do usuário)',
@@ -118,6 +124,7 @@ const CAMPO = 'API do app de campo; o MCP grava as mesmas tabelas pelas ferramen
 
 /** RPCs que nenhuma ferramenta chama, com o motivo. */
 export const RPCS_IGNORADAS: Record<string, string> = {
+  estoque_volume_na_tabela: INTERNA,
   auth_role: RLS,
   auth_empresa_id: RLS,
   auth_engenheiro_id: RLS,

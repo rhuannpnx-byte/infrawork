@@ -981,6 +981,47 @@ await sbAp.auth.signOut()
     check(`${v}: a empresa dona vê, a outra não`, (a.data ?? []).length > 0 && !b.error && (b.data ?? []).length === 0, `A=${a.data?.length} B=${b.data?.length} ${a.error?.message ?? ''}`)
   }
 
+  // 0069: estoque. O saldo segue a leitura que ajusta; quem é de outra empresa não lê nem lança; o cliente não vê.
+  const matEstoque = (await u.admA.c.from('recurso').select('id').eq('obra_id', obraId).eq('grupo', 'MATERIAL').limit(1)).data?.[0]
+  const tanqueE = await u.eng.c
+    .from('estoque_ativo')
+    .insert({
+      obra_id: obraId, tipo: 'tanque', nome: 'Tanque e2e', recurso_id: matEstoque?.id, unidade: 'x', capacidade: 1,
+      lat: -16.5, lng: -49.2, forma: 'retangular', dimensoes: { forma: 'retangular', comprimento: 100, largura: 100, altura: 5 },
+      tabela: [0, 100, 200, 300, 400, 500], tabela_versao: 1
+    })
+    .select('id, unidade, capacidade')
+    .single()
+  check('estoque: engenheiro da obra cadastra o tanque (litros, capacidade pela tabela)',
+    !tanqueE.error && tanqueE.data?.unidade === 'L' && Number(tanqueE.data?.capacidade) === 500, tanqueE.error?.message)
+  const idTanque = tanqueE.data?.id
+  const movE = await u.eng.c.from('estoque_movimento').insert({ ativo_id: idTanque, obra_id: obraId, tipo: 'entrada', quantidade: 300, momento: '2026-11-01T10:00:00-03:00' }).select('id').single()
+  await u.eng.c.from('estoque_leitura').insert({ ativo_id: idTanque, obra_id: obraId, leitura_cm: 2, quantidade: 0, momento: '2026-11-02T08:00:00-03:00' })
+  await u.eng.c.from('estoque_movimento').insert({ ativo_id: idTanque, obra_id: obraId, tipo: 'saida', quantidade: 50, momento: '2026-11-03T09:00:00-03:00' })
+  const saldoE = (await u.eng.c.from('vw_estoque_saldo').select('saldo, leitura_diferenca').eq('id', idTanque).single()).data
+  check('estoque: saldo = leitura que ajusta + movimentos depois dela; a diferença é calculada',
+    Number(saldoE?.saldo) === 150 && Number(saldoE?.leitura_diferenca) === -100, JSON.stringify(saldoE))
+  await u.eng.c.from('estoque_movimento').delete().eq('id', movE.data?.id)
+  const saldoE2 = (await u.eng.c.from('vw_estoque_saldo').select('saldo, leitura_diferenca').eq('id', idTanque).single()).data
+  check('estoque: apagar um lançamento anterior à leitura muda só a diferença, não o saldo',
+    Number(saldoE2?.saldo) === 150 && Number(saldoE2?.leitura_diferenca) === 200, JSON.stringify(saldoE2))
+  const foraRegua = await u.eng.c.from('estoque_leitura').insert({ ativo_id: idTanque, obra_id: obraId, leitura_cm: 9, quantidade: 0 })
+  check('estoque: leitura fora da régua é recusada', !!foraRegua.error, foraRegua.error?.message?.slice(0, 60))
+  for (const v of ['vw_estoque_saldo', 'vw_estoque_extrato', 'estoque_ativo']) {
+    const a = await u.admA.c.from(v).select('*').eq('obra_id', obraId).limit(5)
+    const b = await u.admB.c.from(v).select('*').eq('obra_id', obraId).limit(5)
+    const cli = await u.cli.c.from(v).select('*').eq('obra_id', obraId).limit(5)
+    check(`${v}: a empresa dona vê; a outra empresa e o cliente, não`,
+      (a.data ?? []).length > 0 && !b.error && (b.data ?? []).length === 0 && (cli.data ?? []).length === 0,
+      `A=${a.data?.length} B=${b.data?.length} cliente=${cli.data?.length} ${a.error?.message ?? ''}`)
+  }
+  // quem é de outra empresa não lança no ativo, nem dizendo que a obra é a dele (a obra vem do ativo)
+  const movB = await u.admB.c.from('estoque_movimento').insert({ ativo_id: idTanque, obra_id: u.admB.obraId ?? obraId, tipo: 'saida', quantidade: 1 })
+  const ativoCli = await u.cli.c.from('estoque_ativo').update({ nome: 'x' }).eq('id', idTanque).select('id')
+  check('estoque: outra empresa não lança e o cliente não altera o cadastro',
+    !!movB.error && (ativoCli.data ?? []).length === 0, `${movB.error?.code ?? 'passou'} / ${ativoCli.data?.length}`)
+  await u.eng.c.from('estoque_ativo').delete().eq('id', idTanque)
+
   // funções do app fechadas para anônimo
   const anon = await novoCliente().rpc('campo_obras')
   check('campo_obras recusa chamada anônima', !!anon.error, anon.error?.message?.slice(0, 60))

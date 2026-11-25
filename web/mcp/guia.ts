@@ -53,6 +53,13 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
 - **Produção**: sem data futura; serviço lançado por viagens não aceita produção manual (a produção vem das fichas,
   uma por dia/serviço/local/equipe/encarregado — equipe e encarregado vêm da ficha); serviço com exige_local pede
   trecho e faixa.
+- **Estoque** (ferramenta estoque): tanques de material betuminoso e depósitos da obra, cada um num ponto do mapa.
+  O saldo do tanque é em litros; o do depósito, na unidade do material. A leitura que ajusta é o ponto de partida:
+  saldo = quantidade dessa leitura + entradas − saídas depois dela. A diferença de cada leitura (medido − o que os
+  movimentos davam) é calculada, nunca lançada: não crie "ajuste" como entrada ou saída. A primeira leitura dá o
+  saldo inicial. No tanque, a leitura é o número da régua (leitura_cm) e o banco converte em litros pela tabela de
+  arqueação, calculada das medidas internas. Nota em toneladas: lance a entrada com unidade "t" e a densidade.
+  O estoque não baixa sozinho pela produção nem pelas viagens.
 - **Encarregado**: com a equipe informada e sem encarregado, o banco grava o encarregado da equipe (produção e
   ficha de viagens). Informe o encarregado só quando for outro. A obra pode desligar o apontamento do encarregado
   (equipes, acao "apontar_encarregado", aponta false): o app de campo passa a pedir só a equipe no lançamento, e a

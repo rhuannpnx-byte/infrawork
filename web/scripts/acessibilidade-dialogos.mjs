@@ -26,6 +26,8 @@ const CENARIOS = [
   ['/orcamento/obra/indireto', 'Novo custo indireto'],
   ['/orcamento/obra/aditivos', 'Novo aditivo'],
   ['/orcamento/obra/reajustes', 'Novo reajuste'],
+  ['/acompanhamento/estoque', 'Novo tanque'],
+  ['/acompanhamento/estoque', 'Novo depósito'],
   ['/planejamento/trechos', 'Novo eixo'],
   ['/planejamento/trechos', 'Nova área'],
   // mapa de uma área ainda sem contorno

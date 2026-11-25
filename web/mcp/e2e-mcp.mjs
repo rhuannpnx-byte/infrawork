@@ -343,6 +343,93 @@ try {
       apLido.aponta_encarregado === false,
     `${apPadrao.aponta_encarregado} / ${apOff.aponta_encarregado} / ${apLido.aponta_encarregado}`
   )
+
+  // estoque: tanque pelas medidas, entrada em toneladas, leitura que ajusta, saída e o saldo pela regra da âncora
+  const material = recursos.find((r) => r.grupo === 'MATERIAL')
+  const calc = await chamar('estoque', {
+    acao: 'calcular',
+    dimensoes: {
+      forma: 'cilindrico_horizontal',
+      diametro: 200,
+      comprimento: 600,
+      tampo: { tipo: 'plano' }
+    }
+  })
+  check(
+    'estoque: cilindro de 2 m × 6 m tem 18.849,56 L',
+    Math.abs(calc.capacidade_litros - 18849.56) < 0.01 && calc.altura_cm === 200,
+    `${calc.capacidade_litros} L, ${calc.altura_cm} cm`
+  )
+  const tanque = await chamar('estoque', {
+    acao: 'salvar_tanque',
+    obra_id: O,
+    nome: 'Tanque e2e',
+    recurso_id: material.id,
+    lat: -16.5,
+    lng: -49.2,
+    estoque_minimo: 3000,
+    densidade_kg_l: 1.02,
+    dimensoes: {
+      forma: 'cilindrico_horizontal',
+      diametro: 200,
+      comprimento: 600,
+      tampo: { tipo: 'plano' }
+    }
+  })
+  await chamar('estoque', {
+    acao: 'entrada',
+    id: tanque.id,
+    quantidade: 5,
+    unidade: 't',
+    documento: 'NF 1',
+    momento: '2026-11-02T10:00:00-03:00'
+  })
+  const leit = await chamar('estoque', {
+    acao: 'leitura',
+    id: tanque.id,
+    leitura_cm: 100,
+    momento: '2026-11-03T08:00:00-03:00'
+  })
+  await chamar('estoque', {
+    acao: 'saida',
+    id: tanque.id,
+    quantidade: 1000,
+    terceiro: 'Usina',
+    momento: '2026-11-04T09:00:00-03:00'
+  })
+  const [saldoT] = (await chamar('estoque', { acao: 'listar', obra_id: O })).filter(
+    (x) => x.id === tanque.id
+  )
+  // meia altura do cilindro = metade da capacidade; a entrada de 5 t (4.901,96 L) é anterior à leitura
+  check(
+    'estoque: a leitura vira o saldo, a diferença é calculada e a saída desconta dela',
+    Math.abs(Number(leit.quantidade) - 9424.78) < 0.01 &&
+      Math.abs(Number(leit.diferenca) - (9424.78 - 4901.96)) < 0.01 &&
+      Math.abs(Number(saldoT.saldo) - 8424.78) < 0.01 &&
+      saldoT.status === 'normal',
+    `leitura ${leit.quantidade} L, diferença ${leit.diferenca}, saldo ${saldoT.saldo}, ${saldoT.status}`
+  )
+  const foraRegua = await tentar('estoque', { acao: 'leitura', id: tanque.id, leitura_cm: 250 })
+  check(
+    'estoque: leitura fora da régua é recusada',
+    foraRegua.erro && /régua/i.test(foraRegua.texto),
+    foraRegua.texto.slice(0, 90)
+  )
+  const tabela = await chamar('estoque', { acao: 'tabela', id: tanque.id, passo_cm: 50 })
+  check(
+    'estoque: tabela do tanque em resumo',
+    tabela.tabela.length === 5 &&
+      tabela.tabela[2].altura_cm === 100 &&
+      tabela.tabela[4].altura_cm === 200,
+    JSON.stringify(tabela.tabela)
+  )
+  const semConf = await chamar('estoque', { acao: 'excluir_ativo', id: tanque.id })
+  check(
+    'estoque: excluir pede confirmação',
+    semConf.precisa_confirmar === true,
+    JSON.stringify(semConf).slice(0, 80)
+  )
+  await chamar('estoque', { acao: 'excluir_ativo', id: tanque.id, confirmar: true })
   const plano = await chamar('planos', {
     acao: 'criar',
     obra_id: O,
