@@ -1,155 +1,105 @@
-// Escolha do formato do tanque pelo desenho. Cada opção mostra o tanque em vista de arame — a vista de lado e, ao
-// lado, a seção — porque no canteiro se reconhece o tanque pela forma, não pelo nome do tampo.
+// Escolha do formato do tanque pelo desenho. Cada opção mostra o tanque em vista de arame, em perspectiva (o corpo,
+// os anéis de solda, os berços, a boca de visita e a escada), porque no canteiro se reconhece o tanque pela forma,
+// não pelo nome do tampo. Os traços saem da geometria 3D de `lib/arame3d.ts`.
 
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { desenhoDoFormato, desenhoDoFundo, desenhoDoTampo, type DesenhoArame } from '../lib/arame3d'
 import type { FundoCampo, TampoCampo } from '../lib/formulario-tanque'
 import type { FormaTanque } from '../lib/tanque'
 
-const TRACO = {
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.6,
-  strokeLinejoin: 'round'
-} as const
-const EIXO = {
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 0.8,
-  strokeDasharray: '4 3',
-  opacity: 0.55
-} as const
-
 /**
- * Contorno de um tampo na vista de lado: sai de (x, topo), avança para o lado `sentido` (−1 esquerda, +1 direita) e
- * volta em (x, base). `meia` é a meia altura do costado.
+ * Pinta um desenho de arame: cada peça é cheia com a cor da folha (para esconder o que fica atrás dela) e traçada
+ * com a cor do texto em volta, então acompanha o tema e o estado do cartão. A espessura do traço é fixa em pixels,
+ * para o desenho ficar nítido em qualquer tamanho.
  */
-function tampoDeLado(
-  x: number,
-  topo: number,
-  base: number,
-  sentido: -1 | 1,
-  tampo: TampoCampo
-): string {
-  const meia = (base - topo) / 2
-  // o arco vira para fora do costado: à esquerda no sentido anti-horário, à direita no horário
-  const giro = sentido === -1 ? 0 : 1
-  switch (tampo) {
-    case 'plano':
-      return `M${x} ${topo} L${x} ${base}`
-    case 'abaulado': {
-      // calota rasa: arco de círculo de raio grande
-      const flecha = meia * 0.3
-      const raio = (meia * meia + flecha * flecha) / (2 * flecha)
-      return `M${x} ${topo} A${raio} ${raio} 0 0 ${giro} ${x} ${base}`
-    }
-    case 'semieliptico':
-      return `M${x} ${topo} A${meia / 2} ${meia} 0 0 ${giro} ${x} ${base}`
-    case 'hemisferico':
-      return `M${x} ${topo} A${meia} ${meia} 0 0 ${giro} ${x} ${base}`
-    case 'torisferico': {
-      // calota quase reta com o rebordo arredondado nos cantos
-      const r = meia * 0.36
-      const fora = x + sentido * meia * 0.42
-      const dentro = x + sentido * meia * 0.3
-      return (
-        `M${x} ${topo} Q${dentro} ${topo} ${dentro} ${topo + r} ` +
-        `Q${fora} ${topo + meia} ${dentro} ${base - r} Q${dentro} ${base} ${x} ${base}`
-      )
-    }
-  }
-}
-
-interface ArameProps {
-  forma: FormaTanque
-  tampo?: TampoCampo
-  fundo?: FundoCampo
-  className?: string
-}
-
-/** O tanque em vista de arame: de lado e, à direita, a seção (ou a vista de cima, no tanque em pé). */
-export function ArameTanque({
-  forma,
-  tampo = 'plano',
-  fundo = 'plano',
-  className
-}: ArameProps): ReactNode {
-  let desenho: ReactNode
-  if (forma === 'tabela') {
-    // qualquer tanque: uma tabela de alturas e volumes
-    desenho = (
-      <>
-        <rect x={30} y={10} width={60} height={44} rx={2} {...TRACO} />
-        <path d="M30 21 H90 M30 32 H90 M30 43 H90 M60 10 V54" {...TRACO} strokeWidth={1} />
-      </>
-    )
-  } else if (forma === 'retangular') {
-    desenho = (
-      <>
-        <rect x={12} y={16} width={62} height={32} {...TRACO} />
-        <rect x={86} y={16} width={24} height={32} {...TRACO} />
-        <path d="M6 32 H80" {...EIXO} />
-      </>
-    )
-  } else if (forma === 'cilindrico_vertical') {
-    const esq = 28
-    const dir = 62
-    const topo = 8
-    const base = 44
-    const meio = (esq + dir) / 2
-    const fundoPath =
-      fundo === 'conico'
-        ? `M${esq} ${base} L${meio} ${base + 13} L${dir} ${base}`
-        : fundo === 'abaulado'
-          ? `M${esq} ${base} A30 30 0 0 0 ${dir} ${base}`
-          : `M${esq} ${base} L${dir} ${base}`
-    desenho = (
-      <>
-        <path d={`M${esq} ${base} V${topo} H${dir} V${base}`} {...TRACO} />
-        <path d={fundoPath} {...TRACO} />
-        {fundo !== 'plano' ? (
-          <path d={`M${esq} ${base} H${dir}`} {...TRACO} strokeWidth={0.9} />
-        ) : null}
-        <path d={`M${meio} 3 V61`} {...EIXO} />
-        <circle cx={96} cy={28} r={14} {...TRACO} />
-      </>
-    )
-  } else {
-    // deitados: cilíndrico (seção redonda), elíptico e oval (seção mais larga que alta)
-    const redondo = forma === 'cilindrico_horizontal'
-    const topo = redondo ? 14 : 19
-    const base = redondo ? 50 : 45
-    const esq = 22
-    const dir = 70
-    const emenda = tampo !== 'plano'
-    desenho = (
-      <>
-        <path d={`M${esq} ${topo} H${dir} M${esq} ${base} H${dir}`} {...TRACO} />
-        <path d={tampoDeLado(esq, topo, base, -1, tampo)} {...TRACO} />
-        <path d={tampoDeLado(dir, topo, base, 1, tampo)} {...TRACO} />
-        {emenda ? (
-          <path
-            d={`M${esq} ${topo} V${base} M${dir} ${topo} V${base}`}
-            {...TRACO}
-            strokeWidth={0.9}
-          />
-        ) : null}
-        <path d="M2 32 H88" {...EIXO} />
-        {redondo ? (
-          <circle cx={103} cy={32} r={13} {...TRACO} />
-        ) : forma === 'eliptico_horizontal' ? (
-          <ellipse cx={102} cy={32} rx={15} ry={10} {...TRACO} />
-        ) : (
-          <rect x={87} y={22} width={30} height={20} rx={10} {...TRACO} />
-        )}
-      </>
-    )
-  }
+function Arame({ desenho, className }: { desenho: DesenhoArame; className?: string }): ReactNode {
   return (
-    <svg viewBox="0 0 120 64" aria-hidden className={cn('h-14 w-full', className)}>
-      {desenho}
+    <svg
+      viewBox={`0 0 ${desenho.largura} ${desenho.altura}`}
+      aria-hidden
+      className={cn('w-full', className)}
+    >
+      {desenho.tracos.map((t, i) =>
+        t.tipo === 'corpo' ? (
+          <path
+            key={i}
+            d={t.d}
+            className="fill-bg-panel"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : (
+          <path
+            key={i}
+            d={t.d}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={t.tipo === 'linha' ? 1.1 : 0.8}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      )}
     </svg>
   )
+}
+
+/** O tanque inteiro, para a escolha do formato. A "tabela do fabricante" não tem forma: é uma tabela. */
+export function ArameTanque({
+  forma,
+  className
+}: {
+  forma: FormaTanque
+  className?: string
+}): ReactNode {
+  if (forma === 'tabela')
+    return (
+      <svg viewBox="0 0 200 120" aria-hidden className={cn('h-20 w-full', className)}>
+        <rect
+          x={52}
+          y={22}
+          width={96}
+          height={76}
+          rx={3}
+          className="fill-bg-panel"
+          stroke="currentColor"
+          strokeWidth={1.7}
+        />
+        <path
+          d="M52 41 H148 M52 60 H148 M52 79 H148 M100 22 V98"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={0.9}
+        />
+      </svg>
+    )
+  return <Arame desenho={desenhoDoFormato(forma)} className={cn('h-20', className)} />
+}
+
+/** A ponta do tanque deitado, quase de perfil: é no contorno que um tampo se distingue do outro. */
+export function PontaTanque({
+  tampo,
+  className
+}: {
+  tampo: TampoCampo
+  className?: string
+}): ReactNode {
+  return <Arame desenho={desenhoDoTampo(tampo)} className={cn('h-20', className)} />
+}
+
+/** O tanque em pé visto quase de lado: o fundo aparece por baixo do costado (reto, em funil ou em calota). */
+export function FundoTanque({
+  fundo,
+  className
+}: {
+  fundo: FundoCampo
+  className?: string
+}): ReactNode {
+  return <Arame desenho={desenhoDoFundo(fundo)} className={cn('h-20', className)} />
 }
 
 interface Opcao<T extends string> {
@@ -235,61 +185,5 @@ export function EscolhaPorDesenho<T extends string>({
         })}
       </div>
     </div>
-  )
-}
-
-/**
- * A ponta do tanque deitado, ampliada: o costado chega pela esquerda, a emenda e o tampo. É o desenho das opções de
- * tampo — no tanque inteiro a diferença entre um tampo e outro quase não aparece.
- */
-export function PontaTanque({
-  tampo,
-  className
-}: {
-  tampo: TampoCampo
-  className?: string
-}): ReactNode {
-  const x = 26
-  const topo = 8
-  const base = 48
-  return (
-    <svg viewBox="0 0 64 56" aria-hidden className={cn('h-14 w-full', className)}>
-      <path d={`M2 ${topo} H${x} M2 ${base} H${x}`} {...TRACO} />
-      <path d={tampoDeLado(x, topo, base, 1, tampo)} {...TRACO} />
-      {tampo !== 'plano' ? (
-        <path d={`M${x} ${topo} V${base}`} {...TRACO} strokeWidth={0.9} />
-      ) : null}
-      <path d="M0 28 H60" {...EIXO} />
-    </svg>
-  )
-}
-
-/** O fundo do tanque em pé, ampliado: as paredes descem e o fundo fecha reto, em funil ou em calota. */
-export function FundoTanque({
-  fundo,
-  className
-}: {
-  fundo: FundoCampo
-  className?: string
-}): ReactNode {
-  const esq = 12
-  const dir = 52
-  const base = 28
-  const meio = (esq + dir) / 2
-  const fecho =
-    fundo === 'conico'
-      ? `M${esq} ${base} L${meio} ${base + 22} L${dir} ${base}`
-      : fundo === 'abaulado'
-        ? `M${esq} ${base} A34 34 0 0 0 ${dir} ${base}`
-        : `M${esq} ${base} H${dir}`
-  return (
-    <svg viewBox="0 0 64 56" aria-hidden className={cn('h-14 w-full', className)}>
-      <path d={`M${esq} 2 V${base} M${dir} 2 V${base}`} {...TRACO} />
-      <path d={fecho} {...TRACO} />
-      {fundo !== 'plano' ? (
-        <path d={`M${esq} ${base} H${dir}`} {...TRACO} strokeWidth={0.9} />
-      ) : null}
-      <path d={`M${meio} 0 V54`} {...EIXO} />
-    </svg>
   )
 }

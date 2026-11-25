@@ -318,12 +318,7 @@ function Formulario({
                   valor: f,
                   titulo: rotuloTanqueForma(f),
                   apoio: APOIO_FORMA[f],
-                  desenho: (
-                    <ArameTanque
-                      forma={f}
-                      tampo={f === 'cilindrico_horizontal' ? 'abaulado' : 'plano'}
-                    />
-                  )
+                  desenho: <ArameTanque forma={f} />
                 }))}
               />
 
@@ -376,7 +371,7 @@ function Formulario({
                       rotulo="Tampos (as pontas do tanque)"
                       valor={campos.tampo}
                       aoMudar={(tampo) => mudar({ tampo })}
-                      className={tampos.length > 3 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-3'}
+                      className="grid-cols-3"
                       opcoes={tampos.map((t) => ({
                         valor: t,
                         titulo: rotuloTanqueTampo(t),
