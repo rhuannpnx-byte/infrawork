@@ -124,7 +124,7 @@ O lápis **Ajustar a DMT** permite digitar outra distância numa viagem; a calcu
 
 A página **Estoque** controla o material guardado na obra: os **tanques** de material betuminoso e os **depósitos** de agregado, solo e outros materiais a granel. Cada um fica num ponto do mapa.
 
-A tela tem o resumo no alto (quantos estão em uso, quantos estão abaixo do mínimo, quantos estão zerados e a menor autonomia em dias), o mapa à esquerda, com um marcador por tanque e depósito, e a lista à direita, com a barra de nível de cada um. Clicar num nome ou num marcador abre a ficha, com o saldo, os botões de lançamento e o extrato.
+A tela tem o resumo no alto (quantos estão em uso, quantos estão abaixo do mínimo, quantos estão zerados e a menor autonomia em dias), o mapa à esquerda e a lista à direita, com a barra de nível de cada um. No mapa, cada tanque aparece desenhado no formato do cadastro e cada depósito, como um monte; o desenho fica cheio na proporção do estoque e toma a cor da situação (verde, normal; laranja, abaixo do mínimo; vermelho, zerado). Clicar num nome ou num desenho abre a ficha, com o saldo, os botões de lançamento e o extrato.
 
 ### Cadastrar um tanque
 

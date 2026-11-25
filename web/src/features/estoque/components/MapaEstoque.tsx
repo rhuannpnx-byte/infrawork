@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { linhaDoTrecho, poligonoDoTrecho } from '@/features/planejamento/lib/trecho'
 import type { ObraTrecho } from '@/types/gerencial'
+import { desenhoNoMapa, type DesenhoArame } from '../lib/arame3d'
+import { camposDoTanque } from '../lib/formulario-tanque'
 import type { AtivoEstoque } from '../tipos'
 
 type Mapa = import('leaflet').Map
@@ -50,6 +52,15 @@ function enquadrar(L: Leaflet, map: Mapa, pontos: Ponto[]): void {
 /** Texto do nível no marcador: "61%", ou vazio quando o ativo ainda não tem saldo. */
 const textoNivel = (a: AtivoEstoque): string =>
   a.nivel == null ? '' : `${Math.round(a.nivel * 100)}%`
+
+/** O desenho do marcador: o tanque no formato e com o tampo do cadastro, ou o monte, cheio até o nível do estoque. */
+function desenhoDoAtivo(a: AtivoEstoque): DesenhoArame {
+  const campos = camposDoTanque(a.dimensoes)
+  return desenhoNoMapa(
+    { tipo: a.tipo, forma: a.forma, tampo: campos.tampo, fundo: campos.fundo },
+    a.nivel
+  )
+}
 
 interface MapaEstoqueProps {
   obraId: string
@@ -127,10 +138,10 @@ export function MapaEstoque({
           iconSize: [0, 0],
           html: htmlMarcadorEstoque({
             nome: a.nome,
-            tipo: a.tipo,
             status: a.status,
             nivel: textoNivel(a),
-            selecionado: a.id === selecionadoId
+            selecionado: a.id === selecionadoId,
+            desenho: desenhoDoAtivo(a)
           })
         }),
         keyboard: true,

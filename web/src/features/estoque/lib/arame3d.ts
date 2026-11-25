@@ -77,9 +77,13 @@ function fecho(pontos: P2[]): P2[] {
   return baixo.slice(0, -1).concat(alto.slice(0, -1))
 }
 
-/** Uma camada do desenho: o contorno cheio de uma peça, ou linhas por cima dela. */
+/**
+ * Uma camada do desenho: o contorno cheio de uma peça, ou linhas por cima dela. `nivel` é a parte do corpo ocupada
+ * pelo material e `espelho`, a superfície dele, vista através do tanque; `vazio` devolve a cor da folha ao que fica
+ * acima do material num corpo opaco (o monte). Essas três só existem no desenho do mapa, que mostra o estoque.
+ */
 interface Camada {
-  tipo: 'corpo' | 'linha' | 'fina'
+  tipo: 'corpo' | 'linha' | 'fina' | 'nivel' | 'espelho' | 'vazio'
   tracos: P2[][]
   fechado?: boolean
 }
@@ -207,6 +211,104 @@ function contornoDoCorpo(c: Corpo, cam: Camera): P2[] {
   return fecho(pts)
 }
 
+// ── Nível do material ────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A parte do corpo abaixo da cota `z`: o contorno cheio do material e o espelho (a superfície). O corpo é convexo,
+ * então o que sobra do corte também é, e o contorno é o fecho dos pontos de baixo com os do corte.
+ */
+function nivelDoCorpo(c: Corpo, z: number, cam: Camera): Camada[] {
+  const baixo: V3[] = []
+  const corte: V3[] = []
+  const cruza = (p: V3, q: V3): void => {
+    if ((p[2] - z) * (q[2] - z) >= 0) return
+    corte.push(soma(p, vezes(menos(q, p), (z - p[2]) / (q[2] - p[2]))))
+  }
+  for (let i = 0; i < c.estacoes.length; i++)
+    for (let j = 0; j < c.secao.length; j++) {
+      const p = pontoDoCorpo(c, i, j)
+      if (p[2] <= z) baixo.push(p)
+      cruza(p, pontoDoCorpo(c, i, j + 1))
+      if (i + 1 < c.estacoes.length) cruza(p, pontoDoCorpo(c, i + 1, j))
+    }
+  if (baixo.length + corte.length < 3) return []
+  const camadas: Camada[] = [
+    {
+      tipo: 'nivel',
+      tracos: [fecho([...baixo, ...corte].map((p) => projetar(cam, p)))],
+      fechado: true
+    }
+  ]
+  if (corte.length >= 3)
+    camadas.push({
+      tipo: 'espelho',
+      tracos: [fecho(corte.map((p) => projetar(cam, p)))],
+      fechado: true
+    })
+  return camadas
+}
+
+/** Área da parte da seção que fica abaixo da altura `u`. */
+function areaAbaixo(secao: Secao, u: number): number {
+  const pts: Array<[number, number]> = []
+  for (let j = 0; j < secao.length; j++) {
+    const p = secao[j]
+    const q = secao[(j + 1) % secao.length]
+    if (p[1] <= u) pts.push(p)
+    if ((p[1] - u) * (q[1] - u) < 0)
+      pts.push([p[0] + ((q[0] - p[0]) * (u - p[1])) / (q[1] - p[1]), u])
+  }
+  let a = 0
+  for (let j = 0; j < pts.length; j++) {
+    const p = pts[j]
+    const q = pts[(j + 1) % pts.length]
+    a += p[0] * q[1] - q[0] * p[1]
+  }
+  return Math.abs(a) / 2
+}
+
+/** Volume do corpo deitado (seção em pé, eixo na horizontal) abaixo da cota `z`, medida a partir do eixo. */
+function volumeDeitado(c: Corpo, z: number): number {
+  const area = (e: Estacao): number => (e.k > 1e-6 ? e.k * e.k * areaAbaixo(c.secao, z / e.k) : 0)
+  let v = 0
+  for (let i = 0; i + 1 < c.estacoes.length; i++)
+    v +=
+      ((area(c.estacoes[i]) + area(c.estacoes[i + 1])) / 2) *
+      Math.abs(c.estacoes[i + 1].t - c.estacoes[i].t)
+  return v
+}
+
+/** Volume do corpo em pé (eixo na vertical) do fundo até a cota `z`, a menos da área da seção. */
+function volumeEmPe(c: Corpo, z: number): number {
+  let v = 0
+  for (let i = 0; i + 1 < c.estacoes.length; i++) {
+    const a = c.estacoes[i]
+    const b = c.estacoes[i + 1]
+    if (a.t >= z) break
+    const fim = Math.min(b.t, z)
+    const kf = a.k + ((b.k - a.k) * (fim - a.t)) / (b.t - a.t)
+    v += ((a.k * a.k + kf * kf) / 2) * (fim - a.t)
+  }
+  return v
+}
+
+/** A cota em que o volume abaixo dela é a fração `f` do volume até `ate` (o desenho enche em volume, como o tanque). */
+function cotaDoNivel(f: number, de: number, ate: number, volume: (z: number) => number): number {
+  const alvo = f * volume(ate)
+  let a = de
+  let b = ate
+  for (let n = 0; n < 24; n++) {
+    const m = (a + b) / 2
+    if (volume(m) < alvo) a = m
+    else b = m
+  }
+  return (a + b) / 2
+}
+
+/** Fração do estoque que vale desenhar: nada sem saldo, e o que passa da capacidade aparece como cheio. */
+const fracaoDesenhada = (nivel: number | null | undefined): number =>
+  nivel == null || !Number.isFinite(nivel) ? 0 : Math.min(1, Math.max(0, nivel))
+
 /** Estações de um tampo: o quanto avança além da emenda (`t`) e a escala da seção ali. `r` é o raio de referência. */
 function estacoesDoTampo(tampo: TampoCampo, r: number, n = 14): Estacao[] {
   if (tampo === 'plano') return []
@@ -305,6 +407,10 @@ interface Deitado {
   tampoFundo: TampoCampo
   /** sem acessórios: só o corpo e um berço (a vista ampliada da ponta) */
   simples?: boolean
+  /** sem a escada, que vira borrão no tamanho do marcador do mapa */
+  semEscada?: boolean
+  /** quanto do tanque está cheio (0 a 1); sem isso o desenho sai vazio */
+  nivel?: number | null
 }
 
 /** Tanque deitado, com o eixo em x. Devolve as camadas de trás para a frente. */
@@ -341,6 +447,15 @@ function tanqueDeitado(d: Deitado, cam: Camera): Camada[] {
     )
 
   camadas.push({ tipo: 'corpo', tracos: [contornoDoCorpo(corpo, cam)], fechado: true })
+  const cheio = fracaoDesenhada(d.nivel)
+  if (cheio > 0)
+    camadas.push(
+      ...nivelDoCorpo(
+        corpo,
+        cheio >= 1 ? b * 1.01 : cotaDoNivel(cheio, -b, b, (z) => volumeDeitado(corpo, z)),
+        cam
+      )
+    )
   // emendas do costado com os tampos e anéis de solda do costado
   const emendas: P2[][] = [...anel(corpo, i0, cam), ...anel(corpo, i1, cam)]
   camadas.push({ tipo: 'linha', tracos: emendas })
@@ -385,6 +500,8 @@ function tanqueDeitado(d: Deitado, cam: Camera): Camada[] {
   if (!d.simples) {
     // boca de visita em cima
     camadas.push(...cilindroEmPe([0.02 * L, 0, b * 0.97], 0.2 * b, 0.2 * b, cam))
+  }
+  if (!d.simples && !d.semEscada) {
     // escada do lado de quem olha: dois montantes que acompanham o costado e os degraus
     const xs = [0.3 * L - 0.13 * b, 0.3 * L + 0.13 * b]
     const perfil = d.secao
@@ -414,6 +531,9 @@ interface EmPe {
   fundo: FundoCampo
   /** a vista ampliada do fundo: tanque curto, sem escada */
   simples?: boolean
+  semEscada?: boolean
+  /** quanto do tanque está cheio (0 a 1); sem isso o desenho sai vazio */
+  nivel?: number | null
 }
 
 /** Tanque em pé, com o eixo em z e o fundo do costado em z = 0. */
@@ -452,6 +572,18 @@ function tanqueEmPe(d: EmPe, cam: Camera): Camada[] {
   const camadas: Camada[] = []
   const profundo = d.fundo === 'conico' ? 0.75 * r : d.fundo === 'abaulado' ? 0.3 * r : 0
   const chao = -(profundo + (profundo > 0 ? 0.3 * r : 0.1 * r))
+  // o material enche do fundo até o alto do costado (o teto não conta)
+  const cheio = fracaoDesenhada(d.nivel)
+  const material: Camada[] =
+    cheio > 0
+      ? nivelDoCorpo(
+          corpo,
+          cheio >= 1
+            ? h * 0.995
+            : cotaDoNivel(cheio, estacoes[0].t, h, (z) => volumeEmPe(corpo, z)),
+          cam
+        )
+      : []
 
   if (profundo > 0) {
     // pernas: as de trás primeiro
@@ -472,6 +604,7 @@ function tanqueEmPe(d: EmPe, cam: Camera): Camada[] {
     camadas.push({ tipo: 'corpo', tracos: [contornoDoCorpo(corpo, cam)], fechado: true })
     const depois = pernas.slice(2)
     camadas.push(
+      ...material,
       { tipo: 'linha', tracos: [...anel(corpo, i0, cam), ...anel(corpo, i1, cam)] },
       { tipo: 'fina', tracos: anelDoFundo(corpo, fundo.length, cam) }
     )
@@ -487,6 +620,7 @@ function tanqueEmPe(d: EmPe, cam: Camera): Camada[] {
     // fundo plano: o tanque assenta numa base
     camadas.push(...caixa([-1.18 * r, -1.18 * r, chao], [1.18 * r, 1.18 * r, 0], cam))
     camadas.push({ tipo: 'corpo', tracos: [contornoDoCorpo(corpo, cam)], fechado: true })
+    camadas.push(...material)
     camadas.push({ tipo: 'linha', tracos: [...anel(corpo, i0, cam), ...anel(corpo, i1, cam)] })
   }
   const finas: P2[][] = []
@@ -497,6 +631,8 @@ function tanqueEmPe(d: EmPe, cam: Camera): Camada[] {
   if (!d.simples) {
     // bocal no alto do teto e escada do lado de quem olha
     camadas.push(...cilindroEmPe([0, 0, h + 0.14 * r], 0.16 * r, 0.14 * r, cam))
+  }
+  if (!d.simples && !d.semEscada) {
     const para = unitario([cam.pos[0], cam.pos[1], 0])
     const lateral = unitario(vetorial(para, [0, 0, 1]))
     const centro = soma(vezes(para, 0.72 * r * 1.04), vezes(lateral, 0.72 * r))
@@ -525,7 +661,7 @@ function anelDoFundo(c: Corpo, n: number, cam: Camera): P2[][] {
 }
 
 /** Tanque retangular: a caixa com os reforços verticais nas faces de frente, sobre dois trilhos. */
-function tanqueRetangular(cam: Camera): Camada[] {
+function tanqueRetangular(cam: Camera, nivel?: number | null): Camada[] {
   const cx = 1.5
   const cy = 0.8
   const h = 0.9
@@ -534,7 +670,30 @@ function tanqueRetangular(cam: Camera): Camada[] {
     (p, q) => escalar([0, q, 0], cam.frente) - escalar([0, p, 0], cam.frente)
   ))
     camadas.push(...caixa([-cx * 1.05, y - 0.08, -0.22], [cx * 1.05, y + 0.08, 0], cam))
-  camadas.push(...caixa([-cx, -cy, 0], [cx, cy, h], cam))
+  const [contorno, arestas] = caixa([-cx, -cy, 0], [cx, cy, h], cam)
+  camadas.push(contorno)
+  const cheio = fracaoDesenhada(nivel)
+  if (cheio > 0) {
+    const z = h * cheio
+    const cantos = (cota: number): V3[] => [
+      [-cx, -cy, cota],
+      [cx, -cy, cota],
+      [cx, cy, cota],
+      [-cx, cy, cota]
+    ]
+    camadas.push({
+      tipo: 'nivel',
+      tracos: [fecho([...cantos(0), ...cantos(z)].map((p) => projetar(cam, p)))],
+      fechado: true
+    })
+    if (cheio < 1)
+      camadas.push({
+        tipo: 'espelho',
+        tracos: [cantos(z).map((p) => projetar(cam, p))],
+        fechado: true
+      })
+  }
+  camadas.push(arestas)
   const finas: P2[][] = []
   const lado = cam.pos[1] < 0 ? -cy : cy
   for (const f of [-0.6, -0.2, 0.2, 0.6])
@@ -544,6 +703,43 @@ function tanqueRetangular(cam: Camera): Camada[] {
     finas.push([projetar(cam, [ponta, f * cy, 0]), projetar(cam, [ponta, f * cy, h])])
   camadas.push({ tipo: 'fina', tracos: finas })
   camadas.push(...caixa([-0.25 * cx, -0.3 * cy, h], [0.15 * cx, 0.3 * cy, h + 0.07], cam))
+  return camadas
+}
+
+/**
+ * Monte do depósito: um cone de talude natural, levemente abaulado, com as curvas de nível. Enche de baixo para
+ * cima na altura (metade do estoque é meia altura do monte), que é a leitura que se faz de relance no mapa.
+ */
+function monte(cam: Camera, nivel?: number | null): Camada[] {
+  const H = 0.95
+  const n = 12
+  const corpo: Corpo = {
+    origem: [0, 0, 0],
+    eixo: [0, 0, 1],
+    e2: [1, 0, 0],
+    e3: [0, 1, 0],
+    secao: secaoEliptica(1.35, 1.1),
+    estacoes: Array.from({ length: n + 1 }, (_, i) => ({
+      t: (H * i) / n,
+      k: Math.max(0, 1 - (i / n) ** 1.3)
+    }))
+  }
+  const camadas: Camada[] = [
+    { tipo: 'corpo', tracos: [contornoDoCorpo(corpo, cam)], fechado: true }
+  ]
+  const cheio = fracaoDesenhada(nivel)
+  // o monte é opaco: o que se vê acima do material (por dentro do corte) volta a ser folha em branco
+  if (cheio > 0)
+    camadas.push(
+      ...nivelDoCorpo(corpo, cheio >= 1 ? H : H * cheio, cam).map((c): Camada =>
+        c.tipo === 'espelho' ? { ...c, tipo: 'vazio' } : c
+      )
+    )
+  const finas: P2[][] = []
+  for (const i of [3, 6, 9]) finas.push(...anel(corpo, i, cam))
+  for (const j of [0, 1, 2, 3, 4, 5, 6, 7].map((q) => (q * N_SECAO) / 8))
+    finas.push(...geratriz(corpo, j, cam, 0, n - 1))
+  camadas.push({ tipo: 'fina', tracos: finas })
   return camadas
 }
 
@@ -640,6 +836,73 @@ export function desenhoDoFormato(forma: Exclude<FormaTanque, 'tabela'>): Desenho
           tampoFundo: 'abaulado'
         },
         cam
+      ),
+      L,
+      H
+    )
+  })
+}
+
+/** O que o mapa precisa saber do ativo para desenhá-lo: o formato e o tampo (ou o fundo) do cadastro. */
+export interface ModeloNoMapa {
+  tipo: 'tanque' | 'deposito'
+  forma: FormaTanque | null
+  tampo: TampoCampo
+  fundo: FundoCampo
+}
+
+/**
+ * O ativo como aparece no mapa: o tanque no formato e com o tampo do cadastro (sem a escada, que não se lê nesse
+ * tamanho) ou o monte do depósito, cheio até a fração `nivel` do estoque. A tabela do fabricante não tem forma:
+ * sai como o tanque deitado comum.
+ */
+export function desenhoNoMapa(m: ModeloNoMapa, nivel: number | null): DesenhoArame {
+  const pct = nivel == null ? 'sem' : String(Math.round(fracaoDesenhada(nivel) * 100))
+  const f = nivel == null ? null : Number(pct) / 100
+  const L = 104
+  const H = 62
+  if (m.tipo === 'deposito')
+    return lembrar(`mapa:monte:${pct}`, () =>
+      montar(monte(camera([0, 0, 0.3], 40, 20, 9), f), L, H)
+    )
+  const forma = m.forma && m.forma !== 'tabela' ? m.forma : 'cilindrico_horizontal'
+  return lembrar(`mapa:${forma}:${m.tampo}:${m.fundo}:${pct}`, () => {
+    // o tanque em pé ganha uma caixa mais alta, senão sai miúdo ao lado dos deitados
+    if (forma === 'cilindrico_vertical')
+      return montar(
+        tanqueEmPe(
+          { raio: 1, altura: 2.1, fundo: m.fundo, semEscada: true, nivel: f },
+          camera([0, 0, 1], 38, 17, 9)
+        ),
+        76,
+        80
+      )
+    if (forma === 'retangular')
+      return montar(tanqueRetangular(camera([0, 0, 0.35], 40, 22, 8), f), L, H)
+    const cilindrico = forma === 'cilindrico_horizontal'
+    const a = cilindrico ? 1 : 1.32
+    const b = cilindrico ? 1 : 0.82
+    const tampo: TampoCampo =
+      m.forma === 'tabela' || m.forma == null
+        ? 'torisferico'
+        : cilindrico
+          ? m.tampo
+          : m.tampo === 'plano'
+            ? 'plano'
+            : 'abaulado'
+    return montar(
+      tanqueDeitado(
+        {
+          secao: forma === 'oval_horizontal' ? secaoOval(2 * a, 2 * b) : secaoEliptica(a, b),
+          a,
+          b,
+          comprimento: 4.4,
+          tampoFrente: tampo,
+          tampoFundo: tampo,
+          semEscada: true,
+          nivel: f
+        },
+        camera([0, 0, -0.1], 52, 15, 13)
       ),
       L,
       H
