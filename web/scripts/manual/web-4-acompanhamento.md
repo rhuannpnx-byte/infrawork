@@ -130,7 +130,7 @@ A tela tem o resumo no alto (quantos estão em uso, quantos estão abaixo do mí
 
 1. Clique em [[Novo tanque]].
 2. Informe o **Nome** e o **Material guardado**, entre os materiais da obra (Orçamento › Recursos).
-3. Escolha o **Formato** e informe as medidas **internas**, em centímetros.
+3. Escolha o **Formato do tanque** pelo desenho, informe as medidas **internas**, em centímetros, e escolha também pelo desenho os **Tampos** (as pontas do tanque deitado) ou o **Fundo** (do tanque em pé).
 4. Confira a **Capacidade calculada** com a placa do tanque.
 5. Em **A régua mede**, diga se a régua mede o líquido (do fundo para cima) ou o vazio (da boca de medição para baixo). No segundo caso, informe a altura da boca até o fundo.
 6. Se quiser, informe o **Estoque mínimo** e a **Densidade**.

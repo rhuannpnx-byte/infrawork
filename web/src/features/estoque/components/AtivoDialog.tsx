@@ -37,6 +37,7 @@ import {
   type FormaTanque
 } from '../lib/tanque'
 import type { AtivoEstoque, LeituraPor, TipoAtivo } from '../tipos'
+import { ArameTanque, EscolhaPorDesenho, FundoTanque, PontaTanque } from './ArameTanque'
 import { DesenhoNivel } from './DesenhoNivel'
 import { MapaEscolherPonto } from './MapaEstoque'
 
@@ -58,6 +59,27 @@ const FORMAS: FormaTanque[] = [
   'tabela'
 ]
 const FUNDOS: FundoCampo[] = ['plano', 'conico', 'abaulado']
+// o que cada desenho mostra, em palavras de canteiro
+const APOIO_FORMA: Record<FormaTanque, string> = {
+  cilindrico_horizontal: 'deitado, seção redonda',
+  cilindrico_vertical: 'em pé, seção redonda',
+  eliptico_horizontal: 'deitado, seção em elipse',
+  oval_horizontal: 'deitado, lados retos e pontas redondas',
+  retangular: 'caixa de lados retos',
+  tabela: 'qualquer outro: cole a tabela'
+}
+const APOIO_TAMPO: Record<TampoCampo, string> = {
+  plano: 'ponta reta',
+  abaulado: 'calota rasa',
+  semieliptico: 'curva funda',
+  hemisferico: 'meia esfera',
+  torisferico: 'borda arredondada'
+}
+const APOIO_FUNDO: Record<FundoCampo, string> = {
+  plano: 'fundo reto',
+  conico: 'funil',
+  abaulado: 'calota rasa'
+}
 const AREA_TEXTO =
   'w-full rounded border border-border-strong bg-bg-panel px-2.5 py-2 text-sm text-text tabular placeholder:text-text-dim focus-visible:outline-none focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent aria-[invalid=true]:border-danger'
 
@@ -246,7 +268,8 @@ function Formulario({
               : 'Novo depósito'}
         </DialogTitle>
       </DialogHeader>
-      <DialogBody className="grid gap-5 lg:grid-cols-2">
+      {/* o diálogo é alto: o corpo rola dentro da tela e o rodapé com os botões fica sempre à vista */}
+      <DialogBody className="grid max-h-[calc(100dvh-9.5rem)] gap-5 overflow-y-auto lg:grid-cols-2">
         <div className="space-y-3">
           <DialogErrorBanner message={error} />
           <Campo rotulo="Nome" obrigatorio erro={erro('nome')}>
@@ -280,25 +303,29 @@ function Formulario({
 
           {ehTanque ? (
             <>
-              <Campo rotulo="Formato" obrigatorio>
-                <Select
-                  value={campos.forma}
-                  onChange={(e) => {
-                    const forma = e.target.value as FormaTanque
-                    const aceitos = tamposDaForma(forma)
-                    mudar({
-                      forma,
-                      tampo: aceitos.includes(campos.tampo) ? campos.tampo : (aceitos[0] ?? 'plano')
-                    })
-                  }}
-                >
-                  {FORMAS.map((f) => (
-                    <option key={f} value={f}>
-                      {rotuloTanqueForma(f)}
-                    </option>
-                  ))}
-                </Select>
-              </Campo>
+              <EscolhaPorDesenho<FormaTanque>
+                rotulo="Formato do tanque"
+                valor={campos.forma}
+                aoMudar={(forma) => {
+                  const aceitos = tamposDaForma(forma)
+                  mudar({
+                    forma,
+                    tampo: aceitos.includes(campos.tampo) ? campos.tampo : (aceitos[0] ?? 'plano')
+                  })
+                }}
+                className="grid-cols-3"
+                opcoes={FORMAS.map((f) => ({
+                  valor: f,
+                  titulo: rotuloTanqueForma(f),
+                  apoio: APOIO_FORMA[f],
+                  desenho: (
+                    <ArameTanque
+                      forma={f}
+                      tampo={f === 'cilindrico_horizontal' ? 'abaulado' : 'plano'}
+                    />
+                  )
+                }))}
+              />
 
               {campos.forma === 'tabela' ? (
                 <Campo
@@ -345,24 +372,27 @@ function Formulario({
                       : null}
                   </div>
                   {tampos.length > 0 ? (
+                    <EscolhaPorDesenho<TampoCampo>
+                      rotulo="Tampos (as pontas do tanque)"
+                      valor={campos.tampo}
+                      aoMudar={(tampo) => mudar({ tampo })}
+                      className={tampos.length > 3 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-3'}
+                      opcoes={tampos.map((t) => ({
+                        valor: t,
+                        titulo: rotuloTanqueTampo(t),
+                        apoio: APOIO_TAMPO[t],
+                        desenho: <PontaTanque tampo={t} />
+                      }))}
+                    />
+                  ) : null}
+                  {tampos.length > 0 &&
+                  (campos.tampo === 'abaulado' || campos.tampo === 'torisferico') ? (
                     <div className="grid grid-cols-2 gap-3">
-                      <Campo rotulo="Tampos">
-                        <Select
-                          value={campos.tampo}
-                          onChange={(e) => mudar({ tampo: e.target.value as TampoCampo })}
-                        >
-                          {tampos.map((t) => (
-                            <option key={t} value={t}>
-                              {rotuloTanqueTampo(t)}
-                            </option>
-                          ))}
-                        </Select>
-                      </Campo>
                       {campos.tampo === 'abaulado'
                         ? medida(
                             'Flecha do tampo (cm)',
                             'flecha',
-                            'O quanto o tampo avança no centro.'
+                            'Meça o quanto o tampo avança no centro.'
                           )
                         : null}
                       {campos.tampo === 'torisferico' ? (
@@ -382,19 +412,21 @@ function Formulario({
                     </div>
                   ) : null}
                   {campos.forma === 'cilindrico_vertical' ? (
+                    <EscolhaPorDesenho<FundoCampo>
+                      rotulo="Fundo do tanque"
+                      valor={campos.fundo}
+                      aoMudar={(fundo) => mudar({ fundo })}
+                      className="grid-cols-3"
+                      opcoes={FUNDOS.map((f) => ({
+                        valor: f,
+                        titulo: rotuloTanqueTampo(f),
+                        apoio: APOIO_FUNDO[f],
+                        desenho: <FundoTanque fundo={f} />
+                      }))}
+                    />
+                  ) : null}
+                  {campos.forma === 'cilindrico_vertical' && campos.fundo !== 'plano' ? (
                     <div className="grid grid-cols-2 gap-3">
-                      <Campo rotulo="Fundo">
-                        <Select
-                          value={campos.fundo}
-                          onChange={(e) => mudar({ fundo: e.target.value as FundoCampo })}
-                        >
-                          {FUNDOS.map((f) => (
-                            <option key={f} value={f}>
-                              {rotuloTanqueTampo(f)}
-                            </option>
-                          ))}
-                        </Select>
-                      </Campo>
                       {campos.fundo === 'conico'
                         ? medida('Altura do cone (cm)', 'alturaFundo')
                         : null}
@@ -546,7 +578,7 @@ function Formulario({
           ) : null}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 lg:sticky lg:top-0 lg:self-start">
           <div>
             <p className="text-sm font-medium text-text">
               Local no mapa{' '}

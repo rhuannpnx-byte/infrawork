@@ -172,7 +172,7 @@ function FormMovimento({
           {entrada ? 'Lançar entrada' : 'Lançar saída'} em {ativo.nome}
         </DialogTitle>
       </DialogHeader>
-      <DialogBody className="space-y-3">
+      <DialogBody className="max-h-[calc(100dvh-9.5rem)] space-y-3 overflow-y-auto">
         <DialogErrorBanner message={error} />
         <Campo rotulo="Data e hora" obrigatorio erro={tentou ? erros.momento : undefined}>
           <Input
@@ -379,7 +379,7 @@ function FormLeitura({ ativo, fechar }: { ativo: AtivoEstoque; fechar: () => voi
       <DialogHeader>
         <DialogTitle>Registrar leitura de {ativo.nome}</DialogTitle>
       </DialogHeader>
-      <DialogBody className="space-y-3">
+      <DialogBody className="max-h-[calc(100dvh-9.5rem)] space-y-3 overflow-y-auto">
         <DialogErrorBanner message={error} />
         <Campo rotulo="Data e hora" obrigatorio erro={tentou ? erros.momento : undefined}>
           <Input

@@ -53,7 +53,7 @@ const ROTULO_TANQUE_FORMA: Record<string, string> = {
   cilindrico_horizontal: 'Cilíndrico horizontal',
   cilindrico_vertical: 'Cilíndrico vertical',
   eliptico_horizontal: 'Elíptico horizontal',
-  oval_horizontal: 'Oval (lados retos com semicírculos)',
+  oval_horizontal: 'Oval horizontal',
   retangular: 'Retangular',
   tabela: 'Tabela do fabricante'
 }
@@ -61,7 +61,7 @@ export const rotuloTanqueForma = (f: string): string => ROTULO_TANQUE_FORMA[f] ?
 
 const ROTULO_TANQUE_TAMPO: Record<string, string> = {
   plano: 'Plano',
-  abaulado: 'Abaulado (informe a flecha)',
+  abaulado: 'Abaulado',
   semieliptico: 'Semielíptico 2:1',
   hemisferico: 'Hemisférico',
   torisferico: 'Torisférico',
