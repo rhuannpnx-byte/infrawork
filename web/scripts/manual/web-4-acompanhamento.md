@@ -174,7 +174,7 @@ A **autonomia** é o saldo dividido pela média diária das saídas dos últimos
 
 ### Tabela de controle do tanque
 
-Na ficha do tanque, clique em [[Imprimir tabela]]. Sai uma folha com as medidas do tanque, o ábaco (a curva da régua pelos litros) e a tabela centímetro a centímetro, com os litros acumulados e os litros por centímetro. Quando a régua mede o vazio, a tabela é montada pelo número do vazio.
+Na ficha do tanque, clique em [[Imprimir tabela]]. Sai uma folha de uma página só, para ficar ao lado do tanque, com as medidas, o ábaco (a curva da régua pelos litros) e a tabela centímetro a centímetro, com os litros acumulados e os litros por centímetro. Em tanque muito alto a tabela sai de 2 em 2 cm, para caber na página. Quando a régua mede o vazio, a tabela é montada pelo número do vazio.
 
 O estoque não baixa sozinho pela produção nem pelas viagens: as saídas são lançadas nesta página.
 
