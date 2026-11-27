@@ -85,3 +85,39 @@ export function htmlAlfinete(): string {
 
 /** Cor do traçado da obra desenhado ao fundo, só como referência. */
 export const COR_TRACADO_FUNDO = '#fbbf24'
+
+/**
+ * Painel das marcações do traçado (km, estaca…). Fica acima da linha e abaixo dos marcadores do estoque, para o
+ * rótulo de um km nunca cobrir o desenho de um tanque.
+ */
+const PAINEL_MARCACOES = 'marcacoes-tracado'
+
+export function prepararPainelMarcacoes(map: import('leaflet').Map): void {
+  const painel = map.getPane(PAINEL_MARCACOES) ?? map.createPane(PAINEL_MARCACOES)
+  painel.style.zIndex = '450'
+  painel.style.pointerEvents = 'none'
+}
+
+/** Uma marcação do traçado: o ponto sobre a linha e o rótulo ("km 5", "EST 120") sempre à vista. */
+export function desenharMarcacao(
+  L: typeof import('leaflet'),
+  camada: import('leaflet').LayerGroup,
+  m: { lat: number; lng: number; label: string }
+): void {
+  L.circleMarker([m.lat, m.lng], {
+    pane: PAINEL_MARCACOES,
+    interactive: false,
+    radius: 4,
+    color: FOLHA,
+    weight: 1.5,
+    fillColor: COR_TRACADO_FUNDO,
+    fillOpacity: 1
+  })
+    .bindTooltip(escapar(m.label), {
+      pane: PAINEL_MARCACOES,
+      permanent: true,
+      direction: 'top',
+      offset: [0, -5]
+    })
+    .addTo(camada)
+}

@@ -1,17 +1,24 @@
 // Mapas do estoque: o da página (um marcador por ativo, com o status) e o de escolher o ponto no cadastro.
 // Leaflet carregado sob demanda, no mesmo fundo de satélite dos outros mapas, com o traçado da obra como referência.
 
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { loadLeaflet } from '@/lib/leaflet/carregar'
 import { addBaseMapEsri } from '@/lib/leaflet/tiles'
 import {
   COR_TRACADO_FUNDO,
+  desenharMarcacao,
   htmlAlfinete,
-  htmlMarcadorEstoque
+  htmlMarcadorEstoque,
+  prepararPainelMarcacoes
 } from '@/lib/leaflet/marcador-estoque'
 import { cn } from '@/lib/utils'
 import { useObraTrechos } from '@/features/planejamento/hooks/trechos'
 import { linhaDoTrecho, poligonoDoTrecho } from '@/features/planejamento/lib/trecho'
+import {
+  filtrarPorZoom,
+  marcadoresDoTrecho,
+  posicionarMarcadores
+} from '@/features/planejamento/lib/marcadores-mapa'
 import type { ObraTrecho } from '@/types/gerencial'
 import { desenhoNoMapa, type DesenhoArame } from '../lib/arame3d'
 import { camposDoTanque } from '../lib/formulario-tanque'
@@ -40,7 +47,60 @@ function criarMapa(L: Leaflet, el: HTMLElement): Mapa {
   const map = L.map(el, { zoomControl: false, attributionControl: false, maxZoom: 18 })
   L.control.zoom({ zoomInTitle: 'Aproximar', zoomOutTitle: 'Afastar' }).addTo(map)
   addBaseMapEsri(map, L)
+  prepararPainelMarcacoes(map)
   return map
+}
+
+type Marcacao = { posicaoM: number; label: string; lat: number; lng: number }
+
+/** Abaixo deste zoom a obra inteira cabe na tela e os rótulos de km ou estaca só poluem. */
+const ZOOM_MIN_MARCACOES = 11
+
+/** As marcações de cada eixo (km, estaca ou a unidade própria, como definidas no local), já sobre a linha. */
+function marcacoesDaObra(trechos: ObraTrecho[]): Marcacao[][] {
+  const out: Marcacao[][] = []
+  for (const t of trechos) {
+    const linha = linhaDoTrecho(t)
+    if (!linha || linha.coordinates.length < 2) continue
+    const pontos = posicionarMarcadores(linha.coordinates, marcadoresDoTrecho(t))
+    if (pontos.length > 0) out.push(pontos)
+  }
+  return out
+}
+
+/**
+ * Desenha as marcações do traçado no mapa e as refaz a cada zoom ou arrasto: só as que estão na tela, desbastadas
+ * para os rótulos não se empilharem (o mesmo critério do mapa de Fotos).
+ */
+function useMarcacoesDoTracado(
+  pronto: boolean,
+  mapRef: RefObject<Mapa | null>,
+  LRef: RefObject<Leaflet | null>,
+  trechos: ObraTrecho[] | undefined
+): void {
+  const marcacoes = useMemo(() => marcacoesDaObra(trechos ?? []), [trechos])
+  useEffect(() => {
+    const L = LRef.current
+    const map = mapRef.current
+    if (!pronto || !L || !map || marcacoes.length === 0) return
+    const camada = L.layerGroup().addTo(map)
+    const desenhar = (): void => {
+      camada.clearLayers()
+      const zoom = map.getZoom()
+      if (zoom < ZOOM_MIN_MARCACOES) return
+      const naTela = map.getBounds().pad(0.1)
+      const lat = map.getCenter().lat
+      for (const pontos of marcacoes)
+        for (const m of filtrarPorZoom(pontos, zoom, lat))
+          if (naTela.contains([m.lat, m.lng])) desenharMarcacao(L, camada, m)
+    }
+    desenhar()
+    map.on('moveend zoomend', desenhar)
+    return () => {
+      map.off('moveend zoomend', desenhar)
+      camada.remove()
+    }
+  }, [pronto, marcacoes, mapRef, LRef])
 }
 
 function enquadrar(L: Leaflet, map: Mapa, pontos: Ponto[]): void {
@@ -91,6 +151,7 @@ export function MapaEstoque({
   const [pronto, setPronto] = useState(false)
   const { data: trechos } = useObraTrechos(obraId)
   const tracados = useMemo(() => tracadosDaObra(trechos ?? []), [trechos])
+  useMarcacoesDoTracado(pronto, mapRef, LRef, trechos)
 
   // cria o mapa uma vez; as camadas são redesenhadas sem recriá-lo
   useEffect(() => {
@@ -203,6 +264,7 @@ export function MapaEscolherPonto({
   const [pronto, setPronto] = useState(false)
   const { data: trechos } = useObraTrechos(obraId)
   const tracados = useMemo(() => tracadosDaObra(trechos ?? []), [trechos])
+  useMarcacoesDoTracado(pronto, mapRef, LRef, trechos)
   const seis = (v: number): number => Math.round(v * 1e6) / 1e6
 
   useEffect(() => {
