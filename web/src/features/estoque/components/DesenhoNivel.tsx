@@ -1,11 +1,12 @@
 import { type ReactNode, useId } from 'react'
 import { cn } from '@/lib/utils'
 import { alturaTotal, type Tanque } from '../lib/tanque'
-import type { StatusEstoque } from '../tipos'
+import type { SituacaoEstoque } from '../lib/situacao'
 
-const TOM: Record<StatusEstoque, string> = {
+const TOM: Record<SituacaoEstoque, string> = {
   normal: 'text-success',
-  baixo: 'text-warn',
+  atencao: 'text-warn',
+  baixo: 'text-danger',
   zerado: 'text-danger',
   negativo: 'text-danger',
   sem_saldo: 'text-text-dim'
@@ -16,7 +17,7 @@ interface Props {
   tanque: Tanque | null
   /** quanto está cheio, de 0 a 1 (em altura no tanque; em quantidade no depósito) */
   fracao: number | null
-  status: StatusEstoque
+  status: SituacaoEstoque
   /** descrição para leitor de tela ("Tanque T1 com 61% do nível") */
   rotulo: string
   className?: string

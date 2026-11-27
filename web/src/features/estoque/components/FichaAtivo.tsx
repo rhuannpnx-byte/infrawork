@@ -20,12 +20,14 @@ import {
 import { useExcluirLinhaExtrato, useExtratoEstoque, useTabelaTanque } from '../hooks/estoque'
 import { descreverTanque } from '../lib/formulario-tanque'
 import { linhasDaFolha, nivelParaVolume } from '../lib/tanque'
-import type { AtivoEstoque, LinhaExtrato, StatusEstoque } from '../tipos'
+import { situacaoDoEstoque, type SituacaoEstoque } from '../lib/situacao'
+import type { AtivoEstoque, LinhaExtrato } from '../tipos'
 import { DesenhoNivel } from './DesenhoNivel'
 
-const VARIANTE: Record<StatusEstoque, 'success' | 'warn' | 'danger' | 'default'> = {
+const VARIANTE: Record<SituacaoEstoque, 'success' | 'warn' | 'danger' | 'default'> = {
   normal: 'success',
-  baixo: 'warn',
+  atencao: 'warn',
+  baixo: 'danger',
   zerado: 'danger',
   negativo: 'danger',
   sem_saldo: 'default'
@@ -174,6 +176,7 @@ function Conteudo({
   }
 
   const pct = ativo.nivel == null ? null : Math.round(ativo.nivel * 100)
+  const situacao = situacaoDoEstoque(ativo)
   return (
     <>
       <SheetHeader>
@@ -188,7 +191,7 @@ function Conteudo({
           <DesenhoNivel
             tanque={ehTanque ? ativo.dimensoes : null}
             fracao={fracao}
-            status={ativo.status}
+            status={situacao}
             rotulo={`${ativo.nome}: ${pct == null ? 'sem saldo' : `${pct}% da capacidade`}`}
           />
           <div className="min-w-0 flex-1">
@@ -196,7 +199,7 @@ function Conteudo({
               <p className="text-2xl font-semibold tabular text-text" data-testid="estoque-saldo">
                 {saldo == null ? 'Sem saldo' : qtd(saldo, ativo.unidade)}
               </p>
-              <Badge variant={VARIANTE[ativo.status]}>{rotuloEstoqueStatus(ativo.status)}</Badge>
+              <Badge variant={VARIANTE[situacao]}>{rotuloEstoqueStatus(situacao)}</Badge>
             </div>
             <p className="text-sm text-text-muted">
               de {qtd(ativo.capacidade, ativo.unidade)}

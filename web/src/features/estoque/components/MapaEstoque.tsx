@@ -22,6 +22,7 @@ import {
 import type { ObraTrecho } from '@/types/gerencial'
 import { desenhoNoMapa, type DesenhoArame } from '../lib/arame3d'
 import { camposDoTanque } from '../lib/formulario-tanque'
+import { situacaoDoEstoque } from '../lib/situacao'
 import type { AtivoEstoque } from '../tipos'
 
 type Mapa = import('leaflet').Map
@@ -199,7 +200,7 @@ export function MapaEstoque({
           iconSize: [0, 0],
           html: htmlMarcadorEstoque({
             nome: a.nome,
-            status: a.status,
+            status: situacaoDoEstoque(a),
             nivel: textoNivel(a),
             selecionado: a.id === selecionadoId,
             desenho: desenhoDoAtivo(a)

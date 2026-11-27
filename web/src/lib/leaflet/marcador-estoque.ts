@@ -1,17 +1,20 @@
 // Marcadores do mapa de estoque. Ficam sobre a foto de satélite, que não muda com o tema: as cores são fixas (como as
 // dos outros mapas desta pasta) e o status nunca depende só da cor — o rótulo traz o nome, o percentual e um sinal.
 
-export type StatusMarcador = 'normal' | 'baixo' | 'zerado' | 'negativo' | 'sem_saldo'
+export type StatusMarcador = 'normal' | 'atencao' | 'baixo' | 'zerado' | 'negativo' | 'sem_saldo'
 
+// verde: com folga; amarelo: até 20% acima do mínimo; vermelho: no mínimo ou abaixo dele, zerado ou negativo
 const COR: Record<StatusMarcador, string> = {
   normal: '#15803d',
-  baixo: '#b45309',
+  atencao: '#ca8a04',
+  baixo: '#b91c1c',
   zerado: '#b91c1c',
   negativo: '#b91c1c',
   sem_saldo: '#4b5563'
 }
 const SINAL: Record<StatusMarcador, string> = {
   normal: '',
+  atencao: ' ▽',
   baixo: ' ▼',
   zerado: ' !',
   negativo: ' !',

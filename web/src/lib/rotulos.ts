@@ -42,6 +42,7 @@ export const rotuloEstoqueTipo = (t: string): string => ROTULO_ESTOQUE_TIPO[t] ?
 
 const ROTULO_ESTOQUE_STATUS: Record<string, string> = {
   normal: 'Normal',
+  atencao: 'Perto do mínimo',
   baixo: 'Baixo',
   zerado: 'Zerado',
   negativo: 'Negativo',

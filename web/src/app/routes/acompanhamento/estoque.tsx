@@ -17,12 +17,8 @@ import { AtivoDialog } from '@/features/estoque/components/AtivoDialog'
 import { FichaAtivo } from '@/features/estoque/components/FichaAtivo'
 import { LeituraDialog, MovimentoDialog } from '@/features/estoque/components/LancamentoDialogs'
 import { MapaEstoque } from '@/features/estoque/components/MapaEstoque'
-import {
-  GRAVIDADE_STATUS,
-  type AtivoEstoque,
-  type StatusEstoque,
-  type TipoAtivo
-} from '@/features/estoque/tipos'
+import { situacaoDoEstoque, type SituacaoEstoque } from '@/features/estoque/lib/situacao'
+import { GRAVIDADE_STATUS, type AtivoEstoque, type TipoAtivo } from '@/features/estoque/tipos'
 
 export function AcompanhamentoEstoquePage(): ReactNode {
   return (
@@ -34,16 +30,19 @@ export function AcompanhamentoEstoquePage(): ReactNode {
   )
 }
 
-const TOM_BARRA: Record<StatusEstoque, 'success' | 'warn' | 'danger' | 'accent'> = {
+// as mesmas cores do mapa: verde com folga, amarelo até 20% acima do mínimo, vermelho no mínimo ou abaixo
+const TOM_BARRA: Record<SituacaoEstoque, 'success' | 'warn' | 'danger' | 'accent'> = {
   normal: 'success',
-  baixo: 'warn',
+  atencao: 'warn',
+  baixo: 'danger',
   zerado: 'danger',
   negativo: 'danger',
   sem_saldo: 'accent'
 }
-const VARIANTE: Record<StatusEstoque, 'success' | 'warn' | 'danger' | 'default'> = {
+const VARIANTE: Record<SituacaoEstoque, 'success' | 'warn' | 'danger' | 'default'> = {
   normal: 'success',
-  baixo: 'warn',
+  atencao: 'warn',
+  baixo: 'danger',
   zerado: 'danger',
   negativo: 'danger',
   sem_saldo: 'default'
@@ -298,6 +297,7 @@ function Lista({
             <tbody>
               {ativos.map((a) => {
                 const pct = a.nivel == null ? null : Math.round(a.nivel * 100)
+                const situacao = situacaoDoEstoque(a)
                 return (
                   <tr
                     key={a.id}
@@ -322,7 +322,7 @@ function Lista({
                           valor={a.nivel ?? 0}
                           marca={a.estoque_minimo > 0 ? a.estoque_minimo / a.capacidade : null}
                           rotuloMarca={`A linha marca o estoque mínimo: ${qtd(a.estoque_minimo, a.unidade)}`}
-                          tom={TOM_BARRA[a.status]}
+                          tom={TOM_BARRA[situacao]}
                           className="flex-1"
                         />
                         <span className="w-10 text-right tabular text-text">
@@ -338,9 +338,9 @@ function Lista({
                             ? ` · mín. ${qtd(a.estoque_minimo, a.unidade)}`
                             : ''}
                         </span>
-                        {a.status !== 'normal' ? (
-                          <Badge variant={VARIANTE[a.status]}>
-                            {rotuloEstoqueStatus(a.status)}
+                        {situacao !== 'normal' ? (
+                          <Badge variant={VARIANTE[situacao]}>
+                            {rotuloEstoqueStatus(situacao)}
                           </Badge>
                         ) : null}
                         {!a.ativo ? <Badge variant="outline">Fora de uso</Badge> : null}
