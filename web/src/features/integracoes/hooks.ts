@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { capacidadeLigada, CHAVES_CAPACIDADE, type Capacidade } from '@/config/capacidades'
 
 /** O que está ligado para a empresa, já com o padrão do catálogo para o que não tem linha. */
@@ -162,6 +163,249 @@ export function useSiga(): ReturnType<
     onSuccess: (_r, v) => {
       void qc.invalidateQueries({ queryKey: ['integracao', v.empresa_id] })
       void qc.invalidateQueries({ queryKey: ['integracao-execucao'] })
+    }
+  })
+}
+
+// ── Capacidades do escopo atual (o menu esconde o que a empresa não tem) ──────────────────────────────────────
+
+/** As capacidades da empresa em uso (a do usuário, ou a que o god escolheu). `null` enquanto carrega. */
+export function useCapacidadesDoEscopo(): Record<Capacidade, boolean> | null {
+  const { empresaId } = useCurrentScope()
+  return useCapacidades(empresaId).data ?? null
+}
+
+// ── Vínculo da obra com o SIGA e de-para ───────────────────────────────────────────────────────────────────
+
+/** Chama o conector e devolve o corpo; o erro vem com a mensagem pronta para a tela. */
+async function chamarSiga<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('siga', { body })
+  if (error) {
+    const ctx = (error as { context?: Response }).context
+    const corpo = ctx ? ((await ctx.json().catch(() => null)) as { error?: string } | null) : null
+    throw new Error(corpo?.error ?? error.message)
+  }
+  if (!data?.ok) throw new Error(data?.error ?? 'Falha no conector do SIGA')
+  return data as T
+}
+
+export interface ResumoSyncSiga {
+  lidos: number
+  novos: number
+  alterados: number
+  iguais: number
+  removidos: number
+  erros: Array<{ externo_id: number; erro: string }>
+}
+
+export interface VinculoSiga {
+  obra_id: string
+  externo_projeto_id: number
+  externo_projeto_codigo: string | null
+  data_corte: string | null
+  gravacao: 'desligada' | 'simulacao' | 'ligada'
+  ultimo_sync_em: string | null
+  ultimo_sync_ok: boolean | null
+  ultimo_sync_resumo: ResumoSyncSiga | null
+  ultimo_sync_erro: string | null
+}
+
+/** O vínculo da obra com um projeto do SIGA, ou null se a produção dela é lançada aqui. */
+export function useVinculoSiga(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<VinculoSiga | null>> {
+  return useQuery({
+    queryKey: ['siga', 'vinculo', obraId],
+    enabled: !!obraId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integracao_obra')
+        .select(
+          'obra_id, externo_projeto_id, externo_projeto_codigo, data_corte, gravacao, ultimo_sync_em, ultimo_sync_ok, ultimo_sync_resumo, ultimo_sync_erro'
+        )
+        .eq('obra_id', obraId!)
+        .maybeSingle()
+      if (error) throw error
+      return (data as VinculoSiga | null) ?? null
+    }
+  })
+}
+
+export type TipoDePara = 'servico' | 'equipe' | 'encarregado' | 'local'
+
+export interface DeParaSiga {
+  tipo: TipoDePara
+  externo_id: number
+  externo_nome: string
+  externo_unidade: string | null
+  interno_id: string | null
+  fator_conversao: number
+  principal: boolean
+  ignorado: boolean
+}
+
+export function useDeParaSiga(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<DeParaSiga[]>> {
+  return useQuery({
+    queryKey: ['siga', 'de-para', obraId],
+    enabled: !!obraId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integracao_de_para')
+        .select(
+          'tipo, externo_id, externo_nome, externo_unidade, interno_id, fator_conversao, principal, ignorado'
+        )
+        .eq('obra_id', obraId!)
+        .order('externo_nome')
+        .limit(2000)
+      if (error) throw error
+      return (data ?? []).map((d) => ({
+        ...d,
+        externo_id: Number(d.externo_id),
+        fator_conversao: Number(d.fator_conversao)
+      })) as DeParaSiga[]
+    }
+  })
+}
+
+export interface CadastroSiga {
+  id: number
+  nome: string
+  lancamentos: number
+  ultimo: string | null
+  unidade?: string | null
+  material?: string | null
+  encarregado_id?: number | null
+  encarregado?: string | null
+}
+export interface CadastrosSiga {
+  servicos: CadastroSiga[]
+  equipes: CadastroSiga[]
+  encarregados: CadastroSiga[]
+  locais: CadastroSiga[]
+}
+
+/** O que o projeto usa no SIGA (lido de lá na hora). */
+export function useCadastrosSiga(
+  obraId: string | null | undefined,
+  ativo: boolean
+): ReturnType<typeof useQuery<CadastrosSiga>> {
+  return useQuery({
+    queryKey: ['siga', 'cadastros', obraId],
+    enabled: !!obraId && ativo,
+    staleTime: 5 * 60_000,
+    queryFn: () => chamarSiga<CadastrosSiga>({ acao: 'cadastros', obra_id: obraId })
+  })
+}
+
+export interface ProjetoSiga {
+  id: number
+  codigo: string
+  obras: string | null
+}
+
+export function useProjetosSiga(
+  obraId: string | null | undefined,
+  ativo: boolean
+): ReturnType<typeof useQuery<ProjetoSiga[]>> {
+  return useQuery({
+    queryKey: ['siga', 'projetos', obraId],
+    enabled: !!obraId && ativo,
+    staleTime: 5 * 60_000,
+    queryFn: async () =>
+      (await chamarSiga<{ projetos: ProjetoSiga[] }>({ acao: 'projetos', obra_id: obraId }))
+        .projetos
+  })
+}
+
+export interface OpcaoInterna {
+  id: string
+  nome: string
+}
+
+/** Os cadastros do InfraWork que recebem o vínculo: serviços do orçamento com composição, equipes, encarregados e locais. */
+export function useInternosDaObra(
+  obraId: string | null | undefined
+): ReturnType<typeof useQuery<Record<TipoDePara, OpcaoInterna[]>>> {
+  return useQuery({
+    queryKey: ['siga', 'internos', obraId],
+    enabled: !!obraId,
+    queryFn: async () => {
+      const [servicos, equipes, encarregados, locais] = await Promise.all([
+        supabase
+          .from('item_orcamentario')
+          .select('id, descricao, unidade_referencia')
+          .eq('obra_id', obraId!)
+          .eq('tipo', 'servico_grupo')
+          .not('servico_id', 'is', null)
+          .order('descricao'),
+        supabase.from('equipe').select('id, nome').eq('obra_id', obraId!).order('nome'),
+        supabase.from('encarregado').select('id, nome').eq('obra_id', obraId!).order('nome'),
+        supabase.from('obra_trecho').select('id, nome').eq('obra_id', obraId!).order('ordem')
+      ])
+      for (const r of [servicos, equipes, encarregados, locais]) if (r.error) throw r.error
+      return {
+        servico: (servicos.data ?? []).map((s) => ({
+          id: s.id as string,
+          nome: `${s.descricao}${s.unidade_referencia ? ` (${s.unidade_referencia})` : ''}`
+        })),
+        equipe: (equipes.data ?? []) as OpcaoInterna[],
+        encarregado: (encarregados.data ?? []) as OpcaoInterna[],
+        local: (locais.data ?? []) as OpcaoInterna[]
+      }
+    }
+  })
+}
+
+export type AcaoVinculoSiga =
+  | {
+      acao: 'vincular'
+      obra_id: string
+      projeto_id: number
+      projeto_codigo: string
+      data_corte: string | null
+    }
+  | { acao: 'desvincular'; obra_id: string }
+  | { acao: 'sincronizar'; obra_id: string }
+  | { acao: 'de_para'; obra_id: string; linhas: Array<Record<string, unknown>> }
+
+export interface RetornoVinculoSiga {
+  resumo?: ResumoSyncSiga
+  criados?: number
+  gravados?: number
+}
+
+/** As gravações do vínculo. Tudo que muda aqui muda a produção da obra: as telas de produção são relidas. */
+export function useVinculoSigaAcao(): ReturnType<
+  typeof useMutation<RetornoVinculoSiga, Error, AcaoVinculoSiga>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a) => {
+      if (a.acao === 'sincronizar')
+        return chamarSiga<RetornoVinculoSiga>({ acao: 'sincronizar', obra_id: a.obra_id })
+      const chamada =
+        a.acao === 'vincular'
+          ? supabase.rpc('siga_vincular_obra', {
+              _obra_id: a.obra_id,
+              _projeto_id: a.projeto_id,
+              _projeto_codigo: a.projeto_codigo,
+              _data_corte: a.data_corte
+            })
+          : a.acao === 'desvincular'
+            ? supabase.rpc('siga_desvincular_obra', { _obra_id: a.obra_id })
+            : supabase.rpc('siga_de_para_salvar', { _obra_id: a.obra_id, _linhas: a.linhas })
+      const { data, error } = await chamada
+      if (error) throw new Error(error.message)
+      return (data ?? {}) as RetornoVinculoSiga
+    },
+    // cada tela mostra o erro no próprio lugar
+    onError: () => undefined,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['siga'] })
+      void qc.invalidateQueries({ queryKey: ['acompanhamento'] })
+      void qc.invalidateQueries({ queryKey: ['prontidao'] })
     }
   })
 }

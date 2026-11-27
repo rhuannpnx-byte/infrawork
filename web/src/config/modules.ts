@@ -338,6 +338,15 @@ export const MODULES: ModuleConfig[] = [
             route: '/acompanhamento/alertas',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
+          },
+          {
+            // só para empresa cuja produção vem do SIGA
+            icon: 'plug',
+            label: 'Vínculo com o SIGA',
+            route: '/acompanhamento/siga',
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro'],
+            requer: 'integracao_siga'
           }
         ]
       }

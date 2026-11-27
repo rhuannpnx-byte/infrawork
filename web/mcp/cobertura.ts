@@ -28,6 +28,8 @@ export const LEGIVEIS: string[] = [
   'fleet_sync_execucao',
   'frota_veiculo',
   'indireto_item',
+  'integracao_de_para',
+  'integracao_obra',
   'item_orc_alocacao',
   'item_orcamentario',
   'memoria_calculo_item',
@@ -82,6 +84,7 @@ export const LEGIVEIS: string[] = [
   'vw_acompanhamento_produtividade_equipe',
   'vw_estoque_extrato',
   'vw_estoque_saldo',
+  'vw_siga_pendencias',
   'vw_orcamento_consolidado',
   'vw_planejamento_tarefa_completa',
   'vw_recurso_com_preco',
@@ -207,6 +210,9 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   integracao_segredo: 'credencial de sistema externo (SIGA): só a Edge Function lê',
   empresa_tem:
     'capacidade da empresa conferida por funções do banco e do servidor; a IA lê empresa_capacidade',
+  siga_reaplicar:
+    'chamada por siga_de_para_salvar (reaplica o de-para nos lançamentos que já vieram)',
+  siga_aplicar_producao: 'lote lido do SIGA: só o conector (Edge Function siga) aplica',
   mcp_token_criar: 'tokens pessoais: só pela tela do web',
   mcp_token_revogar: 'tokens pessoais: só pela tela do web',
   mcp_oauth_cliente_info: 'login OAuth: tela de consentimento do web',
@@ -215,6 +221,5 @@ export const RPCS_IGNORADAS: Record<string, string> = {
 
 /** Edge Functions que nenhuma ferramenta chama, com o motivo. */
 export const FUNCOES_IGNORADAS: Record<string, string> = {
-  me: 'perfil da sessão do web; o MCP usa quem_sou',
-  siga: 'conexão e diagnóstico do SIGA: a credencial e a estrutura do banco externo não passam pela IA (tela Integrações)'
+  me: 'perfil da sessão do web; o MCP usa quem_sou'
 }

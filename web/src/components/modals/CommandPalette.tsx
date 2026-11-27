@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useObraStore } from '@/stores/obra-store'
 import { useThemeStore } from '@/stores/theme-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useCapacidadesDoEscopo } from '@/features/integracoes/hooks'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { MODULES } from '@/config/modules'
 import { visibleFor } from '@/types/module'
@@ -44,6 +45,7 @@ export function CommandPalette(): ReactNode {
   const tema = useThemeStore((s) => s.tema)
   const setPreferencia = useThemeStore((s) => s.setPreferencia)
   const { obraId, empresaId, obrasNaEmpresa, isGod } = useCurrentScope()
+  const capacidades = useCapacidadesDoEscopo()
   const [value, setValue] = useState('')
   const [busca, setBusca] = useState('')
   const caixa = useRef<HTMLDivElement>(null)
@@ -123,7 +125,7 @@ export function CommandPalette(): ReactNode {
               </Command.Item>
               {modulos.flatMap((m) =>
                 visibleFor(m.sections, role).flatMap((secao) =>
-                  visibleFor(secao.items, role).map((item) => {
+                  visibleFor(secao.items, role, capacidades).map((item) => {
                     const bloqueado = !!item.requiresObra && !obraId
                     return (
                       <Command.Item

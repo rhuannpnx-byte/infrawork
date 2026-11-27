@@ -781,6 +781,20 @@ try {
     )
   }
 
+  // integrações: obra sem vínculo; sem o SIGA conectado na empresa, vincular é recusado com o motivo
+  const semVinculo = await chamar('integracoes', { acao: 'status', obra_id: O })
+  const vincular = await tentar('integracoes', {
+    acao: 'vincular',
+    obra_id: O,
+    projeto_id: 1,
+    projeto_codigo: 'E2E'
+  })
+  check(
+    'integracoes: obra sem vínculo e vincular sem o SIGA conectado é recusado com o motivo',
+    semVinculo.vinculada === false && vincular.erro && /SIGA/.test(vincular.texto),
+    `${JSON.stringify(semVinculo)} / ${vincular.texto.slice(0, 100)}`
+  )
+
   // ── 9. Papéis ──────────────────────────────────────────────────────────────────────────────────
   if (process.env.E2E_APONTADOR && process.env.E2E_APONTADOR_SENHA) {
     const apt = await conectar(process.env.E2E_APONTADOR, process.env.E2E_APONTADOR_SENHA)

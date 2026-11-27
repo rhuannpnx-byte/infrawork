@@ -45,13 +45,30 @@ O SIGA é um MySQL que não podemos alterar. A produção e as fotos da empresa 
 (`pnj_controle_producao`, `pnj_foto`, cadastros `cdt_*`); orçamento, cronograma, equipes e viagens continuam no
 InfraWork. O app de campo é o mesmo de todas as empresas: quem leva o lançamento ao SIGA é o conector.
 
-| Fase | O que entrega | Situação |
+| Etapa | O que entrega | Situação |
 |---|---|---|
-| 0 | Reconhecimento: estrutura real das tabelas e como o Monito as preenche | pela tela, com a conexão feita |
-| 1 | Fundação: capacidades, integrações, conexão e diagnóstico do SIGA | feita (migração 0070, função `siga`) |
-| 2 | Leitura: produção e fotos do SIGA copiadas para o InfraWork, vínculo obra ↔ projeto e de-para | a fazer |
-| 3 | Escrita: fila de saída que grava no SIGA o que é lançado no web e no app | a fazer |
-| 4 | Fotos para o SIGA, alertas de falha, ferramenta do MCP e manual | a fazer |
+| Reconhecimento | Estrutura real das tabelas e como o Monito as preenche (`docs/siga/MAPEAMENTO.md`) | feito |
+| Fundação | Capacidades, integrações, conexão e diagnóstico do SIGA | feita (migração 0070, função `siga`) |
+| A. Vínculos | Obra ↔ projeto; de-para de serviço, equipe, encarregado e local; tela e ferramenta do MCP | feita (migração 0071) |
+| B. Carga do desktop | `scripts/importar-do-desktop.mjs` traz uma obra do InfraWork desktop | feita (6.508 no local) |
+| C. Leitura | Produção do SIGA copiada para o InfraWork a cada 10 minutos | feita (migração 0071) |
+| D. Usuários | Apontador entra no app com o usuário do SIGA; usuário do web ligado ao do SIGA | a fazer |
+| E. Gravação | Fila de saída que grava no SIGA o que é lançado no web e no app | a fazer |
+| F. Fotos | Fotos do SIGA para cá e daqui para lá; alerta de falha | a fazer |
+
+### Vínculos
+
+- `integracao_obra`: a obra ligada a um projeto do SIGA, a data de corte e o modo de gravação (`desligada`,
+  `simulacao`, `ligada`). Enquanto a gravação não está ligada, a obra não recebe lançamento feito aqui.
+- `integracao_de_para`: serviço, equipe, encarregado e local do SIGA ↔ os do InfraWork, por obra. O serviço tem
+  fator de conversão (quantidade aqui = quantidade do SIGA × fator) e pode ficar "fora do orçamento".
+- A produção do SIGA entra em `acompanhamento_producao` com `origem = 'siga'`, `externo_id` e `externo` (o que
+  veio em texto). Só `siga_aplicar_producao`, chamada pelo conector, grava essas linhas; o usuário não as
+  altera nem exclui.
+- Criar um de-para reaplica nos lançamentos que já vieram. O que está sem vínculo aparece em
+  `vw_siga_pendencias` e na tela **Acompanhamento › Vínculo com o SIGA** (item de menu com `requer`).
+- Funções do usuário: `siga_vincular_obra`, `siga_desvincular_obra`, `siga_de_para_salvar` (quem planeja a
+  obra). No MCP: ferramenta `integracoes`.
 
 Regras que valem para as próximas fases:
 
@@ -67,6 +84,9 @@ Regras que valem para as próximas fases:
 - `conectar` (`host`, `porta`, `banco`, `usuario`, `senha`): god ou adm. Testa a conexão, confere que o banco tem
   `pnj_controle_producao` e guarda a credencial no Vault. Endereço de rede interna é recusado.
 - `desconectar`: apaga a credencial.
+- `projetos`, `cadastros`, `sincronizar` (com `obra_id`): quem planeja a obra. Lista os projetos, os cadastros do
+  projeto (com quantos lançamentos usam cada um) e lê a produção agora. Sem `obra_id` e com a chave de serviço
+  (o `pg_cron`, a cada 10 minutos), `sincronizar` percorre todas as obras vinculadas.
 - `diagnostico`: só o god. Lê, sem gravar nada, as tabelas `pnj_*` e `cdt_*`, as colunas, as chaves estrangeiras,
   os gatilhos, as permissões do usuário e como as últimas linhas estão preenchidas. O resultado fica em
   `integracao_execucao.resumo` e pode ser baixado na tela.

@@ -45,5 +45,6 @@ export const ROTAS = [
   '/acompanhamento/equipes',
   '/acompanhamento/transporte',
   '/acompanhamento/alertas',
+  '/acompanhamento/siga',
   '/lancar'
 ]

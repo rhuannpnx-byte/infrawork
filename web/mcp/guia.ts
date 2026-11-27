@@ -78,8 +78,12 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   Não há hodômetro. A medição desses serviços sai como quadro de distribuição (origem → destino com as estacas,
   DMT, momento).
 - **Empresas com soluções diferentes**: o sistema é um só; o que muda por empresa está em empresa_capacidade
-  (leia pela consultar; sem linha vale o padrão). Empresa com integracao_siga tem a produção e as fotos vindas do
-  SIGA por um conector. A conexão e a credencial são feitas só na tela Gerencial › Integrações, nunca pela IA.
+  (leia pela consultar; sem linha vale o padrão). Empresa com integracao_siga tem a produção vinda do SIGA por um
+  conector (ferramenta integracoes): a obra é ligada a um projeto de lá e cada serviço, equipe, encarregado e
+  local do SIGA é ligado ao do InfraWork (de-para; o serviço tem fator de conversão para a unidade do plano).
+  O SIGA é a verdade: lançamento de origem "siga" não se altera nem se exclui aqui, e nessa obra o lançamento
+  feito pelo InfraWork só entra quando a gravação estiver ligada. Sem de-para a produção entra com o nome do SIGA
+  e vira pendência (integracoes.status). A conexão e a credencial são feitas só na tela Gerencial › Integrações.
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.
 
 ## Como usar as ferramentas

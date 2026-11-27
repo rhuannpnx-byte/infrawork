@@ -1,3 +1,4 @@
+import type { Capacidade } from '@/config/capacidades'
 import type { Role } from './auth'
 
 export interface ModuleNavItem {
@@ -11,6 +12,8 @@ export interface ModuleNavItem {
    * houver obra ativa, o item é renderizado desabilitado com tooltip.
    */
   requiresObra?: boolean
+  /** Só aparece para empresa com esta capacidade ligada (web/src/config/capacidades.ts). */
+  requer?: Capacidade
 }
 
 export interface ModuleSection {
@@ -45,10 +48,13 @@ export interface ModuleConfig {
  * Filtra um array por `requiredRoles`. Retorna tudo quando role for `null`
  * (não autenticado ou ainda carregando) — a página em si decide o que fazer.
  */
-export function visibleFor<T extends { requiredRoles?: Role[] }>(
+export function visibleFor<T extends { requiredRoles?: Role[]; requer?: Capacidade }>(
   items: T[],
-  role: Role | null
+  role: Role | null,
+  capacidades?: Partial<Record<Capacidade, boolean>> | null
 ): T[] {
-  if (!role) return items
-  return items.filter((it) => !it.requiredRoles || it.requiredRoles.includes(role))
+  // o que depende de capacidade só aparece com ela ligada (enquanto carrega, fica fora)
+  const habilitados = items.filter((it) => !it.requer || capacidades?.[it.requer] === true)
+  if (!role) return habilitados
+  return habilitados.filter((it) => !it.requiredRoles || it.requiredRoles.includes(role))
 }

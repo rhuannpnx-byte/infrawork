@@ -1048,6 +1048,59 @@ await sbAp.auth.signOut()
   check('integração: o usuário não lê nem grava a credencial (função, tabela e coluna)',
     !!segredo.error && !!gravar.error && !!direto.error && !!coluna.error,
     `${segredo.error?.code ?? 'leu'} / ${gravar.error?.code ?? 'gravou'} / ${direto.error?.code ?? 'inseriu'} / ${coluna.error?.code ?? 'leu a coluna'}`)
+  // 0071: vínculo com o SIGA. Precisa da cópia local do SIGA (MySQL com as tabelas pnj_*/cdt_*), informada em
+  // E2E_SIGA=host,banco,usuario,senha,projeto. Sem ela, só as regras que não dependem da conexão.
+  const vincSem = await u.eng.c.rpc('siga_vincular_obra', { _obra_id: obraId, _projeto_id: 1, _projeto_codigo: 'x' })
+  check('siga: sem o SIGA conectado a obra não é vinculada', !!vincSem.error && /conectado/.test(vincSem.error.message), vincSem.error?.message?.slice(0, 80))
+  const aplicarUsuario = await u.admA.c.rpc('siga_aplicar_producao', { _obra_id: obraId, _linhas: [] })
+  const sigaDireto = await u.eng.c.from('acompanhamento_producao').insert({ obra_id: obraId, data: '2026-10-01', servico_nome: 'x', quantidade: 1, origem: 'siga' })
+  check('siga: o lote do SIGA só entra pelo conector (função fechada e origem recusada)',
+    !!aplicarUsuario.error && !!sigaDireto.error, `${aplicarUsuario.error?.code ?? 'aplicou'} / ${sigaDireto.error?.message?.slice(0, 50) ?? 'inseriu'}`)
+  if (process.env.E2E_SIGA) {
+    const [host, banco, usuario, senha, projeto] = process.env.E2E_SIGA.split(',')
+    const con = await fnComo(token, 'siga', { acao: 'conectar', empresa_id: empresa.id, host, banco, usuario, senha })
+    check('siga: god conecta a cópia local', con.status === 200, JSON.stringify(con.j).slice(0, 100))
+    const projs = await fnComo(u.eng.token, 'siga', { acao: 'projetos', obra_id: obraId })
+    const projsB = await fnComo(u.admB.token, 'siga', { acao: 'projetos', obra_id: obraId })
+    check('siga: quem planeja a obra lista os projetos; outra empresa, não',
+      projs.status === 200 && (projs.j?.projetos ?? []).length > 0 && projsB.status === 403, `${projs.status} / ${projsB.status}`)
+    const vinc = await u.eng.c.rpc('siga_vincular_obra', { _obra_id: obraId, _projeto_id: Number(projeto), _projeto_codigo: 'E2E' })
+    check('siga: engenheiro da obra vincula ao projeto', !vinc.error, vinc.error?.message)
+    const s1 = await fnComo(u.eng.token, 'siga', { acao: 'sincronizar', obra_id: obraId })
+    const s2 = await fnComo(u.eng.token, 'siga', { acao: 'sincronizar', obra_id: obraId })
+    check('siga: a primeira leitura traz os lançamentos e a segunda não repete',
+      s1.j?.resumo?.novos > 0 && s2.j?.resumo?.novos === 0 && s2.j?.resumo?.iguais === s1.j?.resumo?.novos,
+      `${JSON.stringify(s1.j?.resumo ?? s1.j).slice(0, 90)} | ${JSON.stringify(s2.j?.resumo ?? s2.j).slice(0, 70)}`)
+    const pront = await u.eng.c.rpc('obra_prontidao', { _obra_id: obraId })
+    const etapaSiga = (pront.data?.etapas ?? []).find((x) => x.chave === 'siga')
+    check('siga: serviço sem vínculo aparece como pendência na prontidão da obra',
+      etapaSiga?.situacao === 'pendente' && etapaSiga.itens.length > 0 && etapaSiga.rota === '/acompanhamento/siga',
+      `${pront.error?.message ?? ''} ${JSON.stringify(etapaSiga ?? null).slice(0, 120)}`)
+    const pend = await q('vw_siga_pendencias', (t) => t.select('tipo, externo_id, externo_nome, lancamentos').eq('obra_id', obraId).eq('tipo', 'servico').order('lancamentos', { ascending: false }).limit(1))
+    const grupoComp = (await q('item_orcamentario', (t) => t.select('id').eq('obra_id', obraId).eq('tipo', 'servico_grupo').not('servico_id', 'is', null).limit(1)))[0]
+    const dp = await u.eng.c.rpc('siga_de_para_salvar', {
+      _obra_id: obraId,
+      _linhas: [{ tipo: 'servico', externo_id: pend[0].externo_id, externo_nome: pend[0].externo_nome, interno_id: grupoComp.id, fator_conversao: 0.5, principal: true }]
+    })
+    const ligados = await q('acompanhamento_producao', (t) => t.select('id, quantidade, fator_conversao').eq('obra_id', obraId).eq('origem', 'siga').eq('item_orcamentario_id', grupoComp.id).limit(2))
+    check('siga: o de-para vale para os lançamentos que já tinham vindo, com o fator',
+      !dp.error && ligados.length > 0 && Number(ligados[0].fator_conversao) === 0.5, `${dp.error?.message ?? ''} ${ligados.length}`)
+    const altera = await u.eng.c.from('acompanhamento_producao').update({ quantidade: 1 }).eq('id', ligados[0].id).select('id')
+    const apaga = await u.eng.c.from('acompanhamento_producao').delete().eq('id', ligados[0].id).select('id')
+    const lancaAqui = await u.eng.c.from('acompanhamento_producao').insert({ obra_id: obraId, data: '2026-10-01', item_orcamentario_id: grupoComp.id, servico_nome: 'x', quantidade: 1 })
+    check('siga: lançamento do SIGA não se altera nem se exclui aqui, e a obra vinculada não recebe lançamento local',
+      !!altera.error && !!apaga.error && !!lancaAqui.error && /SIGA/.test(lancaAqui.error.message),
+      `${altera.error?.message?.slice(0, 40) ?? 'alterou'} / ${apaga.error?.message?.slice(0, 40) ?? 'apagou'} / ${lancaAqui.error?.message?.slice(0, 50) ?? 'lançou'}`)
+    const vincB = await u.admB.c.from('integracao_obra').select('obra_id').eq('obra_id', obraId)
+    const dpB = await u.admB.c.rpc('siga_de_para_salvar', { _obra_id: obraId, _linhas: [] })
+    const dpCli = await u.cli.c.rpc('siga_desvincular_obra', { _obra_id: obraId })
+    check('siga: outra empresa não vê o vínculo nem mexe no de-para; o cliente não desvincula',
+      (vincB.data ?? []).length === 0 && !!dpB.error && !!dpCli.error, `${vincB.data?.length} / ${dpB.error?.code ?? 'gravou'} / ${dpCli.error?.code ?? 'desvinculou'}`)
+    const desv = await u.eng.c.rpc('siga_desvincular_obra', { _obra_id: obraId })
+    const resto = await q('acompanhamento_producao', (t) => t.select('id').eq('obra_id', obraId).eq('origem', 'siga').limit(1))
+    check('siga: desfazer o vínculo tira o espelho da obra', !desv.error && resto.length === 0, desv.error?.message)
+    await fnComo(token, 'siga', { acao: 'desconectar', empresa_id: empresa.id })
+  }
   await sb.from('empresa_capacidade').delete().eq('empresa_id', empresa.id)
 
   // funções do app fechadas para anônimo

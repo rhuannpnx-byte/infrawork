@@ -25,6 +25,7 @@ import {
 import { ImportarProducaoDialog } from '@/features/acompanhamento/components/lancamento/ImportarProducaoDialog'
 import { useDesfazerImportacao } from '@/features/acompanhamento/hooks/lancamento'
 import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
+import { useVinculoSiga } from '@/features/integracoes/hooks'
 import type { ProducaoEnriquecida, ProducaoOrigem } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
@@ -42,7 +43,8 @@ const ORIGEM_LABEL: Record<ProducaoOrigem, string> = {
   app: 'Site',
   campo: 'App de campo',
   viagens: 'Viagens',
-  importacao: 'Importação'
+  importacao: 'Importação',
+  siga: 'SIGA'
 }
 
 function ProducaoInner(): ReactNode {
@@ -55,6 +57,10 @@ function ProducaoInner(): ReactNode {
   const consulta = useProducao(obraId, filtros)
   const { data: rows = [], isLoading } = consulta
   const [selecionada, setSelecionada] = useState<ProducaoEnriquecida | null>(null)
+  // obra cuja produção vem do SIGA: aqui ela é consultada; o lançamento só abre com a gravação ligada
+  const { data: vinculoSiga } = useVinculoSiga(obraId)
+  const lancaAqui = !vinculoSiga || vinculoSiga.gravacao === 'ligada'
+  const motivoSemLancar = 'A produção desta obra é lançada no SIGA'
 
   // O lançamento é um modal desta página. `vez` troca a chave a cada abertura, para ele nascer limpo (ou já no
   // lançamento a editar) em vez de reaproveitar o que ficou da abertura anterior.
@@ -412,10 +418,34 @@ function ProducaoInner(): ReactNode {
                   {desfazer.isPending ? 'Desfazendo…' : `Desfazer importação (${ultimoLote.n})`}
                 </Button>
               ) : null}
-              <Button size="sm" variant="secondary" onClick={() => setImportarOpen(true)}>
+              {vinculoSiga ? (
+                <Badge
+                  variant="outline"
+                  title={
+                    vinculoSiga.ultimo_sync_em
+                      ? `Projeto ${vinculoSiga.externo_projeto_codigo ?? vinculoSiga.externo_projeto_id}, lido em ${new Date(vinculoSiga.ultimo_sync_em).toLocaleString('pt-BR')}`
+                      : `Projeto ${vinculoSiga.externo_projeto_codigo ?? vinculoSiga.externo_projeto_id}, ainda não lido`
+                  }
+                  data-testid="producao-fonte-siga"
+                >
+                  Fonte: SIGA
+                </Badge>
+              ) : null}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!lancaAqui}
+                title={lancaAqui ? undefined : motivoSemLancar}
+                onClick={() => setImportarOpen(true)}
+              >
                 <FileUp size={12} /> Importar planilha
               </Button>
-              <Button size="sm" onClick={() => abrirLancar()}>
+              <Button
+                size="sm"
+                disabled={!lancaAqui}
+                title={lancaAqui ? undefined : motivoSemLancar}
+                onClick={() => abrirLancar()}
+              >
                 <PlusCircle size={12} /> Lançar produção
               </Button>
             </div>
@@ -467,6 +497,7 @@ function ProducaoInner(): ReactNode {
             <option value="campo">App de campo</option>
             <option value="viagens">Viagens</option>
             <option value="importacao">Importação</option>
+            {vinculoSiga ? <option value="siga">SIGA</option> : null}
           </Select>
         </Filtro>
       </BarraFiltros>
@@ -488,7 +519,7 @@ function ProducaoInner(): ReactNode {
             onRowClick={(r) => setSelecionada(r)}
             emptyMessage="Sem produção no período"
             emptyDescription={
-              podeLancar
+              podeLancar && lancaAqui
                 ? 'Ajuste os filtros ou registre o primeiro lançamento.'
                 : 'Ajuste os filtros.'
             }

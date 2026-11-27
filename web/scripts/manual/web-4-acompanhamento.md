@@ -320,3 +320,36 @@ O usuário com papel Cliente acompanha a obra sem lançar nada e sem ver valores
 - **Produção**, para consulta;
 - **Fotos e mapa**;
 - **Previsto e realizado**, sem desvios, situação, projeções e valores em reais.
+
+## Vínculo com o SIGA
+
+Esta página só aparece para empresa que tem a integração com o SIGA habilitada (Gerencial › Integrações). Nela você diz de qual projeto do SIGA vem a produção da obra e a que cadastro do InfraWork corresponde cada cadastro de lá.
+
+Com a obra vinculada, a produção é lançada no SIGA e o InfraWork a lê sozinho a cada 10 minutos. Na página **Produção** aparece o selo **Fonte: SIGA**, os botões de lançar e importar ficam desligados, e os lançamentos que vieram de lá não são alterados nem excluídos aqui.
+
+### Ligar a obra a um projeto
+
+1. Em **Acompanhamento › Vínculo com o SIGA**, escolha o **Projeto**.
+2. Se quiser trazer só a produção a partir de uma data, informe **Trazer a partir de**.
+3. Clique em [[Vincular]].
+
+Use [[Atualizar agora]] para ler o SIGA na hora. [[Trocar projeto]] e [[Desfazer o vínculo]] tiram da obra a produção que veio do projeto atual; os lançamentos continuam no SIGA.
+
+### Vincular serviços, equipes, encarregados e locais
+
+A seção **Cadastros** lista o que o projeto usa no SIGA, com quantos lançamentos cada item tem, em quatro abas:
+
+| Aba | Liga a | Observação |
+|---|---|---|
+| Serviços | um serviço do orçamento que tenha composição | o **Fator** converte a unidade do SIGA para a do plano (quantidade aqui = quantidade do SIGA × fator) |
+| Equipes | uma equipe da obra | [[Trazer equipes e encarregados do SIGA]] cria as que faltam, já vinculadas |
+| Encarregados | um encarregado da obra | |
+| Locais | um local da obra | com o local vinculado a um eixo, a estaca digitada no SIGA vira posição quando o texto permite |
+
+Escolha o registro do InfraWork na linha; a mudança é gravada na hora e vale também para os lançamentos que já tinham vindo. O que está sem vínculo aparece com **Sem vínculo**, e o número ao lado do nome da aba diz quantos faltam.
+
+Um serviço do SIGA que não faz parte do orçamento pode ser marcado como **Fora do orçamento**: a produção dele continua aparecendo, mas não conta como pendência.
+
+:::atencao
+Produção de serviço sem vínculo entra com o nome que veio do SIGA e não conta no previsto e realizado. Vincule os serviços antes de analisar o avanço.
+:::

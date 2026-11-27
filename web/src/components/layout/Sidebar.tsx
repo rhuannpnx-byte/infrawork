@@ -6,6 +6,7 @@ import { MODULES } from '@/config/modules'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useCapacidadesDoEscopo } from '@/features/integracoes/hooks'
 import { moduleKeyForLocation, useActiveLocation } from '@/stores/tabs-store'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { visibleFor } from '@/types/module'
@@ -33,6 +34,7 @@ export function Sidebar({ aoNavegar }: { aoNavegar?: () => void }): ReactNode {
   const openModal = useUIStore((s) => s.openModal)
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const { obraId } = useCurrentScope()
+  const capacidades = useCapacidadesDoEscopo()
   const ativo = moduleKeyForLocation(pathname)
   const [grupos, setGrupos] = useState<Record<string, boolean>>(lerGrupos)
   const ir = (rota: string): void => {
@@ -107,7 +109,7 @@ export function Sidebar({ aoNavegar }: { aoNavegar?: () => void }): ReactNode {
                           {frase(section.title)}
                         </div>
                       ) : null}
-                      {visibleFor(section.items, role).map((item) => (
+                      {visibleFor(section.items, role, capacidades).map((item) => (
                         <ItemMenu
                           key={item.route}
                           rotulo={item.label}

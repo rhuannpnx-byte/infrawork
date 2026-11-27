@@ -17,6 +17,7 @@ import {
 } from './acompanhamento'
 import { analises } from './analises'
 import { estoque } from './estoque'
+import { integracoes } from './integracoes'
 
 /** Todas as ferramentas do MCP (a ordem é a da lista mostrada aos clientes). */
 export const FERRAMENTAS = [
@@ -49,6 +50,7 @@ export const FERRAMENTAS = [
   transporte,
   viagens,
   estoque,
+  integracoes,
   frota,
   alertas,
   fotos,

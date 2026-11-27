@@ -161,6 +161,10 @@ const AcompanhamentoAlertasPage = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/alertas'),
   'AcompanhamentoAlertasPage'
 )
+const AcompanhamentoSigaPage = lazyRouteComponent(
+  () => import('@/app/routes/acompanhamento/siga'),
+  'AcompanhamentoSigaPage'
+)
 const AcompanhamentoLancarAtalho = lazyRouteComponent(
   () => import('@/app/routes/acompanhamento/lancar'),
   'AcompanhamentoLancarAtalho'
@@ -473,6 +477,11 @@ function buildRouteTree() {
       getParentRoute: () => acompanhamentoLayout,
       path: 'lancar',
       component: AcompanhamentoLancarAtalho
+    }),
+    createRoute({
+      getParentRoute: () => acompanhamentoLayout,
+      path: 'siga',
+      component: AcompanhamentoSigaPage
     }),
     createRoute({
       getParentRoute: () => acompanhamentoLayout,

@@ -1,12 +1,25 @@
 // POST /functions/v1/siga — conector do SIGA (MySQL) de uma empresa.
+// Da empresa (god informa empresa_id; adm usa a sua):
 //   { acao: 'conectar', host, porta?, banco, usuario, senha }  testa a conexão e guarda a credencial no Vault
 //   { acao: 'desconectar' }                                    apaga a credencial
-//   { acao: 'diagnostico' }                                    lê a estrutura das tabelas (só leitura) e guarda o resultado
-// Quem chama: god (informa empresa_id) ou adm da empresa. O diagnóstico é só do god. A empresa precisa ter a
-// capacidade `integracao_siga` ligada. Esta função só LÊ o SIGA: a gravação é outra etapa, com a estrutura conferida.
+//   { acao: 'diagnostico' }                                    lê a estrutura das tabelas e guarda o resultado (só god)
+// Da obra (quem planeja a obra; informa obra_id):
+//   { acao: 'projetos' }                 os projetos do SIGA, para vincular
+//   { acao: 'cadastros', projeto_id? }   serviços, equipes, encarregados e locais do projeto, para o de-para
+//   { acao: 'sincronizar' }              lê a produção do projeto vinculado e aplica na obra
+// Do serviço (pg_cron): { acao: 'sincronizar' } sem obra percorre todas as obras vinculadas.
+// A empresa precisa ter a capacidade `integracao_siga`. Esta função só LÊ o SIGA: a gravação é outra etapa.
 
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { handlePreflight, json } from '../_shared/cors.ts'
 import { assertRole, resolveCaller } from '../_shared/auth.ts'
+import {
+  listarCadastros,
+  listarProjetos,
+  sincronizarObra,
+  type ResumoSync,
+  type VinculoObra
+} from '../_shared/siga-obra.ts'
 import {
   abrirSiga,
   consultar,
@@ -138,6 +151,107 @@ async function diagnosticar(con: ConexaoSiga): Promise<Record<string, unknown>> 
   }
 }
 
+/** A credencial guardada da empresa, ou null se o SIGA não foi conectado. */
+async function credencialDaEmpresa(
+  admin: SupabaseClient,
+  empresa: string
+): Promise<{ integracao_id: string; segredo: string } | null> {
+  const { data, error } = await admin
+    .rpc('integracao_segredo', { _empresa_id: empresa, _tipo: TIPO })
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as { integracao_id: string; segredo: string } | null) ?? null
+}
+
+/** Grava o resultado da sincronização na obra e, quando houve mudança, erro ou foi pedida à mão, no histórico. */
+async function registrarSync(
+  admin: SupabaseClient,
+  v: VinculoObra & { empresa_id: string },
+  origem: 'manual' | 'cron',
+  por: string | null,
+  iniciado: string,
+  resumo: ResumoSync | null,
+  erro: string | null
+): Promise<void> {
+  const agora = new Date().toISOString()
+  await admin
+    .from('integracao_obra')
+    .update({
+      ultimo_sync_em: agora,
+      ultimo_sync_ok: erro == null,
+      ultimo_sync_resumo: resumo,
+      ultimo_sync_erro: erro,
+      updated_at: agora
+    })
+    .eq('obra_id', v.obra_id)
+  const mudou = !!resumo && (resumo.novos > 0 || resumo.alterados > 0 || resumo.removidos > 0 || resumo.erros.length > 0)
+  if (origem === 'manual' || erro || mudou)
+    await admin.from('integracao_execucao').insert({
+      integracao_id: v.integracao_id,
+      empresa_id: v.empresa_id,
+      obra_id: v.obra_id,
+      acao: 'sync',
+      origem,
+      iniciado_em: iniciado,
+      terminado_em: agora,
+      ok: erro == null,
+      resumo,
+      erro,
+      iniciado_por: por
+    })
+}
+
+/** A rodada automática: todas as obras vinculadas, uma conexão por empresa. Uma obra com erro não para as outras. */
+async function sincronizarTodas(admin: SupabaseClient): Promise<Record<string, unknown>> {
+  const { data: vinculos, error } = await admin
+    .from('integracao_obra')
+    .select('obra_id, integracao_id, externo_projeto_id, data_corte, integracao:integracao_id ( empresa_id, ativa, tipo )')
+  if (error) throw new Error(error.message)
+  const porIntegracao = new Map<string, Array<VinculoObra & { empresa_id: string }>>()
+  for (const v of vinculos ?? []) {
+    const i = (v as unknown as { integracao: { empresa_id: string; ativa: boolean; tipo: string } | null }).integracao
+    if (!i || !i.ativa || i.tipo !== TIPO) continue
+    const lista = porIntegracao.get(v.integracao_id) ?? []
+    lista.push({
+      obra_id: v.obra_id,
+      integracao_id: v.integracao_id,
+      externo_projeto_id: Number(v.externo_projeto_id),
+      data_corte: v.data_corte,
+      empresa_id: i.empresa_id
+    })
+    porIntegracao.set(v.integracao_id, lista)
+  }
+  const obras: Array<Record<string, unknown>> = []
+  for (const lista of porIntegracao.values()) {
+    let con: ConexaoSiga | null = null
+    let falhaConexao: string | null = null
+    try {
+      const cred = await credencialDaEmpresa(admin, lista[0].empresa_id)
+      if (!cred) throw new Error('SIGA não conectado')
+      con = await abrirSiga(segredoParaCredencial(cred.segredo))
+    } catch (e) {
+      falhaConexao = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
+    }
+    for (const v of lista) {
+      const iniciado = new Date().toISOString()
+      try {
+        if (!con) throw new Error(falhaConexao ?? 'Sem conexão com o SIGA')
+        const resumo = await sincronizarObra(admin, con, v)
+        await registrarSync(admin, v, 'cron', null, iniciado, resumo, null)
+        obras.push({ obra_id: v.obra_id, ok: true, ...resumo, erros: resumo.erros.length })
+      } catch (e) {
+        const erro = e instanceof Error ? e.message : String(e)
+        await registrarSync(admin, v, 'cron', null, iniciado, null, erro)
+        obras.push({ obra_id: v.obra_id, ok: false, erro })
+      }
+    }
+    await con?.end().catch(() => undefined)
+  }
+  return { ok: true, obras }
+}
+
+const ACOES_DA_OBRA = ['projetos', 'cadastros', 'sincronizar']
+
 Deno.serve(async (req) => {
   const pre = handlePreflight(req)
   if (pre) return pre
@@ -146,11 +260,97 @@ Deno.serve(async (req) => {
   try {
     body = await req.json()
   } catch { /* sem corpo */ }
+  const acao = String(body.acao ?? '')
+
+  // rodada automática: o pg_cron chama com a chave de serviço
+  const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '')
+  let servico = !!SERVICE_KEY && token === SERVICE_KEY
+  if (!servico && token) {
+    try {
+      servico = JSON.parse(atob(token.split('.')[1] ?? ''))?.role === 'service_role'
+    } catch { /* jwt de usuário */ }
+  }
+  if (servico) {
+    if (acao !== 'sincronizar') return json({ error: 'Ação não permitida' }, 400)
+    const adminServico = createClient(Deno.env.get('SUPABASE_URL')!, SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+    try {
+      return json(await sincronizarTodas(adminServico))
+    } catch (e) {
+      return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500)
+    }
+  }
 
   const ctx = await resolveCaller(req)
   if (ctx instanceof Response) return ctx
   const { caller, admin } = ctx
-  const acao = String(body.acao ?? '')
+
+  // ── ações da obra: quem planeja a obra ──
+  if (ACOES_DA_OBRA.includes(acao)) {
+    const obraId = String(body.obra_id ?? '')
+    if (!obraId) return json({ ok: false, error: 'Informe a obra' }, 400)
+    const { data: pode, error: podeErr } = await ctx.authed.rpc('pode_planejar_obra', { _obra_id: obraId })
+    if (podeErr) return json({ ok: false, error: podeErr.message }, 500)
+    if (pode !== true) return json({ ok: false, error: 'Sem permissão para vincular esta obra ao SIGA' }, 403)
+    const { data: obra } = await admin.from('obras').select('empresa_id').eq('id', obraId).maybeSingle()
+    if (!obra) return json({ ok: false, error: 'Obra não encontrada' }, 404)
+    const { data: tem } = await admin.rpc('empresa_tem', {
+      _empresa_id: obra.empresa_id,
+      _chave: 'integracao_siga',
+      _padrao: false
+    })
+    if (!tem)
+      return json({ ok: false, error: 'A integração com o SIGA não está habilitada para esta empresa.' }, 403)
+    const { data: vinc } = await admin
+      .from('integracao_obra')
+      .select('obra_id, integracao_id, externo_projeto_id, data_corte')
+      .eq('obra_id', obraId)
+      .maybeSingle()
+
+    let con: ConexaoSiga | null = null
+    const iniciado = new Date().toISOString()
+    try {
+      const cred = await credencialDaEmpresa(admin, obra.empresa_id)
+      if (!cred)
+        return json({ ok: false, error: 'O SIGA ainda não foi conectado: conecte em Gerencial › Integrações.' }, 400)
+      con = await abrirSiga(segredoParaCredencial(cred.segredo))
+
+      if (acao === 'projetos') return json({ ok: true, projetos: await listarProjetos(con) })
+
+      if (acao === 'cadastros') {
+        const projeto = Number(body.projeto_id ?? vinc?.externo_projeto_id ?? 0)
+        if (!projeto) return json({ ok: false, error: 'Ligue a obra a um projeto do SIGA primeiro.' }, 400)
+        return json({ ok: true, projeto_id: projeto, ...(await listarCadastros(con, projeto)) })
+      }
+
+      if (!vinc) return json({ ok: false, error: 'Esta obra ainda não está ligada a um projeto do SIGA.' }, 400)
+      const v = {
+        obra_id: vinc.obra_id,
+        integracao_id: vinc.integracao_id,
+        externo_projeto_id: Number(vinc.externo_projeto_id),
+        data_corte: vinc.data_corte,
+        empresa_id: obra.empresa_id as string
+      }
+      try {
+        const resumo = await sincronizarObra(admin, con, v)
+        await registrarSync(admin, v, 'manual', caller.id, iniciado, resumo, null)
+        return json({ ok: true, resumo })
+      } catch (e) {
+        const erro = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
+        await registrarSync(admin, v, 'manual', caller.id, iniciado, null, erro)
+        return json({ ok: false, error: erro }, 502)
+      }
+    } catch (e) {
+      const erro = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
+      return json({ ok: false, error: erro }, 502)
+    } finally {
+      await con?.end().catch(() => undefined)
+    }
+  }
+
+  // ── ações da empresa ──
   const roleErr = assertRole(caller, acao === 'diagnostico' ? ['god'] : ['god', 'adm'])
   if (roleErr) return roleErr
   const empresa = caller.role === 'god' ? (body.empresa_id as string | undefined) : caller.empresa_id

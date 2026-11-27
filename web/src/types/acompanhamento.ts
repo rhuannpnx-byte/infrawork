@@ -5,7 +5,7 @@
  */
 
 /** app = lançado no web; campo = app de campo; viagens = soma das viagens do dia; importacao = planilha */
-export type ProducaoOrigem = 'app' | 'importacao' | 'campo' | 'viagens'
+export type ProducaoOrigem = 'app' | 'importacao' | 'campo' | 'viagens' | 'siga'
 
 export interface Encarregado {
   id: string

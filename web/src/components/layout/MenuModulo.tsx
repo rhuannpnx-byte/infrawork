@@ -2,6 +2,7 @@ import { useRef, type MouseEvent, type ReactNode } from 'react'
 import { getModuleByKey } from '@/config/modules'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
+import { useCapacidadesDoEscopo } from '@/features/integracoes/hooks'
 import { moduleKeyForLocation, useActiveLocation } from '@/stores/tabs-store'
 import { navigateActiveTab } from '@/app/navigateActiveTab'
 import { visibleFor, type ModuleConfig } from '@/types/module'
@@ -26,11 +27,12 @@ export function MenuModulo(): ReactNode {
   const pathname = useActiveLocation().split('?')[0]
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const { obraId } = useCurrentScope()
+  const capacidades = useCapacidadesDoEscopo()
   const chave = moduleKeyForLocation(pathname)
   const atual = chave ? getModuleByKey(chave) : undefined
   const secoes = atual
     ? visibleFor(atual.sections, role)
-        .map((s) => ({ ...s, items: visibleFor(s.items, role) }))
+        .map((s) => ({ ...s, items: visibleFor(s.items, role, capacidades) }))
         .filter((s) => s.items.length > 0)
     : []
   const visivel = secoes.length > 0

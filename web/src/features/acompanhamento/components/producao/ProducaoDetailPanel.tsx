@@ -30,7 +30,8 @@ const ROTULO_ORIGEM: Record<ProducaoOrigem, string> = {
   app: 'Site',
   campo: 'App de campo',
   viagens: 'Viagens',
-  importacao: 'Importação'
+  importacao: 'Importação',
+  siga: 'SIGA'
 }
 
 const ROTULO = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
@@ -76,6 +77,8 @@ function Panel({
   // a produção das viagens é a soma das viagens do dia: muda pelas viagens (Acompanhamento › Viagens)
   const podeEditar =
     p.origem !== 'viagens' &&
+    // o lançamento do SIGA é alterado e excluído lá
+    p.origem !== 'siga' &&
     (role === 'god' ||
       role === 'adm' ||
       role === 'engenheiro' ||
