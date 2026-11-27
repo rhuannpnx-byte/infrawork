@@ -97,3 +97,6 @@ verify_jwt = true
 
 [functions.fleethub-sync]
 verify_jwt = true
+
+[functions.siga]
+verify_jwt = true

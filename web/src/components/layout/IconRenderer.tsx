@@ -39,6 +39,7 @@ import {
   SlidersHorizontal,
   Square,
   TrendingUp,
+  Plug,
   Truck,
   Users,
   type LucideIcon,
@@ -88,6 +89,7 @@ const ICONES: Record<string, LucideIcon> = {
   'sliders-horizontal': SlidersHorizontal,
   square: Square,
   'trending-up': TrendingUp,
+  plug: Plug,
   truck: Truck,
   users: Users
 }

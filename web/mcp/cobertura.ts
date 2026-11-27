@@ -21,6 +21,7 @@ export const LEGIVEIS: string[] = [
   'cpu_item',
   'empresas',
   'encargos_sociais_regime',
+  'empresa_capacidade',
   'encarregado',
   'equipe',
   'fleet_obra',
@@ -93,6 +94,10 @@ export const NAO_LEGIVEIS: Record<string, string> = {
   estoque_ativo:
     'traz a tabela de arqueação do tanque (centenas de números por linha): os ativos são lidos por vw_estoque_saldo e a tabela, em resumo, pela ferramenta estoque',
   fleethub_config: 'credencial da FleetHub (só o status de conexão aparece pela ferramenta frota)',
+  integracao:
+    'conexão da empresa com um sistema externo (SIGA): a referência à credencial não é legível; a conexão é vista na tela Integrações',
+  integracao_execucao:
+    'histórico dos conectores: o diagnóstico traz a estrutura inteira do banco externo (milhares de linhas); visto na tela Integrações',
   mcp_token: 'hash dos tokens pessoais (gerenciados no web)',
   orcamento_recalculo_pendente: 'fila interna de recálculo (sem acesso do usuário)',
   mcp_oauth_cliente: 'clientes OAuth do próprio MCP (infraestrutura de login)',
@@ -102,6 +107,11 @@ export const NAO_LEGIVEIS: Record<string, string> = {
 /** Tabelas que nenhuma ferramenta grava, com o motivo. */
 export const TABELAS_IGNORADAS: Record<string, string> = {
   fleethub_config: 'credencial da FleetHub: só pela tela do web (nunca passa pela IA)',
+  empresa_capacidade:
+    'o que a empresa tem habilitado é o que foi contratado: só o suporte altera, na tela Integrações (a IA lê, não muda)',
+  integracao:
+    'credencial de sistema externo (SIGA): só pela tela Integrações (nunca passa pela IA)',
+  integracao_execucao: 'gravada pelos conectores no servidor',
   mcp_token: 'tokens pessoais: criados e revogados só na tela do web',
   orcamento_recalculo_pendente: 'fila interna do banco (processada por recalcular_orcamento)',
   mcp_oauth_cliente: 'registro dinâmico de clientes OAuth (servidor do MCP, /oauth/registrar)',
@@ -191,6 +201,12 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   fleethub_gravar_credencial: 'credencial da FleetHub: só pela tela do web',
   fleethub_credencial: 'credencial da FleetHub: só a Edge Function lê',
   fleethub_remover_credencial: 'credencial da FleetHub: só pela tela do web',
+  integracao_gravar:
+    'credencial de sistema externo (SIGA): só a Edge Function, depois de testar a conexão',
+  integracao_remover: 'credencial de sistema externo (SIGA): só pela tela Integrações',
+  integracao_segredo: 'credencial de sistema externo (SIGA): só a Edge Function lê',
+  empresa_tem:
+    'capacidade da empresa conferida por funções do banco e do servidor; a IA lê empresa_capacidade',
   mcp_token_criar: 'tokens pessoais: só pela tela do web',
   mcp_token_revogar: 'tokens pessoais: só pela tela do web',
   mcp_oauth_cliente_info: 'login OAuth: tela de consentimento do web',
@@ -199,5 +215,6 @@ export const RPCS_IGNORADAS: Record<string, string> = {
 
 /** Edge Functions que nenhuma ferramenta chama, com o motivo. */
 export const FUNCOES_IGNORADAS: Record<string, string> = {
-  me: 'perfil da sessão do web; o MCP usa quem_sou'
+  me: 'perfil da sessão do web; o MCP usa quem_sou',
+  siga: 'conexão e diagnóstico do SIGA: a credencial e a estrutura do banco externo não passam pela IA (tela Integrações)'
 }

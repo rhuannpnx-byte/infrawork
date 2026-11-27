@@ -265,7 +265,7 @@ Na página Início, o cliente vê os cartões das obras liberadas para ele, sem 
 
 # Gerencial
 
-O módulo **Gerencial** reúne os cadastros da empresa: usuários, obras e frota. Ele é usado pelo administrador e, em parte, pelo engenheiro.
+O módulo **Gerencial** reúne os cadastros da empresa: usuários, obras, frota e integrações com outros sistemas. Ele é usado pelo administrador e, em parte, pelo engenheiro.
 
 ## Visão geral do Gerencial
 
@@ -403,3 +403,21 @@ Quando a capacidade na FleetHub não está em m³ (por exemplo, em toneladas) ou
 ### Cadastro manual
 
 Sem FleetHub, ou para veículos de terceiros, use a seção **Cadastro manual**: informe **Código**, **Placa** e **Tipo** e clique em [[Incluir veículo]]. Os demais campos são editados direto na tabela e gravados ao sair do campo. Veículo que saiu de uso deve ser desmarcado em **Ativo**, para não apagar o histórico das viagens.
+
+## Integrações
+
+Em **Gerencial › Integrações** o administrador vê as conexões da empresa com outros sistemas. A página só mostra o que está habilitado para a empresa; a habilitação é feita pelo suporte do InfraWork. A conta da FleetHub continua em **Gerencial › Frota**.
+
+### SIGA
+
+Para empresas que usam o SIGA, a produção e as fotos passam a vir de lá. O que muda é só a origem desses dados: as telas, os relatórios e o aplicativo de campo são os mesmos.
+
+1. Clique em [[Conectar SIGA]].
+2. Informe o **Servidor**, a **Porta**, o **Banco de dados**, o **Usuário** e a **Senha** do banco do SIGA.
+3. Clique em [[Testar e conectar]]. A conexão é testada antes de salvar; se falhar, a mensagem diz o motivo (usuário ou senha recusados, banco inexistente, servidor que não responde).
+
+A senha fica cifrada no servidor e não é exibida de novo. Use [[Alterar credenciais]] para trocá-la e [[Desconectar]] para apagá-la: a produção já trazida continua no InfraWork, mas deixa de ser atualizada.
+
+:::atencao
+O servidor do SIGA precisa aceitar conexões de fora da rede da empresa. Peça essa liberação a quem administra o banco.
+:::

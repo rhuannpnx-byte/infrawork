@@ -30,6 +30,10 @@ const GerencialFrotaPage = lazyRouteComponent(
   () => import('@/app/routes/gerencial/frota'),
   'GerencialFrotaPage'
 )
+const GerencialIntegracoesPage = lazyRouteComponent(
+  () => import('@/app/routes/gerencial/integracoes'),
+  'GerencialIntegracoesPage'
+)
 const ObrasPage = lazyRouteComponent(() => import('@/app/routes/gerencial/obras'), 'ObrasPage')
 const ObraDetailPage = lazyRouteComponent(
   () => import('@/app/routes/gerencial/obra-detail'),
@@ -228,6 +232,11 @@ function buildRouteTree() {
       getParentRoute: () => gerencialLayout,
       path: 'frota',
       component: GerencialFrotaPage
+    }),
+    createRoute({
+      getParentRoute: () => gerencialLayout,
+      path: 'integracoes',
+      component: GerencialIntegracoesPage
     }),
     createRoute({
       getParentRoute: () => gerencialLayout,

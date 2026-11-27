@@ -6,6 +6,7 @@ export const ROTAS = [
   '/gerencial/usuarios',
   '/gerencial/obras',
   '/gerencial/frota',
+  '/gerencial/integracoes',
   '/orcamento',
   '/orcamento/obra',
   '/orcamento/obra/plan-orc',

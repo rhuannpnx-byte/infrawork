@@ -41,6 +41,12 @@ export const MODULES: ModuleConfig[] = [
             icon: 'truck',
             label: 'Frota',
             route: '/gerencial/frota'
+          },
+          {
+            icon: 'plug',
+            label: 'Integrações',
+            route: '/gerencial/integracoes',
+            requiredRoles: ['god', 'adm']
           }
         ]
       }

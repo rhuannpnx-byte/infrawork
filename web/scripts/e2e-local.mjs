@@ -1022,6 +1022,34 @@ await sbAp.auth.signOut()
     !!movB.error && (ativoCli.data ?? []).length === 0, `${movB.error?.code ?? 'passou'} / ${ativoCli.data?.length}`)
   await u.eng.c.from('estoque_ativo').delete().eq('id', idTanque)
 
+  // 0070: capacidades e integrações. Só o god liga o que a empresa tem; a conexão com sistema externo é gravada
+  // pelo servidor depois de testada, e a credencial não sai por nenhum caminho do usuário.
+  const capAdm = await u.admA.c.from('empresa_capacidade').insert({ empresa_id: empresa.id, chave: 'integracao_siga', valor: true })
+  check('capacidade: o adm da empresa não liga o que não foi contratado', !!capAdm.error, capAdm.error?.code ?? 'passou')
+  const credSiga = { acao: 'conectar', host: 'siga.exemplo.com', banco: 'x', usuario: 'u', senha: 's' }
+  const sigaSem = await fnComo(u.admA.token, 'siga', credSiga)
+  check('siga: empresa sem a capacidade é recusada', sigaSem.status === 403, `${sigaSem.status} ${sigaSem.j?.error ?? ''}`)
+  const capGod = await sb.from('empresa_capacidade').upsert({ empresa_id: empresa.id, chave: 'integracao_siga', valor: true }, { onConflict: 'empresa_id,chave' })
+  const capA = await u.admA.c.from('empresa_capacidade').select('chave').eq('empresa_id', empresa.id)
+  const capB = await u.admB.c.from('empresa_capacidade').select('chave').eq('empresa_id', empresa.id)
+  check('capacidade: o god liga; a empresa lê a sua e a outra empresa, não',
+    !capGod.error && (capA.data ?? []).length === 1 && (capB.data ?? []).length === 0,
+    `${capGod.error?.message ?? ''} A=${capA.data?.length} B=${capB.data?.length}`)
+  const sigaEng = await fnComo(u.eng.token, 'siga', credSiga)
+  const sigaDiag = await fnComo(u.admA.token, 'siga', { acao: 'diagnostico' })
+  check('siga: engenheiro não conecta e o diagnóstico é só do god', sigaEng.status === 403 && sigaDiag.status === 403, `${sigaEng.status} / ${sigaDiag.status}`)
+  const sigaInterno = await fnComo(u.admA.token, 'siga', { ...credSiga, host: '10.0.0.5' })
+  check('siga: endereço de rede interna é recusado antes de conectar',
+    sigaInterno.status === 400 && /rede interna/.test(sigaInterno.j?.error ?? ''), `${sigaInterno.status} ${sigaInterno.j?.error ?? ''}`)
+  const segredo = await u.admA.c.rpc('integracao_segredo', { _empresa_id: empresa.id, _tipo: 'siga' })
+  const gravar = await u.admA.c.rpc('integracao_gravar', { _empresa_id: empresa.id, _tipo: 'siga', _config: {}, _segredo: 'x', _por: null })
+  const direto = await u.admA.c.from('integracao').insert({ empresa_id: empresa.id, tipo: 'siga' })
+  const coluna = await u.admA.c.from('integracao').select('secret_id').limit(1)
+  check('integração: o usuário não lê nem grava a credencial (função, tabela e coluna)',
+    !!segredo.error && !!gravar.error && !!direto.error && !!coluna.error,
+    `${segredo.error?.code ?? 'leu'} / ${gravar.error?.code ?? 'gravou'} / ${direto.error?.code ?? 'inseriu'} / ${coluna.error?.code ?? 'leu a coluna'}`)
+  await sb.from('empresa_capacidade').delete().eq('empresa_id', empresa.id)
+
   // funções do app fechadas para anônimo
   const anon = await novoCliente().rpc('campo_obras')
   check('campo_obras recusa chamada anônima', !!anon.error, anon.error?.message?.slice(0, 60))

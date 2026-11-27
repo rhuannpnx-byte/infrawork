@@ -27,6 +27,17 @@ faça também:
 
 Detalhes (conexão dos clientes, login OAuth/token, ferramentas): `web/docs/MCP.md`.
 
+## Empresas com soluções diferentes: capacidade ou conector, nunca versão por cliente
+
+O web e o app de campo atendem todas as empresas com o mesmo código e o mesmo banco (`web/docs/INTEGRACOES.md`):
+
+- o banco do InfraWork é o modelo: nenhuma tela lê ou grava em sistema externo;
+- dado que mora em outro sistema (o SIGA da Tecpav) entra e sai por um **conector** no servidor (`integracao`,
+  `integracao_execucao`, Edge Function própria, credencial no Vault);
+- o que muda por empresa é uma **capacidade** (`web/src/config/capacidades.ts`, tabela `empresa_capacidade`,
+  `empresa_tem(...)` no banco, `useCapacidades` na tela). Não escreva `se a empresa for X`: crie a capacidade;
+- funcionalidade nova nasce sobre o modelo único, para valer para quem está no nosso banco e para quem tem conector.
+
 ## Funções do banco: quem pode chamar
 
 Desde a migração 0053 o papel `anon` não tem acesso a nada do esquema `public`, e função nova nasce executável só por

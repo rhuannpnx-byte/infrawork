@@ -46,7 +46,9 @@ const CENARIOS = [
   ['/planejamento/equipes', 'Novo encarregado'],
   ['/acompanhamento/viagens', 'Nova ficha'],
   ['/acompanhamento/producao', 'Importar planilha'],
-  ['/acompanhamento/producao', 'Lançar produção']
+  ['/acompanhamento/producao', 'Lançar produção'],
+  // só aparece em empresa com a integração do SIGA habilitada
+  ['/gerencial/integracoes', 'Conectar SIGA']
 ]
 
 const TEMA = process.env.E2E_TEMA === 'dark' ? 'dark' : 'light'

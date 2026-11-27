@@ -77,6 +77,9 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   serviço nos últimos 7 dias e ignora produção importada e de viagens (a evidência é a planilha/ficha).
   Não há hodômetro. A medição desses serviços sai como quadro de distribuição (origem → destino com as estacas,
   DMT, momento).
+- **Empresas com soluções diferentes**: o sistema é um só; o que muda por empresa está em empresa_capacidade
+  (leia pela consultar; sem linha vale o padrão). Empresa com integracao_siga tem a produção e as fotos vindas do
+  SIGA por um conector. A conexão e a credencial são feitas só na tela Gerencial › Integrações, nunca pela IA.
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.
 
 ## Como usar as ferramentas
