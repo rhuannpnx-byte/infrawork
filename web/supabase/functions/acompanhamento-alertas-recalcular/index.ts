@@ -65,7 +65,7 @@ async function recalcOneObra(
     ),
     admin
       .from('vw_acompanhamento_previsto_x_realizado')
-      .select('tarefa_id, codigo, descricao, qtd_plan, qtd_real, pct_avanco, pct_esperado_hoje, data_inicio_plan, data_fim_plan, status, desvio_dias_estimado, data_ultima_realizacao, item_orcamentario_id')
+      .select('tarefa_id, codigo, descricao, qtd_plan, qtd_real, pct_avanco, pct_esperado_hoje, data_inicio_plan, data_fim_plan, status, desvio_dias_estimado, item_orcamentario_id')
       .eq('obra_id', obraId),
     admin
       .from('vw_acompanhamento_produtividade_equipe')
@@ -98,42 +98,11 @@ async function recalcOneObra(
     })
   }
 
-  // ── 2) Produção zero há ≥ 3 dias em serviço do baseline em andamento ───
-  for (const t of prevRealResp.data ?? []) {
-    if (!t.data_inicio_plan || !t.data_fim_plan) continue
-    if (String(t.data_inicio_plan) > hojeIso || String(t.data_fim_plan) < hojeIso) continue
-    const nomeSrv = String(t.descricao ?? t.codigo)
-    const codigoSrv = String(t.codigo ?? '')
-    const ultima = t.data_ultima_realizacao as string | null
-    if (!ultima) {
-      if (String(t.data_inicio_plan) < addDiasIso(hojeIso, -3)) {
-        novos.push({
-          obra_id: obraId,
-          chave: `producao_zero_dias|tarefa:${t.tarefa_id}|desde:nunca`,
-          tipo: 'producao_zero_dias',
-          severidade: 'warn',
-          titulo: `${nomeSrv} — sem lançamento`,
-          descricao: `Serviço do baseline iniciou em ${t.data_inicio_plan} mas não tem produção lançada.`,
-          contexto: { tarefa_id: t.tarefa_id, item_orcamentario_id: t.item_orcamentario_id, codigo: codigoSrv, descricao: nomeSrv, semana: semanaIso }
-        })
-      }
-    } else {
-      const diff = Math.floor((new Date(hojeIso + 'T00:00:00Z').getTime() - new Date(ultima + 'T00:00:00Z').getTime()) / 86_400_000)
-      if (diff >= 3) {
-        novos.push({
-          obra_id: obraId,
-          chave: `producao_zero_dias|tarefa:${t.tarefa_id}|desde:${ultima}`,
-          tipo: 'producao_zero_dias',
-          severidade: 'warn',
-          titulo: `${nomeSrv} — sem lançamento há ${diff} dias`,
-          descricao: `Último lançamento em ${ultima}. Serviço em andamento no baseline.`,
-          contexto: { tarefa_id: t.tarefa_id, item_orcamentario_id: t.item_orcamentario_id, codigo: codigoSrv, descricao: nomeSrv, dias_sem: diff, semana: semanaIso }
-        })
-      }
-    }
-  }
+  // O alerta de produção parada (serviço em andamento sem lançamento há 3 dias) foi retirado: avisava de todo
+  // serviço que não roda todo dia e só fazia volume. O atraso de verdade aparece nos desvios abaixo. Os que
+  // estavam abertos somem na primeira sincronização, por não virem mais na lista.
 
-  // ── 3) Desvio de quantidade (pct_avanco / pct_esperado) ─────────────────
+  // ── 2) Desvio de quantidade (pct_avanco / pct_esperado) ─────────────────
   for (const t of prevRealResp.data ?? []) {
     if (t.pct_esperado_hoje == null || t.pct_avanco == null) continue
     if (Number(t.pct_esperado_hoje) <= 0) continue
@@ -164,7 +133,7 @@ async function recalcOneObra(
     }
   }
 
-  // ── 4) Desvio de prazo (projeção > data_fim + 7d) ───────────────────────
+  // ── 3) Desvio de prazo (projeção > data_fim + 7d) ───────────────────────
   for (const t of prevRealResp.data ?? []) {
     if (t.desvio_dias_estimado == null) continue
     const nomeSrv = String(t.descricao ?? t.codigo)
@@ -182,7 +151,7 @@ async function recalcOneObra(
     }
   }
 
-  // ── 5) Produtividade baixa por equipe (p50 < 0.6 × meta, ≥ 5 dias) ─────
+  // ── 4) Produtividade baixa por equipe (p50 < 0.6 × meta, ≥ 5 dias) ─────
   for (const r of produtResp.data ?? []) {
     if (!r.equipe_id) continue
     if (r.pct_aderencia_meta == null) continue
@@ -206,7 +175,7 @@ async function recalcOneObra(
     }
   }
 
-  // ── 6) Produção sem foto (±1 dia) nos últimos 7 dias, um alerta por serviço ──
+  // ── 5) Produção sem foto (±1 dia) nos últimos 7 dias, um alerta por serviço ──
   // Importação e viagens ficam de fora: a evidência é a planilha / a ficha e o ticket.
   const fotosPorProducao = new Set<string>()
   const fotosPorItemData = new Set<string>()

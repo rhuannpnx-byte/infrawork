@@ -47,6 +47,7 @@ export interface LancamentoInput {
 // ─── Alertas ────────────────────────────────────────────────────────────
 
 export type AlertaTipo =
+  /** não é mais gerado (retirado em 2026-11); fica para os registros antigos, já resolvidos */
   | 'producao_zero_dias'
   | 'desvio_quantidade'
   | 'desvio_prazo'

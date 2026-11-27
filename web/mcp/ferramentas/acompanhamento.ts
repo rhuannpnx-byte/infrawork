@@ -691,7 +691,7 @@ export const alertas = ferramenta({
   nome: 'alertas',
   titulo: 'Alertas da obra',
   descricao:
-    'Alertas automáticos (atraso, produtividade, sem lançamento, sem foto…). acao: listar (status aberto|' +
+    'Alertas automáticos (desvio de quantidade e de prazo, produtividade, sem foto, sem equipe). acao: listar (status aberto|' +
     'silenciado|resolvido; resolvido_automaticamente=true quando a condição sumiu) | silenciar (até uma data) | ' +
     'resolver | reabrir | recalcular (roda as regras agora; também roda de hora em hora). Silenciado ou resolvido ' +
     'à mão não volta a abrir com a mesma chave (tipo + tarefa/serviço/equipe + período).',

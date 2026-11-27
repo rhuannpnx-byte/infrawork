@@ -304,7 +304,6 @@ A página **Alertas** reúne os pontos que pedem atenção na obra, calculados a
 
 | Alerta | Gravidade | Quando aparece |
 |---|---|---|
-| Produção parada | Aviso | Serviço em andamento na linha de base sem lançamento há 3 dias ou mais. |
 | Desvio de quantidade | Crítico abaixo de 40% do esperado; aviso abaixo de 70% | Avanço do serviço comparado com o esperado para hoje. |
 | Desvio de prazo | Crítico | Projeção de atraso maior que 7 dias. |
 | Produtividade abaixo da meta | Aviso | Equipe com 5 ou mais dias trabalhados e produção típica abaixo de 60% da meta da composição. |
