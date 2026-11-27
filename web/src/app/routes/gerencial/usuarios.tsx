@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Building2, KeyRound, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Building2, KeyRound, Link2, Plus, Pencil, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/layout/EmptyState'
@@ -14,6 +14,9 @@ import { EditUsuarioDialog } from '@/features/gerencial/modals/EditUsuarioDialog
 import { DeleteUsuarioDialog } from '@/features/gerencial/modals/DeleteUsuarioDialog'
 import { RedefinirSenhaDialog } from '@/features/gerencial/modals/RedefinirSenhaDialog'
 import { ObrasDoUsuarioDialog } from '@/features/gerencial/modals/ObrasDoUsuarioDialog'
+import { UsuarioSigaDialog } from '@/features/integracoes/UsuarioSigaDialog'
+import { useCapacidadesDoEscopo, useVinculosUsuarioSiga } from '@/features/integracoes/hooks'
+import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { formatDate, formatDateTimeShort, timeAgo } from '@/lib/format'
 import { rotuloPapel } from '@/lib/rotulos'
 import { VARIANTE_PAPEL } from '@/features/gerencial/lib/papel'
@@ -44,6 +47,16 @@ export function UsuariosPage(): ReactNode {
   const [deleteTarget, setDeleteTarget] = useState<UsuarioComEmpresa | null>(null)
   const [senhaTarget, setSenhaTarget] = useState<UsuarioComEmpresa | null>(null)
   const [obrasTarget, setObrasTarget] = useState<UsuarioComEmpresa | null>(null)
+  const [sigaTarget, setSigaTarget] = useState<UsuarioComEmpresa | null>(null)
+  // empresa com o SIGA: cada usuário é ligado ao usuário dele lá (é com esse nome que o lançamento é gravado)
+  const { empresaId: empresaDoEscopo } = useCurrentScope()
+  const temSiga = !!useCapacidadesDoEscopo()?.integracao_siga
+  const { data: vinculosSiga } = useVinculosUsuarioSiga(temSiga)
+  const sigaPorUsuario = useMemo(
+    () => new Map((vinculosSiga ?? []).map((v) => [v.user_id, v])),
+    [vinculosSiga]
+  )
+  const nomesPorUsuario = useMemo(() => new Map(usuarios.map((u) => [u.id, u.nome])), [usuarios])
 
   const podeAcessar = role === 'god' || role === 'adm' || role === 'engenheiro'
   // Edição/exclusão: só God e Adm.
@@ -57,6 +70,8 @@ export function UsuariosPage(): ReactNode {
   /** Senha: quem edita; o engenheiro, a do seu apoio e a dos apontadores (o servidor confere as obras). */
   const podeRedefinirSenha = (u: UsuarioComEmpresa): boolean =>
     u.id !== callerId &&
+    // quem entra pelo SIGA usa a senha de lá, e as obras vêm dos projetos de lá
+    sigaPorUsuario.get(u.id)?.origem !== 'login' &&
     (podeEditarLinha(u) ||
       (role === 'engenheiro' &&
         ((u.role === 'apoio' && u.engenheiro_id === callerId) || u.role === 'apontador')))
@@ -116,6 +131,32 @@ export function UsuariosPage(): ReactNode {
         meta: { label: 'Situação' },
         size: 90
       },
+      ...(temSiga
+        ? ([
+            {
+              id: 'siga',
+              header: 'Usuário no SIGA',
+              accessorFn: (row) => sigaPorUsuario.get(row.id)?.externo_nome ?? '',
+              cell: ({ row }) => {
+                const v = sigaPorUsuario.get(row.original.id)
+                if (!v) return <span className="text-text-dim">—</span>
+                return (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-text-muted" title={`Usuário ${v.externo_login}`}>
+                      {v.externo_nome}
+                    </span>
+                    {!v.ativo ? (
+                      <Badge variant="warn">Inativo no SIGA</Badge>
+                    ) : v.origem === 'login' ? (
+                      <Badge>Entra pelo SIGA</Badge>
+                    ) : null}
+                  </span>
+                )
+              },
+              meta: { label: 'Usuário no SIGA' }
+            }
+          ] as ColumnDef<UsuarioComEmpresa, unknown>[])
+        : []),
       ...(ehGod
         ? ([
             {
@@ -204,6 +245,23 @@ export function UsuariosPage(): ReactNode {
                         <Building2 size={13} />
                       </Button>
                     ) : null}
+                    {temSiga &&
+                    podeEditarLinha(u) &&
+                    !!u.empresa_id &&
+                    u.empresa_id === empresaDoEscopo ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title={`Usuário de ${u.nome} no SIGA`}
+                        aria-label={`Usuário de ${u.nome} no SIGA`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSigaTarget(u)
+                        }}
+                      >
+                        <Link2 size={13} />
+                      </Button>
+                    ) : null}
                     {podeRedefinirSenha(u) ? (
                       <Button
                         size="icon"
@@ -255,7 +313,7 @@ export function UsuariosPage(): ReactNode {
           ] as ColumnDef<UsuarioComEmpresa, unknown>[])
         : [])
     ],
-    [ehGod, podeGerenciar, role, callerId]
+    [ehGod, podeGerenciar, role, callerId, temSiga, sigaPorUsuario, empresaDoEscopo]
   )
 
   if (!podeAcessar) {
@@ -336,6 +394,13 @@ export function UsuariosPage(): ReactNode {
         open={!!obrasTarget}
         onOpenChange={(o) => !o && setObrasTarget(null)}
         usuario={obrasTarget}
+      />
+      <UsuarioSigaDialog
+        open={!!sigaTarget}
+        onOpenChange={(o) => !o && setSigaTarget(null)}
+        usuario={sigaTarget}
+        vinculos={vinculosSiga ?? []}
+        nomes={nomesPorUsuario}
       />
       <RedefinirSenhaDialog
         open={!!senhaTarget}

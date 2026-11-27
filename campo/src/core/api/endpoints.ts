@@ -1,4 +1,4 @@
-import { BUCKET_FOTOS, supabase } from '@/core/supabase'
+import { BUCKET_FOTOS, SUPABASE_ANON_KEY, SUPABASE_URL, supabase } from '@/core/supabase'
 import type {
   PainelDto,
   CatalogoDto,
@@ -39,24 +39,70 @@ export interface LoginResultado {
   expiresAtEpochMs: number
 }
 
+/**
+ * Entrada com o usuário do sistema da empresa (o SIGA): a função `siga-login` confere a senha lá e devolve uma
+ * sessão normal do InfraWork, que passa a valer neste aparelho.
+ */
+async function entrarPeloSistemaDaEmpresa(usuario: string, senha: string) {
+  let resposta: Response
+  try {
+    resposta = await comPrazo(
+      fetch(`${SUPABASE_URL}/functions/v1/siga-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+        body: JSON.stringify({ usuario, senha }),
+      }),
+      PRAZO_LEITURA,
+    )
+  } catch (e) {
+    throw paraApiError(e)
+  }
+  const corpo = (await resposta.json().catch(() => null)) as {
+    access_token?: string
+    refresh_token?: string
+    error?: string
+  } | null
+  if (!resposta.ok || !corpo?.access_token || !corpo.refresh_token) {
+    // 401 e 403 aparecem na tela como vieram; o resto vira "tente de novo"
+    const recusa = [400, 401, 403, 404, 429].includes(resposta.status)
+    throw new ApiError(
+      recusa ? (resposta.status === 401 ? 401 : 403) : resposta.status || 500,
+      corpo?.error ?? 'Não foi possível entrar agora. Tente de novo.',
+    )
+  }
+  const { data, error } = await supabase.auth.setSession({
+    access_token: corpo.access_token,
+    refresh_token: corpo.refresh_token,
+  })
+  if (error || !data.session) throw paraApiError(error ?? new Error('Falha no login'))
+  return data.session
+}
+
 export const authEndpoints = {
-  async login(email: string, senha: string): Promise<LoginResultado> {
-    let res
-    try {
-      res = await comPrazo(
-        supabase.auth.signInWithPassword({ email, password: senha }),
-        PRAZO_LEITURA,
-      )
-    } catch (e) {
-      throw paraApiError(e)
+  /** `identificador`: o e-mail do InfraWork ou, sem "@", o usuário do sistema da empresa. */
+  async login(identificador: string, senha: string): Promise<LoginResultado> {
+    const peloSistemaDaEmpresa = !identificador.includes('@')
+    const email = identificador
+    let s
+    if (peloSistemaDaEmpresa) s = await entrarPeloSistemaDaEmpresa(identificador, senha)
+    else {
+      let res
+      try {
+        res = await comPrazo(
+          supabase.auth.signInWithPassword({ email, password: senha }),
+          PRAZO_LEITURA,
+        )
+      } catch (e) {
+        throw paraApiError(e)
+      }
+      if (res.error || !res.data.session) {
+        const m = res.error?.message ?? ''
+        if (/invalid login|invalid credentials/i.test(m))
+          throw new ApiError(401, 'E-mail ou senha inválidos')
+        throw paraApiError(res.error ?? new Error('Falha no login'))
+      }
+      s = res.data.session
     }
-    if (res.error || !res.data.session) {
-      const m = res.error?.message ?? ''
-      if (/invalid login|invalid credentials/i.test(m))
-        throw new ApiError(401, 'E-mail ou senha inválidos')
-      throw paraApiError(res.error ?? new Error('Falha no login'))
-    }
-    const s = res.data.session
     const { data: perfil, error } = await supabase
       .from('profiles')
       .select('nome, role, empresa_id, ativo')
@@ -73,7 +119,8 @@ export const authEndpoints = {
     }
     return {
       userId: s.user.id,
-      email: s.user.email ?? email,
+      // quem entra com o usuário da empresa vê esse usuário na tela, não o endereço interno da conta
+      email: peloSistemaDaEmpresa ? identificador : (s.user.email ?? email),
       nome: (perfil.nome as string) || email,
       role: perfil.role as string,
       empresaId: (perfil.empresa_id as string | null) ?? null,

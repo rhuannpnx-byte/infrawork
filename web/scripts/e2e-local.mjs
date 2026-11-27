@@ -1056,6 +1056,22 @@ await sbAp.auth.signOut()
   const sigaDireto = await u.eng.c.from('acompanhamento_producao').insert({ obra_id: obraId, data: '2026-10-01', servico_nome: 'x', quantidade: 1, origem: 'siga' })
   check('siga: o lote do SIGA só entra pelo conector (função fechada e origem recusada)',
     !!aplicarUsuario.error && !!sigaDireto.error, `${aplicarUsuario.error?.code ?? 'aplicou'} / ${sigaDireto.error?.message?.slice(0, 50) ?? 'inseriu'}`)
+  // 0072: usuários do SIGA. O vínculo e o limite de entrada só são gravados pelo servidor.
+  const gravarUsu = await u.admA.c.rpc('siga_usuario_gravar', {
+    _user_id: eng.id, _integracao_id: empresa.id, _externo_id: 1, _login: 'x', _nome: 'x', _origem: 'vinculo', _projetos: null, _por: null
+  })
+  const liberadoUsu = await u.admA.c.rpc('siga_login_liberado', { _login: 'x', _origem: 'x' })
+  const tentativasUsu = await u.admA.c.from('integracao_login_tentativa').select('id').limit(1)
+  const insereVinc = await u.admA.c.from('integracao_usuario').insert({ user_id: eng.id, integracao_id: empresa.id, externo_id: 1, externo_login: 'x', externo_nome: 'x' })
+  check('siga: vínculo de usuário e limite de entrada só pelo servidor (funções e tabelas fechadas)',
+    !!gravarUsu.error && !!liberadoUsu.error && !!tentativasUsu.error && !!insereVinc.error,
+    `${gravarUsu.error?.code ?? 'gravou'} / ${liberadoUsu.error?.code ?? 'leu'} / ${tentativasUsu.error?.code ?? 'leu a tabela'} / ${insereVinc.error?.code ?? 'inseriu'}`)
+  const entradaSem = await fetch(`${URL}/functions/v1/siga-login`, {
+    method: 'POST',
+    headers: { apikey: ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario: `ninguem-${STAMP}`, senha: 'x' })
+  })
+  check('siga-login: usuário desconhecido é recusado', [401, 404].includes(entradaSem.status), String(entradaSem.status))
   if (process.env.E2E_SIGA) {
     const [host, banco, usuario, senha, projeto] = process.env.E2E_SIGA.split(',')
     const con = await fnComo(token, 'siga', { acao: 'conectar', empresa_id: empresa.id, host, banco, usuario, senha })
@@ -1096,10 +1112,30 @@ await sbAp.auth.signOut()
     const dpCli = await u.cli.c.rpc('siga_desvincular_obra', { _obra_id: obraId })
     check('siga: outra empresa não vê o vínculo nem mexe no de-para; o cliente não desvincula',
       (vincB.data ?? []).length === 0 && !!dpB.error && !!dpCli.error, `${vincB.data?.length} / ${dpB.error?.code ?? 'gravou'} / ${dpCli.error?.code ?? 'desvinculou'}`)
+    const usuariosSiga = await fnComo(u.admA.token, 'siga', { acao: 'usuarios' })
+    const usuariosEng = await fnComo(u.eng.token, 'siga', { acao: 'usuarios' })
+    check('siga: o adm lista os usuários do SIGA; o engenheiro, não',
+      usuariosSiga.status === 200 && (usuariosSiga.j?.usuarios ?? []).length > 0 && usuariosEng.status === 403,
+      `${usuariosSiga.status} ${usuariosSiga.j?.error ?? ''} / ${usuariosEng.status}`)
+    const alvoSiga = usuariosSiga.j?.usuarios?.[0]
+    const liga = await fnComo(u.admA.token, 'siga', { acao: 'vincular_usuario', user_id: eng.id, externo_id: alvoSiga?.id, nome: 'Nome inventado' })
+    const ligaOutro = await fnComo(u.admA.token, 'siga', { acao: 'vincular_usuario', user_id: cli.id, externo_id: alvoSiga?.id })
+    const ligaB = await fnComo(u.admB.token, 'siga', { acao: 'vincular_usuario', user_id: eng.id, externo_id: alvoSiga?.id })
+    const vincLido = await u.eng.c.from('integracao_usuario').select('externo_nome, origem')
+    const vincUsuB = await u.admB.c.from('integracao_usuario').select('user_id')
+    check('siga: o usuário é ligado com o nome que está no SIGA; um usuário do SIGA não serve a dois; outra empresa não liga nem vê',
+      liga.status === 200 && vincLido.data?.[0]?.externo_nome === alvoSiga?.nome && vincLido.data?.[0]?.origem === 'vinculo' &&
+        ligaOutro.status === 400 && ligaB.status >= 400 && (vincUsuB.data ?? []).length === 0,
+      `${liga.status} ${liga.j?.error ?? ''} / ${JSON.stringify(vincLido.data ?? vincLido.error?.message)} / ${ligaOutro.status} / ${ligaB.status} / ${vincUsuB.data?.length}`)
+    const desfazUsu = await fnComo(u.admA.token, 'siga', { acao: 'vincular_usuario', user_id: eng.id, externo_id: null })
+    const semVincUsu = await u.eng.c.from('integracao_usuario').select('user_id')
+    check('siga: desfazer o vínculo do usuário', desfazUsu.status === 200 && (semVincUsu.data ?? []).length === 0, `${desfazUsu.status} ${desfazUsu.j?.error ?? ''}`)
     const desv = await u.eng.c.rpc('siga_desvincular_obra', { _obra_id: obraId })
     const resto = await q('acompanhamento_producao', (t) => t.select('id').eq('obra_id', obraId).eq('origem', 'siga').limit(1))
     check('siga: desfazer o vínculo tira o espelho da obra', !desv.error && resto.length === 0, desv.error?.message)
-    await fnComo(token, 'siga', { acao: 'desconectar', empresa_id: empresa.id })
+    const desc = await fnComo(token, 'siga', { acao: 'desconectar', empresa_id: empresa.id })
+    const semCred = await q('integracao', (t) => t.select('id').eq('empresa_id', empresa.id))
+    check('siga: desconectar apaga a integração da empresa de teste', desc.status === 200 && semCred.length === 0, `${desc.status} ${semCred.length}`)
   }
   await sb.from('empresa_capacidade').delete().eq('empresa_id', empresa.id)
 

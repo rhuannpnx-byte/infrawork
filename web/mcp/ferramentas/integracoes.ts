@@ -39,6 +39,16 @@ const DE_PARA = z.object({
   remover: z.boolean().optional().describe('apaga este de-para')
 })
 
+/** A empresa da obra: as ações de usuário são da empresa, e o god precisa dizer qual. */
+async function empresaDaObra(obraId: string): Promise<string> {
+  const [obra] = await ler<{ empresa_id: string }>('obras', {
+    colunas: 'empresa_id',
+    filtros: [eq('id', obraId)]
+  })
+  if (!obra) throw new Error('Obra não encontrada')
+  return obra.empresa_id
+}
+
 export const integracoes = ferramenta({
   nome: 'integracoes',
   titulo: 'Integrações (SIGA)',
@@ -52,7 +62,12 @@ export const integracoes = ferramenta({
     'projeto descarta o espelho e os de-para do anterior) | desvincular (tira da obra o que veio do SIGA) | ' +
     'cadastros (serviços, equipes com encarregado, encarregados e locais do projeto no SIGA, com quantos ' +
     'lançamentos usam cada um) | de_para (o que já está ligado) | salvar_de_para (linhas: liga ou desliga; vale ' +
-    'para os lançamentos que já vieram) | sincronizar (lê o SIGA agora). ' +
+    'para os lançamentos que já vieram) | sincronizar (lê o SIGA agora) | usuarios (os usuários ativos do SIGA e ' +
+    'quem do InfraWork já está ligado a cada um; só god e adm) | vincular_usuario (user_id, externo_id: liga um ' +
+    'usuário do InfraWork ao dele no SIGA; externo_id nulo desfaz). ' +
+    'Para gravar no SIGA o lançamento leva o nome do usuário de lá: o apontador entra no app de campo com o ' +
+    'usuário e a senha do SIGA (a conta nasce sozinha, e as obras são as dos projetos liberados para ele lá); ' +
+    'engenheiro e apoio seguem com a conta do InfraWork, ligada ao usuário do SIGA por vincular_usuario. ' +
     'Um serviço do SIGA cai num agrupador do orçamento que tenha composição; sem vínculo, a produção entra com ' +
     'o nome do SIGA e fica como pendência (não conta no previsto e realizado).',
   entrada: {
@@ -64,7 +79,9 @@ export const integracoes = ferramenta({
       'cadastros',
       'de_para',
       'salvar_de_para',
-      'sincronizar'
+      'sincronizar',
+      'usuarios',
+      'vincular_usuario'
     ]),
     obra_id: OBRA,
     projeto_id: z.number().int().optional().describe('vincular: id do projeto no SIGA'),
@@ -74,11 +91,20 @@ export const integracoes = ferramenta({
       .optional()
       .describe('vincular: AAAA-MM-DD; lançamentos anteriores não são trazidos'),
     linhas: z.array(DE_PARA).optional().describe('salvar_de_para'),
+    user_id: z.string().uuid().optional().describe('vincular_usuario: id do usuário do InfraWork'),
+    externo_id: z
+      .number()
+      .int()
+      .nullable()
+      .optional()
+      .describe(
+        'vincular_usuario: id do usuário no SIGA (vem de "usuarios"); nulo desfaz o vínculo'
+      ),
     confirmar: CONFIRMAR
   },
   destrutiva: true,
   cobre: {
-    tabelas: ['integracao_obra', 'integracao_de_para'],
+    tabelas: ['integracao_obra', 'integracao_de_para', 'integracao_usuario'],
     rpcs: ['siga_vincular_obra', 'siga_desvincular_obra', 'siga_de_para_salvar'],
     funcoes: ['siga']
   },
@@ -152,6 +178,25 @@ export const integracoes = ferramenta({
         })
       case 'sincronizar':
         return fn('siga', { acao: 'sincronizar', obra_id: a.obra_id })
+      case 'usuarios':
+        return fn('siga', { acao: 'usuarios', empresa_id: await empresaDaObra(a.obra_id) })
+      case 'vincular_usuario': {
+        const usuario = exigir(a.user_id, 'user_id', a.acao)
+        if (a.externo_id === undefined)
+          throw new Error('vincular_usuario: informe externo_id (ou null para desfazer o vínculo)')
+        if (a.externo_id === null) {
+          const pedido = pedirConfirmacao(a.confirmar, 'desfazer o vínculo do usuário com o SIGA', {
+            efeito: 'o usuário deixa de poder lançar em obra do SIGA'
+          })
+          if (pedido) return pedido
+        }
+        return fn('siga', {
+          acao: 'vincular_usuario',
+          empresa_id: await empresaDaObra(a.obra_id),
+          user_id: usuario,
+          externo_id: a.externo_id
+        })
+      }
     }
   }
 })

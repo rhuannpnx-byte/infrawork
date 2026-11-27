@@ -794,6 +794,12 @@ try {
     semVinculo.vinculada === false && vincular.erro && /SIGA/.test(vincular.texto),
     `${JSON.stringify(semVinculo)} / ${vincular.texto.slice(0, 100)}`
   )
+  const usuariosSiga = await tentar('integracoes', { acao: 'usuarios', obra_id: O })
+  check(
+    'integracoes: usuários do SIGA em empresa sem a integração é recusado com o motivo',
+    usuariosSiga.erro && /SIGA/.test(usuariosSiga.texto),
+    usuariosSiga.texto.slice(0, 100)
+  )
 
   // ── 9. Papéis ──────────────────────────────────────────────────────────────────────────────────
   if (process.env.E2E_APONTADOR && process.env.E2E_APONTADOR_SENHA) {

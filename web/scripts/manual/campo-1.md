@@ -38,20 +38,25 @@ O aplicativo é aberto pelo navegador do celular, no endereço informado pela su
 ![Tela de acesso do aplicativo](login.jpg){celular}
 
 1. Abra o endereço do aplicativo no navegador do celular.
-2. Digite o **E-mail** e a **Senha**.
+2. Digite o **E-mail ou usuário** e a **Senha**.
 3. Toque em [[Entrar]].
+
+Se a sua empresa lança a produção no SIGA, entre com o **usuário e a senha do SIGA**, sem "@". Não é preciso cadastro: no primeiro acesso o aplicativo já mostra as obras dos projetos liberados para você no SIGA.
 
 As mensagens mais comuns ao entrar:
 
 | Mensagem | O que fazer |
 |---|---|
 | E-mail ou senha inválidos | Confira os dois campos. Se esqueceu a senha, peça ao engenheiro ou ao administrador para redefinir. |
+| Usuário ou senha inválidos | Entrada com o usuário do SIGA: confira os dois campos. A senha é a mesma do SIGA e é trocada lá. |
+| Muitas tentativas com a senha errada | Depois de 8 senhas erradas a entrada com aquele usuário fica bloqueada por 15 minutos. |
+| O SIGA não respondeu | Tente de novo em instantes. Quem já está com o aplicativo aberto continua trabalhando. |
 | Usuário inativo | O seu acesso foi desligado. Fale com o administrador da empresa. |
 | Este usuário não lança produção | O usuário tem o papel Cliente, que não usa o aplicativo. |
 | Sem conexão. Verifique sua rede. | O primeiro acesso precisa de internet. |
 
 :::nota
-O aplicativo não tem a opção de recuperar a senha. Quem redefine a senha é o administrador ou o engenheiro, no sistema web.
+O aplicativo não tem a opção de recuperar a senha. Quem redefine a senha é o administrador ou o engenheiro, no sistema web. Para quem entra com o usuário do SIGA, a senha é a do SIGA.
 :::
 
 ## Instalar no Android

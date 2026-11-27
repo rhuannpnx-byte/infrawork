@@ -52,7 +52,7 @@ InfraWork. O app de campo é o mesmo de todas as empresas: quem leva o lançamen
 | A. Vínculos | Obra ↔ projeto; de-para de serviço, equipe, encarregado e local; tela e ferramenta do MCP | feita (migração 0071) |
 | B. Carga do desktop | `scripts/importar-do-desktop.mjs` traz uma obra do InfraWork desktop para o local; `scripts/transferir-obra.py` leva a obra conferida para produção | feita (6.508 no local) |
 | C. Leitura | Produção do SIGA copiada para o InfraWork a cada 10 minutos | feita (migração 0071) |
-| D. Usuários | Apontador entra no app com o usuário do SIGA; usuário do web ligado ao do SIGA | a fazer |
+| D. Usuários | Apontador entra no app com o usuário do SIGA; usuário do web ligado ao do SIGA | feita (migração 0072, função `siga-login`) |
 | E. Gravação | Fila de saída que grava no SIGA o que é lançado no web e no app | a fazer |
 | F. Fotos | Fotos do SIGA para cá e daqui para lá; alerta de falha | a fazer |
 
@@ -69,6 +69,27 @@ InfraWork. O app de campo é o mesmo de todas as empresas: quem leva o lançamen
   `vw_siga_pendencias` e na tela **Acompanhamento › Vínculo com o SIGA** (item de menu com `requer`).
 - Funções do usuário: `siga_vincular_obra`, `siga_desvincular_obra`, `siga_de_para_salvar` (quem planeja a
   obra). No MCP: ferramenta `integracoes`.
+
+### Usuários
+
+O lançamento do SIGA guarda o **nome** de quem cadastrou, não um id. Para gravar lá, quem lança precisa ser um
+usuário do SIGA (`integracao_usuario`: usuário do InfraWork ↔ id, login e nome de lá).
+
+- **Apontador (`origem = 'login'`)**: entra no app de campo com o usuário e a senha do SIGA. A função
+  `siga-login` acha o usuário no cadastro do SIGA, manda a senha para a tela de login do próprio SIGA (não
+  reproduzimos o formato da senha nem a guardamos), cria a conta no primeiro acesso (papel apontador) e devolve
+  uma sessão normal do InfraWork. As obras são as ligadas a um projeto que o SIGA libera para ele
+  (`sys_usuario_tem_projeto`; apoio herda do chefe; quem não é apoio nem chefe vê todos), gravadas em
+  `obra_permissoes` por `siga_usuario_permissoes`.
+- **Engenheiro, apoio e adm (`origem = 'vinculo'`)**: continuam com a conta do InfraWork; o administrador liga a
+  conta ao usuário do SIGA em **Gerencial › Usuários**. Essa conta não entra por `siga-login`.
+- A rodada automática confere, a cada 10 minutos, quem continua ativo no SIGA e com quais projetos
+  (`siga_usuarios_conferir`): o desligado perde as obras com a sessão aberta.
+- Limite de entrada: 8 senhas erradas por usuário e 40 por origem em 15 minutos (`integracao_login_tentativa`).
+- A conta de quem entra pelo SIGA tem um endereço interno (`siga-<id>@<empresa>.siga.infrawork-web.vercel.app`)
+  e uma senha que ninguém conhece: ela só entra por `siga-login`.
+- O endereço da tela de login é `https://<servidor da conexão>/action/action.php`; outro endereço vai em
+  `integracao.config.login_url`. No ambiente local, `SIGA_LOGIN_URL` aponta para um login de teste.
 
 Regras que valem para as próximas fases:
 
@@ -87,6 +108,8 @@ Regras que valem para as próximas fases:
 - `projetos`, `cadastros`, `sincronizar` (com `obra_id`): quem planeja a obra. Lista os projetos, os cadastros do
   projeto (com quantos lançamentos usam cada um) e lê a produção agora. Sem `obra_id` e com a chave de serviço
   (o `pg_cron`, a cada 10 minutos), `sincronizar` percorre todas as obras vinculadas.
+- `usuarios`, `vincular_usuario` (`user_id`, `externo_id` ou nulo para desfazer): god ou adm. O nome e o login
+  gravados são os lidos do SIGA, não os que vêm da tela.
 - `diagnostico`: só o god. Lê, sem gravar nada, as tabelas `pnj_*` e `cdt_*`, as colunas, as chaves estrangeiras,
   os gatilhos, as permissões do usuário e como as últimas linhas estão preenchidas. O resultado fica em
   `integracao_execucao.resumo` e pode ser baixado na tela.

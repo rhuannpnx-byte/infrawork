@@ -9,7 +9,8 @@ import { SeletorTema } from '@/features/common/SeletorTema'
 
 /**
  * Tela de entrada: a marca no topo, a folha com o formulário (campos e botão de 48 px) e a escolha do tema.
- * O usuário é o mesmo do InfraWork Web (e-mail e senha).
+ * O usuário é o mesmo do InfraWork Web (e-mail e senha); quem lança por um sistema da empresa (o SIGA) entra
+ * com o usuário e a senha de lá.
  */
 export function LoginRoute() {
   const authed = useIsAuthenticated()
@@ -40,8 +41,9 @@ export function LoginRoute() {
     e.preventDefault()
     const novos: { email?: string; senha?: string } = {}
     const endereco = email.trim()
-    if (!endereco) novos.email = 'Informe o e-mail.'
-    else if (!/^\S+@\S+\.\S+$/.test(endereco))
+    if (!endereco) novos.email = 'Informe o e-mail ou o usuário.'
+    else if (/\s/.test(endereco)) novos.email = 'O e-mail ou o usuário não tem espaço.'
+    else if (endereco.includes('@') && !/^\S+@\S+\.\S+$/.test(endereco))
       novos.email = 'E-mail incompleto: confira o endereço.'
     if (!senha) novos.senha = 'Informe a senha.'
     setErros(novos)
@@ -78,12 +80,12 @@ export function LoginRoute() {
             )}
             <div className="space-y-1.5">
               <label htmlFor="email" className="rotulo block">
-                E-mail
+                E-mail ou usuário
               </label>
               <Input
                 ref={emailRef}
                 id="email"
-                type="email"
+                type="text"
                 inputMode="email"
                 autoComplete="username"
                 autoCapitalize="none"
@@ -95,7 +97,7 @@ export function LoginRoute() {
                   if (erros.email) setErros((x) => ({ ...x, email: undefined }))
                 }}
                 readOnly={loading}
-                placeholder="voce@empresa.com.br"
+                placeholder="voce@empresa.com.br ou seu usuário"
                 aria-invalid={erros.email ? true : undefined}
                 aria-describedby={erros.email ? 'email-erro' : undefined}
                 className={erros.email ? 'h-12 border-bad focus-visible:border-bad' : 'h-12'}

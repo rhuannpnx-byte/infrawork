@@ -84,6 +84,9 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   O SIGA é a verdade: lançamento de origem "siga" não se altera nem se exclui aqui, e nessa obra o lançamento
   feito pelo InfraWork só entra quando a gravação estiver ligada. Sem de-para a produção entra com o nome do SIGA
   e vira pendência (integracoes.status). A conexão e a credencial são feitas só na tela Gerencial › Integrações.
+  Quem lança em obra do SIGA precisa ser usuário de lá (o lançamento guarda o nome): o apontador entra no app de
+  campo com o usuário e a senha do SIGA e recebe as obras dos projetos liberados para ele lá; engenheiro e apoio
+  usam a conta do InfraWork ligada ao usuário do SIGA (integracoes.usuarios e integracoes.vincular_usuario).
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.
 
 ## Como usar as ferramentas

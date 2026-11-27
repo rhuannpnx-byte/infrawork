@@ -3,12 +3,16 @@
 //   { acao: 'conectar', host, porta?, banco, usuario, senha }  testa a conexão e guarda a credencial no Vault
 //   { acao: 'desconectar' }                                    apaga a credencial
 //   { acao: 'diagnostico' }                                    lê a estrutura das tabelas e guarda o resultado (só god)
+//   { acao: 'usuarios' }                                       os usuários ativos do SIGA e os já ligados aos do InfraWork
+//   { acao: 'vincular_usuario', user_id, externo_id | null }   liga um usuário do InfraWork ao do SIGA (null desfaz)
 // Da obra (quem planeja a obra; informa obra_id):
 //   { acao: 'projetos' }                 os projetos do SIGA, para vincular
 //   { acao: 'cadastros', projeto_id? }   serviços, equipes, encarregados e locais do projeto, para o de-para
 //   { acao: 'sincronizar' }              lê a produção do projeto vinculado e aplica na obra
-// Do serviço (pg_cron): { acao: 'sincronizar' } sem obra percorre todas as obras vinculadas.
+// Do serviço (pg_cron): { acao: 'sincronizar' } sem obra percorre todas as obras vinculadas e confere, no SIGA,
+// quem dos usuários ligados continua ativo e com quais projetos.
 // A empresa precisa ter a capacidade `integracao_siga`. Esta função só LÊ o SIGA: a gravação é outra etapa.
+// A entrada do apontador com o usuário do SIGA é a função siga-login.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import { handlePreflight, json } from '../_shared/cors.ts'
@@ -30,6 +34,7 @@ import {
   segredoParaCredencial,
   type ConexaoSiga
 } from '../_shared/siga.ts'
+import { listarUsuarios, projetosDoUsuario, situacaoDosUsuarios, usuarioPorId } from '../_shared/siga-usuario.ts'
 
 const TIPO = 'siga'
 // tabelas de cadastro que interessam para gravar a produção (além das que as tabelas do Monito referenciam)
@@ -245,6 +250,21 @@ async function sincronizarTodas(admin: SupabaseClient): Promise<Record<string, u
         obras.push({ obra_id: v.obra_id, ok: false, erro })
       }
     }
+    // quem entra ou lança pelo SIGA: continua ativo lá? com quais projetos? (não para a rodada)
+    if (con) {
+      try {
+        const { data: ligados } = await admin
+          .from('integracao_usuario')
+          .select('externo_id')
+          .eq('integracao_id', lista[0].integracao_id)
+        const ids = (ligados ?? []).map((x) => Number(x.externo_id))
+        if (ids.length)
+          await admin.rpc('siga_usuarios_conferir', {
+            _integracao_id: lista[0].integracao_id,
+            _situacao: await situacaoDosUsuarios(con, ids)
+          })
+      } catch { /* fica para a próxima rodada */ }
+    }
     await con?.end().catch(() => undefined)
   }
   return { ok: true, obras }
@@ -408,6 +428,55 @@ Deno.serve(async (req) => {
     const { error } = await admin.rpc('integracao_remover', { _empresa_id: empresa, _tipo: TIPO })
     if (error) return json({ ok: false, error: error.message }, 500)
     return json({ ok: true })
+  }
+
+  // ── usuários: quem do InfraWork é quem no SIGA ──
+  if (acao === 'usuarios' || acao === 'vincular_usuario') {
+    const cred = await credencialDaEmpresa(admin, empresa)
+    if (!cred) return json({ ok: false, error: 'O SIGA ainda não foi conectado para esta empresa.' }, 400)
+    const userId = String(body.user_id ?? '')
+    if (acao === 'vincular_usuario') {
+      if (!userId) return json({ ok: false, error: 'Informe o usuário' }, 400)
+      const { data: alvo } = await admin.from('profiles').select('id, empresa_id').eq('id', userId).maybeSingle()
+      if (!alvo || alvo.empresa_id !== empresa)
+        return json({ ok: false, error: 'Usuário não encontrado nesta empresa' }, 404)
+      if (body.externo_id == null) {
+        const { error } = await admin.rpc('siga_usuario_remover', { _user_id: userId })
+        if (error) return json({ ok: false, error: error.message }, 400)
+        return json({ ok: true, vinculado: false })
+      }
+    }
+    let con: ConexaoSiga | null = null
+    try {
+      con = await abrirSiga(segredoParaCredencial(cred.segredo))
+      if (acao === 'usuarios') {
+        const { data: vinculos } = await admin
+          .from('integracao_usuario')
+          .select('user_id, externo_id, externo_login, externo_nome, origem, ativo, conferido_em')
+          .eq('integracao_id', cred.integracao_id)
+        return json({ ok: true, usuarios: await listarUsuarios(con), vinculos: vinculos ?? [] })
+      }
+      // o nome e o login gravados são os que estão no SIGA, não os que vieram da tela
+      const u = await usuarioPorId(con, Number(body.externo_id))
+      if (!u) return json({ ok: false, error: 'Usuário não encontrado ou inativo no SIGA' }, 404)
+      const { error } = await admin.rpc('siga_usuario_gravar', {
+        _user_id: userId,
+        _integracao_id: cred.integracao_id,
+        _externo_id: u.id,
+        _login: u.login,
+        _nome: u.nome,
+        _origem: 'vinculo',
+        _projetos: await projetosDoUsuario(con, u.id),
+        _por: caller.id
+      })
+      if (error) return json({ ok: false, error: error.message }, 400)
+      return json({ ok: true, vinculado: true, usuario: u })
+    } catch (e) {
+      const erro = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
+      return json({ ok: false, error: erro }, 502)
+    } finally {
+      await con?.end().catch(() => undefined)
+    }
   }
 
   if (acao !== 'diagnostico') return json({ ok: false, error: 'Ação desconhecida' }, 400)

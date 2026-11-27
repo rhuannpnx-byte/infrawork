@@ -409,3 +409,73 @@ export function useVinculoSigaAcao(): ReturnType<
     }
   })
 }
+
+// ── Usuários do SIGA ───────────────────────────────────────────────────────────────────────────────────────
+
+export interface UsuarioSiga {
+  id: number
+  login: string
+  nome: string
+}
+
+export interface VinculoUsuarioSiga {
+  user_id: string
+  externo_id: number
+  externo_login: string
+  externo_nome: string
+  /** `login`: entra no app de campo com o usuário do SIGA; `vinculo`: conta do InfraWork ligada pelo administrador. */
+  origem: 'login' | 'vinculo'
+  /** Continua ativo no SIGA (conferido na entrada e a cada rodada automática). */
+  ativo: boolean
+}
+
+/** Quem do InfraWork está ligado a um usuário do SIGA (lido do nosso banco). */
+export function useVinculosUsuarioSiga(
+  ativo: boolean
+): ReturnType<typeof useQuery<VinculoUsuarioSiga[]>> {
+  return useQuery({
+    queryKey: ['siga', 'usuarios-vinculos'],
+    enabled: ativo,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integracao_usuario')
+        .select('user_id, externo_id, externo_login, externo_nome, origem, ativo')
+      if (error) throw error
+      return (data ?? []) as VinculoUsuarioSiga[]
+    }
+  })
+}
+
+/** Os usuários ativos do SIGA da empresa (lidos de lá na hora). */
+export function useUsuariosSiga(
+  empresaId: string | null | undefined,
+  ativo: boolean
+): ReturnType<typeof useQuery<UsuarioSiga[]>> {
+  return useQuery({
+    queryKey: ['siga', 'usuarios', empresaId],
+    enabled: !!empresaId && ativo,
+    staleTime: 5 * 60_000,
+    queryFn: async () =>
+      (await chamarSiga<{ usuarios: UsuarioSiga[] }>({ acao: 'usuarios', empresa_id: empresaId }))
+        .usuarios
+  })
+}
+
+/** Liga um usuário do InfraWork a um usuário do SIGA (`externo_id` nulo desfaz). O nome gravado é o do SIGA. */
+export function useVincularUsuarioSiga(): ReturnType<
+  typeof useMutation<
+    unknown,
+    Error,
+    { empresa_id: string; user_id: string; externo_id: number | null }
+  >
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v) => chamarSiga({ acao: 'vincular_usuario', ...v }),
+    // o diálogo mostra o erro no próprio lugar
+    onError: () => undefined,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['siga', 'usuarios-vinculos'] })
+    }
+  })
+}

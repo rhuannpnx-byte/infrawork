@@ -100,3 +100,7 @@ verify_jwt = true
 
 [functions.siga]
 verify_jwt = true
+
+# entrada do apontador com o usuário do SIGA: é chamada sem sessão (a própria função confere a senha no SIGA)
+[functions.siga-login]
+verify_jwt = false

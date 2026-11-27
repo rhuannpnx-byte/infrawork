@@ -39,7 +39,7 @@ interface UseAuthResult {
 }
 
 /**
- * Login/logout com o usuário do InfraWork Web (Supabase Auth). Entrar de novo com o mesmo usuário preserva obra,
+ * Login/logout com o usuário do InfraWork Web (e-mail) ou com o usuário do sistema da empresa (SIGA). Entrar de novo com o mesmo usuário preserva obra,
  * catálogos e filas; outro usuário só entra se não houver nada pendente do anterior.
  */
 export function useAuth(): UseAuthResult {
@@ -53,7 +53,9 @@ export function useAuth(): UseAuthResult {
       setLoading(true)
       setError(null)
       try {
-        const r = await authEndpoints.login(email.trim().toLowerCase(), senha)
+        // e-mail em minúsculas; o usuário do sistema da empresa (sem "@") vai como foi digitado
+        const quem = email.trim()
+        const r = await authEndpoints.login(quem.includes('@') ? quem.toLowerCase() : quem, senha)
         const anterior = sessionStore.current()
         const mesmoUsuario = anterior != null && anterior.userId === r.userId
         if (anterior && !mesmoUsuario) {

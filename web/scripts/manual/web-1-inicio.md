@@ -330,6 +330,25 @@ Marcar o usuário como **Inativo** impede a entrada no web e no aplicativo de ca
 2. Marque as obras em que ele vai lançar. Cada marcação é gravada na hora.
 3. Clique em [[Fechar]].
 
+### Usuário no SIGA
+
+Só aparece em empresa que lança a produção no SIGA. O lançamento guarda, no SIGA, o nome de quem lançou; por isso cada pessoa que lança em obra do SIGA precisa estar ligada ao usuário dela lá.
+
+| Quem | Como entra | O que fazer |
+|---|---|---|
+| Apontador | No aplicativo de campo, com o usuário e a senha do SIGA | Nada: a conta aparece na lista no primeiro acesso, com o selo **Entra pelo SIGA**, e as obras são as dos projetos liberados para ele no SIGA |
+| Engenheiro, apoio e administrador | No web, com o e-mail e a senha do InfraWork | Ligar a conta ao usuário do SIGA, uma vez |
+
+Para ligar uma conta:
+
+1. Na linha do usuário, clique no ícone de elo.
+2. Em **Usuário do SIGA**, procure pelo nome ou pelo usuário e escolha.
+3. Clique em [[Salvar]]. A coluna **Usuário no SIGA** passa a mostrar o nome de lá.
+
+Cada usuário do SIGA serve a uma conta só; os que já estão ligados ficam fora da lista. [[Desfazer o vínculo]] tira a ligação.
+
+O sistema confere a cada 10 minutos se o usuário continua ativo no SIGA. Quem foi desligado lá aparece com **Inativo no SIGA**, e o apontador perde as obras mesmo com o aplicativo aberto. Quem entra pelo SIGA não tem senha nem obras para definir aqui: para tirar o acesso, marque o usuário como inativo.
+
 ### Excluir um usuário
 
 Clique na lixeira e confirme em [[Excluir usuário]]. A exclusão é definitiva. Para só impedir a entrada, edite o usuário e marque-o como inativo.

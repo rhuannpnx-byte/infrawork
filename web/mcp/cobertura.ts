@@ -30,6 +30,7 @@ export const LEGIVEIS: string[] = [
   'indireto_item',
   'integracao_de_para',
   'integracao_obra',
+  'integracao_usuario',
   'item_orc_alocacao',
   'item_orcamentario',
   'memoria_calculo_item',
@@ -101,6 +102,8 @@ export const NAO_LEGIVEIS: Record<string, string> = {
     'conexão da empresa com um sistema externo (SIGA): a referência à credencial não é legível; a conexão é vista na tela Integrações',
   integracao_execucao:
     'histórico dos conectores: o diagnóstico traz a estrutura inteira do banco externo (milhares de linhas); visto na tela Integrações',
+  integracao_login_tentativa:
+    'tentativas de entrada pelo SIGA (limite por usuário e por origem): só o servidor lê',
   mcp_token: 'hash dos tokens pessoais (gerenciados no web)',
   orcamento_recalculo_pendente: 'fila interna de recálculo (sem acesso do usuário)',
   mcp_oauth_cliente: 'clientes OAuth do próprio MCP (infraestrutura de login)',
@@ -115,6 +118,7 @@ export const TABELAS_IGNORADAS: Record<string, string> = {
   integracao:
     'credencial de sistema externo (SIGA): só pela tela Integrações (nunca passa pela IA)',
   integracao_execucao: 'gravada pelos conectores no servidor',
+  integracao_login_tentativa: 'gravada pela função de entrada (siga-login) no servidor',
   mcp_token: 'tokens pessoais: criados e revogados só na tela do web',
   orcamento_recalculo_pendente: 'fila interna do banco (processada por recalcular_orcamento)',
   mcp_oauth_cliente: 'registro dinâmico de clientes OAuth (servidor do MCP, /oauth/registrar)',
@@ -213,6 +217,15 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   siga_reaplicar:
     'chamada por siga_de_para_salvar (reaplica o de-para nos lançamentos que já vieram)',
   siga_aplicar_producao: 'lote lido do SIGA: só o conector (Edge Function siga) aplica',
+  siga_usuario_gravar:
+    'vínculo de usuário com o SIGA: só o conector grava (o nome e o login vêm do SIGA); a IA usa integracoes.vincular_usuario',
+  siga_usuario_remover: 'só o conector chama (integracoes.vincular_usuario com externo_id nulo)',
+  siga_usuario_permissoes:
+    'interna: recalcula as obras de quem entra pelo SIGA a partir dos projetos liberados lá',
+  siga_usuarios_conferir:
+    'rodada automática do conector: quem continua ativo no SIGA e com quais projetos',
+  siga_login_liberado: 'limite de tentativas da entrada pelo SIGA: só a função siga-login',
+  siga_login_registrar: 'limite de tentativas da entrada pelo SIGA: só a função siga-login',
   mcp_token_criar: 'tokens pessoais: só pela tela do web',
   mcp_token_revogar: 'tokens pessoais: só pela tela do web',
   mcp_oauth_cliente_info: 'login OAuth: tela de consentimento do web',
@@ -221,5 +234,7 @@ export const RPCS_IGNORADAS: Record<string, string> = {
 
 /** Edge Functions que nenhuma ferramenta chama, com o motivo. */
 export const FUNCOES_IGNORADAS: Record<string, string> = {
-  me: 'perfil da sessão do web; o MCP usa quem_sou'
+  me: 'perfil da sessão do web; o MCP usa quem_sou',
+  'siga-login':
+    'entrada do apontador no app de campo com o usuário e a senha do SIGA: não é operação de IA (e a senha nunca passa por ela)'
 }

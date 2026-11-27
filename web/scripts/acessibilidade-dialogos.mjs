@@ -48,7 +48,8 @@ const CENARIOS = [
   ['/acompanhamento/producao', 'Importar planilha'],
   ['/acompanhamento/producao', 'Lançar produção'],
   // só aparece em empresa com a integração do SIGA habilitada
-  ['/gerencial/integracoes', 'Conectar SIGA']
+  ['/gerencial/integracoes', 'Conectar SIGA'],
+  ['/gerencial/usuarios', ' no SIGA', { exato: false }]
 ]
 
 const TEMA = process.env.E2E_TEMA === 'dark' ? 'dark' : 'light'
@@ -104,7 +105,12 @@ for (const [rota, botao, opcoes] of CENARIOS) {
     `${ok ? '✓' : '✗'} ${rota} › ${botao}${focoDentro ? '' : ' (foco não entrou)'}${fechou ? '' : ' — Esc não fechou'}${violations.length ? ` — ${violations.map((v) => `${v.id}×${v.nodes.length}`).join(', ')}` : ''}`
   )
   for (const v of violations)
-    console.log(`    ${v.id}: ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`)
+    console.log(
+      `    ${v.id}: ${v.nodes
+        .slice(0, 2)
+        .map((n) => n.target.join(' '))
+        .join(' | ')}`
+    )
   if (!fechou) {
     await page.goto(`${URL_BASE}${rota}`)
     await page.waitForTimeout(2000)
