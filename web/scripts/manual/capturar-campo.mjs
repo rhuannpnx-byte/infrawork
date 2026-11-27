@@ -144,11 +144,9 @@ try {
     await toque(page, 'Adicionar viagem', { espera: 1200 })
     await viagem('123+10', '08:40', '09:11')
     await toque(page, 'Adicionar viagem', { espera: 1200 })
-    await foto(page, 'viagens-lista-ficha')
     await toque(page, /^Revisar/, { espera: 1500 })
     await foto(page, 'viagens-revisar')
     await toque(page, 'Gravar ficha', { espera: 4000 })
-    await foto(page, 'viagens-resultado')
     await toque(page, 'Ver fichas', { espera: 1500 })
     await foto(page, 'viagens-lista')
   }
