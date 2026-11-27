@@ -321,6 +321,7 @@ function Lista({
                         <BarraAvanco
                           valor={a.nivel ?? 0}
                           marca={a.estoque_minimo > 0 ? a.estoque_minimo / a.capacidade : null}
+                          rotuloMarca={`A linha marca o estoque mínimo: ${qtd(a.estoque_minimo, a.unidade)}`}
                           tom={TOM_BARRA[a.status]}
                           className="flex-1"
                         />
@@ -333,6 +334,9 @@ function Lista({
                           {a.saldo == null
                             ? `capacidade de ${qtd(a.capacidade, a.unidade)}`
                             : `${qtd(a.saldo, a.unidade)} de ${qtd(a.capacidade, a.unidade)}`}
+                          {a.estoque_minimo > 0
+                            ? ` · mín. ${qtd(a.estoque_minimo, a.unidade)}`
+                            : ''}
                         </span>
                         {a.status !== 'normal' ? (
                           <Badge variant={VARIANTE[a.status]}>

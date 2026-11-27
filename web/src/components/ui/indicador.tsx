@@ -116,15 +116,20 @@ export function Indicador({
   )
 }
 
-/** Barra fina de avanço para usar dentro de um Indicador. `marca` é o previsto (0–1). */
+/**
+ * Barra fina de avanço para usar dentro de um Indicador. `marca` é a referência (0–1): o previsto, o mínimo.
+ * `rotuloMarca` diz o que ela é a quem passa o mouse na barra ("A linha marca o estoque mínimo: 1.500 t").
+ */
 export function BarraAvanco({
   valor,
   marca,
+  rotuloMarca,
   tom = 'accent',
   className
 }: {
   valor: number
   marca?: number | null
+  rotuloMarca?: string
   tom?: 'accent' | 'success' | 'warn' | 'danger'
   className?: string
 }): ReactNode {
@@ -138,7 +143,10 @@ export function BarraAvanco({
           : 'bg-accent'
   const limitar = (v: number): number => Math.max(0, Math.min(v, 1)) * 100
   return (
-    <div className={cn('relative h-2 bg-bg-elevated border border-border', className)}>
+    <div
+      className={cn('relative h-2 bg-bg-elevated border border-border', className)}
+      title={marca != null ? rotuloMarca : undefined}
+    >
       <div className={cn('h-full', cor)} style={{ width: `${limitar(valor)}%` }} />
       {marca != null ? (
         <span
