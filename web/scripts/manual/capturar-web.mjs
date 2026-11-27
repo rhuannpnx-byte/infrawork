@@ -162,12 +162,15 @@ const BASE = {
     await assentar(p, 2000)
     await foto(p, 'comparar')
   },
+  // o lançamento é um modal da página Produção
   lancar: async (p) => {
-    await ir(p, '/acompanhamento/lancar')
+    await ir(p, '/acompanhamento/producao')
+    await clicar(p, 'Lançar produção', { espera: 1500 })
     await foto(p, 'lancar')
   },
   'lancar-lote': async (p) => {
-    await ir(p, '/acompanhamento/lancar')
+    await ir(p, '/acompanhamento/producao')
+    await clicar(p, 'Lançar produção', { espera: 1500 })
     await p.getByRole('tab', { name: 'Em lote' }).click()
     await p.waitForTimeout(1200)
     await foto(p, 'lancar-lote')
@@ -175,7 +178,7 @@ const BASE = {
   'importar-producao': async (p) => {
     const arquivo = join(ARQUIVOS, 'producao-exemplo.xlsx')
     if (!existsSync(arquivo)) throw new Error('falta saida/producao-exemplo.xlsx (gerar-planilhas.py)')
-    await ir(p, '/acompanhamento/lancar')
+    await ir(p, '/acompanhamento/producao')
     await clicar(p, 'Importar planilha')
     await dialogo(p).locator('input[type="file"]').setInputFiles(arquivo)
     await p.waitForTimeout(2500)

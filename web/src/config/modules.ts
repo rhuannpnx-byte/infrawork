@@ -238,16 +238,9 @@ export const MODULES: ModuleConfig[] = [
       {
         title: 'OBRA',
         items: [
-          // Itens SEM requiredRoles são visíveis ao Cliente (Calendário, Produção,
-          // Fotos & Mapa, Previsto × Realizado). Os demais excluem 'cliente'
+          // Itens SEM requiredRoles são visíveis ao Cliente (Calendário, Fotos e mapa,
+          // Previsto e realizado, e a Produção, em Controles). Os demais excluem 'cliente'
           // explicitamente — ambiente do cliente é só acompanhamento da obra.
-          {
-            icon: 'clipboard-pen',
-            label: 'Lançar produção',
-            route: '/acompanhamento/lancar',
-            requiresObra: true,
-            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
-          },
           {
             icon: 'gauge',
             label: 'Dashboard',
@@ -269,6 +262,31 @@ export const MODULES: ModuleConfig[] = [
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           },
           {
+            icon: 'map-pin',
+            label: 'Fotos e mapa',
+            route: '/acompanhamento/fotos',
+            requiresObra: true
+          },
+          {
+            icon: 'scale',
+            label: 'Previsto e realizado',
+            route: '/acompanhamento/comparativo',
+            requiresObra: true
+          },
+          {
+            icon: 'bar-chart-3',
+            label: 'Performance',
+            route: '/acompanhamento/performance',
+            requiresObra: true,
+            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
+          }
+        ]
+      },
+      {
+        // O que se lança e se confere no dia a dia. O lançamento de produção é um modal da página Produção.
+        title: 'CONTROLES',
+        items: [
+          {
             icon: 'list-checks',
             label: 'Produção',
             route: '/acompanhamento/producao',
@@ -285,25 +303,6 @@ export const MODULES: ModuleConfig[] = [
             icon: 'package',
             label: 'Estoque',
             route: '/acompanhamento/estoque',
-            requiresObra: true,
-            requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
-          },
-          {
-            icon: 'map-pin',
-            label: 'Fotos e mapa',
-            route: '/acompanhamento/fotos',
-            requiresObra: true
-          },
-          {
-            icon: 'scale',
-            label: 'Previsto e realizado',
-            route: '/acompanhamento/comparativo',
-            requiresObra: true
-          },
-          {
-            icon: 'bar-chart-3',
-            label: 'Performance',
-            route: '/acompanhamento/performance',
             requiresObra: true,
             requiredRoles: ['god', 'adm', 'engenheiro', 'apoio']
           }

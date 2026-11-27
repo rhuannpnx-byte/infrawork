@@ -20,6 +20,8 @@ interface Props {
   producao: ProducaoEnriquecida | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** abre o lançamento para edição (o modal "Lançar produção" da página) */
+  onEditar: (producao: ProducaoEnriquecida) => void
 }
 
 type Tab = 'detalhes' | 'tarefa' | 'fotos'
@@ -33,20 +35,30 @@ const ROTULO_ORIGEM: Record<ProducaoOrigem, string> = {
 
 const ROTULO = 'text-2xs font-semibold uppercase tracking-[0.08em] text-text-dim'
 
-export function ProducaoDetailPanel({ producao, open, onOpenChange }: Props): ReactNode {
+export function ProducaoDetailPanel({ producao, open, onOpenChange, onEditar }: Props): ReactNode {
   if (!producao) return null
   // `key` por lançamento: a aba volta para "Detalhes" ao trocar de registro.
-  return <Panel key={producao.id} p={producao} open={open} onOpenChange={onOpenChange} />
+  return (
+    <Panel
+      key={producao.id}
+      p={producao}
+      open={open}
+      onOpenChange={onOpenChange}
+      onEditar={onEditar}
+    />
+  )
 }
 
 function Panel({
   p,
   open,
-  onOpenChange
+  onOpenChange,
+  onEditar
 }: {
   p: ProducaoEnriquecida
   open: boolean
   onOpenChange: (o: boolean) => void
+  onEditar: (producao: ProducaoEnriquecida) => void
 }): ReactNode {
   const [tab, setTab] = useState<Tab>('detalhes')
   const idBase = useId()
@@ -304,10 +316,7 @@ function Panel({
             variant="secondary"
             onClick={() => {
               onOpenChange(false)
-              void navigate({
-                to: '/acompanhamento/lancar',
-                search: { editar: p.id, data: p.data } as never
-              })
+              onEditar(p)
             }}
           >
             <Pencil size={13} /> Editar

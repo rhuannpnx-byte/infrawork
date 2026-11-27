@@ -1,7 +1,8 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { useNavigate } from '@tanstack/react-router'
-import { Camera, Image as ImageIcon, PlusCircle, FileUp } from 'lucide-react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { toast } from 'sonner'
+import { Camera, FileUp, Image as ImageIcon, PlusCircle, Smartphone, Undo2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { BarraFiltros, Filtro, FiltroMulti } from '@/components/ui/filtros'
 import { Select } from '@/components/ui/select'
@@ -17,6 +18,13 @@ import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { useAuthStore } from '@/stores/auth-store'
 import { useProducao, type ProducaoFiltros } from '@/features/acompanhamento/hooks/producao'
 import { ProducaoDetailPanel } from '@/features/acompanhamento/components/producao/ProducaoDetailPanel'
+import {
+  LancarProducaoDialog,
+  type InicioLancamento
+} from '@/features/acompanhamento/components/lancamento/LancarProducao'
+import { ImportarProducaoDialog } from '@/features/acompanhamento/components/lancamento/ImportarProducaoDialog'
+import { useDesfazerImportacao } from '@/features/acompanhamento/hooks/lancamento'
+import { motivoDoErro } from '@/features/acompanhamento/lib/mensagem-erro'
 import type { ProducaoEnriquecida, ProducaoOrigem } from '@/types/acompanhamento'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
@@ -47,6 +55,52 @@ function ProducaoInner(): ReactNode {
   const consulta = useProducao(obraId, filtros)
   const { data: rows = [], isLoading } = consulta
   const [selecionada, setSelecionada] = useState<ProducaoEnriquecida | null>(null)
+
+  // O lançamento é um modal desta página. `vez` troca a chave a cada abertura, para ele nascer limpo (ou já no
+  // lançamento a editar) em vez de reaproveitar o que ficou da abertura anterior.
+  const [lancar, setLancar] = useState<{ vez: number; inicio: InicioLancamento } | null>(null)
+  const abrirLancar = (inicio: InicioLancamento = {}): void =>
+    setLancar((atual) => ({ vez: (atual?.vez ?? 0) + 1, inicio }))
+  const [importarOpen, setImportarOpen] = useState(false)
+  const [ultimoLote, setUltimoLote] = useState<{ id: string; n: number } | null>(null)
+  const desfazer = useDesfazerImportacao()
+
+  // Quem chega pelo atalho (/acompanhamento/lancar, de outra tela ou de um link antigo) traz o pedido no
+  // endereço: abre o modal e limpa o endereço, para um recarregar não abrir de novo.
+  const search = useSearch({ strict: false }) as {
+    lancar?: unknown
+    aba?: string
+    editar?: string
+    data?: string
+  }
+  const pedido =
+    search.lancar || search.editar || search.aba
+      ? `${search.aba ?? ''}|${search.editar ?? ''}|${search.data ?? ''}`
+      : null
+  // atende o pedido uma vez, ao vê-lo chegar (e esquece quando o endereço fica limpo, para o próximo valer)
+  const [atendido, setAtendido] = useState<string | null>(null)
+  if (pedido !== atendido) {
+    setAtendido(pedido)
+    if (pedido && podeLancar) {
+      if (search.aba === 'importar') setImportarOpen(true)
+      else abrirLancar({ aba: search.aba, editarId: search.editar, data: search.data })
+    }
+  }
+  useEffect(() => {
+    if (pedido)
+      void navigate({ to: '/acompanhamento/producao', search: {} as never, replace: true })
+  }, [pedido, navigate])
+
+  const desfazerUltimo = async (): Promise<void> => {
+    if (!ultimoLote) return
+    try {
+      const n = await desfazer.mutateAsync({ importacao_id: ultimoLote.id })
+      toast.success(`${contar(n, 'lançamento removido', 'lançamentos removidos')}.`)
+      setUltimoLote(null)
+    } catch (e) {
+      toast.error(`Não foi possível desfazer a importação.${motivoDoErro(e)}`)
+    }
+  }
 
   const columns = useMemo<ColumnDef<ProducaoEnriquecida, unknown>[]>(
     () => [
@@ -346,19 +400,22 @@ function ProducaoInner(): ReactNode {
         actions={
           podeLancar ? (
             <div className="flex items-center gap-1.5">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  void navigate({
-                    to: '/acompanhamento/lancar',
-                    search: { aba: 'importar' } as never
-                  })
-                }
-              >
-                <FileUp size={12} /> Importar
+              {ultimoLote ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void desfazerUltimo()}
+                  disabled={desfazer.isPending}
+                  title={`Remove do último lote importado: ${contar(ultimoLote.n, 'lançamento', 'lançamentos')}`}
+                >
+                  <Undo2 size={12} />{' '}
+                  {desfazer.isPending ? 'Desfazendo…' : `Desfazer importação (${ultimoLote.n})`}
+                </Button>
+              ) : null}
+              <Button size="sm" variant="secondary" onClick={() => setImportarOpen(true)}>
+                <FileUp size={12} /> Importar planilha
               </Button>
-              <Button size="sm" onClick={() => void navigate({ to: '/acompanhamento/lancar' })}>
+              <Button size="sm" onClick={() => abrirLancar()}>
                 <PlusCircle size={12} /> Lançar produção
               </Button>
             </div>
@@ -444,7 +501,36 @@ function ProducaoInner(): ReactNode {
         producao={selecionada}
         open={!!selecionada}
         onOpenChange={(o) => !o && setSelecionada(null)}
+        onEditar={(p) => abrirLancar({ editarId: p.id, data: p.data })}
       />
+
+      {podeLancar ? (
+        <>
+          <LancarProducaoDialog
+            key={lancar?.vez ?? 0}
+            obraId={obraId}
+            open={!!lancar}
+            onOpenChange={(o) => !o && setLancar(null)}
+            inicio={lancar?.inicio}
+            acoes={
+              <Button
+                size="sm"
+                variant="ghost"
+                title="Abre o lançamento em tela cheia, sem o menu, para usar no celular"
+                onClick={() => void navigate({ to: '/lancar' })}
+              >
+                <Smartphone size={12} /> Modo campo
+              </Button>
+            }
+          />
+          <ImportarProducaoDialog
+            open={importarOpen}
+            onOpenChange={setImportarOpen}
+            obraId={obraId}
+            onImportado={(id, n) => setUltimoLote(id ? { id, n } : null)}
+          />
+        </>
+      ) : null}
     </div>
   )
 }

@@ -163,7 +163,7 @@ export const PRODUCAO_SPEC: TemplateSpec = {
       'Preencha a aba "Produção", uma linha por lançamento (data × item × equipe).',
       'Consulte os códigos válidos na aba "Itens" (gerada com os itens com composição da obra).',
       'Para o controle por estaca, informe o Local (aba "Locais") e, num eixo, as estacas inicial e final.',
-      'Importe em Acompanhamento → Lançar produção → Importar. A importação pode ser desfeita em seguida.'
+      'Importe em Acompanhamento → Produção → Importar planilha. A importação pode ser desfeita em seguida.'
     ],
     regras: [
       'Datas no futuro não são aceitas.',

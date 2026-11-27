@@ -141,7 +141,7 @@ function BareBar(): ReactNode {
       </div>
       <button
         type="button"
-        onClick={() => navigateActiveTab('/acompanhamento/lancar')}
+        onClick={() => navigateActiveTab('/acompanhamento/producao')}
         className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded border border-border-strong bg-bg-panel text-sm text-text-muted hover:text-text hover:border-border-accent"
         title="Abrir o app completo"
       >

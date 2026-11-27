@@ -23,7 +23,7 @@ O previsto de todas as telas vem da **linha de base vigente** (seção 8.8). Sem
 
 ## Lançar produção
 
-Em **Acompanhamento › Lançar produção** a produção é digitada no web, um serviço de cada vez ou vários de uma só vez.
+A produção é digitada no web pela página **Acompanhamento › Produção**, que fica na seção **Controles** do menu, junto de **Viagens** e **Estoque**. Clique em [[Lançar produção]], no alto da página: o lançamento abre numa janela sobre a lista, para um serviço de cada vez ou vários de uma só vez. A janela fecha no **X** ou na tecla Esc; clicar fora dela não fecha, para não perder o que já foi digitado.
 
 ![Lançamento de produção](lancar.jpg)
 
@@ -35,9 +35,9 @@ Em **Acompanhamento › Lançar produção** a produção é digitada no web, um
 4. Digite a **Quantidade**, com vírgula para as casas decimais, como 1.250,5.
 5. Escolha o **Local** e, num eixo, a **Estaca inicial** e a **Estaca final**. Os locais em que o serviço tem tarefa aparecem marcados com **no cronograma**.
 6. Se quiser, preencha a **Frente**, anexe **Fotos** (até 20) e abra **Mais detalhes** para a observação e os materiais aplicados.
-7. Clique em [[Lançar produção]].
+7. Clique em [[Lançar produção]], no pé do formulário.
 
-O lançamento aparece na lista **Lançamentos do dia**, ao lado do formulário. O formulário guarda a equipe, o encarregado, a frente e o local para o próximo lançamento.
+O lançamento aparece na lista **Lançamentos do dia**, ao lado do formulário, e na lista da página **Produção** ao fechar a janela. O formulário guarda a equipe, o encarregado, a frente e o local para o próximo lançamento.
 
 :::atencao
 Se já existe um lançamento do mesmo serviço, para a mesma equipe, no mesmo dia, o sistema avisa antes de gravar: salvar cria um registro adicional. Confira para não duplicar a produção.
@@ -68,7 +68,7 @@ O botão [[Modo campo]] abre uma versão do lançamento feita para o celular, se
 
 Para trazer a produção de controles em Excel, use a importação:
 
-1. Em **Lançar produção**, clique em [[Importar planilha]] (ou em [[Importar]], na página **Produção**).
+1. Na página **Produção**, clique em [[Importar planilha]].
 2. Clique em [[Baixar modelo (.xlsx)]] e preencha a aba **Produção**, uma linha por lançamento. As colunas estão no capítulo 10.
 3. Clique em [[Escolher arquivo]] e escolha o arquivo.
 4. Confira a **prévia**: cada linha aparece como **Criar** ou **Erro**, com as mensagens. Nada é gravado antes de você confirmar.

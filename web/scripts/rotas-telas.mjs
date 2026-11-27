@@ -33,7 +33,6 @@ export const ROTAS = [
   '/planejamento/histograma',
   '/planejamento/revisoes/00000000-0000-0000-0000-000000000000',
   '/acompanhamento',
-  '/acompanhamento/lancar',
   '/acompanhamento/calendario',
   '/acompanhamento/valor-agregado',
   '/acompanhamento/producao',

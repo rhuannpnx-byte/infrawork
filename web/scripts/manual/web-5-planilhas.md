@@ -8,7 +8,7 @@ O InfraWork importa cinco tipos de planilha. Em todos, o modelo é baixado no pr
 | Composições e insumos | Orçamento › Composições › Importar planilha | Baixar modelo (.xlsx) |
 | Recursos e preços | Orçamento › Recursos › Importar planilha | Baixar modelo (.xlsx) |
 | Quantidades por local | Planejamento › Locais › Importar quantidades… | Exportar planilha |
-| Produção diária | Acompanhamento › Lançar produção › Importar planilha | Baixar modelo (.xlsx) |
+| Produção diária | Acompanhamento › Produção › Importar planilha | Baixar modelo (.xlsx) |
 
 ## Regras comuns
 
@@ -234,7 +234,7 @@ Use **Esqueci minha senha** na tela de acesso ou peça ao administrador para red
 
 ### Importei uma planilha de produção errada.
 
-Logo depois da importação, use **Desfazer importação** na tela Lançar produção para remover o lote inteiro.
+Logo depois da importação, use **Desfazer importação** na página Produção para remover o lote inteiro.
 
 <!-- quebra -->
 

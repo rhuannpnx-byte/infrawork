@@ -25,6 +25,11 @@ interface DialogProps {
    */
   disableDismiss?: boolean
   /**
+   * Quando true, clicar fora não fecha (o X e o Esc continuam fechando). Use em modal de digitação longa, onde
+   * um clique solto faria perder o que já foi preenchido.
+   */
+  manterAoClicarFora?: boolean
+  /**
    * Quando true, renderiza acima de qualquer overlay externo (lightbox,
    * leaflet popup, etc). Use no ConfirmDialog global.
    */
@@ -52,6 +57,7 @@ export function Dialog({
   className,
   size = 'md',
   disableDismiss = false,
+  manterAoClicarFora = false,
   topmost = false,
   hideClose = false
 }: DialogProps): ReactNode {
@@ -77,7 +83,7 @@ export function Dialog({
         topmost ? 'z-[10010]' : 'z-50'
       )}
       onMouseDown={(e) => {
-        if (disableDismiss) return
+        if (disableDismiss || manterAoClicarFora) return
         if (ref.current && !ref.current.contains(e.target as Node)) onOpenChange(false)
       }}
     >
