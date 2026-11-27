@@ -50,7 +50,7 @@ InfraWork. O app de campo é o mesmo de todas as empresas: quem leva o lançamen
 | Reconhecimento | Estrutura real das tabelas e como o Monito as preenche (`docs/siga/MAPEAMENTO.md`) | feito |
 | Fundação | Capacidades, integrações, conexão e diagnóstico do SIGA | feita (migração 0070, função `siga`) |
 | A. Vínculos | Obra ↔ projeto; de-para de serviço, equipe, encarregado e local; tela e ferramenta do MCP | feita (migração 0071) |
-| B. Carga do desktop | `scripts/importar-do-desktop.mjs` traz uma obra do InfraWork desktop | feita (6.508 no local) |
+| B. Carga do desktop | `scripts/importar-do-desktop.mjs` traz uma obra do InfraWork desktop para o local; `scripts/transferir-obra.py` leva a obra conferida para produção | feita (6.508 no local) |
 | C. Leitura | Produção do SIGA copiada para o InfraWork a cada 10 minutos | feita (migração 0071) |
 | D. Usuários | Apontador entra no app com o usuário do SIGA; usuário do web ligado ao do SIGA | a fazer |
 | E. Gravação | Fila de saída que grava no SIGA o que é lançado no web e no app | a fazer |
