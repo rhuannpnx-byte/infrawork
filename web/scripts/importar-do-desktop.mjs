@@ -10,9 +10,9 @@
 //
 //   VITE_SUPABASE_URL=http://127.0.0.1:56421 VITE_SUPABASE_ANON_KEY=<anon> E2E_PASSWORD=... \
 //     npx vite-node scripts/importar-do-desktop.mjs -- --obra 6.508 --empresa <id da empresa no web> \
-//       [--local "T1 km 108 a 111=BR-452"] [--fora-do-orcamento 361] [--recriar]
+//       [--local "T1 km 108 a 111=BR-452"] [--fora-do-orcamento 361] [--orcamento-pelo-plano] [--recriar]
 //
-// Depois de conferida no local, a obra pronta vai para produção por scripts/transferir-obra.mjs.
+// Depois de conferida no local, a obra pronta vai para produção por scripts/transferir-obra.py.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -330,6 +330,34 @@ if (doc.plano) {
     if (!equipes.some((e) => e.id === te.equipe_id)) continue
     equipesDaTarefa.set(te.tarefa_id, [...(equipesDaTarefa.get(te.tarefa_id) ?? []), te])
   }
+  // --orcamento-pelo-plano: onde o plano programa mais do que o orçamento tem, a quantidade do serviço passa a
+  // ser a do plano (quantidade manual), para o plano entrar inteiro. A planilha de venda não muda.
+  if (args.includes('--orcamento-pelo-plano')) {
+    const doPlano = new Map()
+    for (const t of doc.tarefas) {
+      const item = grupoDoDesktop.get(t.item_orcamentario_id)
+      if (t.tipo_no !== 'tarefa' || !item || porId.get(t.item_orcamentario_id)?.indireto_id) continue
+      doPlano.set(item, (doPlano.get(item) ?? 0) + Number(t.quantidade_alocada ?? 0))
+    }
+    const servicos = await q('item_orcamentario', (x) =>
+      x.select('id, descricao, quantidade_referencia, unidade_referencia').eq('obra_id', obraId).eq('tipo', 'servico_grupo')
+    )
+    let ajustados = 0
+    for (const g of servicos) {
+      const noPlano = Math.round((doPlano.get(g.id) ?? 0) * 10000) / 10000
+      if (!(noPlano > Number(g.quantidade_referencia) + 0.0005)) continue
+      await q('item_orcamentario', (x) =>
+        x.update({ qtd_ref_modo: 'manual', quantidade_referencia: noPlano }).eq('id', g.id).select('id')
+      )
+      ajustados++
+      aviso(
+        `orçamento: "${g.descricao}" passou de ${Number(g.quantidade_referencia)} para ${noPlano} ${g.unidade_referencia ?? ''} (quantidade do plano)`
+      )
+    }
+    if (ajustados > 0) await rpc('recalcular_orcamento', { _obra_id: obraId })
+    console.log(`orçamento ajustado pelo plano em ${ajustados} serviço(s)`)
+  }
+
   const idsValidos = new Set()
   let semItem = 0
   let acima = 0
