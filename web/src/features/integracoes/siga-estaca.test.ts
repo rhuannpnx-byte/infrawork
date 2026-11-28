@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   faixaDaEstaca,
   marcadorParaMetros,
+  metrosParaTextoDoMarcador,
   marcadoresDoTexto,
   type EixoDoLocal
 } from '../../../supabase/functions/_shared/siga-estaca'
@@ -60,5 +61,31 @@ describe('estaca do SIGA (texto livre) → faixa no eixo', () => {
   it('uma posição só não é faixa', () => {
     expect(faixaDaEstaca({ estaca: '178+220' }, br060)).toBeNull()
     expect(faixaDaEstaca({ estaca: 'sem estaca' }, br060)).toBeNull()
+  })
+})
+
+describe('metros internos → texto do marcador (gravação no SIGA)', () => {
+  it('km: volta ao texto que o SIGA usa e é lido de novo na mesma posição', () => {
+    expect(metrosParaTextoDoMarcador(1390, br060)).toBe('165+390')
+    expect(metrosParaTextoDoMarcador(0, doZero)).toBe('0+000')
+    const texto = `${metrosParaTextoDoMarcador(1390, br060)} - ${metrosParaTextoDoMarcador(2429.4, br060)}`
+    expect(texto).toBe('165+390 - 166+429')
+    expect(marcadoresDoTexto(texto, 'km').map((m) => marcadorParaMetros(m, br060))).toEqual([
+      1390, 2429
+    ])
+  })
+  it('sentido invertido e estacas', () => {
+    const invertido: EixoDoLocal = { unidade: 'km', marcador_inicial: 68, sentido: 'invertido' }
+    expect(metrosParaTextoDoMarcador(1180, invertido)).toBe('66+820')
+    const estacas: EixoDoLocal = { unidade: 'estaca', marcador_inicial: 0, sentido: 'natural' }
+    expect(metrosParaTextoDoMarcador(250, estacas)).toBe('12+10,00')
+    expect(
+      marcadoresDoTexto('12+10,00', 'estaca').map((m) => marcadorParaMetros(m, estacas))
+    ).toEqual([250])
+  })
+  it('eixo em metros ou unidade própria não tem texto de marcador', () => {
+    expect(
+      metrosParaTextoDoMarcador(100, { unidade: 'm', marcador_inicial: 0, sentido: 'natural' })
+    ).toBeNull()
   })
 })

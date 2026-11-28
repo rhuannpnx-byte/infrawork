@@ -43,6 +43,8 @@ O aplicativo é aberto pelo navegador do celular, no endereço informado pela su
 
 Se a sua empresa lança a produção no SIGA, entre com o **usuário e a senha do SIGA**, sem "@". Não é preciso cadastro: no primeiro acesso o aplicativo já mostra as obras dos projetos liberados para você no SIGA.
 
+Nessas obras a **Produção** só fica disponível quando a empresa liga a gravação no SIGA. Enquanto não liga, o cartão mostra "A produção desta obra é lançada no SIGA"; viagens e fotos funcionam normalmente. Com a gravação ligada, a Produção oferece só as equipes, os encarregados e os locais que existem no SIGA.
+
 As mensagens mais comuns ao entrar:
 
 | Mensagem | O que fazer |

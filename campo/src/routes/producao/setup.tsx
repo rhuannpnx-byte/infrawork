@@ -17,6 +17,7 @@ import {
   encarregadoDaEquipe,
   equipesDoEncarregado,
   temEquipesVinculadas,
+  paraProducao,
 } from '@/lib/equipes'
 import type { EncarregadoDto } from '@/types/dtos'
 
@@ -54,8 +55,8 @@ export function ProducaoSetupRoute() {
   if (!authed) return <Navigate to="/login" replace />
   if (!session?.obraAtualId) return <Navigate to="/" replace />
 
-  const encarregados = catalogo?.encarregados ?? []
-  const todasEquipes = catalogo?.equipes ?? []
+  const encarregados = paraProducao(catalogo, catalogo?.encarregados ?? [])
+  const todasEquipes = paraProducao(catalogo, catalogo?.equipes ?? [])
   const exigeEncarregado = aponta && encarregados.length > 0
   const semEncarregado = exigeEncarregado && !store.encarregadoId
   const equipes = aponta ? equipesDoEncarregado(todasEquipes, store.encarregadoId) : todasEquipes

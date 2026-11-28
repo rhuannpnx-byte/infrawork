@@ -66,15 +66,21 @@ cadastrado do local.
 - Projetos do usuário: `sys_usuario_tem_projeto`. Usuário de apoio herda os do chefe
   (`sys_usuario_tem_usuario.usuario_tem_usuario_chefe_equipe_id`); sem projeto nenhum, vê todos.
 
-## Gravação (etapa seguinte)
+## Gravação
 
-Como o Monito faz, e como o conector vai fazer:
+Como o Monito faz, e como o conector faz (`_shared/siga-saida.ts`):
 
 - `INSERT ... ON DUPLICATE KEY UPDATE` pela chave `controle_producao_app_uuid`;
 - nomes e códigos juntos, copiados do cadastro; `_cadastrador_nome` com o nome do usuário do SIGA;
 - `_estaca` como `"inicial - final"` e os dois campos separados; `_prioridade` `'N'`; `_chuva` `'S'`/`'N'`;
 - exclusão é `_deletado = 'S'` com `_excluidor_nome` e `_excluidor_dh`; nada é apagado;
-- lançamento que nasceu no SIGA (sem `app_uuid`) é alterado pelo `_id`.
+- lançamento que nasceu no SIGA é alterado pelo `_id`, só nas colunas que mudaram aqui: data, quantidade,
+  observação, serviço (com a unidade), equipe, encarregado, trecho (cada um com o nome), estaca (quando a posição
+  foi mudada aqui) e quantidade de material. `_cadastrador_nome`, `_prioridade` e o texto da estaca que não
+  mudou ficam como estão;
+- diferente do Monito, a alteração também leva a data e o serviço, porque aqui eles podem ser editados;
+- tamanhos respeitados: `_equipe_nome` 30, `_encarregado_nome` 50, `_unidade_nome` 60, `_cadastrador_nome` 100,
+  quantidades com duas casas.
 
 ## Fotos: `pnj_foto`
 

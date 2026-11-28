@@ -56,3 +56,24 @@ export function faixaDaEstaca(
   const metros = marcadores.map((m) => marcadorParaMetros(m, eixo))
   return { inicio_m: Math.min(...metros), fim_m: Math.max(...metros) }
 }
+
+/**
+ * Metros internos do eixo → texto do marcador como se digita no SIGA ("45+390" no eixo em km, "12+10,00" no eixo
+ * em estacas). É o inverso de `marcadorParaMetros`; em eixo de outra unidade devolve null (fica o texto digitado).
+ */
+export function metrosParaTextoDoMarcador(metros: number, eixo: EixoDoLocal): string | null {
+  if (eixo.unidade !== 'km' && eixo.unidade !== 'estaca') return null
+  const divisor = eixo.unidade === 'km' ? 1000 : METROS_POR_ESTACA
+  // posição absoluta em metros desde o marcador zero
+  const absoluto =
+    eixo.sentido === 'invertido' ? eixo.marcador_inicial * divisor - metros : eixo.marcador_inicial * divisor + metros
+  if (!Number.isFinite(absoluto) || absoluto < 0) return null
+  if (eixo.unidade === 'km') {
+    const total = Math.round(absoluto)
+    return `${Math.floor(total / 1000)}+${String(total % 1000).padStart(3, '0')}`
+  }
+  const centesimos = Math.round(absoluto * 100)
+  const inteiro = Math.floor(centesimos / (METROS_POR_ESTACA * 100))
+  const resto = (centesimos - inteiro * METROS_POR_ESTACA * 100) / 100
+  return `${inteiro}+${resto.toFixed(2).replace('.', ',')}`
+}

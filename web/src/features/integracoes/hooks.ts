@@ -479,3 +479,87 @@ export function useVincularUsuarioSiga(): ReturnType<
     }
   })
 }
+
+// ── Gravação no SIGA: modo da obra e fila de envios ────────────────────────────────────────────────────────
+
+export type ModoGravacaoSiga = VinculoSiga['gravacao']
+
+export interface EnvioSiga {
+  id: number
+  operacao: 'gravar' | 'excluir'
+  estado: 'pendente' | 'enviado' | 'simulado' | 'erro' | 'descartado'
+  simulacao: boolean
+  tentativas: number
+  erro: string | null
+  /** O que foi (ou, em simulação, seria) gravado no SIGA. */
+  enviado: Record<string, unknown> | null
+  rotulo: string | null
+  created_at: string
+  processado_em: string | null
+}
+
+/** Os últimos envios da obra ao SIGA: o que está para ir, o que falhou e o que foi (ou seria) gravado. */
+export function useFilaSiga(
+  obraId: string | null | undefined,
+  ativo: boolean
+): ReturnType<typeof useQuery<EnvioSiga[]>> {
+  return useQuery({
+    queryKey: ['siga', 'fila', obraId],
+    enabled: !!obraId && ativo,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integracao_saida')
+        .select(
+          'id, operacao, estado, simulacao, tentativas, erro, enviado, rotulo, created_at, processado_em'
+        )
+        .eq('obra_id', obraId!)
+        .neq('estado', 'descartado')
+        .order('id', { ascending: false })
+        .limit(60)
+      if (error) throw error
+      return (data ?? []) as EnvioSiga[]
+    }
+  })
+}
+
+export type AcaoGravacaoSiga =
+  | { acao: 'modo'; obra_id: string; modo: ModoGravacaoSiga }
+  | { acao: 'enviar'; obra_id: string }
+  | { acao: 'reenviar'; obra_id: string; id?: number }
+  | { acao: 'descartar'; obra_id: string; id: number }
+
+/** Liga, simula ou desliga a gravação; pede o envio da fila; tenta de novo ou desiste de um envio que falhou. */
+export function useGravacaoSigaAcao(): ReturnType<
+  typeof useMutation<{ resumo?: ResumoEnvioSiga }, Error, AcaoGravacaoSiga>
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a) => {
+      if (a.acao === 'enviar')
+        return chamarSiga<{ resumo: ResumoEnvioSiga }>({ acao: 'enviar', obra_id: a.obra_id })
+      const { error } =
+        a.acao === 'modo'
+          ? await supabase.rpc('siga_gravacao_definir', { _obra_id: a.obra_id, _modo: a.modo })
+          : a.acao === 'reenviar'
+            ? await supabase.rpc('siga_saida_reenviar', { _obra_id: a.obra_id, _id: a.id ?? null })
+            : await supabase.rpc('siga_saida_descartar', { _obra_id: a.obra_id, _id: a.id })
+      if (error) throw new Error(error.message)
+      if (a.acao === 'reenviar')
+        return chamarSiga<{ resumo: ResumoEnvioSiga }>({ acao: 'enviar', obra_id: a.obra_id })
+      return {}
+    },
+    // a tela mostra o erro no próprio lugar
+    onError: () => undefined,
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['siga'] })
+      void qc.invalidateQueries({ queryKey: ['acompanhamento'] })
+    }
+  })
+}
+
+export interface ResumoEnvioSiga {
+  enviados: number
+  simulados: number
+  erros: number
+  falhas: Array<{ id: number; erro: string }>
+}

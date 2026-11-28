@@ -13,6 +13,7 @@ import { excluirApontamento, saveProducaoSession } from '@/features/producao/pro
 import type { ServicoDto } from '@/types/dtos'
 import { formatBR, formatNumero } from '@/lib/datas'
 import { contar } from '@/lib/texto'
+import { paraProducao } from '@/lib/equipes'
 import type { ContextoFoto } from '@/routes/fotos/capture'
 
 /**
@@ -29,7 +30,7 @@ export function ProducaoSessionRoute() {
   const store = useProducaoStore()
   const catalogo = useCatalogo(store.obraId)
   const servicos = servicosPorModo(catalogo, 'quantidade')
-  const locais = catalogo?.locais ?? []
+  const locais = paraProducao(catalogo, catalogo?.locais ?? [])
 
   const [showServicoPicker, setShowServicoPicker] = useState(false)
   const [editingServico, setEditingServico] = useState<ServicoDto | null>(null)

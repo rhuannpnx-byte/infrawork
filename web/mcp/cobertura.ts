@@ -30,6 +30,7 @@ export const LEGIVEIS: string[] = [
   'indireto_item',
   'integracao_de_para',
   'integracao_obra',
+  'integracao_saida',
   'integracao_usuario',
   'item_orc_alocacao',
   'item_orcamentario',
@@ -225,6 +226,15 @@ export const RPCS_IGNORADAS: Record<string, string> = {
   siga_usuarios_conferir:
     'rodada automática do conector: quem continua ativo no SIGA e com quais projetos',
   siga_login_liberado: 'limite de tentativas da entrada pelo SIGA: só a função siga-login',
+  siga_exige_usuario:
+    'interna: a trava da produção confere se quem lança está ligado a um usuário ativo do SIGA com o projeto da obra',
+  siga_exige_de_para:
+    'interna: a trava da produção confere o de-para do serviço, da equipe, do encarregado e do local',
+  siga_enfileirar:
+    'interna: os gatilhos da produção e do material põem o lançamento na fila de saída',
+  siga_saida_lote: 'fila de saída: só o conector (Edge Function siga) lê o lote a enviar',
+  siga_saida_concluir:
+    'fila de saída: só o conector (Edge Function siga) grava o resultado do envio',
   siga_login_registrar: 'limite de tentativas da entrada pelo SIGA: só a função siga-login',
   mcp_token_criar: 'tokens pessoais: só pela tela do web',
   mcp_token_revogar: 'tokens pessoais: só pela tela do web',

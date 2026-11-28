@@ -9,9 +9,13 @@
 //   { acao: 'projetos' }                 os projetos do SIGA, para vincular
 //   { acao: 'cadastros', projeto_id? }   serviços, equipes, encarregados e locais do projeto, para o de-para
 //   { acao: 'sincronizar' }              lê a produção do projeto vinculado e aplica na obra
-// Do serviço (pg_cron): { acao: 'sincronizar' } sem obra percorre todas as obras vinculadas e confere, no SIGA,
-// quem dos usuários ligados continua ativo e com quais projetos.
-// A empresa precisa ter a capacidade `integracao_siga`. Esta função só LÊ o SIGA: a gravação é outra etapa.
+// De quem lança na obra (informa obra_id):
+//   { acao: 'enviar' }                   grava no SIGA o que está na fila de saída da obra (ou simula)
+// Do serviço: { acao: 'sincronizar' } sem obra (pg_cron) envia a fila, percorre todas as obras vinculadas e
+// confere, no SIGA, quem dos usuários ligados continua ativo e com quais projetos; { acao: 'enviar' } (aviso da
+// fila) só envia.
+// A empresa precisa ter a capacidade `integracao_siga`. A gravação no SIGA só acontece em obra com a gravação
+// ligada, e só inclui ou altera linhas de pnj_controle_producao (nunca apaga, nunca toca em cadastro).
 // A entrada do apontador com o usuário do SIGA é a função siga-login.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
@@ -35,6 +39,7 @@ import {
   type ConexaoSiga
 } from '../_shared/siga.ts'
 import { listarUsuarios, projetosDoUsuario, situacaoDosUsuarios, usuarioPorId } from '../_shared/siga-usuario.ts'
+import { enviarFila, type ResumoEnvio } from '../_shared/siga-saida.ts'
 
 const TIPO = 'siga'
 // tabelas de cadastro que interessam para gravar a produção (além das que as tabelas do Monito referenciam)
@@ -237,6 +242,8 @@ async function sincronizarTodas(admin: SupabaseClient): Promise<Record<string, u
     } catch (e) {
       falhaConexao = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
     }
+    // primeiro o que está para ir; depois a leitura já traz de volta o que foi gravado
+    if (con) await enviarFila(admin, con, { integracao_id: lista[0].integracao_id }).catch(() => undefined)
     for (const v of lista) {
       const iniciado = new Date().toISOString()
       try {
@@ -270,6 +277,61 @@ async function sincronizarTodas(admin: SupabaseClient): Promise<Record<string, u
   return { ok: true, obras }
 }
 
+/** O aviso da fila: envia o que está pendente em todas as integrações, uma conexão por empresa. */
+async function enviarTodas(admin: SupabaseClient): Promise<Record<string, unknown>> {
+  const { data: pendentes, error } = await admin
+    .from('integracao_saida')
+    .select('integracao_id')
+    .in('estado', ['pendente', 'erro'])
+    .lt('tentativas', 5)
+    .limit(2000)
+  if (error) throw new Error(error.message)
+  const integracoes = [...new Set((pendentes ?? []).map((p) => p.integracao_id as string))]
+  const envios: Array<Record<string, unknown>> = []
+  for (const id of integracoes) {
+    const { data: i } = await admin.from('integracao').select('empresa_id, ativa, tipo').eq('id', id).maybeSingle()
+    if (!i || !i.ativa || i.tipo !== TIPO) continue
+    let con: ConexaoSiga | null = null
+    try {
+      const cred = await credencialDaEmpresa(admin, i.empresa_id)
+      if (!cred) throw new Error('SIGA não conectado')
+      con = await abrirSiga(segredoParaCredencial(cred.segredo))
+      envios.push({ integracao_id: id, ok: true, ...(await enviarFila(admin, con, { integracao_id: id })) })
+    } catch (e) {
+      const erro = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
+      envios.push({ integracao_id: id, ok: false, erro })
+    } finally {
+      await con?.end().catch(() => undefined)
+    }
+  }
+  return { ok: true, envios }
+}
+
+/** Registra no histórico da integração o envio pedido à mão que gravou, simulou ou falhou. */
+async function registrarEnvio(
+  admin: SupabaseClient,
+  v: { obra_id: string; integracao_id: string; empresa_id: string },
+  por: string | null,
+  iniciado: string,
+  resumo: ResumoEnvio | null,
+  erro: string | null
+): Promise<void> {
+  if (!erro && resumo && resumo.enviados + resumo.simulados + resumo.erros === 0) return
+  await admin.from('integracao_execucao').insert({
+    integracao_id: v.integracao_id,
+    empresa_id: v.empresa_id,
+    obra_id: v.obra_id,
+    acao: 'envio',
+    origem: 'manual',
+    iniciado_em: iniciado,
+    terminado_em: new Date().toISOString(),
+    ok: erro == null && (resumo?.erros ?? 0) === 0,
+    resumo,
+    erro,
+    iniciado_por: por
+  })
+}
+
 const ACOES_DA_OBRA = ['projetos', 'cadastros', 'sincronizar']
 
 Deno.serve(async (req) => {
@@ -292,11 +354,12 @@ Deno.serve(async (req) => {
     } catch { /* jwt de usuário */ }
   }
   if (servico) {
-    if (acao !== 'sincronizar') return json({ error: 'Ação não permitida' }, 400)
+    if (acao !== 'sincronizar' && acao !== 'enviar') return json({ error: 'Ação não permitida' }, 400)
     const adminServico = createClient(Deno.env.get('SUPABASE_URL')!, SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
     try {
+      if (acao === 'enviar') return json(await enviarTodas(adminServico))
       return json(await sincronizarTodas(adminServico))
     } catch (e) {
       return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500)
@@ -306,6 +369,42 @@ Deno.serve(async (req) => {
   const ctx = await resolveCaller(req)
   if (ctx instanceof Response) return ctx
   const { caller, admin } = ctx
+
+  // ── enviar: quem lança na obra pede o envio do que está na fila dela ──
+  if (acao === 'enviar') {
+    const obraId = String(body.obra_id ?? '')
+    if (!obraId) return json({ ok: false, error: 'Informe a obra' }, 400)
+    const { data: pode, error: podeErr } = await ctx.authed.rpc('pode_lancar_producao', { _obra_id: obraId })
+    if (podeErr) return json({ ok: false, error: podeErr.message }, 500)
+    if (pode !== true) return json({ ok: false, error: 'Sem permissão para lançar nesta obra' }, 403)
+    const { data: vinc } = await admin
+      .from('integracao_obra')
+      .select('obra_id, integracao_id, gravacao, integracao:integracao_id ( empresa_id )')
+      .eq('obra_id', obraId)
+      .maybeSingle()
+    if (!vinc) return json({ ok: false, error: 'Esta obra não está ligada a um projeto do SIGA.' }, 400)
+    if (vinc.gravacao === 'desligada')
+      return json({ ok: true, resumo: { enviados: 0, simulados: 0, erros: 0, falhas: [] } })
+    const empresaDaObra = (vinc as unknown as { integracao: { empresa_id: string } }).integracao.empresa_id
+    const alvo = { obra_id: obraId, integracao_id: vinc.integracao_id as string, empresa_id: empresaDaObra }
+    const iniciado = new Date().toISOString()
+    let con: ConexaoSiga | null = null
+    try {
+      const cred = await credencialDaEmpresa(admin, empresaDaObra)
+      if (!cred)
+        return json({ ok: false, error: 'O SIGA ainda não foi conectado: conecte em Gerencial › Integrações.' }, 400)
+      con = await abrirSiga(segredoParaCredencial(cred.segredo))
+      const resumo = await enviarFila(admin, con, { obra_id: obraId })
+      await registrarEnvio(admin, alvo, caller.id, iniciado, resumo, null)
+      return json({ ok: true, resumo })
+    } catch (e) {
+      const erro = (e as { code?: string })?.code ? motivoDoErroSiga(e) : e instanceof Error ? e.message : String(e)
+      await registrarEnvio(admin, alvo, caller.id, iniciado, null, erro)
+      return json({ ok: false, error: erro }, 502)
+    } finally {
+      await con?.end().catch(() => undefined)
+    }
+  }
 
   // ── ações da obra: quem planeja a obra ──
   if (ACOES_DA_OBRA.includes(acao)) {

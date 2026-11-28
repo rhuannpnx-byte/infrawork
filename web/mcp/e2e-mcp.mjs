@@ -794,6 +794,20 @@ try {
     semVinculo.vinculada === false && vincular.erro && /SIGA/.test(vincular.texto),
     `${JSON.stringify(semVinculo)} / ${vincular.texto.slice(0, 100)}`
   )
+  const gravacaoSem = await tentar('integracoes', {
+    acao: 'gravacao',
+    obra_id: O,
+    modo: 'simulacao'
+  })
+  const filaSem = await chamar('integracoes', { acao: 'fila', obra_id: O })
+  check(
+    'integracoes: obra sem vínculo não tem gravação a ligar e a fila vem vazia',
+    gravacaoSem.erro &&
+      /SIGA/.test(gravacaoSem.texto) &&
+      Array.isArray(filaSem) &&
+      filaSem.length === 0,
+    `${gravacaoSem.texto.slice(0, 80)} / ${JSON.stringify(filaSem).slice(0, 40)}`
+  )
   const usuariosSiga = await tentar('integracoes', { acao: 'usuarios', obra_id: O })
   check(
     'integracoes: usuários do SIGA em empresa sem a integração é recusado com o motivo',

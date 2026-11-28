@@ -14,6 +14,7 @@ import { Secao } from '@/components/ui/secao'
 import { Segmentado } from '@/components/ui/segmentado'
 import { Select } from '@/components/ui/select'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
+import { GravacaoSiga } from '@/features/integracoes/GravacaoSiga'
 import { useCurrentScope } from '@/hooks/useCurrentScope'
 import { parseNumero } from '@/lib/format/number'
 import { numeroParaCampo } from '@/lib/mascara/numero'
@@ -102,6 +103,7 @@ function Inner(): ReactNode {
         ) : (
           <>
             <Projeto obraId={obraId} vinculo={vinculo.data ?? null} />
+            {vinculo.data ? <GravacaoSiga obraId={obraId} vinculo={vinculo.data} /> : null}
             {vinculo.data ? <DePara obraId={obraId} /> : null}
           </>
         )}
@@ -211,8 +213,7 @@ function Projeto({ obraId, vinculo }: { obraId: string; vinculo: VinculoSiga | n
             <p className="mt-0.5 max-w-[75ch] text-sm text-text-muted">
               {vinculo.data_corte
                 ? `Traz os lançamentos a partir de ${dia(vinculo.data_corte)}.`
-                : 'Traz todos os lançamentos do projeto.'}{' '}
-              A produção desta obra é lançada no SIGA; aqui ela é só consultada.
+                : 'Traz todos os lançamentos do projeto.'}
             </p>
             <p
               className={cn(

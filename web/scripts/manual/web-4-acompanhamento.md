@@ -325,7 +325,7 @@ O usuário com papel Cliente acompanha a obra sem lançar nada e sem ver valores
 
 Esta página só aparece para empresa que tem a integração com o SIGA habilitada (Gerencial › Integrações). Nela você diz de qual projeto do SIGA vem a produção da obra e a que cadastro do InfraWork corresponde cada cadastro de lá.
 
-Com a obra vinculada, a produção é lançada no SIGA e o InfraWork a lê sozinho a cada 10 minutos. Na página **Produção** aparece o selo **Fonte: SIGA**, os botões de lançar e importar ficam desligados, e os lançamentos que vieram de lá não são alterados nem excluídos aqui.
+Com a obra vinculada, a produção é lançada no SIGA e o InfraWork a lê sozinho a cada 10 minutos. Na página **Produção** aparece o selo **Fonte: SIGA**. Enquanto a gravação no SIGA estiver desligada, os botões de lançar e importar ficam desligados e os lançamentos que vieram de lá não são alterados nem excluídos aqui.
 
 ### Ligar a obra a um projeto
 
@@ -352,4 +352,40 @@ Um serviço do SIGA que não faz parte do orçamento pode ser marcado como **For
 
 :::atencao
 Produção de serviço sem vínculo entra com o nome que veio do SIGA e não conta no previsto e realizado. Vincule os serviços antes de analisar o avanço.
+:::
+
+### Gravação no SIGA
+
+A seção **Gravação no SIGA** diz se a obra recebe lançamento pelo InfraWork. Só o administrador da empresa muda o modo.
+
+| Modo | O que acontece |
+|---|---|
+| Desligada | A produção é lançada no SIGA. O web e o aplicativo de campo só consultam |
+| Simulação | O web e o aplicativo aceitam lançamento, mas nada vai para o SIGA: a lista mostra a linha que seria gravada. Serve para conferir antes de ligar |
+| Ligada | O que é lançado, alterado ou excluído aqui é gravado no SIGA, com o nome do usuário de lá |
+
+Para lançar em obra com a gravação ligada ou em simulação:
+
+- o seu usuário precisa estar ligado ao usuário do SIGA (veja **Usuário no SIGA**, em Gerencial › Usuários);
+- o serviço, a equipe, o encarregado e o local do lançamento precisam estar vinculados na seção **Cadastros**.
+
+Se faltar algum desses, o lançamento é recusado na hora, com o que falta.
+
+A lista da seção mostra cada envio:
+
+| Situação | Significado |
+|---|---|
+| A enviar | Está na fila. Vai sozinho em instantes; [[Enviar agora]] adianta |
+| Gravado no SIGA | Foi. **ver a linha inteira** mostra o que foi gravado; no lançamento que nasceu no SIGA, só o que mudou, com o antes e o depois |
+| Simulado | Em simulação: é o que seria gravado |
+| Não foi | Falhou, com o motivo. O sistema tenta de novo sozinho; depois de 5 tentativas, use a seta para tentar de novo |
+
+A lixeira de um envio que falhou **desiste do envio**: o lançamento que nunca chegou ao SIGA é excluído do InfraWork, e o que já existe lá volta a ser o que está lá.
+
+:::nota
+Nada é apagado no SIGA. Excluir um lançamento aqui marca o lançamento como excluído lá, com o nome de quem excluiu.
+:::
+
+:::atencao
+Em simulação o lançamento fica só no InfraWork e conta na produção da obra. Exclua os lançamentos de teste depois de conferir.
 :::

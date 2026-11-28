@@ -57,9 +57,9 @@ function ProducaoInner(): ReactNode {
   const consulta = useProducao(obraId, filtros)
   const { data: rows = [], isLoading } = consulta
   const [selecionada, setSelecionada] = useState<ProducaoEnriquecida | null>(null)
-  // obra cuja produção vem do SIGA: aqui ela é consultada; o lançamento só abre com a gravação ligada
+  // obra cuja produção vem do SIGA: aqui ela é consultada; o lançamento abre com a gravação ligada ou em simulação
   const { data: vinculoSiga } = useVinculoSiga(obraId)
-  const lancaAqui = !vinculoSiga || vinculoSiga.gravacao === 'ligada'
+  const lancaAqui = !vinculoSiga || vinculoSiga.gravacao !== 'desligada'
   const motivoSemLancar = 'A produção desta obra é lançada no SIGA'
 
   // O lançamento é um modal desta página. `vez` troca a chave a cada abertura, para ele nascer limpo (ou já no
@@ -429,6 +429,11 @@ function ProducaoInner(): ReactNode {
                   data-testid="producao-fonte-siga"
                 >
                   Fonte: SIGA
+                  {vinculoSiga.gravacao === 'ligada'
+                    ? ' · gravação ligada'
+                    : vinculoSiga.gravacao === 'simulacao'
+                      ? ' · em simulação'
+                      : ''}
                 </Badge>
               ) : null}
               <Button

@@ -12,6 +12,7 @@ import { formatNumber, formatDateTimeShort } from '@/lib/format'
 import { contar } from '@/lib/rotulos'
 import { useAuthStore } from '@/stores/auth-store'
 import { useConfirm } from '@/components/modals/ConfirmDialog'
+import { useVinculoSiga } from '@/features/integracoes/hooks'
 import type { ProducaoEnriquecida, ProducaoOrigem } from '@/types/acompanhamento'
 import { useFotosDaProducao, useSignedUrls } from '../../hooks/fotos'
 import { useDeleteLancamento, useMateriaisLancamento } from '../../hooks/lancamento'
@@ -68,6 +69,7 @@ function Panel({
   const role = useAuthStore((s) => s.profile?.role ?? null)
   const uid = useAuthStore((s) => s.profile?.id ?? null)
   const del = useDeleteLancamento()
+  const { data: vinculoSiga } = useVinculoSiga(open ? p.obra_id : null)
   const { data: materiais = [] } = useMateriaisLancamento(open ? p.id : null)
   const consultaFotos = useFotosDaProducao(open && tab === 'fotos' ? p.obra_id : null, p.id)
   const { data: fotos = [] } = consultaFotos
@@ -77,8 +79,8 @@ function Panel({
   // a produção das viagens é a soma das viagens do dia: muda pelas viagens (Acompanhamento › Viagens)
   const podeEditar =
     p.origem !== 'viagens' &&
-    // o lançamento do SIGA é alterado e excluído lá
-    p.origem !== 'siga' &&
+    // o lançamento que veio do SIGA só muda aqui com a gravação ligada (a alteração vai para lá)
+    (p.origem !== 'siga' || vinculoSiga?.gravacao === 'ligada') &&
     (role === 'god' ||
       role === 'adm' ||
       role === 'engenheiro' ||

@@ -12,6 +12,22 @@ export function equipesDoEncarregado(
   return dele.length ? dele : equipes.filter((e) => !e.encarregado_id)
 }
 
+/**
+ * O que serve ao lançamento de PRODUÇÃO. Em obra cuja produção mora em outro sistema (o SIGA), só o que tem
+ * correspondente lá: o resto seria recusado ao enviar. As fichas de viagens usam a lista inteira.
+ */
+export function paraProducao<T extends { externa?: boolean }>(
+  catalogo: CatalogoDto | null | undefined,
+  itens: T[],
+): T[] {
+  return catalogo?.obra?.producao_externa ? itens.filter((i) => i.externa) : itens
+}
+
+/** A produção desta obra é lançada no outro sistema, não no app? */
+export function producaoLancadaFora(catalogo: CatalogoDto | null | undefined): boolean {
+  return !!catalogo?.obra?.producao_externa && catalogo.obra.gravacao_externa === 'desligada'
+}
+
 /** O encarregado tem equipes vinculadas a ele? */
 export function temEquipesVinculadas(equipes: EquipeDto[], encarregadoId: string | null): boolean {
   return !!encarregadoId && equipes.some((e) => e.encarregado_id === encarregadoId)

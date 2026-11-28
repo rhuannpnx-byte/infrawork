@@ -13,6 +13,10 @@ export interface ObraDto {
   status?: string | null
   /** o lançamento pede o encarregado (false = pede só a equipe); ausente no catálogo antigo = pede */
   aponta_encarregado?: boolean
+  /** a produção da obra mora em outro sistema da empresa (o SIGA); ausente = mora no InfraWork */
+  producao_externa?: 'siga' | null
+  /** nessa obra: desligada = a produção é lançada lá; simulacao e ligada = o app lança */
+  gravacao_externa?: 'desligada' | 'simulacao' | 'ligada' | null
 }
 
 export interface MaterialServicoDto {
@@ -40,6 +44,8 @@ export interface ServicoDto {
 export interface NomeDto {
   id: string
   nome: string
+  /** em obra de produção externa: tem correspondente no outro sistema (só esses servem à produção) */
+  externa?: boolean
 }
 
 export interface EncarregadoDto extends NomeDto {
@@ -55,6 +61,8 @@ export interface EquipeDto extends NomeDto {
 export interface LocalDto {
   id: string
   nome: string
+  /** em obra de produção externa: tem correspondente no outro sistema (só esses servem à produção) */
+  externa?: boolean
   tipo: 'eixo' | 'area'
   ordem: number
   comprimento_m: number | null

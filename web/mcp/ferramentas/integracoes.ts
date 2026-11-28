@@ -68,6 +68,12 @@ export const integracoes = ferramenta({
     'Para gravar no SIGA o lançamento leva o nome do usuário de lá: o apontador entra no app de campo com o ' +
     'usuário e a senha do SIGA (a conta nasce sozinha, e as obras são as dos projetos liberados para ele lá); ' +
     'engenheiro e apoio seguem com a conta do InfraWork, ligada ao usuário do SIGA por vincular_usuario. ' +
+    'Gravação: gravacao (modo: desligada | simulacao | ligada; só god e adm) define se a obra recebe lançamento ' +
+    'pelo InfraWork. Desligada: só leitura. Simulação: aceita o lançamento e guarda o que gravaria, sem gravar. ' +
+    'Ligada: o que é lançado, alterado ou excluído na obra (pelas ferramentas de produção) vai para o SIGA por uma ' +
+    'fila; nada é apagado lá (exclusão é marca). fila (o que foi, o que falta e o que falhou, com o motivo) | ' +
+    'enviar (processa a fila agora) | reenviar (id?: tenta de novo o que falhou) | descartar (id: desiste de um ' +
+    'envio; o lançamento que nunca chegou ao SIGA é excluído daqui). ' +
     'Um serviço do SIGA cai num agrupador do orçamento que tenha composição; sem vínculo, a produção entra com ' +
     'o nome do SIGA e fica como pendência (não conta no previsto e realizado).',
   entrada: {
@@ -81,7 +87,12 @@ export const integracoes = ferramenta({
       'salvar_de_para',
       'sincronizar',
       'usuarios',
-      'vincular_usuario'
+      'vincular_usuario',
+      'gravacao',
+      'fila',
+      'enviar',
+      'reenviar',
+      'descartar'
     ]),
     obra_id: OBRA,
     projeto_id: z.number().int().optional().describe('vincular: id do projeto no SIGA'),
@@ -92,6 +103,11 @@ export const integracoes = ferramenta({
       .describe('vincular: AAAA-MM-DD; lançamentos anteriores não são trazidos'),
     linhas: z.array(DE_PARA).optional().describe('salvar_de_para'),
     user_id: z.string().uuid().optional().describe('vincular_usuario: id do usuário do InfraWork'),
+    modo: z
+      .enum(['desligada', 'simulacao', 'ligada'])
+      .optional()
+      .describe('gravacao: o modo da obra'),
+    id: z.number().int().optional().describe('reenviar e descartar: id do envio (vem de "fila")'),
     externo_id: z
       .number()
       .int()
@@ -104,8 +120,15 @@ export const integracoes = ferramenta({
   },
   destrutiva: true,
   cobre: {
-    tabelas: ['integracao_obra', 'integracao_de_para', 'integracao_usuario'],
-    rpcs: ['siga_vincular_obra', 'siga_desvincular_obra', 'siga_de_para_salvar'],
+    tabelas: ['integracao_obra', 'integracao_de_para', 'integracao_usuario', 'integracao_saida'],
+    rpcs: [
+      'siga_vincular_obra',
+      'siga_desvincular_obra',
+      'siga_de_para_salvar',
+      'siga_gravacao_definir',
+      'siga_saida_reenviar',
+      'siga_saida_descartar'
+    ],
     funcoes: ['siga']
   },
   async executar(a) {
@@ -178,6 +201,42 @@ export const integracoes = ferramenta({
         })
       case 'sincronizar':
         return fn('siga', { acao: 'sincronizar', obra_id: a.obra_id })
+      case 'gravacao': {
+        const modo = exigir(a.modo, 'modo', a.acao)
+        if (modo === 'ligada') {
+          const pedido = pedirConfirmacao(a.confirmar, 'ligar a gravação desta obra no SIGA', {
+            efeito:
+              'o que for lançado, alterado ou excluído nesta obra passa a ser gravado no SIGA de produção'
+          })
+          if (pedido) return pedido
+        }
+        await rpc('siga_gravacao_definir', { _obra_id: a.obra_id, _modo: modo })
+        return { gravacao: modo }
+      }
+      case 'fila':
+        return ler('integracao_saida', {
+          colunas:
+            'id, operacao, estado, simulacao, tentativas, erro, enviado, rotulo, created_at, processado_em',
+          filtros: obra,
+          ordem: [{ coluna: 'id', asc: false }],
+          limite: 100
+        })
+      case 'enviar':
+        return fn('siga', { acao: 'enviar', obra_id: a.obra_id })
+      case 'reenviar': {
+        const n = await rpc('siga_saida_reenviar', { _obra_id: a.obra_id, _id: a.id ?? null })
+        return { recolocados: n, envio: await fn('siga', { acao: 'enviar', obra_id: a.obra_id }) }
+      }
+      case 'descartar': {
+        const id = exigir(a.id, 'id', a.acao)
+        const pedido = pedirConfirmacao(a.confirmar, 'desistir deste envio ao SIGA', {
+          efeito:
+            'o lançamento que nunca chegou ao SIGA é excluído do InfraWork; o que já existe lá volta a ser o que está lá'
+        })
+        if (pedido) return pedido
+        await rpc('siga_saida_descartar', { _obra_id: a.obra_id, _id: id })
+        return { descartado: id }
+      }
       case 'usuarios':
         return fn('siga', { acao: 'usuarios', empresa_id: await empresaDaObra(a.obra_id) })
       case 'vincular_usuario': {

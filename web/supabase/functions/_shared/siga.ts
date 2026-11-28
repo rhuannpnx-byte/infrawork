@@ -79,6 +79,17 @@ export async function consultar<T = Record<string, unknown>>(
   return linhas as T[]
 }
 
+/** Gravação (insert ou update): devolve quantas linhas mudaram e o id gerado. */
+export async function executar(
+  con: ConexaoSiga,
+  sql: string,
+  params: unknown[] = []
+): Promise<{ afetadas: number; id: number }> {
+  const [r] = await con.query(sql, params)
+  const cab = r as { affectedRows?: number; insertId?: number }
+  return { afetadas: Number(cab.affectedRows ?? 0), id: Number(cab.insertId ?? 0) }
+}
+
 /** Mensagem para a tela a partir do erro do MySQL (sem despejar o erro cru, que traz usuário e endereço). */
 export function motivoDoErroSiga(e: unknown): string {
   const err = e as { code?: string; errno?: number; message?: string }

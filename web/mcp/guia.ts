@@ -87,6 +87,10 @@ locais de transporte sem estaca de acesso). Comece por ela antes de sugerir pró
   Quem lança em obra do SIGA precisa ser usuário de lá (o lançamento guarda o nome): o apontador entra no app de
   campo com o usuário e a senha do SIGA e recebe as obras dos projetos liberados para ele lá; engenheiro e apoio
   usam a conta do InfraWork ligada ao usuário do SIGA (integracoes.usuarios e integracoes.vincular_usuario).
+  A obra ligada ao SIGA tem um modo de gravação (integracoes.gravacao): desligada (só leitura), simulacao (aceita o
+  lançamento e mostra o que gravaria) ou ligada (lançar, alterar e excluir aqui grava no SIGA, por uma fila:
+  integracoes.fila). Com a gravação ligada ou em simulação, o lançamento exige de-para do serviço, da equipe, do
+  encarregado e do local, e quem lança precisa estar ligado a um usuário ativo do SIGA; a recusa diz o que falta.
 - **Estacas**: as posições são metros internos do eixo; o rótulo (km, estaca, custom) depende da unidade do trecho.
 
 ## Como usar as ferramentas

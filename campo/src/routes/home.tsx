@@ -14,6 +14,7 @@ import { cn } from '@/lib/cn'
 import { ModuleCard } from '@/features/common/ModuleCard'
 import { SeletorTema } from '@/features/common/SeletorTema'
 import { contar, plural } from '@/lib/texto'
+import { producaoLancadaFora } from '@/lib/equipes'
 import { podeVerPainel } from '@/features/painel/papel'
 
 /**
@@ -179,11 +180,15 @@ export function HomeRoute() {
           <ModuleCard
             icon={<HardHat className="h-5 w-5" strokeWidth={1.8} />}
             title="Produção"
-            subtitle="Serviços executados no dia"
+            subtitle={
+              pronto && producaoLancadaFora(catalogo)
+                ? 'A produção desta obra é lançada no SIGA'
+                : 'Serviços executados no dia'
+            }
             badge={outbox?.producao ?? 0}
             recusados={outbox?.recusadosProducao ?? 0}
-            enabled={pronto}
-            motivo={motivo}
+            enabled={pronto && !producaoLancadaFora(catalogo)}
+            motivo={pronto ? 'A produção desta obra é lançada no SIGA' : motivo}
             onClick={() => navigate('/producao')}
           />
           <ModuleCard

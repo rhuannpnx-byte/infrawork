@@ -1127,6 +1127,41 @@ await sbAp.auth.signOut()
       liga.status === 200 && vincLido.data?.[0]?.externo_nome === alvoSiga?.nome && vincLido.data?.[0]?.origem === 'vinculo' &&
         ligaOutro.status === 400 && ligaB.status >= 400 && (vincUsuB.data ?? []).length === 0,
       `${liga.status} ${liga.j?.error ?? ''} / ${JSON.stringify(vincLido.data ?? vincLido.error?.message)} / ${ligaOutro.status} / ${ligaB.status} / ${vincUsuB.data?.length}`)
+    // 0073: gravação no SIGA (o engenheiro está ligado a um usuário de lá; o adm, não)
+    const modoEng = await u.eng.c.rpc('siga_gravacao_definir', { _obra_id: obraId, _modo: 'ligada' })
+    const loteUsu = await u.admA.c.rpc('siga_saida_lote', {})
+    const concluirUsu = await u.admA.c.rpc('siga_saida_concluir', { _id: 1, _estado: 'enviado' })
+    const filaDireta = await u.admA.c.from('integracao_saida').insert({ obra_id: obraId, integracao_id: empresa.id, registro_id: obraId, operacao: 'gravar' })
+    check('siga: só o adm muda a gravação; a fila só é escrita pelos gatilhos e lida pelo conector',
+      !!modoEng.error && !!loteUsu.error && !!concluirUsu.error && !!filaDireta.error,
+      `${modoEng.error?.code ?? 'mudou'} / ${loteUsu.error?.code ?? 'leu'} / ${concluirUsu.error?.code ?? 'concluiu'} / ${filaDireta.error?.code ?? 'inseriu'}`)
+    const modoSim = await u.admA.c.rpc('siga_gravacao_definir', { _obra_id: obraId, _modo: 'simulacao' })
+    const lancaSim = await u.eng.c.rpc('producao_salvar', { _registros: [{ obra_id: obraId, data: '2026-10-02', item_orcamentario_id: grupoComp.id, quantidade: 10, obs: 'e2e gravação' }] })
+    const envSim = await fnComo(u.eng.token, 'siga', { acao: 'enviar', obra_id: obraId })
+    const filaSim = await u.eng.c.from('integracao_saida').select('estado, enviado').eq('obra_id', obraId)
+    check('siga: em simulação o lançamento entra, a fila guarda a linha (na unidade do SIGA) e nada é gravado',
+      !modoSim.error && !lancaSim.error && envSim.j?.resumo?.simulados === 1 && filaSim.data?.[0]?.estado === 'simulado' &&
+        Number(filaSim.data[0].enviado?.servico_executado_qtd) === 20,
+      `${modoSim.error?.message ?? ''} ${lancaSim.error?.message ?? ''} ${JSON.stringify(envSim.j).slice(0, 110)} ${JSON.stringify(filaSim.data?.[0] ?? filaSim.error?.message).slice(0, 110)}`)
+    await u.admA.c.rpc('siga_gravacao_definir', { _obra_id: obraId, _modo: 'ligada' })
+    const semLigacao = await u.admA.c.rpc('producao_salvar', { _registros: [{ obra_id: obraId, data: '2026-10-03', item_orcamentario_id: grupoComp.id, quantidade: 1 }] })
+    const lancaLig = await u.eng.c.rpc('producao_salvar', { _registros: [{ obra_id: obraId, data: '2026-10-03', item_orcamentario_id: grupoComp.id, quantidade: 7, obs: 'e2e gravação' }] })
+    const envLig = await fnComo(u.eng.token, 'siga', { acao: 'enviar', obra_id: obraId })
+    const gravado = lancaLig.data?.ids?.[0]
+      ? await q('acompanhamento_producao', (t) => t.select('id, externo_id').eq('id', lancaLig.data.ids[0]))
+      : []
+    check('siga: com a gravação ligada, quem não está ligado ao SIGA é recusado e o lançamento de quem está vai para lá',
+      !!semLigacao.error && /usuário do SIGA/.test(semLigacao.error.message) && envLig.j?.resumo?.enviados === 1 && Number(gravado[0]?.externo_id) > 0,
+      `${semLigacao.error?.message?.slice(0, 60) ?? 'lançou'} / ${lancaLig.error?.message ?? ''} ${JSON.stringify(envLig.j).slice(0, 120)} / ${JSON.stringify(gravado)}`)
+    const apagaLig = gravado[0] ? await u.eng.c.from('acompanhamento_producao').delete().eq('id', gravado[0].id).select('id') : { error: { message: 'sem lançamento' } }
+    const envDel = await fnComo(u.eng.token, 'siga', { acao: 'enviar', obra_id: obraId })
+    const filaDel = await u.eng.c.from('integracao_saida').select('operacao, estado').eq('obra_id', obraId).eq('operacao', 'excluir')
+    const filaB = await u.admB.c.from('integracao_saida').select('id')
+    check('siga: excluir aqui vira marca de exclusão no SIGA; outra empresa não vê a fila',
+      !apagaLig.error && envDel.j?.resumo?.enviados === 1 && filaDel.data?.[0]?.estado === 'enviado' && (filaB.data ?? []).length === 0,
+      `${apagaLig.error?.message ?? ''} ${JSON.stringify(envDel.j).slice(0, 110)} ${JSON.stringify(filaDel.data)} B=${filaB.data?.length}`)
+    if (lancaSim.data?.ids?.[0]) await u.eng.c.from('acompanhamento_producao').delete().eq('id', lancaSim.data.ids[0])
+    await u.admA.c.rpc('siga_gravacao_definir', { _obra_id: obraId, _modo: 'desligada' })
     const desfazUsu = await fnComo(u.admA.token, 'siga', { acao: 'vincular_usuario', user_id: eng.id, externo_id: null })
     const semVincUsu = await u.eng.c.from('integracao_usuario').select('user_id')
     check('siga: desfazer o vínculo do usuário', desfazUsu.status === 200 && (semVincUsu.data ?? []).length === 0, `${desfazUsu.status} ${desfazUsu.j?.error ?? ''}`)
